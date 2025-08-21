@@ -1,16 +1,23 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
     <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
         <meta
             name="description"
             content="{% block description %}SlateHub - A collaborative hub for the TV, film, and content industries{% endblock %}"
         />
         <title>{% block title %}{{ app_name }}{% endblock %}</title>
 
-        <!-- Semantic CSS -->
-        <link rel="stylesheet" href="/static/css/slatehub.css" />
+        <!-- Pico CSS -->
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+        />
+
+        <!-- SlateHub Custom Overrides -->
+        <link rel="stylesheet" href="/static/css/slatehub-pico.css" />
 
         <!-- Datastar JS -->
         <script
@@ -18,149 +25,170 @@
             src="https://cdn.jsdelivr.net/gh/starfederation/datastar@main/bundles/datastar.js"
         ></script>
 
-        <!-- Theme Toggle Script -->
+        <!-- Theme Initialization Script -->
         <script>
-            // Check for saved theme preference or default to light
-            const savedTheme = localStorage.getItem("theme") || "light";
+            // Check for saved theme preference or default to dark
+            const savedTheme = localStorage.getItem("theme") || "dark";
             document.documentElement.setAttribute("data-theme", savedTheme);
         </script>
 
         {% block head %}{% endblock %}
     </head>
     <body>
-        <header id="site-header">
-            <nav class="main-navigation">
-                <div class="nav-brand">
-                    <a href="/" class="brand-link">{{ app_name }}</a>
-                </div>
-
-                <ul class="nav-menu">
-                    <li class="nav-item">
+        <header>
+            <nav class="container">
+                <ul>
+                    <li>
+                        <a href="/" class="contrast"
+                            ><strong>{{ app_name }}</strong></a
+                        >
+                    </li>
+                </ul>
+                <ul>
+                    <li>
                         <a
                             href="/"
-                            class="nav-link {% if active_page == 'home' %}active{% endif %}"
+                            class="{% if active_page == 'home' %}contrast{% endif %}"
                             >Home</a
                         >
                     </li>
-                    <li class="nav-item">
+                    <li>
                         <a
                             href="/projects"
-                            class="nav-link {% if active_page == 'projects' %}active{% endif %}"
+                            class="{% if active_page == 'projects' %}contrast{% endif %}"
                             >Projects</a
                         >
                     </li>
-                    <li class="nav-item">
+                    <li>
                         <a
                             href="/people"
-                            class="nav-link {% if active_page == 'people' %}active{% endif %}"
+                            class="{% if active_page == 'people' %}contrast{% endif %}"
                             >People</a
                         >
                     </li>
-                    <li class="nav-item">
+                    <li>
                         <a
                             href="/about"
-                            class="nav-link {% if active_page == 'about' %}active{% endif %}"
+                            class="{% if active_page == 'about' %}contrast{% endif %}"
                             >About</a
                         >
                     </li>
                 </ul>
-
-                <div class="nav-actions">
-                    <!-- Theme Toggle -->
-                    <button
-                        id="theme-toggle"
-                        class="theme-switcher"
-                        data-on-click="$$toggle"
-                        aria-label="Toggle dark mode"
-                    >
-                        <span class="theme-icon light-icon" aria-hidden="true"
-                            >☀️</span
-                        >
-                        <span class="theme-icon dark-icon" aria-hidden="true"
-                            >🌙</span
-                        >
-                    </button>
-
-                    <!-- User Menu -->
-                    <div class="user-menu" data-store="{menuOpen: false}">
-                        {% if user %}
+                <ul>
+                    <li>
+                        <!-- Theme Toggle -->
                         <button
-                            class="user-avatar"
-                            data-on-click="$menuOpen = !$menuOpen"
-                            aria-expanded="$menuOpen"
+                            id="theme-toggle"
+                            class="contrast outline"
+                            data-on-click="$$toggle"
+                            aria-label="Toggle theme"
+                            data-tooltip="Toggle theme"
+                            data-placement="bottom"
                         >
-                            <img
-                                src="{{ user.avatar }}"
-                                alt="{{ user.name }}"
-                                class="avatar-image"
-                            />
-                        </button>
-                        <div class="dropdown-menu" data-show="$menuOpen">
-                            <a href="/profile" class="dropdown-item">Profile</a>
-                            <a href="/settings" class="dropdown-item"
-                                >Settings</a
+                            <span class="theme-icon-light" aria-hidden="true"
+                                >☀️</span
                             >
-                            <hr class="dropdown-divider" />
-                            <form action="/logout" method="post">
-                                <button type="submit" class="dropdown-item">
-                                    Logout
-                                </button>
-                            </form>
-                        </div>
+                            <span class="theme-icon-dark" aria-hidden="true"
+                                >🌙</span
+                            >
+                        </button>
+                    </li>
+                    <li>
+                        <!-- User Menu -->
+                        {% if user %}
+                        <details class="dropdown">
+                            <summary role="button" class="contrast outline">
+                                <img
+                                    src="{{ user.avatar }}"
+                                    alt="{{ user.name }}"
+                                    class="user-avatar"
+                                />
+                            </summary>
+                            <ul dir="rtl">
+                                <li><a href="/profile">Profile</a></li>
+                                <li><a href="/settings">Settings</a></li>
+                                <li><hr /></li>
+                                <li>
+                                    <form action="/logout" method="post">
+                                        <button type="submit" class="contrast">
+                                            Logout
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </details>
                         {% else %}
-                        <a href="/login" class="nav-link">Login</a>
-                        <a href="/signup" class="nav-link primary-action"
-                            >Sign Up</a
+                        <a href="/login" role="button" class="contrast outline"
+                            >Login</a
                         >
+                    </li>
+                    <li>
+                        <a href="/signup" role="button">Sign Up</a>
                         {% endif %}
-                    </div>
-                </div>
+                    </li>
+                </ul>
             </nav>
         </header>
 
-        <main id="main-content">{% block content %}{% endblock %}</main>
+        <main class="container">{% block content %}{% endblock %}</main>
 
-        <footer id="site-footer">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3 class="footer-heading">{{ app_name }}</h3>
-                    <p class="footer-description">
-                        A free, open-source SaaS platform for the TV, film, and
-                        content industries.
+        <footer>
+            <div class="container">
+                <div class="grid">
+                    <div>
+                        <hgroup>
+                            <h3>{{ app_name }}</h3>
+                            <p>
+                                A free, open-source SaaS platform for the TV,
+                                film, and content industries.
+                            </p>
+                        </hgroup>
+                    </div>
+
+                    <div>
+                        <h4>Quick Links</h4>
+                        <nav>
+                            <ul>
+                                <li><a href="/docs">Documentation</a></li>
+                                <li><a href="/api">API</a></li>
+                                <li><a href="/privacy">Privacy Policy</a></li>
+                                <li><a href="/terms">Terms of Service</a></li>
+                            </ul>
+                        </nav>
+                    </div>
+
+                    <div>
+                        <h4>Connect</h4>
+                        <nav>
+                            <ul>
+                                <li>
+                                    <a
+                                        href="https://github.com/slatehub"
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                        >GitHub</a
+                                    >
+                                </li>
+                                <li><a href="/contact">Contact</a></li>
+                                <li><a href="/blog">Blog</a></li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+
+                <hr />
+
+                <div class="grid">
+                    <p>
+                        <small
+                            >© {{ year }} {{ app_name }}. All rights
+                            reserved.</small
+                        >
+                    </p>
+                    <p>
+                        <small>v{{ version }}</small>
                     </p>
                 </div>
-
-                <div class="footer-section">
-                    <h3 class="footer-heading">Quick Links</h3>
-                    <ul class="footer-links">
-                        <li><a href="/docs">Documentation</a></li>
-                        <li><a href="/api">API</a></li>
-                        <li><a href="/privacy">Privacy Policy</a></li>
-                        <li><a href="/terms">Terms of Service</a></li>
-                    </ul>
-                </div>
-
-                <div class="footer-section">
-                    <h3 class="footer-heading">Connect</h3>
-                    <ul class="footer-links">
-                        <li>
-                            <a
-                                href="https://github.com/slatehub"
-                                rel="noopener noreferrer"
-                                >GitHub</a
-                            >
-                        </li>
-                        <li><a href="/contact">Contact</a></li>
-                        <li><a href="/blog">Blog</a></li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="footer-bottom">
-                <p class="copyright">
-                    © {{ year }} {{ app_name }}. All rights reserved.
-                </p>
-                <p class="version">v{{ version }}</p>
             </div>
         </footer>
 
