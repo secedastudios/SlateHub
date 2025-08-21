@@ -49,12 +49,12 @@ impl PlatformStats {
     }
 
     /// Convert stats to Datastar-compatible SSE format
-    /// Datastar expects data in a specific format for store updates
+    /// Datastar expects data in a specific format for signal updates
     pub fn to_datastar_event(&self) -> String {
-        // Datastar SSE format for updating store values
+        // Datastar SSE format for updating signal values
         // We send individual updates for each stat to allow smooth animations
         format!(
-            r#"store {{"projectCount": {}, "userCount": {}, "connectionCount": {}}}"#,
+            r#"signals {{"projectCount": {}, "userCount": {}, "connectionCount": {}}}"#,
             self.project_count, self.user_count, self.connection_count
         )
     }
@@ -80,7 +80,7 @@ pub async fn stats_stream() -> Sse<impl Stream<Item = Result<Event, Infallible>>
 
         // Create SSE event in Datastar format
         let event = Event::default()
-            .event("datastar-store") // Datastar listens for this event type
+            .event("datastar-signal") // Datastar listens for this event type
             .data(stats.to_datastar_event());
 
         Some((Ok(event), (stats, ticker)))
@@ -153,30 +153,63 @@ impl ActivityItem {
 pub async fn activity_stream() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     info!("Creating new SSE activity stream");
 
+    // Initialize with some default activities
+    let initial_activities = vec![
+        ActivityItem {
+            user: "Sarah Johnson".to_string(),
+            action: "started a new project".to_string(),
+            time: "2 minutes ago".to_string(),
+        },
+        ActivityItem {
+            user: "Mike Chen".to_string(),
+            action: "joined the platform".to_string(),
+            time: "15 minutes ago".to_string(),
+        },
+        ActivityItem {
+            user: "Emily Rodriguez".to_string(),
+            action: "completed a collaboration".to_string(),
+            time: "1 hour ago".to_string(),
+        },
+        ActivityItem {
+            user: "David Kim".to_string(),
+            action: "updated their portfolio".to_string(),
+            time: "3 hours ago".to_string(),
+        },
+    ];
+
     let ticker = interval(Duration::from_secs(5)); // Update every 5 seconds
 
-    let stream = stream::unfold(ticker, |mut ticker| async move {
-        ticker.tick().await;
+    let stream = stream::unfold(
+        (initial_activities, ticker),
+        |(mut activities, mut ticker)| async move {
+            ticker.tick().await;
 
-        // Generate 1-3 new activities
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        let num_activities = rng.gen_range(1..=3);
+            // Generate 1-3 new activities
+            use rand::Rng;
+            let mut rng = rand::thread_rng();
+            let num_new = rng.gen_range(1..=3);
 
-        let activities: Vec<ActivityItem> = (0..num_activities)
-            .map(|_| ActivityItem::random())
-            .collect();
+            // Add new activities to the beginning
+            for _ in 0..num_new {
+                activities.insert(0, ActivityItem::random());
+            }
 
-        debug!("Sending {} new activities", activities.len());
+            // Keep only the last 10 activities
+            activities.truncate(10);
 
-        // Format for Datastar - prepend to existing activities
-        let json_activities = serde_json::to_string(&activities).unwrap_or_default();
-        let datastar_data = format!(r#"store {{"newActivities": {}}}"#, json_activities);
+            debug!("Sending {} total activities", activities.len());
 
-        let event = Event::default().event("datastar-store").data(datastar_data);
+            // Format for Datastar - send complete activities list
+            let json_activities = serde_json::to_string(&activities).unwrap_or_default();
+            let datastar_data = format!(r#"signals {{"activities": {}}}"#, json_activities);
 
-        Some((Ok(event), ticker))
-    });
+            let event = Event::default()
+                .event("datastar-signal")
+                .data(datastar_data);
+
+            Some((Ok(event), (activities, ticker)))
+        },
+    );
 
     Sse::new(stream).keep_alive(KeepAlive::default())
 }

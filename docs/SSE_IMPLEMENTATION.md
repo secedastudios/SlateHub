@@ -39,7 +39,7 @@ pub async fn stats_stream() -> Sse<impl Stream<Item = Result<Event, Infallible>>
         stats.increment(); // Simulate growth
         
         let event = Event::default()
-            .event("datastar-store")  // Datastar listens for this event type
+            .event("datastar-signal") // Datastar listens for this event type
             .data(stats.to_datastar_event());
         
         Some((Ok(event), (stats, ticker)))
@@ -54,8 +54,8 @@ pub async fn stats_stream() -> Sse<impl Stream<Item = Result<Event, Infallible>>
 The SSE events are formatted specifically for Datastar:
 
 ```
-event: datastar-store
-data: store {"projectCount": 1250, "userCount": 5897, "connectionCount": 18463}
+event: datastar-signal
+data: signals {"projectCount": 1250, "userCount": 5897, "connectionCount": 18463}
 ```
 
 ### Client-Side (HTML/Datastar)
@@ -64,8 +64,8 @@ data: store {"projectCount": 1250, "userCount": 5897, "connectionCount": 18463}
 
 ```html
 <section 
-    data-store="{projectCount: 0, userCount: 0, connectionCount: 0}"
-    data-on-load="$$get('/api/sse/stats')"
+    data-signals="{projectCount: 0, userCount: 0, connectionCount: 0}"
+    data-on-load="@get('/api/sse/stats')"
 >
     <!-- UI elements bound to store values -->
 </section>
@@ -120,6 +120,8 @@ Use the provided test script:
 ./test_sse.sh
 ```
 
+Or open the interactive test page at: `http://localhost:3000/static/test-sse.html`
+
 Or test manually with curl:
 
 ```bash
@@ -138,8 +140,8 @@ The main index page (`templates/index.html`) uses SSE for live updates:
 <!-- Platform Statistics Section -->
 <section 
     class="stats-section"
-    data-store="{projectCount: 0, userCount: 0, connectionCount: 0}"
-    data-on-load="$$get('/api/sse/stats')"
+    data-signals="{projectCount: 0, userCount: 0, connectionCount: 0}"
+    data-on-load="@get('/api/sse/stats')"
 >
     <!-- Stats display with automatic updates -->
 </section>
@@ -147,8 +149,8 @@ The main index page (`templates/index.html`) uses SSE for live updates:
 <!-- Activity Feed Section -->
 <div 
     class="activity-feed"
-    data-store="{activities: [], newActivities: [], loading: true}"
-    data-on-load="$$get('/api/sse/activity')"
+    data-signals="{activities: [], loading: false}"
+    data-on-load="@get('/api/sse/activity')"
 >
     <!-- Activity list with real-time updates -->
 </div>
@@ -158,9 +160,10 @@ The main index page (`templates/index.html`) uses SSE for live updates:
 
 1. **Real-time Updates**: No polling required, server pushes updates
 2. **Efficient**: Uses HTTP/1.1 standard, works through proxies
-3. **Simple Integration**: Datastar handles all the complexity
+3. **Simple Integration**: Datastar handles all the complexity automatically - no need for custom JavaScript
 4. **Graceful Degradation**: Falls back to static content if SSE fails
 5. **Automatic Reconnection**: Built-in retry logic
+6. **No Client-Side Logic**: Datastar automatically updates the signals when SSE events arrive
 
 ## Future Enhancements
 
@@ -206,8 +209,8 @@ pub async fn user_activity_stream(user_id: String) -> Sse<impl Stream> {
 4. Ensure Datastar.js is loaded
 
 ### Updates Not Appearing
-1. Verify event format matches `datastar-store`
-2. Check store variable names match between server and client
+1. Verify event format matches `datastar-signal`
+2. Check signal variable names match between server and client
 3. Inspect network tab for SSE connection
 4. Test with the standalone test page
 
