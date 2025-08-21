@@ -1,7 +1,6 @@
 use axum::{
     Json, Router,
-    http::StatusCode,
-    response::{Html, IntoResponse, Response},
+    response::Html,
     routing::{get, get_service},
 };
 use serde::Serialize;
@@ -12,7 +11,7 @@ use tower_http::{
 };
 use tracing::{Level, debug, error, info};
 
-use crate::templates;
+use crate::{error::Error, templates};
 
 pub fn app() -> Router {
     // Static file service
@@ -45,7 +44,7 @@ pub fn app() -> Router {
 
 // Page handlers
 
-async fn index() -> Result<Html<String>, AppError> {
+async fn index() -> Result<Html<String>, Error> {
     debug!("Rendering index page");
 
     let mut context = templates::base_context();
@@ -53,13 +52,13 @@ async fn index() -> Result<Html<String>, AppError> {
 
     let html = templates::render_with_context("index.html", &context).map_err(|e| {
         error!("Failed to render index template: {}", e);
-        AppError::TemplateError(e.to_string())
+        Error::template(e.to_string())
     })?;
 
     Ok(Html(html))
 }
 
-async fn projects() -> Result<Html<String>, AppError> {
+async fn projects() -> Result<Html<String>, Error> {
     debug!("Rendering projects page");
 
     let mut context = templates::base_context();
@@ -74,7 +73,7 @@ async fn projects() -> Result<Html<String>, AppError> {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Projects - SlateHub</title>
-            <link rel="stylesheet" href="/static/css/semantic.css">
+            <link rel="stylesheet" href="/static/css/slatehub.css">
             <script type="module" src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar@0.19.10/+esm"></script>
             <script>
                 const savedTheme = localStorage.getItem('theme') || 'light';
@@ -130,7 +129,7 @@ async fn projects() -> Result<Html<String>, AppError> {
     Ok(Html(html))
 }
 
-async fn people() -> Result<Html<String>, AppError> {
+async fn people() -> Result<Html<String>, Error> {
     debug!("Rendering people page");
 
     let mut context = templates::base_context();
@@ -145,7 +144,7 @@ async fn people() -> Result<Html<String>, AppError> {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>People - SlateHub</title>
-            <link rel="stylesheet" href="/static/css/semantic.css">
+            <link rel="stylesheet" href="/static/css/slatehub.css">
             <script type="module" src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar@0.19.10/+esm"></script>
             <script>
                 const savedTheme = localStorage.getItem('theme') || 'light';
@@ -201,7 +200,7 @@ async fn people() -> Result<Html<String>, AppError> {
     Ok(Html(html))
 }
 
-async fn about() -> Result<Html<String>, AppError> {
+async fn about() -> Result<Html<String>, Error> {
     debug!("Rendering about page");
 
     let mut context = templates::base_context();
@@ -216,7 +215,7 @@ async fn about() -> Result<Html<String>, AppError> {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>About - SlateHub</title>
-            <link rel="stylesheet" href="/static/css/semantic.css">
+            <link rel="stylesheet" href="/static/css/slatehub.css">
             <script type="module" src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar@0.19.10/+esm"></script>
             <script>
                 const savedTheme = localStorage.getItem('theme') || 'light';
@@ -335,32 +334,4 @@ async fn stats() -> Json<PlatformStats> {
     Json(stats)
 }
 
-// Error handling
-
-#[derive(Debug)]
-enum AppError {
-    TemplateError(String),
-    DatabaseError(String),
-    NotFound,
-}
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let (status, message) = match self {
-            AppError::TemplateError(msg) => {
-                error!("Template error: {}", msg);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Template rendering failed",
-                )
-            }
-            AppError::DatabaseError(msg) => {
-                error!("Database error: {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error occurred")
-            }
-            AppError::NotFound => (StatusCode::NOT_FOUND, "Page not found"),
-        };
-
-        (status, message).into_response()
-    }
-}
+// Error handling is now centralized in src/error.rs
