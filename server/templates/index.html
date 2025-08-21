@@ -91,6 +91,7 @@ entertainment industry{% endblock %} {% block content %}
     <section
         class="stats-section"
         data-store="{projectCount: 0, userCount: 0, connectionCount: 0}"
+        data-on-load="@get('/api/sse/stats')"
     >
         <h2 class="section-title">Platform Statistics</h2>
 
@@ -121,21 +122,17 @@ entertainment industry{% endblock %} {% block content %}
             </div>
         </div>
 
-        <!-- Simulate loading stats with Datastar -->
-        <script data-signals>
-            // Simulate fetching stats from API
-            setTimeout(() => {
-                $projectCount = 1247;
-                $userCount = 5892;
-                $connectionCount = 18453;
-            }, 500);
-        </script>
+        <!-- Stats are updated via SSE from /api/sse/stats -->
     </section>
 
     <section class="recent-activity">
         <h2 class="section-title">Recent Activity</h2>
 
-        <div class="activity-feed" data-store="{activities: [], loading: true}">
+        <div
+            class="activity-feed"
+            data-store="{activities: [], newActivities: [], loading: true}"
+            data-on-load="@get('/api/sse/activity')"
+        >
             <div class="loading-indicator" data-show="$loading">
                 Loading recent activity...
             </div>
@@ -160,33 +157,45 @@ entertainment industry{% endblock %} {% block content %}
             </ul>
         </div>
 
-        <!-- Simulate loading activities -->
+        <!-- Activities are updated via SSE from /api/sse/activity -->
         <script data-signals>
-            setTimeout(() => {
-                $activities = [
-                    {
-                        user: "Sarah Johnson",
-                        action: "started a new project",
-                        time: "2 minutes ago",
-                    },
-                    {
-                        user: "Mike Chen",
-                        action: "joined the platform",
-                        time: "15 minutes ago",
-                    },
-                    {
-                        user: "Emily Rodriguez",
-                        action: "completed a collaboration",
-                        time: "1 hour ago",
-                    },
-                    {
-                        user: "David Kim",
-                        action: "updated their portfolio",
-                        time: "3 hours ago",
-                    },
-                ];
-                $loading = false;
-            }, 1000);
+            // Initialize with some default activities
+            $activities = [
+                {
+                    user: "Sarah Johnson",
+                    action: "started a new project",
+                    time: "2 minutes ago",
+                },
+                {
+                    user: "Mike Chen",
+                    action: "joined the platform",
+                    time: "15 minutes ago",
+                },
+                {
+                    user: "Emily Rodriguez",
+                    action: "completed a collaboration",
+                    time: "1 hour ago",
+                },
+                {
+                    user: "David Kim",
+                    action: "updated their portfolio",
+                    time: "3 hours ago",
+                },
+            ];
+            $loading = false;
+
+            // Watch for new activities from SSE and prepend them
+            $effect(() => {
+                if ($newActivities && $newActivities.length > 0) {
+                    // Prepend new activities and keep only the last 10
+                    $activities = [...$newActivities, ...$activities].slice(
+                        0,
+                        10,
+                    );
+                    // Clear newActivities
+                    $newActivities = [];
+                }
+            });
         </script>
     </section>
 

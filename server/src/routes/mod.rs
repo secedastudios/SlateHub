@@ -11,7 +11,7 @@ use tower_http::{
 };
 use tracing::{Level, debug, error, info};
 
-use crate::{error::Error, templates};
+use crate::{error::Error, sse, templates};
 
 pub fn app() -> Router {
     // Static file service
@@ -29,6 +29,9 @@ pub fn app() -> Router {
         // API routes
         .route("/api/health", get(health_check))
         .route("/api/stats", get(stats))
+        // SSE routes for real-time updates
+        .route("/api/sse/stats", get(sse_stats))
+        .route("/api/sse/activity", get(sse_activity))
         // Static files
         .nest_service("/static", get_service(static_service))
         // Middleware
@@ -159,6 +162,18 @@ async fn stats() -> Json<PlatformStats> {
     };
 
     Json(stats)
+}
+
+// SSE handlers
+
+async fn sse_stats() -> impl axum::response::IntoResponse {
+    debug!("SSE stats stream requested");
+    sse::stats_stream().await
+}
+
+async fn sse_activity() -> impl axum::response::IntoResponse {
+    debug!("SSE activity stream requested");
+    sse::activity_stream().await
 }
 
 // Error handling is now centralized in src/error.rs
