@@ -1,0 +1,465 @@
+{% extends "_layout.html" %} {% block title %}{{ app_name }} - Home{% endblock
+%} {% block description %}SlateHub - Connect, collaborate, and create in the
+entertainment industry{% endblock %} {% block content %}
+<article id="homepage">
+    <section class="hero-section">
+        <h1 class="hero-title">Welcome to {{ app_name }}</h1>
+        <p class="hero-subtitle">
+            A free, open-source platform connecting filmmakers, creatives,
+            brands, crew, and agencies.
+        </p>
+
+        <div class="hero-actions">
+            <a href="/signup" class="button primary-action">Get Started</a>
+            <a href="/about" class="button">Learn More</a>
+        </div>
+    </section>
+
+    <section class="features-section">
+        <h2 class="section-title">Platform Features</h2>
+
+        <!-- Datastar reactive tabs example -->
+        <div class="feature-tabs" data-store="{activeTab: 'networking'}">
+            <nav class="tab-navigation">
+                <button
+                    class="tab-button"
+                    data-class-active="$activeTab === 'networking'"
+                    data-on-click="$activeTab = 'networking'"
+                >
+                    Networking
+                </button>
+                <button
+                    class="tab-button"
+                    data-class-active="$activeTab === 'projects'"
+                    data-on-click="$activeTab = 'projects'"
+                >
+                    Project Management
+                </button>
+                <button
+                    class="tab-button"
+                    data-class-active="$activeTab === 'search'"
+                    data-on-click="$activeTab = 'search'"
+                >
+                    Semantic Search
+                </button>
+            </nav>
+
+            <div class="tab-content">
+                <div class="tab-panel" data-show="$activeTab === 'networking'">
+                    <h3 class="panel-title">Professional Networking</h3>
+                    <p class="panel-description">
+                        Connect with industry professionals, build your network,
+                        and discover opportunities in the TV, film, and content
+                        industries.
+                    </p>
+                    <ul class="feature-list">
+                        <li>Professional profiles with portfolio showcases</li>
+                        <li>Industry-specific networking tools</li>
+                        <li>Collaboration requests and messaging</li>
+                    </ul>
+                </div>
+
+                <div class="tab-panel" data-show="$activeTab === 'projects'">
+                    <h3 class="panel-title">Project Management</h3>
+                    <p class="panel-description">
+                        Manage your creative projects with tools designed
+                        specifically for film and TV production.
+                    </p>
+                    <ul class="feature-list">
+                        <li>Production planning and scheduling</li>
+                        <li>Crew and resource management</li>
+                        <li>Budget tracking and reporting</li>
+                    </ul>
+                </div>
+
+                <div class="tab-panel" data-show="$activeTab === 'search'">
+                    <h3 class="panel-title">AI-Powered Search</h3>
+                    <p class="panel-description">
+                        Find the perfect collaborators with semantic search and
+                        AI-assisted matching.
+                    </p>
+                    <ul class="feature-list">
+                        <li>Semantic search across profiles and projects</li>
+                        <li>AI-powered skill matching</li>
+                        <li>Smart recommendations based on your needs</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section
+        class="stats-section"
+        data-store="{projectCount: 0, userCount: 0, connectionCount: 0}"
+    >
+        <h2 class="section-title">Platform Statistics</h2>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div
+                    class="stat-value"
+                    data-text="$projectCount.toLocaleString()"
+                >
+                    0
+                </div>
+                <div class="stat-label">Active Projects</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" data-text="$userCount.toLocaleString()">
+                    0
+                </div>
+                <div class="stat-label">Creative Professionals</div>
+            </div>
+            <div class="stat-card">
+                <div
+                    class="stat-value"
+                    data-text="$connectionCount.toLocaleString()"
+                >
+                    0
+                </div>
+                <div class="stat-label">Connections Made</div>
+            </div>
+        </div>
+
+        <!-- Simulate loading stats with Datastar -->
+        <script data-signals>
+            // Simulate fetching stats from API
+            setTimeout(() => {
+                $projectCount = 1247;
+                $userCount = 5892;
+                $connectionCount = 18453;
+            }, 500);
+        </script>
+    </section>
+
+    <section class="recent-activity">
+        <h2 class="section-title">Recent Activity</h2>
+
+        <div class="activity-feed" data-store="{activities: [], loading: true}">
+            <div class="loading-indicator" data-show="$loading">
+                Loading recent activity...
+            </div>
+
+            <ul class="activity-list" data-show="!$loading">
+                <template data-for="activity in $activities">
+                    <li class="activity-item">
+                        <span
+                            class="activity-user"
+                            data-text="activity.user"
+                        ></span>
+                        <span
+                            class="activity-action"
+                            data-text="activity.action"
+                        ></span>
+                        <span
+                            class="activity-time"
+                            data-text="activity.time"
+                        ></span>
+                    </li>
+                </template>
+            </ul>
+        </div>
+
+        <!-- Simulate loading activities -->
+        <script data-signals>
+            setTimeout(() => {
+                $activities = [
+                    {
+                        user: "Sarah Johnson",
+                        action: "started a new project",
+                        time: "2 minutes ago",
+                    },
+                    {
+                        user: "Mike Chen",
+                        action: "joined the platform",
+                        time: "15 minutes ago",
+                    },
+                    {
+                        user: "Emily Rodriguez",
+                        action: "completed a collaboration",
+                        time: "1 hour ago",
+                    },
+                    {
+                        user: "David Kim",
+                        action: "updated their portfolio",
+                        time: "3 hours ago",
+                    },
+                ];
+                $loading = false;
+            }, 1000);
+        </script>
+    </section>
+
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2 class="cta-title">Ready to Join the Community?</h2>
+            <p class="cta-description">
+                Start connecting with creative professionals and bring your
+                projects to life.
+            </p>
+            <div class="cta-actions">
+                <a href="/signup" class="button primary-action"
+                    >Create Free Account</a
+                >
+                <a href="/demo" class="button">Watch Demo</a>
+            </div>
+        </div>
+    </section>
+</article>
+
+<style>
+    /* Page-specific styles for the homepage */
+    .hero-section {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: linear-gradient(
+            135deg,
+            var(--color-surface) 0%,
+            var(--color-surface-alt) 100%
+        );
+        border-radius: 1rem;
+        margin-bottom: 3rem;
+    }
+
+    .hero-title {
+        font-size: 3rem;
+        margin-bottom: 1.5rem;
+        background: linear-gradient(
+            135deg,
+            var(--color-primary),
+            var(--color-info)
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .hero-subtitle {
+        font-size: 1.25rem;
+        color: var(--color-text-muted);
+        max-width: 600px;
+        margin: 0 auto 2rem;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .features-section {
+        margin-bottom: 3rem;
+    }
+
+    .section-title {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .tab-navigation {
+        display: flex;
+        gap: 1rem;
+        border-bottom: 2px solid var(--color-border);
+        margin-bottom: 2rem;
+    }
+
+    .tab-button {
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 1rem 2rem;
+        margin-bottom: -2px;
+        transition: all var(--transition-base);
+    }
+
+    .tab-button:hover {
+        background-color: var(--color-surface);
+    }
+
+    .tab-button[data-class-active="true"] {
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
+    }
+
+    .tab-panel {
+        display: none;
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .tab-panel[data-show="true"] {
+        display: block;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .panel-title {
+        margin-bottom: 1rem;
+    }
+
+    .panel-description {
+        color: var(--color-text-muted);
+        margin-bottom: 1.5rem;
+    }
+
+    .feature-list {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .feature-list li {
+        padding: 0.5rem 0;
+        padding-left: 1.5rem;
+        position: relative;
+    }
+
+    .feature-list li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: var(--color-success);
+    }
+
+    .stats-section {
+        background-color: var(--color-surface);
+        padding: 3rem 2rem;
+        border-radius: 1rem;
+        margin-bottom: 3rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .stat-card {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: var(--color-primary);
+        transition: transform var(--transition-base);
+    }
+
+    .stat-value:hover {
+        transform: scale(1.1);
+    }
+
+    .stat-label {
+        color: var(--color-text-muted);
+        margin-top: 0.5rem;
+    }
+
+    .activity-feed {
+        background-color: var(--color-surface);
+        padding: 2rem;
+        border-radius: 1rem;
+        margin-bottom: 3rem;
+    }
+
+    .loading-indicator {
+        text-align: center;
+        color: var(--color-text-muted);
+        padding: 2rem;
+    }
+
+    .activity-list {
+        list-style: none;
+    }
+
+    .activity-item {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-user {
+        font-weight: 600;
+        color: var(--color-primary);
+    }
+
+    .activity-time {
+        margin-left: auto;
+        color: var(--color-text-muted);
+        font-size: 0.875rem;
+    }
+
+    .cta-section {
+        background: linear-gradient(
+            135deg,
+            var(--color-primary),
+            var(--color-info)
+        );
+        color: var(--color-text-inverse);
+        padding: 4rem 2rem;
+        border-radius: 1rem;
+        text-align: center;
+    }
+
+    .cta-title {
+        color: var(--color-text-inverse);
+        margin-bottom: 1rem;
+    }
+
+    .cta-description {
+        max-width: 600px;
+        margin: 0 auto 2rem;
+        opacity: 0.95;
+    }
+
+    .cta-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .cta-actions .button {
+        background-color: var(--color-background);
+        color: var(--color-primary);
+    }
+
+    .cta-actions .primary-action {
+        background-color: var(--color-text-inverse);
+        color: var(--color-primary);
+    }
+
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 2rem;
+        }
+
+        .hero-actions,
+        .cta-actions {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tab-navigation {
+            flex-direction: column;
+        }
+
+        .tab-button {
+            width: 100%;
+            text-align: left;
+        }
+    }
+</style>
+{% endblock %}

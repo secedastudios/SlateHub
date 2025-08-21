@@ -13,6 +13,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Starting SlateHub server...");
 
+    // Initialize templates
+    debug!("Initializing template system");
+    if let Err(e) = slatehub::templates::init() {
+        error!("Failed to initialize templates: {}", e);
+        return Err(e.into());
+    }
+    info!("Templates initialized successfully");
+
     // Load configuration from environment variables
     debug!("Loading configuration from environment");
     let config = match Config::from_env() {

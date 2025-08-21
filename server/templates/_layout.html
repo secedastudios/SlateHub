@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            name="description"
+            content="{% block description %}SlateHub - A collaborative hub for the TV, film, and content industries{% endblock %}"
+        />
+        <title>{% block title %}{{ app_name }}{% endblock %}</title>
+
+        <!-- Semantic CSS -->
+        <link rel="stylesheet" href="/static/css/slatehub.css" />
+
+        <!-- Datastar JS -->
+        <script
+            type="module"
+            src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar@0.19.10/+esm"
+        ></script>
+
+        <!-- Theme Toggle Script -->
+        <script>
+            // Check for saved theme preference or default to light
+            const savedTheme = localStorage.getItem("theme") || "light";
+            document.documentElement.setAttribute("data-theme", savedTheme);
+        </script>
+
+        {% block head %}{% endblock %}
+    </head>
+    <body>
+        <header id="site-header">
+            <nav class="main-navigation">
+                <div class="nav-brand">
+                    <a href="/" class="brand-link">{{ app_name }}</a>
+                </div>
+
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a
+                            href="/"
+                            class="nav-link {% if active_page == 'home' %}active{% endif %}"
+                            >Home</a
+                        >
+                    </li>
+                    <li class="nav-item">
+                        <a
+                            href="/projects"
+                            class="nav-link {% if active_page == 'projects' %}active{% endif %}"
+                            >Projects</a
+                        >
+                    </li>
+                    <li class="nav-item">
+                        <a
+                            href="/people"
+                            class="nav-link {% if active_page == 'people' %}active{% endif %}"
+                            >People</a
+                        >
+                    </li>
+                    <li class="nav-item">
+                        <a
+                            href="/about"
+                            class="nav-link {% if active_page == 'about' %}active{% endif %}"
+                            >About</a
+                        >
+                    </li>
+                </ul>
+
+                <div class="nav-actions">
+                    <!-- Theme Toggle -->
+                    <button
+                        id="theme-toggle"
+                        class="theme-switcher"
+                        data-on-click="$$toggle"
+                        aria-label="Toggle dark mode"
+                    >
+                        <span class="theme-icon light-icon" aria-hidden="true"
+                            >☀️</span
+                        >
+                        <span class="theme-icon dark-icon" aria-hidden="true"
+                            >🌙</span
+                        >
+                    </button>
+
+                    <!-- User Menu -->
+                    <div class="user-menu" data-store="{menuOpen: false}">
+                        {% if user %}
+                        <button
+                            class="user-avatar"
+                            data-on-click="$menuOpen = !$menuOpen"
+                            aria-expanded="$menuOpen"
+                        >
+                            <img
+                                src="{{ user.avatar }}"
+                                alt="{{ user.name }}"
+                                class="avatar-image"
+                            />
+                        </button>
+                        <div class="dropdown-menu" data-show="$menuOpen">
+                            <a href="/profile" class="dropdown-item">Profile</a>
+                            <a href="/settings" class="dropdown-item"
+                                >Settings</a
+                            >
+                            <hr class="dropdown-divider" />
+                            <form action="/logout" method="post">
+                                <button type="submit" class="dropdown-item">
+                                    Logout
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <a href="/login" class="nav-link">Login</a>
+                        <a href="/signup" class="nav-link primary-action"
+                            >Sign Up</a
+                        >
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <main id="main-content">{% block content %}{% endblock %}</main>
+
+        <footer id="site-footer">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3 class="footer-heading">{{ app_name }}</h3>
+                    <p class="footer-description">
+                        A free, open-source SaaS platform for the TV, film, and
+                        content industries.
+                    </p>
+                </div>
+
+                <div class="footer-section">
+                    <h3 class="footer-heading">Quick Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="/docs">Documentation</a></li>
+                        <li><a href="/api">API</a></li>
+                        <li><a href="/privacy">Privacy Policy</a></li>
+                        <li><a href="/terms">Terms of Service</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h3 class="footer-heading">Connect</h3>
+                    <ul class="footer-links">
+                        <li>
+                            <a
+                                href="https://github.com/slatehub"
+                                rel="noopener noreferrer"
+                                >GitHub</a
+                            >
+                        </li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/blog">Blog</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p class="copyright">
+                    © {{ year }} {{ app_name }}. All rights reserved.
+                </p>
+                <p class="version">v{{ version }}</p>
+            </div>
+        </footer>
+
+        <!-- Theme Toggle Logic -->
+        <script id="theme-script" data-signals>
+            const toggle = () => {
+                const currentTheme =
+                    document.documentElement.getAttribute("data-theme");
+                const newTheme = currentTheme === "light" ? "dark" : "light";
+                document.documentElement.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+            };
+        </script>
+
+        {% block scripts %}{% endblock %}
+    </body>
+</html>
