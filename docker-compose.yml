@@ -1,0 +1,41 @@
+services:
+    surrealdb:
+        image: surrealdb/surrealdb:latest
+        container_name: slatehub-surrealdb
+        ports:
+            - "8000:8000"
+        volumes:
+            - ./db/data:/data
+        command: start --log trace --user root --pass root file:/data/database.db
+        environment:
+            - SURREAL_LOG=trace
+        networks:
+            - slatehub-network
+        restart: unless-stopped
+
+    minio:
+        image: minio/minio:latest
+        container_name: slatehub-minio
+        ports:
+            - "9000:9000" # MinIO API
+            - "9001:9001" # MinIO Console
+        volumes:
+            - ./db/files:/data
+        environment:
+            - MINIO_ROOT_USER=slatehub
+            - MINIO_ROOT_PASSWORD=slatehub123
+            - MINIO_CONSOLE_ADDRESS=:9001
+        command: server /data --console-address ":9001"
+        networks:
+            - slatehub-network
+        restart: unless-stopped
+
+volumes:
+    surrealdb-data:
+        driver: local
+    minio-data:
+        driver: local
+
+networks:
+    slatehub-network:
+        driver: bridge
