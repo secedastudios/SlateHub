@@ -2,5 +2,14 @@
 name = "slatehub"
 version = "0.1.0"
 edition = "2024"
+publish = false
+authors = ["Chris Bruce <chris@secedastudios.com>"]
+license = "Apache-2.0"
 
 [dependencies]
+axum = "0.8.4"
+dotenv = "0.15.0"
+serde = { version = "1.0.219", features = ["derive"] }
+surrealdb = "2.3.7"
+thiserror = "2.0.16"
+tokio = { version = "1.47.1", features = ["full"] }
