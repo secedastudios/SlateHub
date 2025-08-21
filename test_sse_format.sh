@@ -49,7 +49,7 @@ echo "Expected Format Verification"
 echo "=========================================="
 echo ""
 echo -e "${GREEN}✓ Expected SSE format for Datastar:${NC}"
-echo "  event: datastar-signal"
+echo "  event: datastar-patch-signals"
 echo "  data: signals {\"key\": value, ...}"
 echo ""
 echo -e "${GREEN}✓ Stats signals format:${NC}"
@@ -68,10 +68,10 @@ echo ""
 echo "Checking stats endpoint format..."
 STATS_OUTPUT=$(timeout 3 curl -s -N -H "Accept: text/event-stream" http://localhost:3000/api/sse/stats 2>/dev/null | head -10)
 
-if echo "$STATS_OUTPUT" | grep -q "event: datastar-signal"; then
-    echo -e "${GREEN}✓ Correct event type: datastar-signal${NC}"
+if echo "$STATS_OUTPUT" | grep -q "event: datastar-patch-signals"; then
+    echo -e "${GREEN}✓ Correct event type: datastar-patch-signals${NC}"
 else
-    echo -e "${RED}✗ Incorrect event type (should be 'datastar-signal')${NC}"
+    echo -e "${RED}✗ Incorrect event type (should be 'datastar-patch-signals')${NC}"
 fi
 
 if echo "$STATS_OUTPUT" | grep -q "data: signals {"; then
@@ -90,10 +90,10 @@ echo ""
 echo "Checking activity endpoint format..."
 ACTIVITY_OUTPUT=$(timeout 5 curl -s -N -H "Accept: text/event-stream" http://localhost:3000/api/sse/activity 2>/dev/null | head -10)
 
-if echo "$ACTIVITY_OUTPUT" | grep -q "event: datastar-signal"; then
-    echo -e "${GREEN}✓ Correct event type: datastar-signal${NC}"
+if echo "$ACTIVITY_OUTPUT" | grep -q "event: datastar-patch-signals"; then
+    echo -e "${GREEN}✓ Correct event type: datastar-patch-signals${NC}"
 else
-    echo -e "${RED}✗ Incorrect event type (should be 'datastar-signal')${NC}"
+    echo -e "${RED}✗ Incorrect event type (should be 'datastar-patch-signals')${NC}"
 fi
 
 if echo "$ACTIVITY_OUTPUT" | grep -q "data: signals {"; then

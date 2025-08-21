@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Raw SSE Test - SlateHub</title>
+        <style>
+            body {
+                font-family: system-ui, -apple-system, sans-serif;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                background: #1a1a1a;
+                color: #e0e0e0;
+            }
+
+            h1 {
+                color: #4caf50;
+                border-bottom: 2px solid #4caf50;
+                padding-bottom: 0.5rem;
+            }
+
+            .endpoint-section {
+                background: #2c2c2c;
+                border-radius: 8px;
+                padding: 1.5rem;
+                margin-bottom: 2rem;
+                border: 1px solid #444;
+            }
+
+            .status {
+                display: inline-block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                font-size: 0.875rem;
+                font-weight: bold;
+                text-transform: uppercase;
+            }
+
+            .status.connecting {
+                background: #ff9800;
+                color: #000;
+            }
+
+            .status.connected {
+                background: #4caf50;
+                color: #fff;
+            }
+
+            .status.error {
+                background: #f44336;
+                color: #fff;
+            }
+
+            .events-log {
+                background: #1a1a1a;
+                border: 1px solid #444;
+                border-radius: 4px;
+                padding: 1rem;
+                max-height: 400px;
+                overflow-y: auto;
+                font-family: 'Courier New', monospace;
+                font-size: 0.875rem;
+                margin-top: 1rem;
+            }
+
+            .event-entry {
+                margin-bottom: 1rem;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid #333;
+            }
+
+            .event-entry:last-child {
+                border-bottom: none;
+            }
+
+            .event-timestamp {
+                color: #888;
+                font-size: 0.75rem;
+            }
+
+            .event-type {
+                color: #4caf50;
+                font-weight: bold;
+                margin-top: 0.25rem;
+            }
+
+            .event-data {
+                color: #ffeb3b;
+                margin-top: 0.25rem;
+                white-space: pre-wrap;
+                word-break: break-all;
+            }
+
+            .parsed-data {
+                color: #2196f3;
+                margin-top: 0.25rem;
+                white-space: pre-wrap;
+            }
+
+            button {
+                padding: 0.5rem 1rem;
+                background: #4caf50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-right: 0.5rem;
+            }
+
+            button:hover {
+                background: #45a049;
+            }
+
+            button:disabled {
+                background: #666;
+                cursor: not-allowed;
+            }
+
+            .controls {
+                margin-top: 1rem;
+            }
+
+            .info {
+                background: #1e3a5f;
+                border: 1px solid #2196f3;
+                border-radius: 4px;
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            code {
+                background: #333;
+                padding: 0.125rem 0.25rem;
+                border-radius: 2px;
+                color: #4caf50;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🔬 Raw SSE Test - SlateHub</h1>
+
+        <div class="info">
+            <strong>Purpose:</strong> This page tests the raw Server-Sent Events
+            (SSE) format without any framework interference. It connects directly
+            to the SSE endpoints using the native JavaScript
+            <code>EventSource</code> API and displays all received events.
+        </div>
+
+        <!-- Stats SSE Test -->
+        <div class="endpoint-section">
+            <h2>/api/sse/stats</h2>
+            <div>
+                Status: <span id="stats-status" class="status connecting">CONNECTING</span>
+                | Ready State: <span id="stats-readystate">-</span>
+            </div>
+            <div class="controls">
+                <button id="stats-connect">Connect</button>
+                <button id="stats-disconnect">Disconnect</button>
+                <button id="stats-clear">Clear Log</button>
+            </div>
+            <div id="stats-log" class="events-log">
+                <div class="event-entry">
+                    <div class="event-timestamp">Waiting for connection...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity SSE Test -->
+        <div class="endpoint-section">
+            <h2>/api/sse/activity</h2>
+            <div>
+                Status: <span id="activity-status" class="status connecting">CONNECTING</span>
+                | Ready State: <span id="activity-readystate">-</span>
+            </div>
+            <div class="controls">
+                <button id="activity-connect">Connect</button>
+                <button id="activity-disconnect">Disconnect</button>
+                <button id="activity-clear">Clear Log</button>
+            </div>
+            <div id="activity-log" class="events-log">
+                <div class="event-entry">
+                    <div class="event-timestamp">Waiting for connection...</div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            class SSEDebugger {
+                constructor(endpoint, name) {
+                    this.endpoint = endpoint;
+                    this.name = name;
+                    this.eventSource = null;
+                    this.eventCount = 0;
+
+                    // DOM elements
+                    this.statusEl = document.getElementById(`${name}-status`);
+                    this.readyStateEl = document.getElementById(`${name}-readystate`);
+                    this.logEl = document.getElementById(`${name}-log`);
+                    this.connectBtn = document.getElementById(`${name}-connect`);
+                    this.disconnectBtn = document.getElementById(`${name}-disconnect`);
+                    this.clearBtn = document.getElementById(`${name}-clear`);
+
+                    // Button handlers
+                    this.connectBtn.onclick = () => this.connect();
+                    this.disconnectBtn.onclick = () => this.disconnect();
+                    this.clearBtn.onclick = () => this.clearLog();
+
+                    // Auto-connect on load
+                    this.connect();
+                }
+
+                connect() {
+                    if (this.eventSource) {
+                        this.disconnect();
+                    }
+
+                    this.logEvent('system', null, `Connecting to ${this.endpoint}...`);
+                    this.eventSource = new EventSource(this.endpoint);
+
+                    // Update ready state periodically
+                    this.readyStateInterval = setInterval(() => {
+                        this.updateReadyState();
+                    }, 500);
+
+                    // Connection opened
+                    this.eventSource.onopen = (e) => {
+                        console.log(`[${this.name}] Connection opened`, e);
+                        this.setStatus('connected');
+                        this.logEvent('system', null, 'Connection established');
+                    };
+
+                    // Connection error
+                    this.eventSource.onerror = (e) => {
+                        console.error(`[${this.name}] Connection error`, e);
+                        this.setStatus('error');
+                        this.logEvent('error', null, `Connection error - ReadyState: ${this.eventSource.readyState}`);
+                    };
+
+                    // Generic message handler (for events without explicit type)
+                    this.eventSource.onmessage = (e) => {
+                        console.log(`[${this.name}] Generic message:`, e);
+                        this.logEvent('message', e.data, 'Generic message (no event type)');
+                    };
+
+                    // Listen for specific event types
+                    const eventTypes = [
+                        'datastar-patch-signals',
+                        'datastar-patch-elements',
+                        'datastar-execute-script',
+                        'datastar-signal', // Old format, just in case
+                    ];
+
+                    eventTypes.forEach(eventType => {
+                        this.eventSource.addEventListener(eventType, (e) => {
+                            console.log(`[${this.name}] ${eventType}:`, e.data);
+                            this.logEvent(eventType, e.data);
+                        });
+                    });
+                }
+
+                disconnect() {
+                    if (this.eventSource) {
+                        this.eventSource.close();
+                        this.eventSource = null;
+                        clearInterval(this.readyStateInterval);
+                        this.setStatus('disconnected');
+                        this.logEvent('system', null, 'Connection closed');
+                        this.updateReadyState();
+                    }
+                }
+
+                clearLog() {
+                    this.logEl.innerHTML = '';
+                    this.eventCount = 0;
+                }
+
+                setStatus(status) {
+                    this.statusEl.className = `status ${status}`;
+                    this.statusEl.textContent = status.toUpperCase();
+                }
+
+                updateReadyState() {
+                    if (this.eventSource) {
+                        const states = ['CONNECTING', 'OPEN', 'CLOSED'];
+                        this.readyStateEl.textContent = states[this.eventSource.readyState] || 'UNKNOWN';
+                    } else {
+                        this.readyStateEl.textContent = 'CLOSED';
+                    }
+                }
+
+                logEvent(type, data, note = null) {
+                    this.eventCount++;
+                    const timestamp = new Date().toLocaleTimeString('en-US', {
+                        hour12: false,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        fractionalSecondDigits: 3
+                    });
+
+                    const entry = document.createElement('div');
+                    entry.className = 'event-entry';
+
+                    let html = `<div class="event-timestamp">#${this.eventCount} - ${timestamp}</div>`;
+                    html += `<div class="event-type">Event: ${type}</div>`;
+
+                    if (data) {
+                        html += `<div class="event-data">Data: ${this.escapeHtml(data)}</div>`;
+
+                        // Try to parse the data
+                        if (data.startsWith('signals ')) {
+                            const jsonStr = data.substring(8);
+                            try {
+                                const parsed = JSON.parse(jsonStr);
+                                html += `<div class="parsed-data">Parsed: ${JSON.stringify(parsed, null, 2)}</div>`;
+                            } catch (e) {
+                                html += `<div class="parsed-data">Parse error: ${e.message}</div>`;
+                            }
+                        }
+                    }
+
+                    if (note) {
+                        html += `<div class="event-data">Note: ${note}</div>`;
+                    }
+
+                    entry.innerHTML = html;
+                    this.logEl.insertBefore(entry, this.logEl.firstChild);
+
+                    // Keep only last 50 entries
+                    while (this.logEl.children.length > 50) {
+                        this.logEl.removeChild(this.logEl.lastChild);
+                    }
+                }
+
+                escapeHtml(text) {
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                }
+            }
+
+            // Initialize debuggers when page loads
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('Initializing SSE debuggers...');
+                window.statsDebugger = new SSEDebugger('/api/sse/stats', 'stats');
+                window.activityDebugger = new SSEDebugger('/api/sse/activity', 'activity');
+            });
+        </script>
+    </body>
+</html>

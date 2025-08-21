@@ -52,9 +52,9 @@ impl PlatformStats {
     /// Datastar expects data in a specific format for signal updates
     pub fn to_datastar_event(&self) -> String {
         // Datastar SSE format for updating signal values
-        // We send individual updates for each stat to allow smooth animations
+        // Datastar expects JavaScript object literal notation, not JSON (no quotes around keys)
         format!(
-            r#"signals {{"projectCount": {}, "userCount": {}, "connectionCount": {}}}"#,
+            "signals {{projectCount: {}, userCount: {}, connectionCount: {}}}",
             self.project_count, self.user_count, self.connection_count
         )
     }
@@ -80,7 +80,7 @@ pub async fn stats_stream() -> Sse<impl Stream<Item = Result<Event, Infallible>>
 
         // Create SSE event in Datastar format
         let event = Event::default()
-            .event("datastar-signal") // Datastar listens for this event type
+            .event("datastar-patch-signals") // Datastar listens for this event type
             .data(stats.to_datastar_event());
 
         Some((Ok(event), (stats, ticker)))
@@ -200,11 +200,12 @@ pub async fn activity_stream() -> Sse<impl Stream<Item = Result<Event, Infallibl
             debug!("Sending {} total activities", activities.len());
 
             // Format for Datastar - send complete activities list
+            // Datastar expects JavaScript object literal notation, not JSON for the outer object
             let json_activities = serde_json::to_string(&activities).unwrap_or_default();
-            let datastar_data = format!(r#"signals {{"activities": {}}}"#, json_activities);
+            let datastar_data = format!("signals {{activities: {}}}", json_activities);
 
             let event = Event::default()
-                .event("datastar-signal")
+                .event("datastar-patch-signals")
                 .data(datastar_data);
 
             Some((Ok(event), (activities, ticker)))
@@ -255,12 +256,15 @@ mod tests {
         };
 
         let event = stats.to_datastar_event();
-        assert!(event.contains("projectCount"));
-        assert!(event.contains("100"));
-        assert!(event.contains("userCount"));
-        assert!(event.contains("200"));
-        assert!(event.contains("connectionCount"));
-        assert!(event.contains("300"));
+        // Verify exact format matches Datastar's expected JavaScript object literal notation
+        assert_eq!(
+            event,
+            "signals {projectCount: 100, userCount: 200, connectionCount: 300}"
+        );
+        // Also verify no quoted keys are present
+        assert!(!event.contains("\"projectCount\""));
+        assert!(!event.contains("\"userCount\""));
+        assert!(!event.contains("\"connectionCount\""));
     }
 
     #[test]

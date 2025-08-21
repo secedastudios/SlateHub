@@ -240,7 +240,7 @@
                 </div>
             </div>
 
-            <div class="debug-info">
+            <div class="debug-info" id="debug-stats">
                 <div class="debug-line">
                     <span class="timestamp">[STATS]</span>
                     Projects: <span data-text="$projectCount"></span> | Users:
@@ -295,7 +295,7 @@
                 </div>
             </div>
 
-            <div class="debug-info">
+            <div class="debug-info" id="debug-activity">
                 <div class="debug-line">
                     <span class="timestamp">[ACTIVITY]</span>
                     Total activities:
@@ -358,6 +358,133 @@
             console.log(
                 "Datastar should automatically connect to SSE endpoints...",
             );
+
+            // Manual SSE connection for debugging
+            function debugSSE(endpoint, name) {
+                console.log(
+                    `[${name}] Creating manual SSE connection to ${endpoint}`,
+                );
+                const eventSource = new EventSource(endpoint);
+
+                eventSource.onopen = function (e) {
+                    console.log(`[${name}] SSE Connection opened`, e);
+                };
+
+                eventSource.onerror = function (e) {
+                    console.error(`[${name}] SSE Error:`, e);
+                    console.log(
+                        `[${name}] ReadyState:`,
+                        eventSource.readyState,
+                    );
+                };
+
+                eventSource.onmessage = function (e) {
+                    console.log(
+                        `[${name}] Generic message (no event type):`,
+                        e.data,
+                    );
+                };
+
+                // Listen for datastar-patch-signals events specifically
+                eventSource.addEventListener(
+                    "datastar-patch-signals",
+                    function (e) {
+                        console.log(
+                            `[${name}] datastar-patch-signals event received:`,
+                            e.data,
+                        );
+
+                        // Try to parse the data
+                        if (e.data.startsWith("signals ")) {
+                            const jsonStr = e.data.substring(8); // Remove 'signals ' prefix
+                            try {
+                                const parsed = JSON.parse(jsonStr);
+                                console.log(
+                                    `[${name}] Parsed signals:`,
+                                    parsed,
+                                );
+
+                                // Manually update the debug info
+                                const debugDiv = document.querySelector(
+                                    `#debug-${name.toLowerCase()}`,
+                                );
+                                if (debugDiv) {
+                                    const timestamp =
+                                        new Date().toLocaleTimeString();
+                                    const line = document.createElement("div");
+                                    line.className = "debug-line";
+                                    line.innerHTML = `<span class="timestamp">[${timestamp}]</span> Received: ${JSON.stringify(parsed)}`;
+                                    debugDiv.appendChild(line);
+
+                                    // Keep only last 10 lines
+                                    while (debugDiv.children.length > 10) {
+                                        debugDiv.removeChild(
+                                            debugDiv.firstChild,
+                                        );
+                                    }
+                                }
+                            } catch (err) {
+                                console.error(
+                                    `[${name}] Failed to parse signals:`,
+                                    err,
+                                    jsonStr,
+                                );
+                            }
+                        }
+                    },
+                );
+
+                // Listen for other event types
+                [
+                    "message",
+                    "update",
+                    "datastar-patch-elements",
+                    "datastar-execute-script",
+                ].forEach((eventType) => {
+                    eventSource.addEventListener(eventType, function (e) {
+                        console.log(`[${name}] ${eventType} event:`, e.data);
+                    });
+                });
+
+                return eventSource;
+            }
+
+            // Start manual debugging connections
+            setTimeout(() => {
+                console.log("Starting manual SSE debug connections...");
+                const statsSSE = debugSSE("/api/sse/stats", "STATS");
+                const activitySSE = debugSSE("/api/sse/activity", "ACTIVITY");
+
+                // Store references for cleanup if needed
+                window.debugSSE = { stats: statsSSE, activity: activitySSE };
+            }, 1000);
+
+            // Monitor Datastar initialization
+            if (window.ds) {
+                console.log("Datastar is available:", window.ds);
+            } else {
+                console.log("Waiting for Datastar to initialize...");
+                // Try to detect when Datastar loads
+                const checkDatastar = setInterval(() => {
+                    if (window.ds || window.datastar) {
+                        console.log(
+                            "Datastar detected!",
+                            window.ds || window.datastar,
+                        );
+                        clearInterval(checkDatastar);
+                    }
+                }, 100);
+            }
+
+            // Override fetch to log SSE requests
+            const originalFetch = window.fetch;
+            window.fetch = function (...args) {
+                const [url, options] = args;
+                if (url && url.includes("/api/sse")) {
+                    console.log("Datastar SSE fetch:", url, options);
+                }
+                return originalFetch.apply(this, args);
+            };
         </script>
     </body>
 </html>
