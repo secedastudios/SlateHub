@@ -36,7 +36,7 @@ pub enum ConfigError {
 impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, ConfigError> {
-        // Load .env file if it exists
+        // Load .env file if it exists (safe to call multiple times)
         dotenv::dotenv().ok();
 
         Ok(Config {
