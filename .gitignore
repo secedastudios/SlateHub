@@ -24,3 +24,6 @@ target
 
 db/data
 db/files
+
+.DS_Store
+**/.DS_Store
