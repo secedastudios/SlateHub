@@ -1,0 +1,83 @@
+{% extends "_layout.html" %} {% block title %}Sign Up for {{ app_name }}{%
+endblock %} {% block description %}Create a new account on SlateHub to connect
+with creative professionals.{% endblock %} {% block content %}
+<article>
+    <hgroup>
+        <h1>Create Your Account</h1>
+        <p>
+            Join SlateHub and start collaborating with professionals in the TV,
+            film, and content industries.
+        </p>
+    </hgroup>
+
+    <div data-store='{ "error": "", "loading": false }'>
+        <form
+            data-on-submit-prevent="@post('/signup')"
+            data-on-begin="$loading = true"
+            data-on-end="$loading = false"
+            data-on-error="$error = await $$response.text()"
+        >
+            <fieldset>
+                <legend>Sign Up Information</legend>
+
+                <label for="username">
+                    Username
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="Choose a unique username"
+                        required
+                        autocomplete="username"
+                    />
+                </label>
+
+                <label for="email">
+                    Email Address
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="Your email address"
+                        required
+                        autocomplete="email"
+                    />
+                </label>
+
+                <label for="password">
+                    Password
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Choose a secure password"
+                        required
+                        autocomplete="new-password"
+                    />
+                </label>
+            </fieldset>
+
+            <div
+                data-show="$error"
+                class="error-message"
+                data-text="$error"
+            ></div>
+
+            <button type="submit" aria-busy="$loading">Create Account</button>
+        </form>
+    </div>
+
+    <p>Already have an account? <a href="/login">Log in here</a>.</p>
+</article>
+
+<style>
+    .error-message {
+        color: var(--pico-del-color);
+        background-color: var(--pico-del-background-color);
+        padding: 0.5rem 1rem;
+        border-radius: var(--pico-border-radius);
+        margin-bottom: 1rem;
+        border: 1px solid var(--pico-del-border-color);
+    }
+</style>
+{% endblock %}

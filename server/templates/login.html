@@ -1,0 +1,68 @@
+{% extends "_layout.html" %} {% block title %}Login to {{ app_name }}{% endblock
+%} {% block description %}Log in to your SlateHub account to access your
+projects and network.{% endblock %} {% block content %}
+<article>
+    <hgroup>
+        <h1>Login to Your Account</h1>
+        <p>Welcome back! Please enter your credentials to continue.</p>
+    </hgroup>
+
+    <div data-store='{ "error": "", "loading": false }'>
+        <form
+            data-on-submit-prevent="@post('/login')"
+            data-on-begin="$loading = true"
+            data-on-end="$loading = false"
+            data-on-error="$error = await $$response.text()"
+        >
+            <fieldset>
+                <legend>Login Credentials</legend>
+
+                <label for="user">
+                    Username or Email
+                    <input
+                        type="text"
+                        id="user"
+                        name="user"
+                        placeholder="Your username or email"
+                        required
+                        autocomplete="username"
+                    />
+                </label>
+
+                <label for="pass">
+                    Password
+                    <input
+                        type="password"
+                        id="pass"
+                        name="pass"
+                        placeholder="Your password"
+                        required
+                        autocomplete="current-password"
+                    />
+                </label>
+            </fieldset>
+
+            <div
+                data-show="$error"
+                class="error-message"
+                data-text="$error"
+            ></div>
+
+            <button type="submit" aria-busy="$loading">Login</button>
+        </form>
+    </div>
+
+    <p>Don't have an account yet? <a href="/signup">Create one here</a>.</p>
+</article>
+
+<style>
+    .error-message {
+        color: var(--pico-del-color);
+        background-color: var(--pico-del-background-color);
+        padding: 0.5rem 1rem;
+        border-radius: var(--pico-border-radius);
+        margin-bottom: 1rem;
+        border: 1px solid var(--pico-del-border-color);
+    }
+</style>
+{% endblock %}
