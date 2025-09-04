@@ -5,9 +5,9 @@ help:
 	@echo "SlateHub Makefile Commands:"
 	@echo ""
 	@echo "Main Commands:"
-	@echo "  make start          - Start everything (Docker services + server)"
+	@echo "  make start          - Start everything (Docker services + server, assumes DB is initialized)"
 	@echo "  make stop           - Stop everything"
-	@echo "  make clean          - Stop everything and clean data"
+	@echo "  make clean          - Stop everything and clean data files"
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make docker-up      - Start Docker services (SurrealDB + MinIO)"
@@ -18,16 +18,17 @@ help:
 	@echo "Database Commands:"
 	@echo "  make db-start       - Start SurrealDB container"
 	@echo "  make db-stop        - Stop SurrealDB container"
-	@echo "  make db-init        - Load database schema from db/schema.surql"
-	@echo "  make db-drop        - Drop the database"
-	@echo "  make db-reset       - Drop and reinitialize database"
+	@echo "  make db-init        - Clean and initialize database with schema from db/schema.surql"
+	@echo "  make db-clean       - Remove all database content (tables, functions, etc.)"
+	@echo "  make db-drop        - Drop the entire database"
+	@echo "  make db-reset       - Alias for db-init (clean and reinitialize)"
 	@echo ""
 	@echo "Server Commands:"
 	@echo "  make server-run     - Run the Rust server (cargo run)"
 	@echo "  make server-build   - Build the Rust server (cargo build --release)"
 
 # Main combined commands
-start: docker-up db-init server-run
+start: docker-up server-run
 
 stop: docker-down
 
@@ -70,7 +71,16 @@ db-stop:
 	@docker-compose stop surrealdb
 	@echo "SurrealDB stopped!"
 
-db-init:
+db-clean:
+	@echo "Cleaning database (removing all tables, functions, etc.)..."
+	@echo "REMOVE DATABASE main; DEFINE DATABASE main;" | docker exec -i slatehub-surrealdb /surreal sql \
+		--conn http://localhost:8000 \
+		--user root \
+		--pass root \
+		--ns slatehub || true
+	@echo "Database cleaned!"
+
+db-init: db-clean
 	@echo "Initializing database schema..."
 	@if [ -f db/schema.surql ]; then \
 		docker exec -i slatehub-surrealdb /surreal import \
@@ -95,7 +105,7 @@ db-drop:
 		--db main || true
 	@echo "Database dropped!"
 
-db-reset: db-drop db-init
+db-reset: db-init
 	@echo "Database reset complete!"
 
 # Server commands
@@ -109,7 +119,7 @@ server-build:
 	@echo "Build complete! Binary at: server/target/release/slatehub"
 
 # Development helpers
-dev: docker-up db-init
+dev: docker-up
 	@echo "Starting in development mode..."
 	@cd server && cargo watch -x run
 
