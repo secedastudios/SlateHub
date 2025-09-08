@@ -1,16 +1,11 @@
-use axum::{Json, Router, response::IntoResponse, routing::get};
+use axum::{Json, Router, routing::get};
 use serde::Serialize;
 use tracing::{debug, info};
-
-use crate::sse;
 
 pub fn router() -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/stats", get(stats))
-        // SSE routes for real-time updates
-        .route("/sse/stats", get(sse_stats))
-        .route("/sse/activity", get(sse_activity))
 }
 
 #[derive(Serialize)]
@@ -70,16 +65,4 @@ async fn stats() -> Json<PlatformStats> {
     };
 
     Json(stats)
-}
-
-// SSE handlers
-
-async fn sse_stats() -> impl IntoResponse {
-    debug!("SSE stats stream requested");
-    sse::stats_stream().await
-}
-
-async fn sse_activity() -> impl IntoResponse {
-    debug!("SSE activity stream requested");
-    sse::activity_stream().await
 }

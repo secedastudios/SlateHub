@@ -19,12 +19,6 @@
         <!-- SlateHub Custom Overrides -->
         <link rel="stylesheet" href="/static/css/slatehub-pico.css" />
 
-        <!-- Datastar JS -->
-        <script
-            type="module"
-            src="https://cdn.jsdelivr.net/gh/starfederation/datastar@main/bundles/datastar.js"
-        ></script>
-
         <!-- Theme Initialization Script -->
         <script>
             // Check for saved theme preference or default to dark
@@ -80,7 +74,6 @@
                         <button
                             id="theme-toggle"
                             class="contrast outline"
-                            data-on-click="$$toggle"
                             aria-label="Toggle theme"
                             data-tooltip="Toggle theme"
                             data-placement="bottom"
@@ -193,14 +186,23 @@
         </footer>
 
         <!-- Theme Toggle Logic -->
-        <script id="theme-script" data-signals>
-            const toggle = () => {
-                const currentTheme =
-                    document.documentElement.getAttribute("data-theme");
-                const newTheme = currentTheme === "light" ? "dark" : "light";
-                document.documentElement.setAttribute("data-theme", newTheme);
-                localStorage.setItem("theme", newTheme);
-            };
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const themeToggle = document.getElementById("theme-toggle");
+                if (themeToggle) {
+                    themeToggle.addEventListener("click", function () {
+                        const currentTheme =
+                            document.documentElement.getAttribute("data-theme");
+                        const newTheme =
+                            currentTheme === "light" ? "dark" : "light";
+                        document.documentElement.setAttribute(
+                            "data-theme",
+                            newTheme,
+                        );
+                        localStorage.setItem("theme", newTheme);
+                    });
+                }
+            });
         </script>
 
         {% block scripts %}{% endblock %}

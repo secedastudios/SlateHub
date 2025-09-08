@@ -1,17 +1,17 @@
 use axum::{
     Form, Router,
-    http::StatusCode,
-    response::{Html, IntoResponse},
+    response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
-use std::collections::HashMap;
+
+use std::{collections::HashMap, env};
 use surrealdb::opt::auth::Record;
 use tracing::{debug, error, info};
 
 use crate::{
     db::DB,
     error::Error,
-    models::person::{CreateUser, LoginUser, Person},
+    models::person::{CreateUser, LoginUser},
     templates,
 };
 
@@ -36,26 +36,32 @@ async fn signup_form() -> Result<Html<String>, Error> {
     Ok(Html(html))
 }
 
-async fn signup(Form(input): Form<CreateUser>) -> Result<impl IntoResponse, Error> {
+async fn signup(Form(input): Form<CreateUser>) -> Result<Response, Error> {
     debug!("Attempting to sign up new user: {}", input.username);
 
     // --- Basic Validation ---
     if input.username.is_empty() || input.email.is_empty() {
-        return Err(Error::bad_request("Username and email are required."));
+        return render_signup_with_error(
+            "Username and email are required.",
+            Some(&input.username),
+            Some(&input.email),
+        )
+        .await;
     }
     if input.password.len() < 8 {
-        return Err(Error::bad_request(
+        return render_signup_with_error(
             "Password must be at least 8 characters long.",
-        ));
+            Some(&input.username),
+            Some(&input.email),
+        )
+        .await;
     }
 
     // --- Database Signup ---
-    // SurrealDB's `signup` will handle the user creation and password hashing
-    // as defined in the `user` scope in `schema.surql`.
-    // Note: We are using hardcoded NS and DB for now. This should be
-    // retrieved from config state in a production setup.
-    // SurrealDB's `signup` method expects a tuple containing the scope name
-    // and a map of variables.
+    // Get namespace and database from environment, using same defaults as config
+    let namespace = env::var("DB_NAMESPACE").unwrap_or_else(|_| "slatehub".to_string());
+    let database = env::var("DB_NAME").unwrap_or_else(|_| "main".to_string());
+
     let mut vars = HashMap::new();
     vars.insert("user".to_string(), input.username.clone());
     vars.insert("email".to_string(), input.email.clone());
@@ -63,8 +69,8 @@ async fn signup(Form(input): Form<CreateUser>) -> Result<impl IntoResponse, Erro
 
     let result = DB
         .signup(Record {
-            namespace: "default",
-            database: "default",
+            namespace: &namespace,
+            database: &database,
             access: "user",
             params: vars,
         })
@@ -73,18 +79,57 @@ async fn signup(Form(input): Form<CreateUser>) -> Result<impl IntoResponse, Erro
     match result {
         Ok(_) => {
             info!("Successfully signed up user: {}", input.username);
-            // On success, we return a CREATED status. Datastar can then redirect.
-            Ok(StatusCode::CREATED)
+            // Render success page that will redirect to login
+            let mut context = templates::base_context();
+            context.insert("active_page", "signup");
+            context.insert(
+                "success_message",
+                "Account created successfully! Redirecting to login...",
+            );
+            context.insert("redirect_to", "/login");
+
+            let html = templates::render_with_context("signup.html", &context).map_err(|e| {
+                error!("Failed to render signup template: {}", e);
+                Error::template(e.to_string())
+            })?;
+
+            Ok(Html(html).into_response())
         }
         Err(e) => {
             error!("Failed to sign up user '{}': {}", input.username, e);
-            if e.to_string().contains("already exists") {
-                Err(Error::conflict("Username or email is already in use."))
+            let error_msg = if e.to_string().contains("already exists") {
+                "Username or email is already in use."
             } else {
-                Err(Error::database("An unexpected error occurred."))
-            }
+                "An unexpected error occurred. Please try again."
+            };
+
+            render_signup_with_error(error_msg, Some(&input.username), Some(&input.email)).await
         }
     }
+}
+
+async fn render_signup_with_error(
+    error_message: &str,
+    username: Option<&str>,
+    email: Option<&str>,
+) -> Result<Response, Error> {
+    let mut context = templates::base_context();
+    context.insert("active_page", "signup");
+    context.insert("error_message", error_message);
+
+    if let Some(u) = username {
+        context.insert("username_value", u);
+    }
+    if let Some(e) = email {
+        context.insert("email_value", e);
+    }
+
+    let html = templates::render_with_context("signup.html", &context).map_err(|e| {
+        error!("Failed to render signup template: {}", e);
+        Error::template(e.to_string())
+    })?;
+
+    Ok(Html(html).into_response())
 }
 
 async fn login_form() -> Result<Html<String>, Error> {
@@ -101,67 +146,101 @@ async fn login_form() -> Result<Html<String>, Error> {
     Ok(Html(html))
 }
 
-async fn login(Form(input): Form<LoginUser>) -> Result<impl IntoResponse, Error> {
+async fn login(Form(input): Form<LoginUser>) -> Result<Response, Error> {
     debug!("Attempting to log in user: {}", &input.user);
 
     if input.user.is_empty() || input.pass.is_empty() {
-        return Err(Error::bad_request(
+        return render_login_with_error(
             "Username/email and password are required.",
-        ));
+            Some(&input.user),
+        )
+        .await;
     }
 
-    // Manually query to validate credentials without changing the root connection's auth state.
-    // This is safer for a shared DB connection. The query will only return a result if the user
-    // exists AND the password is correct.
-    let sql = "SELECT * FROM person WHERE (username = $user OR email = $user) AND crypto::argon2::compare(password, $pass)";
+    // Get namespace and database from environment, using same defaults as config
+    let namespace = env::var("DB_NAMESPACE").unwrap_or_else(|_| "slatehub".to_string());
+    let database = env::var("DB_NAME").unwrap_or_else(|_| "main".to_string());
 
-    // Move the input values into owned strings to satisfy the static lifetime requirement of `bind`.
-    let user_identifier = input.user;
-    let password = input.pass;
+    // Use SurrealDB's built-in signin method
+    let mut params = HashMap::new();
+    params.insert("user".to_string(), input.user.clone());
+    params.insert("pass".to_string(), input.pass.clone());
 
-    let mut response = DB
-        .query(sql)
-        .bind(("user", user_identifier.clone()))
-        .bind(("pass", password))
-        .await?;
+    let result = DB
+        .signin(Record {
+            namespace: &namespace,
+            database: &database,
+            access: "user",
+            params,
+        })
+        .await;
 
-    // Check if the query returned a user record.
-    match response.take::<Option<Person>>(0) {
-        Ok(Some(_person)) => {
-            info!("Successfully authenticated user: {}", &user_identifier);
-            // In a real app, you would generate a session token (JWT) here
-            // and set it in a secure, HTTP-only cookie.
-            // For now, Datastar will receive the 200 OK and can handle redirection.
-            Ok(StatusCode::OK)
-        }
-        Ok(None) => {
-            error!("Invalid credentials for user '{}'", &user_identifier);
-            Err(Error::Unauthorized)
+    match result {
+        Ok(_token) => {
+            info!("Successfully authenticated user: {}", &input.user);
+
+            // In a production app, you would:
+            // 1. Use the returned token for session management
+            // 2. Store it in a secure, HTTP-only cookie
+            // 3. Save session info in database or cache
+
+            // For now, just redirect to home page
+            Ok(Redirect::to("/").into_response())
         }
         Err(e) => {
-            error!(
-                "Authentication query failed for user '{}': {}",
-                &user_identifier, e
-            );
-            Err(Error::Internal)
+            let error_msg =
+                if e.to_string().contains("Authentication") || e.to_string().contains("Invalid") {
+                    error!("Invalid credentials for user '{}'", &input.user);
+                    "Invalid username/email or password."
+                } else {
+                    error!("Authentication failed for user '{}': {}", &input.user, e);
+                    "An error occurred during login. Please try again."
+                };
+
+            render_login_with_error(error_msg, Some(&input.user)).await
         }
     }
 }
 
-async fn logout() -> Result<impl IntoResponse, Error> {
+async fn render_login_with_error(
+    error_message: &str,
+    username: Option<&str>,
+) -> Result<Response, Error> {
+    let mut context = templates::base_context();
+    context.insert("active_page", "login");
+    context.insert("error_message", error_message);
+
+    if let Some(u) = username {
+        context.insert("user_value", u);
+    }
+
+    let html = templates::render_with_context("login.html", &context).map_err(|e| {
+        error!("Failed to render login template: {}", e);
+        Error::template(e.to_string())
+    })?;
+
+    Ok(Html(html).into_response())
+}
+
+async fn logout() -> Result<Response, Error> {
     debug!("User logging out");
 
-    // Invalidate the session token on the database side.
+    // Invalidate the session token on the database side
     match DB.invalidate().await {
         Ok(_) => {
             info!("User session invalidated successfully.");
-            // On success, Datastar will receive a 200 OK and can redirect.
-            // In a full implementation, we would also clear the session cookie here.
-            Ok(StatusCode::OK)
+
+            // In a production app, you would:
+            // 1. Clear the session cookie
+            // 2. Remove session from database/cache
+
+            // Redirect to home page after logout
+            Ok(Redirect::to("/").into_response())
         }
         Err(e) => {
             error!("Failed to invalidate user session: {}", e);
-            Err(Error::Internal)
+            // Even if invalidation fails, redirect to home
+            Ok(Redirect::to("/").into_response())
         }
     }
 }

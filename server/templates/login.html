@@ -7,50 +7,44 @@ projects and network.{% endblock %} {% block content %}
         <p>Welcome back! Please enter your credentials to continue.</p>
     </hgroup>
 
-    <div data-store='{ "error": "", "loading": false }'>
-        <form
-            data-on-submit-prevent="@post('/login')"
-            data-on-begin="$loading = true"
-            data-on-end="$loading = false"
-            data-on-error="$error = await $$response.text()"
-        >
-            <fieldset>
-                <legend>Login Credentials</legend>
+    <form method="POST" action="/login">
+        <fieldset>
+            <legend>Login Credentials</legend>
 
-                <label for="user">
-                    Username or Email
-                    <input
-                        type="text"
-                        id="user"
-                        name="user"
-                        placeholder="Your username or email"
-                        required
-                        autocomplete="username"
-                    />
-                </label>
+            <label for="user">
+                Username or Email
+                <input
+                    type="text"
+                    id="user"
+                    name="user"
+                    placeholder="Your username or email"
+                    required
+                    autocomplete="username"
+                    value="{% if user_value %}{{ user_value }}{% endif %}"
+                />
+            </label>
 
-                <label for="pass">
-                    Password
-                    <input
-                        type="password"
-                        id="pass"
-                        name="pass"
-                        placeholder="Your password"
-                        required
-                        autocomplete="current-password"
-                    />
-                </label>
-            </fieldset>
+            <label for="pass">
+                Password
+                <input
+                    type="password"
+                    id="pass"
+                    name="pass"
+                    placeholder="Your password"
+                    required
+                    autocomplete="current-password"
+                />
+            </label>
+        </fieldset>
 
-            <div
-                data-show="$error"
-                class="error-message"
-                data-text="$error"
-            ></div>
+        {% if error_message %}
+        <div class="error-message">{{ error_message }}</div>
+        {% endif %} {% if success_message %}
+        <div class="success-message">{{ success_message }}</div>
+        {% endif %}
 
-            <button type="submit" aria-busy="$loading">Login</button>
-        </form>
-    </div>
+        <button type="submit">Login</button>
+    </form>
 
     <p>Don't have an account yet? <a href="/signup">Create one here</a>.</p>
 </article>
@@ -63,6 +57,15 @@ projects and network.{% endblock %} {% block content %}
         border-radius: var(--pico-border-radius);
         margin-bottom: 1rem;
         border: 1px solid var(--pico-del-border-color);
+    }
+
+    .success-message {
+        color: var(--pico-ins-color);
+        background-color: var(--pico-ins-background-color);
+        padding: 0.5rem 1rem;
+        border-radius: var(--pico-border-radius);
+        margin-bottom: 1rem;
+        border: 1px solid var(--pico-ins-border-color);
     }
 </style>
 {% endblock %}

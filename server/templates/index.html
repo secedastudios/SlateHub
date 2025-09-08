@@ -18,34 +18,22 @@ entertainment industry{% endblock %} {% block content %}
     <section class="features-section">
         <h2 class="section-title">Platform Features</h2>
 
-        <!-- Datastar reactive tabs example -->
-        <div class="feature-tabs" data-store="{activeTab: 'networking'}">
+        <!-- Simple tabs with vanilla JavaScript -->
+        <div class="feature-tabs">
             <nav class="tab-navigation">
-                <button
-                    class="tab-button"
-                    data-class-active="$activeTab === 'networking'"
-                    data-on-click="$activeTab = 'networking'"
-                >
+                <button class="tab-button active" data-tab="networking">
                     Networking
                 </button>
-                <button
-                    class="tab-button"
-                    data-class-active="$activeTab === 'projects'"
-                    data-on-click="$activeTab = 'projects'"
-                >
+                <button class="tab-button" data-tab="projects">
                     Project Management
                 </button>
-                <button
-                    class="tab-button"
-                    data-class-active="$activeTab === 'search'"
-                    data-on-click="$activeTab = 'search'"
-                >
+                <button class="tab-button" data-tab="search">
                     Semantic Search
                 </button>
             </nav>
 
             <div class="tab-content">
-                <div class="tab-panel" data-show="$activeTab === 'networking'">
+                <div class="tab-panel active" data-panel="networking">
                     <h3 class="panel-title">Professional Networking</h3>
                     <p class="panel-description">
                         Connect with industry professionals, build your network,
@@ -59,7 +47,7 @@ entertainment industry{% endblock %} {% block content %}
                     </ul>
                 </div>
 
-                <div class="tab-panel" data-show="$activeTab === 'projects'">
+                <div class="tab-panel" data-panel="projects">
                     <h3 class="panel-title">Project Management</h3>
                     <p class="panel-description">
                         Manage your creative projects with tools designed
@@ -72,7 +60,7 @@ entertainment industry{% endblock %} {% block content %}
                     </ul>
                 </div>
 
-                <div class="tab-panel" data-show="$activeTab === 'search'">
+                <div class="tab-panel" data-panel="search">
                     <h3 class="panel-title">AI-Powered Search</h3>
                     <p class="panel-description">
                         Find the perfect collaborators with semantic search and
@@ -88,76 +76,43 @@ entertainment industry{% endblock %} {% block content %}
         </div>
     </section>
 
-    <section
-        class="stats-section"
-        data-signals="{projectCount: 0, userCount: 0, connectionCount: 0}"
-        data-on-load="@get('/api/sse/stats')"
-    >
+    <section class="stats-section">
         <h2 class="section-title">Platform Statistics</h2>
 
         <div class="stats-grid">
             <div class="stat-card">
-                <div
-                    class="stat-value"
-                    data-text="$projectCount.toLocaleString()"
-                >
-                    0
-                </div>
+                <div class="stat-value">{{ project_count }}</div>
                 <div class="stat-label">Active Projects</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" data-text="$userCount.toLocaleString()">
-                    0
-                </div>
+                <div class="stat-value">{{ user_count }}</div>
                 <div class="stat-label">Creative Professionals</div>
             </div>
             <div class="stat-card">
-                <div
-                    class="stat-value"
-                    data-text="$connectionCount.toLocaleString()"
-                >
-                    0
-                </div>
+                <div class="stat-value">{{ connection_count }}</div>
                 <div class="stat-label">Connections Made</div>
             </div>
         </div>
-
-        <!-- Stats are updated via SSE from /api/sse/stats -->
     </section>
 
     <section class="recent-activity">
         <h2 class="section-title">Recent Activity</h2>
 
-        <div
-            class="activity-feed"
-            data-signals="{activities: [], loading: false}"
-            data-on-load="@get('/api/sse/activity')"
-        >
-            <div class="loading-indicator" data-show="$loading">
-                Loading recent activity...
-            </div>
-
-            <ul class="activity-list" data-show="!$loading">
-                <template data-for="activity in $activities">
-                    <li class="activity-item">
-                        <span
-                            class="activity-user"
-                            data-text="activity.user"
-                        ></span>
-                        <span
-                            class="activity-action"
-                            data-text="activity.action"
-                        ></span>
-                        <span
-                            class="activity-time"
-                            data-text="activity.time"
-                        ></span>
-                    </li>
-                </template>
+        <div class="activity-feed">
+            {% if activities %}
+            <ul class="activity-list">
+                {% for activity in activities %}
+                <li class="activity-item">
+                    <span class="activity-user">{{ activity.user }}</span>
+                    <span class="activity-action">{{ activity.action }}</span>
+                    <span class="activity-time">{{ activity.time }}</span>
+                </li>
+                {% endfor %}
             </ul>
+            {% else %}
+            <p class="no-activity">No recent activity to display.</p>
+            {% endif %}
         </div>
-
-        <!-- Activities are automatically updated via SSE from /api/sse/activity -->
     </section>
 
     <section class="cta-section">
@@ -240,13 +195,14 @@ entertainment industry{% endblock %} {% block content %}
         padding: 1rem 2rem;
         margin-bottom: -2px;
         transition: all var(--transition-base);
+        cursor: pointer;
     }
 
     .tab-button:hover {
         background-color: var(--color-surface);
     }
 
-    .tab-button[data-class-active="true"] {
+    .tab-button.active {
         color: var(--color-primary);
         border-bottom-color: var(--color-primary);
     }
@@ -256,7 +212,7 @@ entertainment industry{% endblock %} {% block content %}
         animation: fadeIn 0.3s ease-in-out;
     }
 
-    .tab-panel[data-show="true"] {
+    .tab-panel.active {
         display: block;
     }
 
@@ -339,7 +295,7 @@ entertainment industry{% endblock %} {% block content %}
         margin-bottom: 3rem;
     }
 
-    .loading-indicator {
+    .no-activity {
         text-align: center;
         color: var(--color-text-muted);
         padding: 2rem;
@@ -432,4 +388,31 @@ entertainment industry{% endblock %} {% block content %}
         }
     }
 </style>
+
+<script>
+    // Tab functionality with vanilla JavaScript
+    document.addEventListener("DOMContentLoaded", function () {
+        const tabButtons = document.querySelectorAll(".tab-button");
+        const tabPanels = document.querySelectorAll(".tab-panel");
+
+        tabButtons.forEach((button) => {
+            button.addEventListener("click", function () {
+                const targetTab = this.dataset.tab;
+
+                // Remove active class from all buttons and panels
+                tabButtons.forEach((btn) => btn.classList.remove("active"));
+                tabPanels.forEach((panel) => panel.classList.remove("active"));
+
+                // Add active class to clicked button and corresponding panel
+                this.classList.add("active");
+                const targetPanel = document.querySelector(
+                    `[data-panel="${targetTab}"]`,
+                );
+                if (targetPanel) {
+                    targetPanel.classList.add("active");
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}

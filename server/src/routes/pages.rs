@@ -17,6 +17,41 @@ async fn index() -> Result<Html<String>, Error> {
     let mut context = templates::base_context();
     context.insert("active_page", "home");
 
+    // Add static stats data (in production, fetch from database)
+    context.insert("project_count", &1247);
+    context.insert("user_count", &5892);
+    context.insert("connection_count", &18453);
+
+    // Add sample activities (in production, fetch from database)
+    let activities = vec![
+        serde_json::json!({
+            "user": "Sarah Johnson",
+            "action": "created a new project",
+            "time": "2 minutes ago"
+        }),
+        serde_json::json!({
+            "user": "Mike Chen",
+            "action": "joined the platform",
+            "time": "15 minutes ago"
+        }),
+        serde_json::json!({
+            "user": "Emily Rodriguez",
+            "action": "posted a job opening",
+            "time": "1 hour ago"
+        }),
+        serde_json::json!({
+            "user": "David Kim",
+            "action": "completed a collaboration",
+            "time": "3 hours ago"
+        }),
+        serde_json::json!({
+            "user": "Lisa Thompson",
+            "action": "updated their portfolio",
+            "time": "5 hours ago"
+        }),
+    ];
+    context.insert("activities", &activities);
+
     let html = templates::render_with_context("index.html", &context).map_err(|e| {
         error!("Failed to render index template: {}", e);
         Error::template(e.to_string())

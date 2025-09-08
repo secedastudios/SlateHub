@@ -10,62 +10,68 @@ with creative professionals.{% endblock %} {% block content %}
         </p>
     </hgroup>
 
-    <div data-store='{ "error": "", "loading": false }'>
-        <form
-            data-on-submit-prevent="@post('/signup')"
-            data-on-begin="$loading = true"
-            data-on-end="$loading = false"
-            data-on-error="$error = await $$response.text()"
-        >
-            <fieldset>
-                <legend>Sign Up Information</legend>
+    <form method="POST" action="/signup">
+        <fieldset>
+            <legend>Sign Up Information</legend>
 
-                <label for="username">
-                    Username
-                    <input
-                        type="text"
-                        id="username"
-                        name="username"
-                        placeholder="Choose a unique username"
-                        required
-                        autocomplete="username"
-                    />
-                </label>
+            <label for="username">
+                Username
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    placeholder="Choose a unique username"
+                    required
+                    autocomplete="username"
+                    value="{% if username_value %}{{ username_value }}{% endif %}"
+                />
+            </label>
 
-                <label for="email">
-                    Email Address
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        placeholder="Your email address"
-                        required
-                        autocomplete="email"
-                    />
-                </label>
+            <label for="email">
+                Email Address
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="Your email address"
+                    required
+                    autocomplete="email"
+                    value="{% if email_value %}{{ email_value }}{% endif %}"
+                />
+            </label>
 
-                <label for="password">
-                    Password
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        placeholder="Choose a secure password"
-                        required
-                        autocomplete="new-password"
-                    />
-                </label>
-            </fieldset>
+            <label for="password">
+                Password
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Choose a secure password"
+                    required
+                    autocomplete="new-password"
+                />
+            </label>
+        </fieldset>
 
-            <div
-                data-show="$error"
-                class="error-message"
-                data-text="$error"
-            ></div>
+        {% if error_message %}
+        <div class="error-message">{{ error_message }}</div>
+        {% endif %} {% if success_message %}
+        <div class="success-message">
+            {{ success_message }} {% if redirect_to %}
+            <script>
+                setTimeout(() => {
+                    window.location.href = "{{ redirect_to }}";
+                }, 1500);
+            </script>
+            {% endif %}
+        </div>
+        {% endif %}
 
-            <button type="submit" aria-busy="$loading">Create Account</button>
-        </form>
-    </div>
+        <button type="submit" {% if success_message %}disabled{% endif %}>
+            {% if success_message %} Account Created! {% else %} Create Account
+            {% endif %}
+        </button>
+    </form>
 
     <p>Already have an account? <a href="/login">Log in here</a>.</p>
 </article>
@@ -78,6 +84,15 @@ with creative professionals.{% endblock %} {% block content %}
         border-radius: var(--pico-border-radius);
         margin-bottom: 1rem;
         border: 1px solid var(--pico-del-border-color);
+    }
+
+    .success-message {
+        color: var(--pico-ins-color);
+        background-color: var(--pico-ins-background-color);
+        padding: 0.5rem 1rem;
+        border-radius: var(--pico-border-radius);
+        margin-bottom: 1rem;
+        border: 1px solid var(--pico-ins-border-color);
     }
 </style>
 {% endblock %}

@@ -111,8 +111,7 @@ DEFINE FIELD description ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD location ON organization TYPE option<string> PERMISSIONS FULL;  -- e.g., "Los Angeles, CA" for search
 DEFINE FIELD website ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD social_links ON organization TYPE array<object> PERMISSIONS FULL;
-DEFINE FIELD social_links[*].platform ON organization TYPE string;
-DEFINE FIELD social_links[*].url ON organization TYPE string;
+
 DEFINE FIELD logo ON organization TYPE option<record<media>> PERMISSIONS FULL;
 DEFINE FIELD contact_email ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD phone ON organization TYPE option<string> PERMISSIONS FULL;
@@ -126,8 +125,6 @@ DEFINE FIELD employees_count ON organization TYPE option<int> PERMISSIONS FULL;
 
 DEFINE TABLE owns TYPE RELATION FROM person|organization TO organization|production SCHEMAFULL PERMISSIONS NONE;
 
-DEFINE FIELD in ON owns TYPE record<person|organization> ASSERT $value != out PERMISSIONS FULL;
-DEFINE FIELD out ON owns TYPE record<organization|production> ASSERT $value != in PERMISSIONS FULL;
 DEFINE FIELD ownership_type ON owns TYPE option<string> PERMISSIONS FULL;  -- From ownership_type
 DEFINE FIELD percentage ON owns TYPE option<float> PERMISSIONS FULL;
 DEFINE FIELD start_date ON owns TYPE datetime PERMISSIONS FULL;
@@ -141,7 +138,7 @@ DEFINE FIELD timestamp ON owns TYPE datetime DEFAULT time::now() PERMISSIONS FUL
 DEFINE TABLE person TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD email ON person TYPE string ASSERT string::is::email($value) PERMISSIONS FULL;
-DEFINE FIELD password ON person TYPE string VALUE string::lowercase($value) PERMISSIONS FULL;
+DEFINE FIELD password ON person TYPE string PERMISSIONS FULL;
 DEFINE FIELD profile ON person FLEXIBLE TYPE option<object> PERMISSIONS FULL;
 DEFINE FIELD profile.avatar ON person TYPE option<record<media>> PERMISSIONS FULL;  -- Headshot
 DEFINE FIELD profile.headline ON person TYPE option<string> PERMISSIONS FULL;
@@ -156,33 +153,24 @@ DEFINE FIELD profile.age_range ON person TYPE option<object> PERMISSIONS FULL;
 DEFINE FIELD profile.age_range.min ON person TYPE int;
 DEFINE FIELD profile.age_range.max ON person TYPE int;
 DEFINE FIELD profile.media_other ON person TYPE array<record<media>> PERMISSIONS FULL;
-DEFINE FIELD profile.media_other[*] ON person TYPE record<media> PERMISSIONS FULL;
+
 DEFINE FIELD profile.reels ON person TYPE array<record<media>> PERMISSIONS FULL;  -- Demo reels/videos
-DEFINE FIELD profile.reels[*] ON person TYPE record<media> PERMISSIONS FULL;
+
 DEFINE FIELD profile.name ON person TYPE string PERMISSIONS FULL;
 DEFINE FIELD profile.skills ON person TYPE array<string> PERMISSIONS FULL;
 DEFINE FIELD profile.bio ON person TYPE option<string> PERMISSIONS FULL;  -- For semantic search (detailed description)
 DEFINE FIELD profile.social_links ON person TYPE array<object> PERMISSIONS FULL;
-DEFINE FIELD profile.social_links[*].platform ON person TYPE string;
-DEFINE FIELD profile.social_links[*].url ON person TYPE string;
+
 DEFINE FIELD profile.location ON person TYPE option<string> PERMISSIONS FULL;  -- e.g., city/state for search
 DEFINE FIELD profile.unions ON person TYPE array<string> PERMISSIONS FULL;  -- From union enum, e.g., ["SAG-AFTRA", "IATSE"]
 DEFINE FIELD profile.languages ON person TYPE array<string> PERMISSIONS FULL;  -- e.g., ["English", "Spanish"]
 DEFINE FIELD profile.availability ON person TYPE option<string> PERMISSIONS FULL;  -- e.g., "full-time", "freelance", dates
 DEFINE FIELD profile.experience ON person TYPE array<object> PERMISSIONS FULL;  -- For semantic (past roles/projects/credits)
-DEFINE FIELD profile.experience[*].role ON person TYPE string;
-DEFINE FIELD profile.experience[*].production ON person TYPE option<string>;
-DEFINE FIELD profile.experience[*].description ON person TYPE option<string>;  -- Text for search
-DEFINE FIELD profile.experience[*].dates ON person TYPE object;
+
 DEFINE FIELD profile.education ON person TYPE array<object> PERMISSIONS FULL;  -- Training/schools
-DEFINE FIELD profile.education[*].institution ON person TYPE string;
-DEFINE FIELD profile.education[*].degree ON person TYPE option<string>;
-DEFINE FIELD profile.education[*].field ON person TYPE option<string>;
-DEFINE FIELD profile.education[*].dates ON person TYPE object;  -- {start: datetime, end: datetime}
+
 DEFINE FIELD profile.awards ON person TYPE array<object> PERMISSIONS FULL;
-DEFINE FIELD profile.awards[*].name ON person TYPE string;
-DEFINE FIELD profile.awards[*].year ON person TYPE int;
-DEFINE FIELD profile.awards[*].description ON person TYPE option<string>;
+
 DEFINE FIELD profile.resume ON person TYPE option<record<media>> PERMISSIONS FULL;  -- PDF resume upload
 DEFINE FIELD profile.website ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.phone ON person TYPE option<string> PERMISSIONS FULL;
@@ -212,8 +200,6 @@ DEFINE FIELD location ON production TYPE option<string> PERMISSIONS FULL;  -- Fo
 
 DEFINE TABLE part_of TYPE RELATION FROM production TO production SCHEMAFULL PERMISSIONS NONE;
 
-DEFINE FIELD in ON part_of TYPE record<production> ASSERT $value != out PERMISSIONS FULL; -- Prevent self-loops
-DEFINE FIELD out ON part_of TYPE record<production> ASSERT $value != in PERMISSIONS FULL;
 DEFINE FIELD timestamp ON part_of TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
 
 -- ------------------------------
@@ -278,6 +264,16 @@ DEFINE INDEX idx_person_bio ON person FIELDS profile.bio SEARCH ANALYZER profile
 DEFINE INDEX idx_person_experience_desc ON person FIELDS profile.experience[*].description SEARCH ANALYZER profile_analyzer BM25;
 DEFINE INDEX idx_job_description ON job_posting FIELDS description SEARCH ANALYZER profile_analyzer BM25;
 DEFINE INDEX idx_job_requirements ON job_posting FIELDS requirements SEARCH ANALYZER profile_analyzer BM25;
+
+-- ------------------------------
+-- ACCESS DEFINITIONS (for authentication)
+-- ------------------------------
+
+-- User access for signup/signin
+DEFINE ACCESS user ON DATABASE TYPE RECORD
+    SIGNUP ( CREATE person SET username = $user, email = $email, password = crypto::argon2::generate($pass) )
+    SIGNIN ( SELECT * FROM person WHERE (username = $user OR email = $user) AND crypto::argon2::compare(password, $pass) )
+    DURATION FOR TOKEN 15m, FOR SESSION 12h;
 
 -- ------------------------------
 -- INSERT STATEMENTS FOR ENUMS (Run these in a separate migration script or after schema creation)
