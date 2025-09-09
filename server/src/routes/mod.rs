@@ -9,6 +9,7 @@ use crate::middleware::{RequestIdExt, auth_middleware, request_id_middleware};
 mod api;
 mod auth;
 mod pages;
+mod profile;
 
 pub fn app() -> Router {
     // Static file service
@@ -22,6 +23,8 @@ pub fn app() -> Router {
         .merge(pages::router())
         // Mount auth routes
         .merge(auth::router())
+        // Mount profile routes
+        .merge(profile::router())
         // Mount API routes under /api
         .nest("/api", api::router())
         // Static files

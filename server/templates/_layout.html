@@ -20,6 +20,7 @@
         <link rel="stylesheet" href="/static/css/slatehub-pico.css" />
         <link rel="stylesheet" href="/static/css/layout.css" />
         <link rel="stylesheet" href="/static/css/forms.css" />
+        <link rel="stylesheet" href="/static/css/profile.css" />
 
         <!-- Theme Initialization Script -->
         <script>
@@ -42,60 +43,16 @@
                 </ul>
                 <ul>
                     <li>
-                        <a
-                            href="/"
-                            {%
-                            if
-                            active_page
-                            == "home"
-                            %}aria-current="page"
-                            {%
-                            endif
-                            %}
-                            >Home</a
-                        >
+                        <a href="/" {% if active_page == "home" %}aria-current="page"{% endif %}>Home</a>
                     </li>
                     <li>
-                        <a
-                            href="/projects"
-                            {%
-                            if
-                            active_page
-                            == "projects"
-                            %}aria-current="page"
-                            {%
-                            endif
-                            %}
-                            >Projects</a
-                        >
+                        <a href="/projects" {% if active_page == "projects" %}aria-current="page"{% endif %}>Projects</a>
                     </li>
                     <li>
-                        <a
-                            href="/people"
-                            {%
-                            if
-                            active_page
-                            == "people"
-                            %}aria-current="page"
-                            {%
-                            endif
-                            %}
-                            >People</a
-                        >
+                        <a href="/people" {% if active_page == "people" %}aria-current="page"{% endif %}>People</a>
                     </li>
                     <li>
-                        <a
-                            href="/about"
-                            {%
-                            if
-                            active_page
-                            == "about"
-                            %}aria-current="page"
-                            {%
-                            endif
-                            %}
-                            >About</a
-                        >
+                        <a href="/about" {% if active_page == "about" %}aria-current="page"{% endif %}>About</a>
                     </li>
                 </ul>
                 <ul>
@@ -108,12 +65,8 @@
                             data-tooltip="Toggle theme"
                             data-placement="bottom"
                         >
-                            <span data-theme-icon="light" aria-hidden="true"
-                                >☀️</span
-                            >
-                            <span data-theme-icon="dark" aria-hidden="true"
-                                >🌙</span
-                            >
+                            <span data-theme-icon="light" aria-hidden="true">☀️</span>
+                            <span data-theme-icon="dark" aria-hidden="true">🌙</span>
                         </button>
                     </li>
                     <li>
@@ -183,8 +136,7 @@
                                     href="https://github.com/slatehub"
                                     rel="noopener noreferrer"
                                     target="_blank"
-                                    >GitHub</a
-                                >
+                                >GitHub</a>
                             </li>
                             <li><a href="/contact">Contact</a></li>
                             <li><a href="/blog">Blog</a></li>
@@ -197,10 +149,7 @@
 
             <section>
                 <p>
-                    <small
-                        >© {{ year }} {{ app_name }}. All rights
-                        reserved.</small
-                    >
+                    <small>© {{ year }} {{ app_name }}. All rights reserved.</small>
                 </p>
                 <p>
                     <small>v{{ version }}</small>
