@@ -3498,12 +3498,15 @@ checksum = "7a2ae44ef20feb57a68b23d846850f861394c2e02dc425a50098ae8c90267589"
 name = "slatehub"
 version = "0.1.0"
 dependencies = [
+ "argon2",
  "axum",
  "axum-extra",
+ "base64 0.22.1",
  "chrono",
  "cookie",
  "dotenv",
  "futures",
+ "jsonwebtoken",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -3516,6 +3519,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

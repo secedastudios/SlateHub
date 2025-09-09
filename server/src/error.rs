@@ -16,8 +16,8 @@ pub enum Error {
     #[error("not found")]
     NotFound,
 
-    #[error("internal server error")]
-    Internal,
+    #[error("internal server error: {0}")]
+    Internal(String),
 
     #[error("bad request: {0}")]
     BadRequest(String),
@@ -53,8 +53,8 @@ impl IntoResponse for Error {
                 )
             }
             Error::NotFound => (StatusCode::NOT_FOUND, "Resource not found"),
-            Error::Internal => {
-                error!("Internal server error");
+            Error::Internal(msg) => {
+                error!("Internal server error: {}", msg);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
             }
             Error::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.as_str()),
@@ -106,7 +106,7 @@ impl From<serde_json::Error> for Error {
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         error!("IO error occurred: {:?}", err);
-        Self::Internal
+        Self::Internal(err.to_string())
     }
 }
 

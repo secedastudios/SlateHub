@@ -1,11 +1,30 @@
 use std::sync::LazyLock;
 use surrealdb::{Surreal, engine::remote::ws::Client};
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument};
 
 pub static DB: LazyLock<Surreal<Client>> = LazyLock::new(|| {
     debug!("Initializing database client");
     Surreal::init()
 });
+
+/// Ensures the database client is initialized and ready
+pub async fn ensure_db_initialized() -> Result<(), surrealdb::Error> {
+    // Force initialization of the LazyLock if not already done
+    let _ = &*DB;
+
+    // Verify we can perform a basic operation
+    debug!("Verifying database connection is ready");
+    match DB.query("INFO FOR NS").await {
+        Ok(_) => {
+            info!("Database connection verified and ready");
+            Ok(())
+        }
+        Err(e) => {
+            tracing::error!("Database connection verification failed: {:?}", e);
+            Err(e)
+        }
+    }
+}
 
 /// Helper function to log database operations
 #[instrument(skip_all)]

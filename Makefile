@@ -9,6 +9,13 @@ help:
 	@echo "  make stop           - Stop everything"
 	@echo "  make clean          - Stop everything and clean data files"
 	@echo ""
+	@echo "Development Commands (with auto-rebuild):"
+	@echo "  make dev            - Start Docker + watch server (auto-rebuild on changes)"
+	@echo "  make watch          - Watch and auto-rebuild server only"
+	@echo "  make watch-run      - Watch, rebuild and restart server on changes"
+	@echo "  make watch-test     - Watch and run tests on changes"
+	@echo "  make install-watch  - Install cargo-watch if not already installed"
+	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make docker-up      - Start Docker services (SurrealDB + MinIO)"
 	@echo "  make docker-down    - Stop Docker services"
@@ -118,10 +125,46 @@ server-build:
 	@cd server && cargo build --release
 	@echo "Build complete! Binary at: server/target/release/slatehub"
 
-# Development helpers
+# Development helpers with auto-rebuild
 dev: docker-up
-	@echo "Starting in development mode..."
-	@cd server && cargo watch -x run
+	@echo "Starting in development mode with auto-rebuild..."
+	@echo "Server will restart automatically when you save changes!"
+	@cd server && cargo watch -x run -w src -w templates -w static
+
+# Watch commands for development
+watch:
+	@echo "Watching for changes (build only)..."
+	@cd server && cargo watch -x build -w src
+
+watch-run:
+	@echo "Watching for changes (build and run)..."
+	@echo "Server will restart automatically when you save changes!"
+	@cd server && cargo watch -x run -w src -w templates -w static
+
+watch-test:
+	@echo "Watching for changes (run tests)..."
+	@cd server && cargo watch -x test -w src
+
+watch-check:
+	@echo "Watching for changes (check only - fast feedback)..."
+	@cd server && cargo watch -x check -w src
+
+# Watch both Rust code and database schema
+watch-full: docker-up
+	@echo "Starting full development mode with auto-rebuild..."
+	@echo "Watching Rust code, templates, and database schema..."
+	@cd server && cargo watch -x run -w src -w templates -w static -w ../db/schema.surql
+
+# Install cargo-watch if not already installed
+install-watch:
+	@echo "Checking if cargo-watch is installed..."
+	@if ! command -v cargo-watch &> /dev/null; then \
+		echo "Installing cargo-watch..."; \
+		cargo install cargo-watch; \
+		echo "cargo-watch installed successfully!"; \
+	else \
+		echo "cargo-watch is already installed!"; \
+	fi
 
 logs-surreal:
 	@docker logs -f slatehub-surrealdb
@@ -142,3 +185,9 @@ status:
 	@echo "MinIO Console: http://localhost:9001"
 	@echo "  Username: slatehub"
 	@echo "  Password: slatehub123"
+
+# Quick development start with auto-rebuild
+quick-start: install-watch docker-up db-init dev
+
+# Development with existing database
+quick-dev: install-watch dev

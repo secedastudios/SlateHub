@@ -135,7 +135,7 @@ DEFINE FIELD timestamp ON owns TYPE datetime DEFAULT time::now() PERMISSIONS FUL
 -- TABLE: person
 -- ------------------------------
 
-DEFINE TABLE person TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE person TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
 
 DEFINE FIELD email ON person TYPE string ASSERT string::is::email($value) PERMISSIONS FULL;
 DEFINE FIELD password ON person TYPE string PERMISSIONS FULL;
@@ -177,6 +177,7 @@ DEFINE FIELD profile.phone ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD username ON person TYPE string VALUE string::lowercase($value) PERMISSIONS FOR select, update FULL, FOR create WHERE FULL;
 
 DEFINE INDEX person_username_unique ON person FIELDS username UNIQUE;
+DEFINE INDEX person_email_unique ON person FIELDS email;
 DEFINE INDEX idx_person_location ON person FIELDS profile.location;  -- For search
 DEFINE INDEX idx_person_skills ON person FIELDS profile.skills;
 
@@ -271,8 +272,8 @@ DEFINE INDEX idx_job_requirements ON job_posting FIELDS requirements SEARCH ANAL
 
 -- User access for signup/signin
 DEFINE ACCESS user ON DATABASE TYPE RECORD
-    SIGNUP ( CREATE person SET username = $user, email = $email, password = crypto::argon2::generate($pass) )
-    SIGNIN ( SELECT * FROM person WHERE (username = $user OR email = $user) AND crypto::argon2::compare(password, $pass) )
+    SIGNUP ( CREATE person SET username = string::lowercase($user), email = $email, password = crypto::argon2::generate($pass) )
+    SIGNIN ( SELECT * FROM person WHERE (username = string::lowercase($user) OR email = $user) AND crypto::argon2::compare(password, $pass) )
     DURATION FOR TOKEN 15m, FOR SESSION 12h;
 
 -- ------------------------------

@@ -1,7 +1,7 @@
 use axum::{
     Form, Router,
     extract::Request,
-    response::{Html, IntoResponse, Redirect, Response},
+    response::{Html, IntoResponse, Response},
     routing::{get, post},
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -13,7 +13,7 @@ use crate::{
     error::Error,
     middleware::UserExtractor,
     models::person::{CreateUser, LoginUser, Person},
-    templates,
+    response, templates,
 };
 
 pub fn router() -> Router {
@@ -184,6 +184,7 @@ async fn login(jar: CookieJar, Form(input): Form<LoginUser>) -> Result<Response,
 
             // Debug: Log the JWT token
             debug!("JWT token string: {}", &token_str);
+            debug!("Login successful, preparing to redirect to home page '/'");
 
             // In development, don't require HTTPS for cookies
             let is_production =
@@ -197,16 +198,14 @@ async fn login(jar: CookieJar, Form(input): Form<LoginUser>) -> Result<Response,
                 .path("/")
                 .build();
 
-            // Create username cookie (for easy access without JWT decoding)
-            let user_cookie = Cookie::build(("username", input.user.clone()))
-                .http_only(true)
-                .secure(is_production)
-                .same_site(SameSite::Strict)
-                .path("/")
-                .build();
-
-            // Add both cookies to response and redirect
-            Ok((jar.add(auth_cookie).add(user_cookie), Redirect::to("/")).into_response())
+            debug!("Auth cookie created, redirecting to home page '/'");
+            // Add auth cookie to response and redirect
+            let redirect_response = response::redirect_with_cookies("/", jar.add(auth_cookie));
+            debug!(
+                "Redirect response created with status: {:?}",
+                redirect_response.status()
+            );
+            Ok(redirect_response)
         }
         Err(e) => {
             let error_msg =
@@ -247,34 +246,16 @@ async fn render_login_with_error(
 async fn logout(jar: CookieJar) -> Result<Response, Error> {
     debug!("User logging out");
 
-    // Invalidate the session token on the database side
-    match Person::invalidate_session().await {
-        Ok(_) => {
-            info!("User session invalidated successfully.");
+    // We don't invalidate the DB session since we're using a singleton root connection
+    // Just remove the auth cookie - the JWT token will expire on its own
+    info!("User logging out - removing auth cookie");
 
-            // Remove both auth and username cookies
-            let auth_cookie = Cookie::build("auth_token").path("/").build();
-            let user_cookie = Cookie::build("username").path("/").build();
+    // Remove auth cookie
+    let auth_cookie = Cookie::build("auth_token").path("/").build();
 
-            // Clear cookies and redirect to home page
-            Ok((
-                jar.remove(auth_cookie).remove(user_cookie),
-                Redirect::to("/"),
-            )
-                .into_response())
-        }
-        Err(e) => {
-            error!("Failed to invalidate user session: {}", e);
-
-            // Even if invalidation fails, clear cookies and redirect
-            let auth_cookie = Cookie::build("auth_token").path("/").build();
-            let user_cookie = Cookie::build("username").path("/").build();
-
-            Ok((
-                jar.remove(auth_cookie).remove(user_cookie),
-                Redirect::to("/"),
-            )
-                .into_response())
-        }
-    }
+    // Clear cookie and redirect to home page
+    Ok(response::redirect_with_cookies(
+        "/",
+        jar.remove(auth_cookie),
+    ))
 }

@@ -4,11 +4,13 @@
 //! mirroring the `person` table in the SurrealDB schema. It provides functions to
 //! interact with the database for creating, retrieving, updating, and deleting person records.
 
+use crate::auth;
 use crate::db::DB;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::{db_span, log_error};
 use serde::{Deserialize, Serialize};
 use surrealdb::RecordId;
+use tracing::debug;
 
 // -----------------------------------------------------------------------------
 // Core Person Model
@@ -177,14 +179,96 @@ impl Person {
     /// A `Result` containing an `Option<Person>`. Returns `Some(Person)` if found,
     /// `None` if not found, or an `Error` if the database operation fails.
     pub async fn find_by_username(username: &str) -> Result<Option<Self>> {
-        let sql = "SELECT * FROM person WHERE username = $username";
+        use tracing::debug;
+
+        let sql = "SELECT * FROM person WHERE username = string::lowercase($username)";
+        debug!("Executing query: {} with username: '{}'", sql, username);
+
         let mut response = DB
             .query(sql)
             .bind(("username", username.to_string()))
             .await?;
 
-        let persons: Vec<Person> = response.take(0)?;
-        Ok(persons.into_iter().next())
+        debug!(
+            "Query executed successfully, attempting to extract results: {:?}",
+            response
+        );
+
+        // Try to get the raw response first to see what we're getting
+        let persons: Vec<Person> = match response.take::<Vec<Person>>(0) {
+            Ok(p) => {
+                debug!("Successfully extracted {} person records", p.len());
+                p
+            }
+            Err(e) => {
+                debug!("Failed to extract person records: {:?}", e);
+                return Err(e.into());
+            }
+        };
+
+        let result = persons.into_iter().next();
+        debug!("Returning result: {:?}", result.is_some());
+        Ok(result)
+    }
+
+    /// Finds a person by their ID.
+    ///
+    /// # Arguments
+    /// * `id` - The ID to search for (can be with or without "person:" prefix).
+    ///
+    /// # Returns
+    /// A `Result` containing an `Option<Person>`. Returns `Some(Person)` if found,
+    /// `None` if not found, or an `Error` if the database operation fails.
+    pub async fn find_by_id(id: &str) -> Result<Option<Self>> {
+        use tracing::{debug, info_span};
+
+        let span = info_span!(
+            "find_person_by_id",
+            id = %id,
+            record_id = tracing::field::Empty,
+        );
+        let _enter = span.enter();
+
+        // Build the full record ID if needed
+        let record_id = if id.starts_with("person:") {
+            id.to_string()
+        } else {
+            format!("person:{}", id)
+        };
+
+        span.record("record_id", &record_id);
+        debug!(
+            record_id = %record_id,
+            "Using DB.select to fetch person"
+        );
+
+        // Query directly using the record ID
+        // In SurrealDB, we can query a specific record directly
+        let sql = format!("SELECT * FROM {}", record_id);
+        debug!(
+            sql = %sql,
+            "Executing direct record query"
+        );
+
+        let mut response = DB.query(&sql).await?;
+
+        debug!("Query executed, extracting results");
+
+        // Extract the person from the response
+        let persons: Vec<Person> = match response.take::<Vec<Person>>(0) {
+            Ok(p) => {
+                debug!(count = p.len(), "Extracted person records");
+                p
+            }
+            Err(e) => {
+                debug!(error = ?e, "Failed to extract person records");
+                return Err(e.into());
+            }
+        };
+
+        let result = persons.into_iter().next();
+        debug!(found = result.is_some(), "Query complete");
+        Ok(result)
     }
 
     /// Finds a person by their email.
@@ -213,7 +297,7 @@ impl Person {
     /// A `Result` containing an `Option<Person>`. Returns `Some(Person)` if found,
     /// `None` if not found, or an `Error` if the database operation fails.
     pub async fn find_by_identifier(identifier: &str) -> Result<Option<Self>> {
-        let sql = "SELECT * FROM person WHERE username = $identifier OR email = $identifier";
+        let sql = "SELECT * FROM person WHERE username = string::lowercase($identifier) OR email = $identifier";
         let mut response = DB
             .query(sql)
             .bind(("identifier", identifier.to_string()))
@@ -233,7 +317,7 @@ impl Person {
     /// # Returns
     /// A `Result` containing an `Option<Person>` if authentication succeeds.
     pub async fn authenticate(identifier: &str, password: &str) -> Result<Option<Self>> {
-        let sql = "SELECT * FROM person WHERE (username = $identifier OR email = $identifier) AND crypto::argon2::compare(password, $password)";
+        let sql = "SELECT * FROM person WHERE (username = string::lowercase($identifier) OR email = $identifier) AND crypto::argon2::compare(password, $password)";
         let mut response = DB
             .query(sql)
             .bind(("identifier", identifier.to_string()))
@@ -326,8 +410,7 @@ impl Person {
 }
 
 impl Person {
-    /// Signs up a new user using SurrealDB's authentication system.
-    /// This creates a new person record with hashed password.
+    /// Signs up a new user by creating a person record with hashed password.
     ///
     /// # Arguments
     /// * `username` - The username for the new user
@@ -337,84 +420,113 @@ impl Person {
     /// # Returns
     /// A `Result` containing the JWT token string if successful.
     pub async fn signup(username: String, email: String, password: String) -> Result<String> {
+        use crate::auth;
         use crate::db::DB;
-        use std::collections::HashMap;
-        use std::env;
-        use surrealdb::opt::auth::Record;
+        use tracing::debug;
 
-        // Get namespace and database from environment
-        let namespace = env::var("DB_NAMESPACE").unwrap_or_else(|_| "slatehub".to_string());
-        let database = env::var("DB_NAME").unwrap_or_else(|_| "main".to_string());
+        // Hash the password using SurrealDB-compatible Argon2id
+        let password_hash = auth::hash_password(&password)?;
 
-        let mut vars = HashMap::new();
-        vars.insert("user".to_string(), username);
-        vars.insert("email".to_string(), email);
-        vars.insert("pass".to_string(), password);
-
-        match DB
-            .signup(Record {
-                namespace: &namespace,
-                database: &database,
-                access: "user",
-                params: vars,
-            })
-            .await
-        {
-            Ok(jwt) => Ok(jwt.into_insecure_token()),
-            Err(e) => {
-                log_error!(e, "Failed to signup user");
-                Err(e.into())
-            }
+        // Check if user already exists
+        if Self::find_by_username(&username).await?.is_some() {
+            return Err(Error::Conflict("Username already exists".to_string()));
         }
+        if Self::find_by_email(&email).await?.is_some() {
+            return Err(Error::Conflict("Email already exists".to_string()));
+        }
+
+        // Create the person record
+        let sql = "CREATE person SET username = $username, email = $email, password = $password";
+        let mut response = DB
+            .query(sql)
+            .bind(("username", username.clone()))
+            .bind(("email", email.clone()))
+            .bind(("password", password_hash))
+            .await?;
+
+        // Get the created person
+        let persons: Vec<Person> = response.take(0)?;
+        let person = persons
+            .into_iter()
+            .next()
+            .ok_or_else(|| Error::Internal("Failed to create user".to_string()))?;
+
+        debug!("Created new user: {} with id: {}", username, person.id);
+
+        // Generate JWT token
+        let token = auth::create_jwt(&person.id.to_string(), &username, &email)?;
+
+        Ok(token)
     }
 
-    /// Signs in a user using SurrealDB's authentication system.
+    /// Signs in a user by verifying their password.
     ///
     /// # Arguments
-    /// * `identifier` - Username or email
+    /// * `identifier` - Username
     /// * `password` - The password to verify
     ///
     /// # Returns
     /// A `Result` containing the JWT token string if successful.
     pub async fn signin(identifier: String, password: String) -> Result<String> {
-        use crate::db::DB;
-        use std::collections::HashMap;
-        use std::env;
-        use surrealdb::opt::auth::Record;
+        // Find the user by username or email, including the password field
+        // Note: password field must be explicitly requested in SurrealDB
+        let sql = "SELECT *, password FROM person WHERE username = string::lowercase($identifier)";
+        let mut response = DB
+            .query(sql)
+            .bind(("identifier", identifier.clone()))
+            .await?;
 
-        // Get namespace and database from environment
-        let namespace = env::var("DB_NAMESPACE").unwrap_or_else(|_| "slatehub".to_string());
-        let database = env::var("DB_NAME").unwrap_or_else(|_| "main".to_string());
-
-        let mut params = HashMap::new();
-        params.insert("user".to_string(), identifier);
-        params.insert("pass".to_string(), password);
-
-        match DB
-            .signin(Record {
-                namespace: &namespace,
-                database: &database,
-                access: "user",
-                params,
-            })
-            .await
-        {
-            Ok(jwt) => Ok(jwt.into_insecure_token()),
-            Err(e) => {
-                log_error!(e, "Failed to signin user");
-                Err(e.into())
-            }
+        // Define a struct that includes the password field
+        #[derive(serde::Deserialize)]
+        struct PersonWithPassword {
+            id: surrealdb::RecordId,
+            username: String,
+            email: String,
+            password: String,
         }
+
+        let persons: Vec<PersonWithPassword> = response.take(0)?;
+        let person_with_password = persons
+            .into_iter()
+            .next()
+            .ok_or_else(|| Error::Unauthorized)?;
+
+        // Verify the password
+        if !auth::verify_password(&password, &person_with_password.password)? {
+            debug!("Invalid password for user: {}", identifier);
+            return Err(Error::Unauthorized);
+        }
+
+        debug!(
+            "User authenticated successfully: {}",
+            person_with_password.username
+        );
+
+        // Generate JWT token
+        let token = auth::create_jwt(
+            &person_with_password.id.to_string(),
+            &person_with_password.username,
+            &person_with_password.email,
+        )?;
+
+        Ok(token)
     }
 
     /// Invalidates the current authentication session.
     /// Used for logout functionality.
     ///
+    /// **WARNING**: This method changes the global DB connection context!
+    /// Do not use with a singleton DB connection. It will invalidate the root
+    /// authentication and break all subsequent database queries.
+    ///
+    /// # Deprecated
+    /// This method should not be used when using a singleton root DB connection.
+    /// Session management should be handled via JWT cookies instead.
+    ///
     /// # Returns
     /// A `Result` indicating success or failure.
+    #[deprecated(note = "Changes global DB connection context. Use cookie-based sessions instead.")]
     pub async fn invalidate_session() -> Result<()> {
-        use crate::db::DB;
-
         match DB.invalidate().await {
             Ok(_) => Ok(()),
             Err(e) => {
@@ -427,14 +539,22 @@ impl Person {
     /// Authenticates with an existing JWT token.
     /// Used to validate tokens from cookies.
     ///
+    /// **WARNING**: This method changes the global DB connection context!
+    /// Do not use with a singleton DB connection. It will change the authentication
+    /// from root to the user context, and users don't have permissions to query
+    /// the person table.
+    ///
+    /// # Deprecated
+    /// This method should not be used when using a singleton root DB connection.
+    /// JWT validation should be done by decoding the token instead.
+    ///
     /// # Arguments
     /// * `token` - The JWT token to authenticate with
     ///
     /// # Returns
     /// A `Result` indicating success or failure.
+    #[deprecated(note = "Changes global DB connection context. Decode JWT instead.")]
     pub async fn authenticate_token(token: &str) -> Result<()> {
-        use crate::db::DB;
-
         match DB.authenticate(token).await {
             Ok(_) => Ok(()),
             Err(e) => {

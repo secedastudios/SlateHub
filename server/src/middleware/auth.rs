@@ -1,9 +1,10 @@
 use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 use axum_extra::extract::cookie::CookieJar;
 use std::sync::Arc;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info_span, warn};
 
 use crate::{
+    auth,
     error::Error,
     models::person::{Person, SessionUser},
 };
@@ -17,62 +18,123 @@ pub async fn auth_middleware(
     mut request: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    // Check if both auth_token and username cookies exist
-    if let (Some(auth_cookie), Some(username_cookie)) = (jar.get("auth_token"), jar.get("username"))
-    {
-        let token = auth_cookie.value();
-        let username = username_cookie.value();
-        debug!("Found auth token and username in cookies: {}", username);
+    debug!("Auth middleware: Processing request for {}", request.uri());
 
-        // Try to authenticate with SurrealDB using the token
-        match Person::authenticate_token(token).await {
-            Ok(_) => {
-                debug!("Token is valid, fetching user info for: {}", username);
-                // Token is valid, get user info from database
-                match get_user_from_username(username).await {
+    // List all cookies for debugging
+    debug!("Auth middleware: Available cookies:");
+    for cookie in jar.iter() {
+        debug!(
+            "  Cookie: name={}, value_len={}",
+            cookie.name(),
+            cookie.value().len()
+        );
+    }
+
+    // Check if auth_token cookie exists
+    if let Some(auth_cookie) = jar.get("auth_token") {
+        let token = auth_cookie.value();
+        debug!(
+            "Auth middleware: Found auth_token (len={}) in cookies",
+            token.len()
+        );
+
+        // Decode JWT to extract user information
+        match auth::decode_jwt(token) {
+            Ok(claims) => {
+                let user_id = &claims.sub;
+                debug!(
+                    "Auth middleware: Decoded JWT successfully, user ID: '{}', username: '{}'",
+                    user_id, claims.username
+                );
+
+                // Get user info from database using the ID from JWT
+                match get_user_from_id(user_id).await {
                     Ok(user) => {
-                        debug!("Authenticated user: {}", user.username);
+                        debug!(
+                            "Auth middleware: Successfully authenticated user: '{}' with id: '{}' and email: '{}'",
+                            user.username, user.id, user.email
+                        );
                         // Insert user into request extensions so handlers can access it
                         request.extensions_mut().insert(Arc::new(user));
+                        debug!("Auth middleware: User inserted into request extensions");
                     }
                     Err(e) => {
-                        warn!("Could not fetch user info for {}: {}", username, e);
+                        warn!(
+                            "Auth middleware: Could not fetch user info for ID '{}': {}",
+                            user_id, e
+                        );
+                        debug!(
+                            "Auth middleware: User might not exist, continuing without authentication"
+                        );
                         // Continue without user in extensions
                     }
                 }
             }
             Err(e) => {
-                debug!("Invalid or expired token: {}", e);
-                // Token is invalid or expired, continue without authentication
+                debug!("Auth middleware: Failed to decode JWT: {}", e);
+                debug!(
+                    "Auth middleware: Token might be invalid or expired, continuing without authentication"
+                );
+                // Continue without user in extensions
             }
         }
     } else {
-        debug!("Missing auth token or username cookie");
+        debug!("Auth middleware: Missing auth_token cookie");
     }
 
+    debug!("Auth middleware: Passing request to next handler");
     // Continue to the next middleware/handler
     Ok(next.run(request).await)
 }
 
-/// Extract user information from username using the Person model
-async fn get_user_from_username(username: &str) -> Result<CurrentUser, Error> {
-    debug!("Fetching user info for username: {}", username);
+/// Extract user information from ID using the Person model
+async fn get_user_from_id(user_id: &str) -> Result<CurrentUser, Error> {
+    let span = info_span!(
+        "fetch_user",
+        user_id = %user_id,
+        stripped_id = tracing::field::Empty,
+    );
+    let _enter = span.enter();
 
-    match Person::find_by_username(username).await {
+    debug!("Starting user fetch");
+
+    // Extract just the ID part if it's in format "person:xxxxx"
+    let id = if user_id.starts_with("person:") {
+        &user_id[7..]
+    } else {
+        user_id
+    };
+
+    span.record("stripped_id", &id);
+    debug!(stripped_id = %id, "Calling Person::find_by_id");
+    match Person::find_by_id(id).await {
         Ok(Some(person)) => {
+            debug!(
+                person_id = %person.id,
+                username = %person.username,
+                email = %person.email,
+                "Person found in database"
+            );
             let session_user = person.to_session_user();
             debug!(
-                "Found user: {} with email: {} and id: {}",
-                session_user.username, session_user.email, session_user.id
+                session_user = ?session_user,
+                "Converted to SessionUser"
             );
             Ok(session_user)
         }
         Ok(None) => {
-            error!("No user found with username: {}", username);
-            Err(Error::Internal)
+            error!(
+                stripped_id = %id,
+                "Person not found in database"
+            );
+            Err(Error::Internal("User not found".to_string()))
         }
         Err(e) => {
-            error!("Failed to query user data for {}: {}", username, e);
+            error!(
+                "get_user_from_id: Failed to query user data for ID '{}': {}",
+                id, e
+            );
+            debug!("get_user_from_id: Error details: {:?}", e);
             Err(Error::database("Failed to get user information"))
         }
     }

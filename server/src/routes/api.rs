@@ -8,6 +8,8 @@ use serde::Serialize;
 use std::collections::HashMap;
 use tracing::{debug, info};
 
+use crate::models::system::System;
+
 pub fn router() -> Router {
     Router::new()
         .route("/health", get(health_check))
@@ -16,65 +18,55 @@ pub fn router() -> Router {
         .route("/debug/user", get(debug_user))
 }
 
-#[derive(Serialize)]
-struct HealthStatus {
-    status: String,
-    database: String,
-    version: String,
-    timestamp: String,
-}
-
 #[axum::debug_handler]
-async fn health_check() -> Json<HealthStatus> {
+async fn health_check() -> impl IntoResponse {
     debug!("Health check requested");
 
-    // Check database connectivity
-    let db_status = match crate::db::DB.health().await {
-        Ok(_) => {
-            info!("Database health check: OK");
-            "connected"
+    match System::health_check().await {
+        Ok(health) => {
+            info!(
+                "Health check complete: status={}, db={}",
+                health.status, health.database
+            );
+            Json(health).into_response()
         }
         Err(e) => {
-            tracing::warn!("Database health check failed: {:?}", e);
-            "disconnected"
+            tracing::error!("Health check failed: {:?}", e);
+            let error_response = serde_json::json!({
+                "status": "error",
+                "database": "unknown",
+                "version": env!("CARGO_PKG_VERSION"),
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "error": e.to_string()
+            });
+            Json(error_response).into_response()
         }
-    };
-
-    let health = HealthStatus {
-        status: "healthy".to_string(),
-        database: db_status.to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        timestamp: chrono::Utc::now().to_rfc3339(),
-    };
-
-    info!(
-        "Health check complete: status={}, db={}",
-        health.status, health.database
-    );
-
-    Json(health)
+    }
 }
 
 #[derive(Serialize)]
 struct PlatformStats {
-    projects: u32,
-    users: u32,
-    connections: u32,
+    projects: usize,
+    users: usize,
+    connections: usize,
 }
 
 #[axum::debug_handler]
-async fn stats() -> Json<PlatformStats> {
+async fn stats() -> impl IntoResponse {
     debug!("Stats endpoint called");
 
-    // In production, these would be fetched from the database
-    // For now, return mock data
+    // Use the System model to get actual counts
+    let projects = System::count_records("production").await.unwrap_or(0);
+    let users = System::count_records("person").await.unwrap_or(0);
+    let connections = System::count_records("involvement").await.unwrap_or(0);
+
     let stats = PlatformStats {
-        projects: 1247,
-        users: 5892,
-        connections: 18453,
+        projects,
+        users,
+        connections,
     };
 
-    Json(stats)
+    Json(stats).into_response()
 }
 
 #[axum::debug_handler]

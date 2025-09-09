@@ -1,10 +1,10 @@
 use axum::http::{Request, Response};
-use axum::{Router, routing::get_service};
+use axum::{Router, middleware, routing::get_service};
 use std::time::Duration;
 use tower_http::{compression::CompressionLayer, services::ServeDir, trace::TraceLayer};
-use tracing::{error, info};
+use tracing::{Span, error, info};
 
-//use crate::middleware::{auth_middleware, logging_middleware};
+use crate::middleware::{RequestIdExt, auth_middleware, request_id_middleware};
 
 mod api;
 mod auth;
@@ -27,43 +27,59 @@ pub fn app() -> Router {
         // Static files
         .nest_service("/static", get_service(static_service))
         // Apply auth middleware to extract user from JWT cookies
-        // TODO: Fix middleware signatures and re-enable
-        // .layer(middleware::from_fn(auth_middleware))
-        // Apply custom logging middleware for detailed request/response logging
-        // .layer(middleware::from_fn(logging_middleware))
+        .layer(middleware::from_fn(auth_middleware))
+        // Apply request ID middleware early in the stack
+        .layer(middleware::from_fn(request_id_middleware))
         // Middleware
         .layer(CompressionLayer::new())
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(|request: &Request<_>| {
+                    // Try to get the request ID if it exists
+                    let request_id = request
+                        .request_id()
+                        .map(|id| id.as_str())
+                        .unwrap_or("unknown");
+
                     tracing::info_span!(
-                        "http_request",
+                        "http",
+                        request_id = %request_id,
                         method = %request.method(),
                         uri = %request.uri(),
                         version = ?request.version(),
                     )
                 })
-                .on_request(|request: &Request<_>, _span: &tracing::Span| {
+                .on_request(|request: &Request<_>, span: &Span| {
+                    let request_id = request
+                        .request_id()
+                        .map(|id| id.as_str())
+                        .unwrap_or("unknown");
+
+                    span.record("request_id", &request_id);
+
                     info!(
-                        "Started processing request: {} {}",
-                        request.method(),
-                        request.uri()
+                        request_id = %request_id,
+                        method = %request.method(),
+                        uri = %request.uri(),
+                        "→ Request started"
                     );
                 })
-                .on_response(
-                    |response: &Response<_>, latency: Duration, _span: &tracing::Span| {
-                        info!(
-                            "Finished processing request: status={}, latency={:?}",
-                            response.status(),
-                            latency
-                        );
-                    },
-                )
+                .on_response(|response: &Response<_>, latency: Duration, span: &Span| {
+                    info!(
+                        status = %response.status(),
+                        latency = ?latency,
+                        "← Request completed"
+                    );
+                })
                 .on_failure(
                     |error: tower_http::classify::ServerErrorsFailureClass,
                      latency: Duration,
-                     _span: &tracing::Span| {
-                        error!("Request failed: error={:?}, latency={:?}", error, latency);
+                     span: &Span| {
+                        error!(
+                            error = ?error,
+                            latency = ?latency,
+                            "✗ Request failed"
+                        );
                     },
                 ),
         )

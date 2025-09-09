@@ -1,5 +1,5 @@
 use slatehub::config::Config;
-use slatehub::db::DB;
+use slatehub::db::{DB, ensure_db_initialized};
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root};
 use tracing::{debug, error, info};
 
@@ -78,6 +78,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
         Err(e) => {
             error!("Failed to set namespace/database: {}", e);
+            return Err(e.into());
+        }
+    }
+
+    // Verify database is properly initialized and ready
+    debug!("Verifying database initialization");
+    match ensure_db_initialized().await {
+        Ok(_) => info!("Database initialization verified"),
+        Err(e) => {
+            error!("Database initialization verification failed: {}", e);
             return Err(e.into());
         }
     }

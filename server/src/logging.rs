@@ -22,21 +22,39 @@ pub fn init() {
             // JSON formatted logs - useful for production and log aggregation
             tracing_subscriber::registry()
                 .with(env_filter)
-                .with(fmt::layer().json())
+                .with(
+                    fmt::layer()
+                        .json()
+                        .with_span_events(fmt::format::FmtSpan::FULL),
+                )
                 .init();
         }
         "compact" => {
             // Compact format - less verbose than pretty
             tracing_subscriber::registry()
                 .with(env_filter)
-                .with(fmt::layer().compact())
+                .with(
+                    fmt::layer()
+                        .compact()
+                        .with_target(false)
+                        .with_thread_names(false),
+                )
                 .init();
         }
         _ => {
-            // Pretty format (default) - good for development
+            // Pretty format (default) - good for development with request tracking
             tracing_subscriber::registry()
                 .with(env_filter)
-                .with(fmt::layer().pretty())
+                .with(
+                    fmt::layer()
+                        .pretty()
+                        .with_target(true)
+                        .with_thread_names(false)
+                        .with_thread_ids(false)
+                        .with_file(false)
+                        .with_line_number(false)
+                        .with_span_events(fmt::format::FmtSpan::CLOSE),
+                )
                 .init();
         }
     }

@@ -1,0 +1,146 @@
+# Cargo configuration for SlateHub server
+# This file configures cargo for better development experience
+
+# Platform-specific linker settings (commented out by default)
+# Uncomment and adjust if you have these tools installed
+
+# [target.x86_64-unknown-linux-gnu]
+# # Use lld linker for faster builds on Linux
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+# [target.x86_64-apple-darwin]
+# # Faster linking on macOS (requires zld installed)
+# rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/zld"]
+
+# [target.aarch64-apple-darwin]
+# # Faster linking on Apple Silicon (requires zld installed via homebrew)
+# rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/bin/zld"]
+
+# Build settings
+[build]
+# Number of parallel jobs, defaults to # of CPUs
+# jobs = 8
+
+# Incremental compilation is on by default for dev builds
+# incremental = true
+
+# Default target directory (relative to workspace root)
+# target-dir = "target"
+
+# Cargo aliases for common commands
+[alias]
+# Development commands
+dev = "run"
+w = "watch -x run"
+wc = "watch -x check"
+wb = "watch -x build"
+wt = "watch -x test"
+
+# Build commands
+b = "build"
+br = "build --release"
+r = "run"
+rr = "run --release"
+
+# Testing commands
+t = "test"
+tn = "test -- --nocapture"
+ts = "test -- --show-output"
+ti = "test -- --ignored"
+
+# Checking and linting
+c = "check"
+cl = "clippy"
+cla = "clippy --all-targets --all-features"
+fix = "clippy --fix --allow-dirty --allow-staged"
+
+# Documentation
+doc = "doc"
+doco = "doc --open"
+docnp = "doc --open --no-deps"
+
+# Utility commands
+u = "update"
+ud = "update --dry-run"
+deps = "tree --depth 1"
+outdated = "outdated -R"
+
+# Clean commands
+clean-all = "clean --release"
+
+# Format code
+f = "fmt"
+fmt-check = "fmt -- --check"
+
+# Run specific binaries
+test-user = "run --bin test_user"
+test-pass = "run --bin test_password"
+
+# Custom watch commands with specific options
+watch-fast = "watch -x check -c -q"  # Clear screen, quiet
+watch-verbose = "watch -x 'run' -w src -w templates -w static -w ../db"
+
+# Profile-guided optimization helpers
+pgo-build = "build --release"
+bench = "bench"
+
+[env]
+# Environment variables for all cargo commands
+RUST_BACKTRACE = "1"
+
+# Registries configuration
+[registries]
+# crates-io is the default
+
+[net]
+# Number of parallel downloads
+# jobs = 8
+
+# Timeout for network operations (in seconds)
+# timeout = 60
+
+# Number of retries for network operations
+retry = 2
+
+[profile.dev]
+# Development profile optimizations
+opt-level = 0           # No optimizations for faster builds
+debug = true           # Full debug info
+debug-assertions = true
+overflow-checks = true
+incremental = true
+# Enable split debuginfo for faster linking on macOS
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+# Optimize dependencies even in debug mode for better performance
+opt-level = 2
+
+[profile.release]
+# Release profile optimizations
+opt-level = 3          # Maximum optimizations
+lto = "thin"          # Link-time optimization
+codegen-units = 1     # Single codegen unit for best optimization
+strip = true          # Strip symbols for smaller binary
+debug = false
+panic = "abort"       # Smaller binary, no unwinding
+incremental = false
+
+[profile.release-debug]
+# Release with debug info (for profiling)
+inherits = "release"
+debug = true
+strip = false
+
+[profile.test]
+# Test profile - faster test compilation
+opt-level = 0
+debug = true
+incremental = true
+
+[profile.bench]
+# Benchmark profile
+opt-level = 3
+lto = true
+codegen-units = 1
