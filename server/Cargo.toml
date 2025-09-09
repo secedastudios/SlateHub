@@ -7,8 +7,10 @@ authors = ["Chris Bruce <chris@secedastudios.com>"]
 license = "Apache-2.0"
 
 [dependencies]
-axum = "0.8.4"
+axum = { version = "0.8.4", features = ["macros"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
 chrono = "0.4"
+cookie = "0.18"
 dotenv = "0.15.0"
 futures = "0.3"
 rand = "0.8"

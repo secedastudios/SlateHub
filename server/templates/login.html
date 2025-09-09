@@ -20,7 +20,21 @@ projects and network.{% endblock %} {% block content %}
                     placeholder="Your username or email"
                     required
                     autocomplete="username"
-                    value="{% if user_value %}{{ user_value }}{% endif %}"
+                    {%
+                    if
+                    user_value
+                    %}value="{{ user_value }}"
+                    {%
+                    endif
+                    %}
+                    {%
+                    if
+                    error_message
+                    %}aria-invalid="true"
+                    aria-describedby="login-error"
+                    {%
+                    endif
+                    %}
                 />
             </label>
 
@@ -33,14 +47,24 @@ projects and network.{% endblock %} {% block content %}
                     placeholder="Your password"
                     required
                     autocomplete="current-password"
+                    {%
+                    if
+                    error_message
+                    %}aria-invalid="true"
+                    aria-describedby="login-error"
+                    {%
+                    endif
+                    %}
                 />
             </label>
         </fieldset>
 
         {% if error_message %}
-        <div class="error-message">{{ error_message }}</div>
+        <div id="login-error" role="alert" aria-live="polite">
+            {{ error_message }}
+        </div>
         {% endif %} {% if success_message %}
-        <div class="success-message">{{ success_message }}</div>
+        <div role="status" aria-live="polite">{{ success_message }}</div>
         {% endif %}
 
         <button type="submit">Login</button>
@@ -48,24 +72,4 @@ projects and network.{% endblock %} {% block content %}
 
     <p>Don't have an account yet? <a href="/signup">Create one here</a>.</p>
 </article>
-
-<style>
-    .error-message {
-        color: var(--pico-del-color);
-        background-color: var(--pico-del-background-color);
-        padding: 0.5rem 1rem;
-        border-radius: var(--pico-border-radius);
-        margin-bottom: 1rem;
-        border: 1px solid var(--pico-del-border-color);
-    }
-
-    .success-message {
-        color: var(--pico-ins-color);
-        background-color: var(--pico-ins-background-color);
-        padding: 0.5rem 1rem;
-        border-radius: var(--pico-border-radius);
-        margin-bottom: 1rem;
-        border: 1px solid var(--pico-ins-border-color);
-    }
-</style>
 {% endblock %}

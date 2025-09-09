@@ -1,0 +1,375 @@
+/* Layout CSS - Semantic Styling Only */
+
+/* Base Layout Structure */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+}
+
+/* Header */
+header {
+    background-color: var(--pico-card-background-color);
+    border-bottom: 1px solid var(--pico-muted-border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    background-color: rgba(var(--pico-background-color-rgb), 0.95);
+}
+
+header nav {
+    max-width: var(--pico-container-max-width);
+    margin: 0 auto;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+header nav ul li {
+    margin: 0;
+}
+
+/* Logo/Brand */
+header nav ul:first-child a {
+    font-size: 1.25rem;
+    text-decoration: none;
+    color: var(--pico-h1-color);
+}
+
+header nav ul:first-child a:hover {
+    color: var(--pico-primary);
+}
+
+/* Navigation Links */
+header nav a {
+    text-decoration: none;
+    color: var(--pico-color);
+    transition: color 0.2s ease;
+    padding: 0.5rem 0;
+    position: relative;
+}
+
+header nav a:hover {
+    color: var(--pico-primary);
+}
+
+/* Active Navigation State */
+header nav a[aria-current="page"] {
+    color: var(--pico-primary);
+    font-weight: 600;
+}
+
+header nav a[aria-current="page"]::after {
+    content: "";
+    position: absolute;
+    bottom: -0.5rem;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--pico-primary);
+}
+
+/* Theme Toggle Button */
+button#theme-toggle {
+    background: transparent;
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    font-size: 1.25rem;
+    transition: all 0.2s ease;
+}
+
+button#theme-toggle:hover {
+    background-color: var(--pico-secondary-background);
+    border-color: var(--pico-primary);
+}
+
+/* Theme Icons */
+[data-theme="light"] [data-theme-icon="dark"],
+[data-theme="dark"] [data-theme-icon="light"] {
+    display: none;
+}
+
+/* User Menu Dropdown */
+header details {
+    position: relative;
+}
+
+header details summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+header details summary::-webkit-details-marker {
+    display: none;
+}
+
+header details summary img {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 2px solid var(--pico-muted-border-color);
+    transition:
+        border-color 0.2s ease,
+        transform 0.2s ease;
+    object-fit: cover;
+    background-color: var(--pico-secondary-background);
+}
+
+header details summary:hover img {
+    border-color: var(--pico-primary);
+    transform: scale(1.05);
+}
+
+header details[open] summary img {
+    border-color: var(--pico-primary);
+    box-shadow: 0 0 0 3px rgba(var(--pico-primary-rgb), 0.1);
+}
+
+header details ul {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.5rem);
+    background-color: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    box-shadow: var(--pico-box-shadow);
+    min-width: 200px;
+    padding: 0.5rem 0;
+    flex-direction: column;
+    gap: 0;
+}
+
+header details ul li {
+    width: 100%;
+}
+
+header details ul li a,
+header details ul li button {
+    display: block;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--pico-color);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+header details ul li a:hover,
+header details ul li button:hover {
+    background-color: var(--pico-secondary-background);
+    color: var(--pico-primary);
+}
+
+header details ul hr {
+    margin: 0.5rem 0;
+    border: none;
+    border-top: 1px solid var(--pico-muted-border-color);
+}
+
+/* Login/Signup Buttons */
+header a[role="button"] {
+    padding: 0.5rem 1rem;
+    border-radius: var(--pico-border-radius);
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+header a[href="/login"][role="button"] {
+    border: 1px solid var(--pico-primary);
+    color: var(--pico-primary);
+    background: transparent;
+}
+
+header a[href="/login"][role="button"]:hover {
+    background-color: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+}
+
+header a[href="/signup"][role="button"] {
+    background-color: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+    border: 1px solid var(--pico-primary);
+}
+
+header a[href="/signup"][role="button"]:hover {
+    background-color: var(--pico-primary-hover);
+    border-color: var(--pico-primary-hover);
+}
+
+/* Main Content */
+main {
+    flex: 1;
+    max-width: var(--pico-container-max-width);
+    margin: 2rem auto;
+    padding: 0 2rem;
+    width: 100%;
+}
+
+/* Footer */
+footer {
+    background-color: var(--pico-card-background-color);
+    border-top: 1px solid var(--pico-muted-border-color);
+    margin-top: auto;
+    padding: 3rem 2rem 2rem;
+}
+
+footer section:first-child {
+    max-width: var(--pico-container-max-width);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 3rem;
+}
+
+footer article h3,
+footer article h4 {
+    margin-bottom: 1rem;
+    color: var(--pico-h4-color);
+}
+
+footer article p {
+    color: var(--pico-muted-color);
+    line-height: 1.6;
+}
+
+footer nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+footer nav ul li {
+    margin-bottom: 0.5rem;
+}
+
+footer nav a {
+    color: var(--pico-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+footer nav a:hover {
+    color: var(--pico-primary);
+    text-decoration: underline;
+}
+
+footer hr {
+    max-width: var(--pico-container-max-width);
+    margin: 2rem auto;
+    border: none;
+    border-top: 1px solid var(--pico-muted-border-color);
+}
+
+footer section:last-child {
+    max-width: var(--pico-container-max-width);
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+footer small {
+    color: var(--pico-muted-color);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    header nav {
+        flex-direction: column;
+        padding: 1rem;
+    }
+
+    header nav ul {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    header nav ul:first-child {
+        margin-bottom: 1rem;
+    }
+
+    header nav a[aria-current="page"]::after {
+        display: none;
+    }
+
+    main {
+        padding: 1rem;
+        margin: 1rem auto;
+    }
+
+    footer section:first-child {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    footer section:last-child {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+}
+
+/* Accessibility Focus States */
+a:focus,
+button:focus,
+summary:focus {
+    outline: 2px solid var(--pico-primary);
+    outline-offset: 2px;
+}
+
+/* Skip to main content link (accessibility) */
+a[href="#main"] {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    z-index: 200;
+}
+
+a[href="#main"]:focus {
+    top: 0;
+}
+
+/* Container utility for content that needs max-width */
+main > article,
+main > section {
+    max-width: var(--pico-container-max-width);
+    margin: 0 auto;
+}
+
+/* Print styles */
+@media print {
+    header nav ul:last-child,
+    footer {
+        display: none;
+    }
+
+    main {
+        margin: 0;
+        padding: 0;
+    }
+}

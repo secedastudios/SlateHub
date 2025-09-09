@@ -1,17 +1,18 @@
 use axum::{
     Form, Router,
+    extract::Request,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
-use std::{collections::HashMap, env};
-use surrealdb::opt::auth::Record;
+use std::env;
 use tracing::{debug, error, info};
 
 use crate::{
-    db::DB,
     error::Error,
-    models::person::{CreateUser, LoginUser},
+    middleware::UserExtractor,
+    models::person::{CreateUser, LoginUser, Person},
     templates,
 };
 
@@ -22,11 +23,24 @@ pub fn router() -> Router {
         .route("/logout", post(logout))
 }
 
-async fn signup_form() -> Result<Html<String>, Error> {
+async fn signup_form(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering signup page");
 
     let mut context = templates::base_context();
     context.insert("active_page", "signup");
+
+    // Add user to context if authenticated
+    if let Some(user) = request.get_user() {
+        context.insert(
+            "user",
+            &serde_json::json!({
+                "id": user.id,
+                "name": user.username,
+                "email": user.email,
+                "avatar": format!("/api/avatar?id={}", user.id)
+            }),
+        );
+    }
 
     let html = templates::render_with_context("signup.html", &context).map_err(|e| {
         error!("Failed to render signup template: {}", e);
@@ -36,6 +50,7 @@ async fn signup_form() -> Result<Html<String>, Error> {
     Ok(Html(html))
 }
 
+#[axum::debug_handler]
 async fn signup(Form(input): Form<CreateUser>) -> Result<Response, Error> {
     debug!("Attempting to sign up new user: {}", input.username);
 
@@ -58,26 +73,15 @@ async fn signup(Form(input): Form<CreateUser>) -> Result<Response, Error> {
     }
 
     // --- Database Signup ---
-    // Get namespace and database from environment, using same defaults as config
-    let namespace = env::var("DB_NAMESPACE").unwrap_or_else(|_| "slatehub".to_string());
-    let database = env::var("DB_NAME").unwrap_or_else(|_| "main".to_string());
-
-    let mut vars = HashMap::new();
-    vars.insert("user".to_string(), input.username.clone());
-    vars.insert("email".to_string(), input.email.clone());
-    vars.insert("pass".to_string(), input.password.clone());
-
-    let result = DB
-        .signup(Record {
-            namespace: &namespace,
-            database: &database,
-            access: "user",
-            params: vars,
-        })
-        .await;
+    let result = Person::signup(
+        input.username.clone(),
+        input.email.clone(),
+        input.password.clone(),
+    )
+    .await;
 
     match result {
-        Ok(_) => {
+        Ok(_token) => {
             info!("Successfully signed up user: {}", input.username);
             // Render success page that will redirect to login
             let mut context = templates::base_context();
@@ -132,11 +136,24 @@ async fn render_signup_with_error(
     Ok(Html(html).into_response())
 }
 
-async fn login_form() -> Result<Html<String>, Error> {
+async fn login_form(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering login page");
 
     let mut context = templates::base_context();
     context.insert("active_page", "login");
+
+    // Add user to context if authenticated
+    if let Some(user) = request.get_user() {
+        context.insert(
+            "user",
+            &serde_json::json!({
+                "id": user.id,
+                "name": user.username,
+                "email": user.email,
+                "avatar": format!("/api/avatar?id={}", user.id)
+            }),
+        );
+    }
 
     let html = templates::render_with_context("login.html", &context).map_err(|e| {
         error!("Failed to render login template: {}", e);
@@ -146,7 +163,8 @@ async fn login_form() -> Result<Html<String>, Error> {
     Ok(Html(html))
 }
 
-async fn login(Form(input): Form<LoginUser>) -> Result<Response, Error> {
+#[axum::debug_handler]
+async fn login(jar: CookieJar, Form(input): Form<LoginUser>) -> Result<Response, Error> {
     debug!("Attempting to log in user: {}", &input.user);
 
     if input.user.is_empty() || input.pass.is_empty() {
@@ -157,35 +175,38 @@ async fn login(Form(input): Form<LoginUser>) -> Result<Response, Error> {
         .await;
     }
 
-    // Get namespace and database from environment, using same defaults as config
-    let namespace = env::var("DB_NAMESPACE").unwrap_or_else(|_| "slatehub".to_string());
-    let database = env::var("DB_NAME").unwrap_or_else(|_| "main".to_string());
-
-    // Use SurrealDB's built-in signin method
-    let mut params = HashMap::new();
-    params.insert("user".to_string(), input.user.clone());
-    params.insert("pass".to_string(), input.pass.clone());
-
-    let result = DB
-        .signin(Record {
-            namespace: &namespace,
-            database: &database,
-            access: "user",
-            params,
-        })
-        .await;
+    // Use the Person model's signin method
+    let result = Person::signin(input.user.clone(), input.pass.clone()).await;
 
     match result {
-        Ok(_token) => {
+        Ok(token_str) => {
             info!("Successfully authenticated user: {}", &input.user);
 
-            // In a production app, you would:
-            // 1. Use the returned token for session management
-            // 2. Store it in a secure, HTTP-only cookie
-            // 3. Save session info in database or cache
+            // Debug: Log the JWT token
+            debug!("JWT token string: {}", &token_str);
 
-            // For now, just redirect to home page
-            Ok(Redirect::to("/").into_response())
+            // In development, don't require HTTPS for cookies
+            let is_production =
+                env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "production";
+
+            // Create auth token cookie
+            let auth_cookie = Cookie::build(("auth_token", token_str))
+                .http_only(true)
+                .secure(is_production) // Only require HTTPS in production
+                .same_site(SameSite::Strict)
+                .path("/")
+                .build();
+
+            // Create username cookie (for easy access without JWT decoding)
+            let user_cookie = Cookie::build(("username", input.user.clone()))
+                .http_only(true)
+                .secure(is_production)
+                .same_site(SameSite::Strict)
+                .path("/")
+                .build();
+
+            // Add both cookies to response and redirect
+            Ok((jar.add(auth_cookie).add(user_cookie), Redirect::to("/")).into_response())
         }
         Err(e) => {
             let error_msg =
@@ -222,25 +243,38 @@ async fn render_login_with_error(
     Ok(Html(html).into_response())
 }
 
-async fn logout() -> Result<Response, Error> {
+#[axum::debug_handler]
+async fn logout(jar: CookieJar) -> Result<Response, Error> {
     debug!("User logging out");
 
     // Invalidate the session token on the database side
-    match DB.invalidate().await {
+    match Person::invalidate_session().await {
         Ok(_) => {
             info!("User session invalidated successfully.");
 
-            // In a production app, you would:
-            // 1. Clear the session cookie
-            // 2. Remove session from database/cache
+            // Remove both auth and username cookies
+            let auth_cookie = Cookie::build("auth_token").path("/").build();
+            let user_cookie = Cookie::build("username").path("/").build();
 
-            // Redirect to home page after logout
-            Ok(Redirect::to("/").into_response())
+            // Clear cookies and redirect to home page
+            Ok((
+                jar.remove(auth_cookie).remove(user_cookie),
+                Redirect::to("/"),
+            )
+                .into_response())
         }
         Err(e) => {
             error!("Failed to invalidate user session: {}", e);
-            // Even if invalidation fails, redirect to home
-            Ok(Redirect::to("/").into_response())
+
+            // Even if invalidation fails, clear cookies and redirect
+            let auth_cookie = Cookie::build("auth_token").path("/").build();
+            let user_cookie = Cookie::build("username").path("/").build();
+
+            Ok((
+                jar.remove(auth_cookie).remove(user_cookie),
+                Redirect::to("/"),
+            )
+                .into_response())
         }
     }
 }

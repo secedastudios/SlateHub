@@ -18,6 +18,8 @@
 
         <!-- SlateHub Custom Overrides -->
         <link rel="stylesheet" href="/static/css/slatehub-pico.css" />
+        <link rel="stylesheet" href="/static/css/layout.css" />
+        <link rel="stylesheet" href="/static/css/forms.css" />
 
         <!-- Theme Initialization Script -->
         <script>
@@ -30,40 +32,68 @@
     </head>
     <body>
         <header>
-            <nav class="container">
+            <nav>
                 <ul>
                     <li>
-                        <a href="/" class="contrast"
-                            ><strong>{{ app_name }}</strong></a
-                        >
+                        <a href="/">
+                            <strong>{{ app_name }}</strong>
+                        </a>
                     </li>
                 </ul>
                 <ul>
                     <li>
                         <a
                             href="/"
-                            class="{% if active_page == 'home' %}contrast{% endif %}"
+                            {%
+                            if
+                            active_page
+                            == "home"
+                            %}aria-current="page"
+                            {%
+                            endif
+                            %}
                             >Home</a
                         >
                     </li>
                     <li>
                         <a
                             href="/projects"
-                            class="{% if active_page == 'projects' %}contrast{% endif %}"
+                            {%
+                            if
+                            active_page
+                            == "projects"
+                            %}aria-current="page"
+                            {%
+                            endif
+                            %}
                             >Projects</a
                         >
                     </li>
                     <li>
                         <a
                             href="/people"
-                            class="{% if active_page == 'people' %}contrast{% endif %}"
+                            {%
+                            if
+                            active_page
+                            == "people"
+                            %}aria-current="page"
+                            {%
+                            endif
+                            %}
                             >People</a
                         >
                     </li>
                     <li>
                         <a
                             href="/about"
-                            class="{% if active_page == 'about' %}contrast{% endif %}"
+                            {%
+                            if
+                            active_page
+                            == "about"
+                            %}aria-current="page"
+                            {%
+                            endif
+                            %}
                             >About</a
                         >
                     </li>
@@ -73,15 +103,15 @@
                         <!-- Theme Toggle -->
                         <button
                             id="theme-toggle"
-                            class="contrast outline"
+                            type="button"
                             aria-label="Toggle theme"
                             data-tooltip="Toggle theme"
                             data-placement="bottom"
                         >
-                            <span class="theme-icon-light" aria-hidden="true"
+                            <span data-theme-icon="light" aria-hidden="true"
                                 >☀️</span
                             >
-                            <span class="theme-icon-dark" aria-hidden="true"
+                            <span data-theme-icon="dark" aria-hidden="true"
                                 >🌙</span
                             >
                         </button>
@@ -89,12 +119,11 @@
                     <li>
                         <!-- User Menu -->
                         {% if user %}
-                        <details class="dropdown">
-                            <summary role="button" class="contrast outline">
+                        <details>
+                            <summary role="button">
                                 <img
                                     src="{{ user.avatar }}"
                                     alt="{{ user.name }}"
-                                    class="user-avatar"
                                 />
                             </summary>
                             <ul dir="rtl">
@@ -103,17 +132,13 @@
                                 <li><hr /></li>
                                 <li>
                                     <form action="/logout" method="post">
-                                        <button type="submit" class="contrast">
-                                            Logout
-                                        </button>
+                                        <button type="submit">Logout</button>
                                     </form>
                                 </li>
                             </ul>
                         </details>
                         {% else %}
-                        <a href="/login" role="button" class="contrast outline"
-                            >Login</a
-                        >
+                        <a href="/login" role="button">Login</a>
                     </li>
                     <li>
                         <a href="/signup" role="button">Sign Up</a>
@@ -123,66 +148,64 @@
             </nav>
         </header>
 
-        <main class="container">{% block content %}{% endblock %}</main>
+        <main>{% block content %}{% endblock %}</main>
 
         <footer>
-            <div class="container">
-                <div class="grid">
-                    <div>
-                        <hgroup>
-                            <h3>{{ app_name }}</h3>
-                            <p>
-                                A free, open-source SaaS platform for the TV,
-                                film, and content industries.
-                            </p>
-                        </hgroup>
-                    </div>
+            <section>
+                <article>
+                    <hgroup>
+                        <h3>{{ app_name }}</h3>
+                        <p>
+                            A free, open-source SaaS platform for the TV, film,
+                            and content industries.
+                        </p>
+                    </hgroup>
+                </article>
 
-                    <div>
-                        <h4>Quick Links</h4>
-                        <nav>
-                            <ul>
-                                <li><a href="/docs">Documentation</a></li>
-                                <li><a href="/api">API</a></li>
-                                <li><a href="/privacy">Privacy Policy</a></li>
-                                <li><a href="/terms">Terms of Service</a></li>
-                            </ul>
-                        </nav>
-                    </div>
+                <article>
+                    <h4>Quick Links</h4>
+                    <nav>
+                        <ul>
+                            <li><a href="/docs">Documentation</a></li>
+                            <li><a href="/api">API</a></li>
+                            <li><a href="/privacy">Privacy Policy</a></li>
+                            <li><a href="/terms">Terms of Service</a></li>
+                        </ul>
+                    </nav>
+                </article>
 
-                    <div>
-                        <h4>Connect</h4>
-                        <nav>
-                            <ul>
-                                <li>
-                                    <a
-                                        href="https://github.com/slatehub"
-                                        rel="noopener noreferrer"
-                                        target="_blank"
-                                        >GitHub</a
-                                    >
-                                </li>
-                                <li><a href="/contact">Contact</a></li>
-                                <li><a href="/blog">Blog</a></li>
-                            </ul>
-                        </nav>
-                    </div>
-                </div>
+                <article>
+                    <h4>Connect</h4>
+                    <nav>
+                        <ul>
+                            <li>
+                                <a
+                                    href="https://github.com/slatehub"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                    >GitHub</a
+                                >
+                            </li>
+                            <li><a href="/contact">Contact</a></li>
+                            <li><a href="/blog">Blog</a></li>
+                        </ul>
+                    </nav>
+                </article>
+            </section>
 
-                <hr />
+            <hr />
 
-                <div class="grid">
-                    <p>
-                        <small
-                            >© {{ year }} {{ app_name }}. All rights
-                            reserved.</small
-                        >
-                    </p>
-                    <p>
-                        <small>v{{ version }}</small>
-                    </p>
-                </div>
-            </div>
+            <section>
+                <p>
+                    <small
+                        >© {{ year }} {{ app_name }}. All rights
+                        reserved.</small
+                    >
+                </p>
+                <p>
+                    <small>v{{ version }}</small>
+                </p>
+            </section>
         </footer>
 
         <!-- Theme Toggle Logic -->

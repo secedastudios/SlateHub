@@ -1,7 +1,8 @@
-use axum::{Router, response::Html, routing::get};
+use axum::{Router, extract::Request, response::Html, routing::get};
+
 use tracing::{debug, error};
 
-use crate::{error::Error, templates};
+use crate::{error::Error, middleware::UserExtractor, templates};
 
 pub fn router() -> Router {
     Router::new()
@@ -11,11 +12,24 @@ pub fn router() -> Router {
         .route("/about", get(about))
 }
 
-async fn index() -> Result<Html<String>, Error> {
+async fn index(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering index page");
 
     let mut context = templates::base_context();
     context.insert("active_page", "home");
+
+    // Add user to context if authenticated
+    if let Some(user) = request.get_user() {
+        context.insert(
+            "user",
+            &serde_json::json!({
+                "id": user.id,
+                "name": user.username,
+                "email": user.email,
+                "avatar": format!("/api/avatar?id={}", user.id)
+            }),
+        );
+    }
 
     // Add static stats data (in production, fetch from database)
     context.insert("project_count", &1247);
@@ -60,11 +74,24 @@ async fn index() -> Result<Html<String>, Error> {
     Ok(Html(html))
 }
 
-async fn projects() -> Result<Html<String>, Error> {
+async fn projects(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering projects page");
 
     let mut context = templates::base_context();
     context.insert("active_page", "projects");
+
+    // Add user to context if authenticated
+    if let Some(user) = request.get_user() {
+        context.insert(
+            "user",
+            &serde_json::json!({
+                "id": user.id,
+                "name": user.username,
+                "email": user.email,
+                "avatar": format!("/api/avatar?id={}", user.id)
+            }),
+        );
+    }
 
     let html = templates::render_with_context("projects.html", &context).map_err(|e| {
         error!("Failed to render projects template: {}", e);
@@ -74,11 +101,24 @@ async fn projects() -> Result<Html<String>, Error> {
     Ok(Html(html))
 }
 
-async fn people() -> Result<Html<String>, Error> {
+async fn people(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering people page");
 
     let mut context = templates::base_context();
     context.insert("active_page", "people");
+
+    // Add user to context if authenticated
+    if let Some(user) = request.get_user() {
+        context.insert(
+            "user",
+            &serde_json::json!({
+                "id": user.id,
+                "name": user.username,
+                "email": user.email,
+                "avatar": format!("/api/avatar?id={}", user.id)
+            }),
+        );
+    }
 
     let html = templates::render_with_context("people.html", &context).map_err(|e| {
         error!("Failed to render people template: {}", e);
@@ -88,11 +128,24 @@ async fn people() -> Result<Html<String>, Error> {
     Ok(Html(html))
 }
 
-async fn about() -> Result<Html<String>, Error> {
+async fn about(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering about page");
 
     let mut context = templates::base_context();
     context.insert("active_page", "about");
+
+    // Add user to context if authenticated
+    if let Some(user) = request.get_user() {
+        context.insert(
+            "user",
+            &serde_json::json!({
+                "id": user.id,
+                "name": user.username,
+                "email": user.email,
+                "avatar": format!("/api/avatar?id={}", user.id)
+            }),
+        );
+    }
 
     let html = templates::render_with_context("about.html", &context).map_err(|e| {
         error!("Failed to render about template: {}", e);

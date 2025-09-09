@@ -8,8 +8,13 @@ pub fn init() {
 
     // Create env filter from RUST_LOG or use default
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        // Default log level configuration
-        EnvFilter::new("info,slatehub=debug,tower_http=debug")
+        // Default log level configuration with enhanced HTTP request/response logging
+        // - info: general application logs
+        // - slatehub=debug: detailed app-specific logs
+        // - tower_http=debug: HTTP layer logging
+        // - http_request=info: custom request logging
+        // - http_response=info: custom response logging with status codes
+        EnvFilter::new("info,slatehub=debug,tower_http=debug,http_request=info,http_response=info")
     });
 
     match log_format.as_str() {
@@ -36,7 +41,10 @@ pub fn init() {
         }
     }
 
-    tracing::info!("Logging initialized with format: {}", log_format);
+    tracing::info!(
+        "Logging initialized with format: {} (HTTP requests will include URI and status codes)",
+        log_format
+    );
 }
 
 /// Create a span for HTTP requests

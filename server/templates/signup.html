@@ -23,7 +23,21 @@ with creative professionals.{% endblock %} {% block content %}
                     placeholder="Choose a unique username"
                     required
                     autocomplete="username"
-                    value="{% if username_value %}{{ username_value }}{% endif %}"
+                    {%
+                    if
+                    username_value
+                    %}value="{{ username_value }}"
+                    {%
+                    endif
+                    %}
+                    {%
+                    if
+                    error_message
+                    %}aria-invalid="true"
+                    aria-describedby="signup-error"
+                    {%
+                    endif
+                    %}
                 />
             </label>
 
@@ -36,7 +50,21 @@ with creative professionals.{% endblock %} {% block content %}
                     placeholder="Your email address"
                     required
                     autocomplete="email"
-                    value="{% if email_value %}{{ email_value }}{% endif %}"
+                    {%
+                    if
+                    email_value
+                    %}value="{{ email_value }}"
+                    {%
+                    endif
+                    %}
+                    {%
+                    if
+                    error_message
+                    %}aria-invalid="true"
+                    aria-describedby="signup-error"
+                    {%
+                    endif
+                    %}
                 />
             </label>
 
@@ -46,17 +74,31 @@ with creative professionals.{% endblock %} {% block content %}
                     type="password"
                     id="password"
                     name="password"
-                    placeholder="Choose a secure password"
+                    placeholder="Choose a secure password (min 8 characters)"
                     required
                     autocomplete="new-password"
+                    minlength="8"
+                    {%
+                    if
+                    error_message
+                    %}aria-invalid="true"
+                    aria-describedby="signup-error"
+                    {%
+                    endif
+                    %}
                 />
+                <small id="password-help"
+                    >Password must be at least 8 characters long</small
+                >
             </label>
         </fieldset>
 
         {% if error_message %}
-        <div class="error-message">{{ error_message }}</div>
+        <div id="signup-error" role="alert" aria-live="polite">
+            {{ error_message }}
+        </div>
         {% endif %} {% if success_message %}
-        <div class="success-message">
+        <div role="status" aria-live="polite">
             {{ success_message }} {% if redirect_to %}
             <script>
                 setTimeout(() => {
@@ -75,24 +117,4 @@ with creative professionals.{% endblock %} {% block content %}
 
     <p>Already have an account? <a href="/login">Log in here</a>.</p>
 </article>
-
-<style>
-    .error-message {
-        color: var(--pico-del-color);
-        background-color: var(--pico-del-background-color);
-        padding: 0.5rem 1rem;
-        border-radius: var(--pico-border-radius);
-        margin-bottom: 1rem;
-        border: 1px solid var(--pico-del-border-color);
-    }
-
-    .success-message {
-        color: var(--pico-ins-color);
-        background-color: var(--pico-ins-background-color);
-        padding: 0.5rem 1rem;
-        border-radius: var(--pico-border-radius);
-        margin-bottom: 1rem;
-        border: 1px solid var(--pico-ins-border-color);
-    }
-</style>
 {% endblock %}
