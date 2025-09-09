@@ -1,10 +1,10 @@
 use axum::http::{Request, Response};
-use axum::{Router, middleware, routing::get_service};
+use axum::{Router, routing::get_service};
 use std::time::Duration;
 use tower_http::{compression::CompressionLayer, services::ServeDir, trace::TraceLayer};
 use tracing::{error, info};
 
-use crate::middleware::{auth_middleware, logging_middleware};
+//use crate::middleware::{auth_middleware, logging_middleware};
 
 mod api;
 mod auth;
