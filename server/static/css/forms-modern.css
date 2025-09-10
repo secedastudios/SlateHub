@@ -1,0 +1,839 @@
+/* ================================================
+   ULTRA-MODERN FORMS CSS
+   Slick, contemporary form designs with special
+   attention to profile edit form
+   ================================================ */
+
+/* ================================================
+   CSS VARIABLES FOR FORMS
+   ================================================ */
+:root {
+  --form-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --form-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --form-success: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+  --form-danger: linear-gradient(135deg, #fc67fa 0%, #f4c4f3 100%);
+
+  --input-bg: rgba(255, 255, 255, 0.03);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --input-focus: rgba(102, 126, 234, 0.4);
+  --input-valid: rgba(0, 176, 155, 0.4);
+  --input-invalid: rgba(252, 103, 250, 0.4);
+
+  --form-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  --form-glow: 0 0 100px rgba(102, 126, 234, 0.3);
+}
+
+/* ================================================
+   FORM CONTAINERS
+   ================================================ */
+[data-component="auth-form"],
+[data-profile-edit="true"],
+form {
+  position: relative;
+  animation: formSlideIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes formSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Login & Signup Forms */
+[data-component="auth-form"] {
+  max-width: 500px;
+  margin: 4rem auto;
+  padding: 3rem;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 30px;
+  box-shadow: var(--form-shadow);
+  border: 1px solid var(--input-border);
+  position: relative;
+  overflow: hidden;
+}
+
+[data-component="auth-form"]::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at 30% 70%,
+    rgba(236, 72, 153, 0.1) 0%,
+    transparent 50%
+  );
+  animation: float 20s ease-in-out infinite;
+}
+
+[data-component="auth-form"]::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: -2px;
+  right: -2px;
+  height: 4px;
+  background: var(--form-primary);
+  border-radius: 0 0 30px 30px;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; transform: translateX(-100%); }
+  50% { opacity: 1; transform: translateX(100%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(30px, -30px) rotate(1deg); }
+  66% { transform: translate(-20px, 20px) rotate(-1deg); }
+}
+
+/* Profile Edit Form - Special Treatment */
+[data-profile-edit="true"] {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 2rem;
+}
+
+[data-profile-edit="true"] > header {
+  text-align: center;
+  margin-bottom: 3rem;
+  position: relative;
+}
+
+[data-profile-edit="true"] h1 {
+  font-size: 3.5rem;
+  font-weight: 900;
+  background: var(--form-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  display: inline-block;
+}
+
+[data-profile-edit="true"] h1::after {
+  content: '✨';
+  position: absolute;
+  right: -40px;
+  top: 0;
+  font-size: 2rem;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+}
+
+/* ================================================
+   FORM SECTIONS - PROFILE EDIT
+   ================================================ */
+[data-profile-edit="true"] section {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.03) 100%);
+  backdrop-filter: blur(10px);
+  border-radius: 25px;
+  padding: 2.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--input-border);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+[data-profile-edit="true"] section:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+[data-profile-edit="true"] section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--form-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s ease;
+}
+
+[data-profile-edit="true"] section:hover::before {
+  transform: scaleX(1);
+}
+
+[data-profile-edit="true"] section h2 {
+  font-size: 1.75rem;
+  margin-bottom: 2rem;
+  background: var(--form-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  padding-left: 40px;
+}
+
+[data-profile-edit="true"] section h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  background: var(--form-primary);
+  border-radius: 10px;
+  opacity: 0.2;
+}
+
+/* Section-specific icons */
+#basic-info-heading::before { content: '👤'; opacity: 1; background: none; }
+#professional-heading::before { content: '💼'; opacity: 1; background: none; }
+section[aria-labelledby*="experience"] h2::before { content: '🎬'; opacity: 1; background: none; }
+section[aria-labelledby*="education"] h2::before { content: '🎓'; opacity: 1; background: none; }
+
+/* ================================================
+   INPUT FIELDS STYLING
+   ================================================ */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+input[type="tel"],
+input[type="search"],
+textarea,
+select {
+  width: 100%;
+  padding: 1.25rem 1.5rem;
+  background: var(--input-bg);
+  border: 2px solid var(--input-border);
+  border-radius: 15px;
+  color: #fff;
+  font-size: 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+/* Glassmorphism inputs for profile edit */
+[data-profile-edit="true"] input,
+[data-profile-edit="true"] textarea,
+[data-profile-edit="true"] select {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Focus states with glow */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px var(--input-focus),
+              0 10px 40px rgba(102, 126, 234, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Valid state */
+input:valid:not(:placeholder-shown),
+textarea:valid:not(:placeholder-shown) {
+  border-color: #00b09b;
+  background: rgba(0, 176, 155, 0.05);
+}
+
+/* Invalid state */
+input:invalid:not(:placeholder-shown),
+input[aria-invalid="true"] {
+  border-color: #fc67fa;
+  background: rgba(252, 103, 250, 0.05);
+  animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Textarea specific */
+textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+[data-profile-edit="true"] textarea {
+  min-height: 150px;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 100%);
+}
+
+/* ================================================
+   LABELS - FLOATING EFFECT
+   ================================================ */
+label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+}
+
+/* Animated labels for profile edit */
+[data-profile-edit="true"] label {
+  position: relative;
+  padding-left: 25px;
+}
+
+[data-profile-edit="true"] label::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #667eea;
+  transition: all 0.3s ease;
+}
+
+[data-profile-edit="true"] div:hover label::before {
+  transform: translateY(-50%) translateX(5px);
+  color: #ec4899;
+}
+
+/* Label animations on focus */
+input:focus ~ label,
+textarea:focus ~ label {
+  color: #667eea;
+  transform: translateY(-2px);
+}
+
+/* ================================================
+   FORM FIELDS CONTAINERS
+   ================================================ */
+form > div,
+[data-field],
+[data-profile-edit="true"] section > div {
+  margin-bottom: 2rem;
+  position: relative;
+  animation: fieldFadeIn 0.5s ease backwards;
+}
+
+/* Stagger animation for fields */
+form > div:nth-child(1) { animation-delay: 0.1s; }
+form > div:nth-child(2) { animation-delay: 0.2s; }
+form > div:nth-child(3) { animation-delay: 0.3s; }
+form > div:nth-child(4) { animation-delay: 0.4s; }
+form > div:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes fieldFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Field groups in profile edit */
+[data-profile-edit="true"] fieldset {
+  border: none;
+  padding: 2rem;
+  margin: 0 -1rem 2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 20px;
+  position: relative;
+}
+
+[data-profile-edit="true"] fieldset legend {
+  padding: 0.5rem 1.5rem;
+  background: var(--form-primary);
+  color: white;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1.5rem;
+}
+
+/* ================================================
+   BUTTONS & ACTIONS
+   ================================================ */
+button[type="submit"],
+button[type="button"],
+[data-role="form-actions"] button,
+[data-profile-edit="true"] button {
+  padding: 1.25rem 2.5rem;
+  background: var(--form-primary);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+button[type="submit"]:hover,
+button[type="button"]:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+}
+
+/* Ripple effect */
+button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+button:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Add buttons for dynamic fields */
+button[onclick*="add"] {
+  background: var(--form-secondary);
+  padding: 1rem 2rem;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+button[onclick*="add"]:hover {
+  background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+}
+
+/* Cancel/Secondary buttons */
+a[role="button"][href*="cancel"],
+button[data-secondary="true"] {
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+a[role="button"][href*="cancel"]:hover,
+button[data-secondary="true"]:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Form actions container */
+[data-role="form-actions"],
+[data-profile-edit="true"] > form > div:last-child {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  justify-content: center;
+}
+
+/* ================================================
+   ERROR & SUCCESS MESSAGES
+   ================================================ */
+[role="alert"],
+[data-error="true"] {
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg,
+    rgba(252, 103, 250, 0.1) 0%,
+    rgba(244, 196, 243, 0.1) 100%);
+  border: 1px solid rgba(252, 103, 250, 0.3);
+  border-radius: 15px;
+  margin-bottom: 2rem;
+  position: relative;
+  padding-left: 3rem;
+  animation: slideDown 0.5s ease;
+}
+
+[role="alert"]::before,
+[data-error="true"]::before {
+  content: '⚠️';
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.25rem;
+}
+
+[role="status"],
+[data-success="true"] {
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg,
+    rgba(0, 176, 155, 0.1) 0%,
+    rgba(150, 201, 61, 0.1) 100%);
+  border: 1px solid rgba(0, 176, 155, 0.3);
+  border-radius: 15px;
+  margin-bottom: 2rem;
+  position: relative;
+  padding-left: 3rem;
+  animation: slideDown 0.5s ease;
+}
+
+[role="status"]::before,
+[data-success="true"]::before {
+  content: '✅';
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.25rem;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ================================================
+   CHECKBOX & RADIO STYLING
+   ================================================ */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  margin-right: 0.75rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  cursor: pointer;
+  position: relative;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--input-bg);
+  border: 2px solid var(--input-border);
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+input[type="radio"] {
+  border-radius: 50%;
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background: var(--form-primary);
+  border-color: transparent;
+  animation: checkPop 0.3s ease;
+}
+
+@keyframes checkPop {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+/* ================================================
+   SELECT DROPDOWNS
+   ================================================ */
+select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 3rem;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
+/* ================================================
+   HELP TEXT & HINTS
+   ================================================ */
+small,
+[data-role="help-text"] {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  padding-left: 1rem;
+  border-left: 2px solid rgba(102, 126, 234, 0.3);
+  animation: fadeIn 0.5s ease;
+}
+
+/* ================================================
+   LOGIN FORM SPECIFIC
+   ================================================ */
+[data-type="login"] {
+  position: relative;
+}
+
+[data-type="login"] h1 {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  background: var(--form-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-type="login"] [data-role="form-header"] p {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 2rem;
+}
+
+/* Remember me switch */
+input[role="switch"] {
+  position: relative;
+  width: 50px;
+  height: 25px;
+  background: var(--input-bg);
+  border-radius: 50px;
+  padding: 0;
+  transition: all 0.3s ease;
+}
+
+input[role="switch"]:checked {
+  background: var(--form-primary);
+}
+
+input[role="switch"]::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 21px;
+  height: 21px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+input[role="switch"]:checked::after {
+  transform: translateX(25px);
+}
+
+/* ================================================
+   PROFILE EDIT SPECIAL EFFECTS
+   ================================================ */
+/* Progress indicator for sections */
+[data-profile-edit="true"] form {
+  position: relative;
+}
+
+[data-profile-edit="true"] form::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 3px;
+  background: var(--form-primary);
+  z-index: 1000;
+  transition: width 0.3s ease;
+}
+
+/* Animated section numbers */
+[data-profile-edit="true"] section {
+  counter-increment: section;
+}
+
+[data-profile-edit="true"] section h2::after {
+  content: counter(section, decimal-leading-zero);
+  position: absolute;
+  right: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 3rem;
+  font-weight: 900;
+  opacity: 0.1;
+  background: var(--form-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Dynamic field containers */
+[id*="experience-container"],
+[id*="education-container"] {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  animation: slideIn 0.5s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Loading state for form submission */
+form[data-state="submitting"] {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+form[data-state="submitting"]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50px;
+  height: 50px;
+  border: 3px solid var(--form-primary);
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ================================================
+   RESPONSIVE DESIGN
+   ================================================ */
+@media (max-width: 768px) {
+  [data-component="auth-form"] {
+    margin: 2rem 1rem;
+    padding: 2rem 1.5rem;
+  }
+
+  [data-profile-edit="true"] section {
+    padding: 1.5rem;
+    border-radius: 15px;
+  }
+
+  [data-profile-edit="true"] h1 {
+    font-size: 2.5rem;
+  }
+
+  [data-role="form-actions"],
+  [data-profile-edit="true"] > form > div:last-child {
+    flex-direction: column;
+  }
+
+  button {
+    width: 100%;
+  }
+}
+
+/* ================================================
+   ACCESSIBILITY
+   ================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  input,
+  textarea,
+  select {
+    border-width: 3px;
+  }
+
+  button {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+*:focus-visible {
+  outline: 3px solid var(--form-primary);
+  outline-offset: 3px;
+  border-radius: 5px;
+}
+
+/* ================================================
+   DARK/LIGHT THEME ADJUSTMENTS
+   ================================================ */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+[data-theme="light"] label {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] [data-component="auth-form"],
+[data-theme="light"] [data-profile-edit="true"] section {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.1);
+}

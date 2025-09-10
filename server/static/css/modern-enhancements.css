@@ -1,0 +1,479 @@
+/* ================================================
+   MODERN ENHANCEMENTS & ANIMATIONS
+   Additional CSS for ultra-modern UI effects
+   ================================================ */
+
+/* ================================================
+   ANIMATED GRADIENTS
+   ================================================ */
+@property --gradient-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Animated gradient borders */
+[data-component*="card"]::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--gradient-angle),
+    #6366f1,
+    #ec4899,
+    #8b5cf6,
+    #06b6d4,
+    #6366f1
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  animation: rotation 4s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+[data-component*="card"]:hover::after {
+  opacity: 1;
+}
+
+@keyframes rotation {
+  to {
+    --gradient-angle: 360deg;
+  }
+}
+
+/* ================================================
+   GLASSMORPHISM EFFECTS
+   ================================================ */
+[data-component="auth-form"],
+[data-component="modal"],
+#site-header {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(17, 25, 40, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.125);
+}
+
+[data-theme="light"] [data-component="auth-form"],
+[data-theme="light"] [data-component="modal"],
+[data-theme="light"] #site-header {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+/* ================================================
+   NEUMORPHISM ELEMENTS
+   ================================================ */
+button[data-type="primary"],
+a[role="button"][data-type="primary"] {
+  background: linear-gradient(145deg, #6b70f5, #5a5de0);
+  box-shadow: 20px 20px 60px #5558d4,
+              -20px -20px 60px #7378ff,
+              inset 0 0 0 transparent;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button[data-type="primary"]:active,
+a[role="button"][data-type="primary"]:active {
+  box-shadow: inset 20px 20px 60px #5558d4,
+              inset -20px -20px 60px #7378ff;
+}
+
+/* ================================================
+   FLOATING LABELS
+   ================================================ */
+[data-field] {
+  position: relative;
+}
+
+[data-field] label {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  background: var(--modern-bg);
+  padding: 0 0.5rem;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  color: var(--modern-text-muted);
+}
+
+[data-field] input:focus + label,
+[data-field] input:not(:placeholder-shown) + label {
+  top: 0;
+  font-size: 0.75rem;
+  color: var(--modern-primary);
+}
+
+/* ================================================
+   PARTICLE EFFECTS
+   ================================================ */
+@keyframes float-up {
+  to {
+    transform: translateY(-100vh) translateX(100px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  width: 4px;
+  height: 4px;
+  bottom: -4px;
+  left: 50%;
+  background: var(--modern-primary);
+  border-radius: 50%;
+  filter: blur(2px);
+  animation: float-up 10s linear infinite;
+}
+
+/* Multiple particles */
+[data-role="empty-state"]::after,
+[data-role="empty-state"]::before {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--modern-accent);
+  border-radius: 50%;
+  filter: blur(3px);
+  animation: float-up 15s linear infinite;
+}
+
+[data-role="empty-state"]::before {
+  left: 30%;
+  animation-delay: 2s;
+  background: var(--modern-secondary);
+}
+
+[data-role="empty-state"]::after {
+  left: 70%;
+  animation-delay: 4s;
+}
+
+/* ================================================
+   SMOOTH SCROLL INDICATOR
+   ================================================ */
+body {
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--modern-primary) 0%,
+    var(--modern-secondary) 50%,
+    var(--modern-accent) 100%
+  );
+  transform: scaleX(0);
+  transform-origin: left;
+  z-index: 9999;
+  transition: transform 0.3s ease;
+}
+
+/* ================================================
+   RIPPLE EFFECT
+   ================================================ */
+button,
+a[role="button"] {
+  position: relative;
+  overflow: hidden;
+}
+
+button::after,
+a[role="button"]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+button:active::after,
+a[role="button"]:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* ================================================
+   MORPHING SEARCH BAR
+   ================================================ */
+[data-component="search-bar"] input[type="search"] {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+}
+
+[data-component="search-bar"] input[type="search"]:focus {
+  transform: scale(1.02);
+  box-shadow: 0 10px 40px rgba(99, 102, 241, 0.2);
+}
+
+/* ================================================
+   SKELETON LOADING
+   ================================================ */
+[data-state="loading"] [data-component*="card"] {
+  position: relative;
+  overflow: hidden;
+}
+
+[data-state="loading"] [data-component*="card"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-wave {
+  to {
+    left: 100%;
+  }
+}
+
+/* ================================================
+   MAGNETIC BUTTONS
+   ================================================ */
+@media (hover: hover) {
+  button[data-type="primary"],
+  a[role="button"][data-type="primary"] {
+    transition: transform 0.2s ease-out;
+  }
+
+  button[data-type="primary"]:hover,
+  a[role="button"][data-type="primary"]:hover {
+    transform: perspective(100px) rotateX(-5deg) translateY(-2px);
+  }
+}
+
+/* ================================================
+   CARD TILT EFFECT
+   ================================================ */
+[data-component*="card"] {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+[data-component*="card"]:hover {
+  transform: perspective(1000px) rotateY(5deg) rotateX(5deg) scale(1.02);
+}
+
+/* ================================================
+   GLOW EFFECTS
+   ================================================ */
+[data-role="status-badge"],
+[data-role="skill-tag"] {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+[data-role="status-badge"]:hover,
+[data-role="skill-tag"]:hover {
+  box-shadow: 0 0 20px currentColor,
+              0 0 40px currentColor,
+              0 0 60px currentColor;
+  transform: translateY(-2px) scale(1.05);
+}
+
+/* ================================================
+   TYPEWRITER EFFECT
+   ================================================ */
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes blink {
+  50% { border-color: transparent; }
+}
+
+[data-role="headline"] {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 3px solid var(--modern-primary);
+  animation: typewriter 3s steps(40) 1s 1 normal both,
+             blink 1s step-end infinite;
+}
+
+/* ================================================
+   PARALLAX BACKGROUNDS
+   ================================================ */
+[data-component="hero"],
+[data-role="page-header"] {
+  position: relative;
+  overflow: hidden;
+}
+
+[data-component="hero"]::before,
+[data-role="page-header"]::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at 20% 80%,
+    rgba(99, 102, 241, 0.1) 0%,
+    transparent 50%
+  ),
+  radial-gradient(
+    circle at 80% 20%,
+    rgba(236, 72, 153, 0.1) 0%,
+    transparent 50%
+  );
+  animation: parallax-drift 20s ease-in-out infinite;
+}
+
+@keyframes parallax-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(-10px, 10px) scale(1.1); }
+  50% { transform: translate(10px, -10px) scale(0.9); }
+  75% { transform: translate(-10px, -10px) scale(1.05); }
+}
+
+/* ================================================
+   NOTIFICATION BADGES
+   ================================================ */
+[data-component="user-menu"] {
+  position: relative;
+}
+
+[data-component="user-menu"]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--modern-danger);
+  border-radius: 50%;
+  border: 2px solid var(--modern-bg);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* ================================================
+   SMOOTH TRANSITIONS
+   ================================================ */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+a,
+button,
+input,
+[data-component*="card"] {
+  transition-duration: 200ms;
+}
+
+/* ================================================
+   FOCUS EFFECTS
+   ================================================ */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--modern-bg),
+              0 0 0 4px var(--modern-primary);
+}
+
+/* ================================================
+   RESPONSIVE ADJUSTMENTS
+   ================================================ */
+@media (max-width: 768px) {
+  /* Disable complex animations on mobile for performance */
+  @media (hover: none) {
+    [data-component*="card"]:hover {
+      transform: none;
+    }
+
+    button:hover::before,
+    a[role="button"]:hover::before {
+      display: none;
+    }
+  }
+
+  /* Simplify effects on small screens */
+  [data-component*="card"]::after,
+  body::after,
+  [data-role="empty-state"]::after,
+  [data-role="empty-state"]::before {
+    display: none;
+  }
+}
+
+/* ================================================
+   PRINT STYLES
+   ================================================ */
+@media print {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  *::before,
+  *::after {
+    display: none !important;
+  }
+}
+
+/* ================================================
+   ACCESSIBILITY
+   ================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  [data-component*="card"] {
+    border-width: 2px;
+    border-style: solid;
+  }
+
+  button,
+  a[role="button"] {
+    border: 2px solid currentColor;
+  }
+}
