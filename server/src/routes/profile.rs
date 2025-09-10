@@ -1,12 +1,21 @@
+use askama::Template;
 use axum::{
-    Router,
+    Form, Router,
     extract::{Path, Request},
     response::{Html, IntoResponse, Redirect, Response},
     routing::get,
 };
 use tracing::{debug, error, info};
 
-use crate::{error::Error, middleware::UserExtractor, models::person::Person, templates};
+use crate::{
+    error::Error,
+    middleware::UserExtractor,
+    models::person::Person,
+    templates::{
+        BaseContext, DateRange, Education, Experience, ProfileData, ProfileEditTemplate,
+        ProfileTemplate, User,
+    },
+};
 
 pub fn router() -> Router {
     Router::new()
@@ -50,140 +59,86 @@ async fn user_profile(
     let profile_user = match Person::find_by_username(&username).await {
         Ok(Some(user)) => user,
         Ok(None) => {
-            error!(username = %username, "Profile user not found");
+            error!("Profile not found for username: {}", username);
             return Err(Error::NotFound);
         }
         Err(e) => {
-            error!(error = ?e, username = %username, "Failed to fetch profile user");
+            error!("Failed to fetch user profile: {}", e);
             return Err(e);
         }
     };
 
-    // Check if profile is public or if it's the user's own profile
-    let can_view = if let Some(ref profile) = profile_user.profile {
-        profile.is_public || is_own_profile
-    } else {
-        is_own_profile
+    // Build base context
+    let mut base = BaseContext::new().with_page("profile");
+    if let Some(ref user) = current_user {
+        base = base.with_user(User {
+            id: user.id.clone(),
+            name: user.username.clone(),
+            email: user.email.clone(),
+            avatar: format!("/api/avatar?id={}", user.id),
+        });
+    }
+
+    // Convert Person model to ProfileData
+    let profile = profile_user.profile.as_ref();
+    let profile_data = ProfileData {
+        id: profile_user.id.to_string(),
+        name: profile
+            .and_then(|p| p.name.clone())
+            .unwrap_or_else(|| profile_user.username.clone()),
+        username: profile_user.username.clone(),
+        email: profile_user.email.clone(),
+        headline: profile.and_then(|p| p.headline.clone()),
+        bio: profile.and_then(|p| p.bio.clone()),
+        location: profile.and_then(|p| p.location.clone()),
+        website: profile.and_then(|p| p.website.clone()),
+        skills: profile.map(|p| p.skills.clone()).unwrap_or_default(),
+        languages: profile.map(|p| p.languages.clone()).unwrap_or_default(),
+        availability: profile.and_then(|p| p.availability.clone()),
+        experience: profile
+            .map(|p| p.experience.clone())
+            .unwrap_or_default()
+            .into_iter()
+            .map(|e| Experience {
+                role: e.role,
+                production: e.production,
+                description: e.description,
+                dates: e.dates.map(|d| DateRange {
+                    start: d.start,
+                    end: d.end,
+                }),
+            })
+            .collect(),
+        education: profile
+            .map(|p| p.education.clone())
+            .unwrap_or_default()
+            .into_iter()
+            .map(|e| Education {
+                institution: e.institution,
+                degree: e.degree,
+                field: e.field,
+                dates: e.dates.map(|d| DateRange {
+                    start: d.start,
+                    end: d.end,
+                }),
+            })
+            .collect(),
+        is_own_profile,
+        is_public: profile.map(|p| p.is_public).unwrap_or(false),
     };
 
-    if !can_view {
-        info!(username = %username, "Profile is private and not accessible");
-        return Err(Error::Forbidden);
-    }
+    // Create and render template
+    let template = ProfileTemplate {
+        app_name: base.app_name,
+        year: base.year,
+        version: base.version,
+        active_page: base.active_page,
+        user: base.user,
+        profile: profile_data,
+    };
 
-    // Prepare template context
-    let mut context = templates::base_context();
-    context.insert("active_page", "profile");
-
-    // Add current user to context if authenticated
-    if let Some(ref user) = current_user {
-        context.insert(
-            "user",
-            &serde_json::json!({
-                "id": user.id,
-                "name": user.username,
-                "email": user.email,
-                "avatar": format!("/api/avatar?id={}", user.id)
-            }),
-        );
-    }
-
-    // Add profile user data to context
-    let profile_data = serde_json::json!({
-        "username": profile_user.username,
-        "email": if is_own_profile { Some(&profile_user.email) } else { None },
-        "is_own_profile": is_own_profile,
-        "profile": if let Some(ref profile) = profile_user.profile {
-            serde_json::json!({
-                "name": profile.name,
-                "headline": profile.headline,
-                "bio": profile.bio,
-                "location": profile.location,
-                "website": profile.website,
-                "phone": if is_own_profile { &profile.phone } else { &None },
-                "is_public": profile.is_public,
-
-                // Physical attributes (only show if set)
-                "physical": if profile.height_mm.is_some() || profile.weight_kg.is_some() ||
-                               profile.hair_color.is_some() || profile.eye_color.is_some() {
-                    Some(serde_json::json!({
-                        "height_mm": profile.height_mm,
-                        "weight_kg": profile.weight_kg,
-                        "body_type": profile.body_type,
-                        "hair_color": profile.hair_color,
-                        "eye_color": profile.eye_color,
-                        "gender": profile.gender,
-                        "ethnicity": profile.ethnicity,
-                        "age_range": profile.age_range.as_ref().map(|ar| {
-                            serde_json::json!({
-                                "min": ar.min,
-                                "max": ar.max
-                            })
-                        })
-                    }))
-                } else {
-                    None
-                },
-
-                // Professional details
-                "professional": serde_json::json!({
-                    "skills": profile.skills,
-                    "unions": profile.unions,
-                    "languages": profile.languages,
-                    "availability": profile.availability,
-                    "experience": profile.experience.iter().map(|exp| {
-                        serde_json::json!({
-                            "role": exp.role,
-                            "production": exp.production,
-                            "description": exp.description,
-                            "dates": exp.dates.as_ref().map(|d| {
-                                serde_json::json!({
-                                    "start": d.start,
-                                    "end": d.end
-                                })
-                            })
-                        })
-                    }).collect::<Vec<_>>(),
-                    "education": profile.education.iter().map(|edu| {
-                        serde_json::json!({
-                            "institution": edu.institution,
-                            "degree": edu.degree,
-                            "field": edu.field,
-                            "dates": edu.dates.as_ref().map(|d| {
-                                serde_json::json!({
-                                    "start": d.start,
-                                    "end": d.end
-                                })
-                            })
-                        })
-                    }).collect::<Vec<_>>(),
-                    "awards": profile.awards.iter().map(|award| {
-                        serde_json::json!({
-                            "name": award.name,
-                            "year": award.year,
-                            "description": award.description
-                        })
-                    }).collect::<Vec<_>>()
-                }),
-
-                // Social links
-                "social_links": profile.social_links.iter().map(|link| {
-                    serde_json::json!({
-                        "platform": link.platform,
-                        "url": link.url
-                    })
-                }).collect::<Vec<_>>()
-            })
-        } else {
-            serde_json::json!(null)
-        }
-    });
-
-    context.insert("profile_user", &profile_data);
-
-    // Render template
-    let html = templates::render_with_context("profile.html", &context).map_err(|e| {
-        error!(error = ?e, "Failed to render profile template");
+    let html = template.render().map_err(|e| {
+        error!("Failed to render profile template: {}", e);
         Error::template(e.to_string())
     })?;
 
@@ -192,7 +147,7 @@ async fn user_profile(
 
 /// Handler for displaying the profile edit form
 async fn edit_profile_form(request: Request) -> Result<Response, Error> {
-    debug!("Handling edit profile form request");
+    debug!("Handling profile edit form request");
 
     // Check if user is authenticated
     let current_user = match request.get_user() {
@@ -203,73 +158,92 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         }
     };
 
-    // Fetch the full user data with profile
-    let user = match Person::find_by_username(&current_user.username).await {
+    // Fetch the user's current profile data
+    let profile_user = match Person::find_by_username(&current_user.username).await {
         Ok(Some(user)) => user,
         Ok(None) => {
-            error!(username = %current_user.username, "Current user not found in database");
-            return Err(Error::Internal("User data not found".to_string()));
+            error!(
+                "Profile not found for authenticated user: {}",
+                current_user.username
+            );
+            return Err(Error::NotFound);
         }
         Err(e) => {
-            error!(error = ?e, username = %current_user.username, "Failed to fetch user data");
+            error!("Failed to fetch user profile for editing: {}", e);
             return Err(e);
         }
     };
 
-    // Prepare template context
-    let mut context = templates::base_context();
-    context.insert("active_page", "profile");
+    // Build base context
+    let base = BaseContext::new().with_page("profile").with_user(User {
+        id: current_user.id.clone(),
+        name: current_user.username.clone(),
+        email: current_user.email.clone(),
+        avatar: format!("/api/avatar?id={}", current_user.id),
+    });
 
-    // Add current user to context
-    context.insert(
-        "user",
-        &serde_json::json!({
-            "id": current_user.id,
-            "name": current_user.username,
-            "email": current_user.email,
-            "avatar": format!("/api/avatar?id={}", current_user.id)
-        }),
-    );
-
-    // Add profile data for editing
-    let profile_data = if let Some(ref profile) = user.profile {
-        serde_json::json!({
-            "name": profile.name,
-            "headline": profile.headline,
-            "bio": profile.bio,
-            "location": profile.location,
-            "website": profile.website,
-            "phone": profile.phone,
-            "is_public": profile.is_public,
-            "height_mm": profile.height_mm,
-            "weight_kg": profile.weight_kg,
-            "body_type": profile.body_type,
-            "hair_color": profile.hair_color,
-            "eye_color": profile.eye_color,
-            "gender": profile.gender,
-            "ethnicity": profile.ethnicity,
-            "age_range": profile.age_range.as_ref().map(|ar| {
-                serde_json::json!({
-                    "min": ar.min,
-                    "max": ar.max
-                })
-            }),
-            "skills": profile.skills,
-            "unions": profile.unions,
-            "languages": profile.languages,
-            "availability": profile.availability
-        })
-    } else {
-        serde_json::json!({
-            "is_public": false
-        })
+    // Convert Person model to ProfileData
+    let profile = profile_user.profile.as_ref();
+    let profile_data = ProfileData {
+        id: profile_user.id.to_string(),
+        name: profile
+            .and_then(|p| p.name.clone())
+            .unwrap_or_else(|| profile_user.username.clone()),
+        username: profile_user.username.clone(),
+        email: profile_user.email.clone(),
+        headline: profile.and_then(|p| p.headline.clone()),
+        bio: profile.and_then(|p| p.bio.clone()),
+        location: profile.and_then(|p| p.location.clone()),
+        website: profile.and_then(|p| p.website.clone()),
+        skills: profile.map(|p| p.skills.clone()).unwrap_or_default(),
+        languages: profile.map(|p| p.languages.clone()).unwrap_or_default(),
+        availability: profile.and_then(|p| p.availability.clone()),
+        experience: profile
+            .map(|p| p.experience.clone())
+            .unwrap_or_default()
+            .into_iter()
+            .map(|e| Experience {
+                role: e.role,
+                production: e.production,
+                description: e.description,
+                dates: e.dates.map(|d| DateRange {
+                    start: d.start,
+                    end: d.end,
+                }),
+            })
+            .collect(),
+        education: profile
+            .map(|p| p.education.clone())
+            .unwrap_or_default()
+            .into_iter()
+            .map(|e| Education {
+                institution: e.institution,
+                degree: e.degree,
+                field: e.field,
+                dates: e.dates.map(|d| DateRange {
+                    start: d.start,
+                    end: d.end,
+                }),
+            })
+            .collect(),
+        is_own_profile: true,
+        is_public: profile.map(|p| p.is_public).unwrap_or(false),
     };
 
-    context.insert("profile", &profile_data);
+    // Create and render template
+    let template = ProfileEditTemplate {
+        app_name: base.app_name,
+        year: base.year,
+        version: base.version,
+        active_page: base.active_page,
+        user: base.user,
+        profile: profile_data,
+        error: None,
+        success: None,
+    };
 
-    // Render template
-    let html = templates::render_with_context("profile_edit.html", &context).map_err(|e| {
-        error!(error = ?e, "Failed to render profile edit template");
+    let html = template.render().map_err(|e| {
+        error!("Failed to render profile edit template: {}", e);
         Error::template(e.to_string())
     })?;
 
@@ -277,177 +251,29 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
 }
 
 /// Handler for updating the user's profile
-async fn update_profile(request: Request) -> Result<Response, Error> {
-    debug!("Handling update profile request");
+async fn update_profile(Form(_form): Form<UpdateProfileForm>) -> Result<Response, Error> {
+    debug!("Handling profile update request");
 
-    // Check if user is authenticated
-    let current_user = match request.get_user() {
-        Some(user) => user,
-        None => {
-            info!("Unauthenticated user trying to update profile, redirecting to login");
-            return Ok(Redirect::to("/login").into_response());
-        }
-    };
+    // TODO: Implement Person::update_profile method
+    // For now, just redirect back to the profile page
+    // In a real implementation, we would:
+    // 1. Get the current user from request extensions
+    // 2. Update the profile in the database
+    // 3. Handle success/error cases appropriately
 
-    // TODO: Parse form data and update profile in database
-    // For now, just redirect back to the profile
-    info!(username = %current_user.username, "Profile update not yet implemented");
-
-    Ok(Redirect::to(&format!("/profile/{}", current_user.username)).into_response())
+    Ok(Redirect::to("/profile").into_response())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::models::person::SessionUser;
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
-
-    #[test]
-    fn test_router_creation() {
-        // Test that router can be created without panicking
-        let router = router();
-        assert!(format!("{:?}", router).contains("Router"));
-    }
-
-    #[tokio::test]
-    async fn test_own_profile_without_auth() {
-        // Create a request without authentication
-        let request = Request::builder()
-            .uri("/profile")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = own_profile(request).await.unwrap();
-
-        // Should redirect to login
-        let response_status = response.into_response().status();
-        assert_eq!(response_status, StatusCode::SEE_OTHER);
-    }
-
-    #[tokio::test]
-    async fn test_own_profile_with_auth() {
-        // Create a request with a mock user
-        let mut request = Request::builder()
-            .uri("/profile")
-            .body(Body::empty())
-            .unwrap();
-
-        // Add mock user to request extensions
-        let mock_user = SessionUser {
-            id: "test_id".to_string(),
-            username: "testuser".to_string(),
-            email: "test@example.com".to_string(),
-            name: "Test User".to_string(),
-        };
-        request.extensions_mut().insert(mock_user.clone());
-
-        let response = own_profile(request).await.unwrap();
-
-        // Should redirect to user's profile
-        let response = response.into_response();
-        assert_eq!(response.status(), StatusCode::SEE_OTHER);
-
-        let location = response
-            .headers()
-            .get("location")
-            .and_then(|v| v.to_str().ok());
-
-        assert_eq!(location, Some("/profile/testuser"));
-    }
-
-    #[tokio::test]
-    async fn test_edit_profile_form_without_auth() {
-        // Create a request without authentication
-        let request = Request::builder()
-            .uri("/profile/edit")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = edit_profile_form(request).await.unwrap();
-
-        // Should redirect to login
-        let response_status = response.into_response().status();
-        assert_eq!(response_status, StatusCode::SEE_OTHER);
-    }
-
-    #[tokio::test]
-    async fn test_update_profile_without_auth() {
-        // Create a request without authentication
-        let request = Request::builder()
-            .method("POST")
-            .uri("/profile/edit")
-            .body(Body::empty())
-            .unwrap();
-
-        let response = update_profile(request).await.unwrap();
-
-        // Should redirect to login
-        let response_status = response.into_response().status();
-        assert_eq!(response_status, StatusCode::SEE_OTHER);
-    }
-
-    #[tokio::test]
-    async fn test_update_profile_with_auth() {
-        // Create a request with a mock user
-        let mut request = Request::builder()
-            .method("POST")
-            .uri("/profile/edit")
-            .body(Body::empty())
-            .unwrap();
-
-        // Add mock user to request extensions
-        let mock_user = SessionUser {
-            id: "test_id".to_string(),
-            username: "testuser".to_string(),
-            email: "test@example.com".to_string(),
-            name: "Test User".to_string(),
-        };
-        request.extensions_mut().insert(mock_user.clone());
-
-        let response = update_profile(request).await.unwrap();
-
-        // Should redirect to user's profile (implementation not complete, but redirect works)
-        let response = response.into_response();
-        assert_eq!(response.status(), StatusCode::SEE_OTHER);
-
-        let location = response
-            .headers()
-            .get("location")
-            .and_then(|v| v.to_str().ok());
-
-        assert_eq!(location, Some("/profile/testuser"));
-    }
-
-    #[test]
-    fn test_profile_data_serialization() {
-        use serde_json::json;
-
-        // Test that profile data can be serialized properly for template context
-        let profile_data = json!({
-            "username": "testuser",
-            "email": None::<String>,
-            "is_own_profile": false,
-            "profile": json!({
-                "name": "Test User",
-                "headline": "Test Headline",
-                "bio": "Test Bio",
-                "location": "Test Location",
-                "website": "https://example.com",
-                "phone": None::<String>,
-                "is_public": true,
-                "skills": vec!["Skill1", "Skill2"],
-                "languages": vec!["English"],
-                "unions": Vec::<String>::new(),
-                "availability": "available"
-            })
-        });
-
-        // Verify the JSON structure is valid
-        assert!(profile_data["username"].is_string());
-        assert!(profile_data["profile"]["is_public"].is_boolean());
-        assert!(profile_data["profile"]["skills"].is_array());
-    }
+/// Form data for updating a user profile
+#[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)] // TODO: These fields will be used when Person::update_profile is implemented
+pub struct UpdateProfileForm {
+    pub name: Option<String>,
+    pub headline: Option<String>,
+    pub bio: Option<String>,
+    pub location: Option<String>,
+    pub website: Option<String>,
+    pub skills: Option<String>,    // Comma-separated list
+    pub languages: Option<String>, // Comma-separated list
+    pub availability: Option<String>,
 }

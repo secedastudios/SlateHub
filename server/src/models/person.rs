@@ -591,6 +591,7 @@ pub struct CreateUser {
 /// Used for deserializing the login form data.
 #[derive(Debug, Deserialize)]
 pub struct LoginUser {
-    pub user: String, // Can be username or email
-    pub pass: String,
+    pub email: String,
+    pub password: String,
+    pub redirect_to: Option<String>,
 }

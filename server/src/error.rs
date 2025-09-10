@@ -86,9 +86,9 @@ impl From<surrealdb::Error> for Error {
     }
 }
 
-// Conversion from template errors (assuming you're using a template engine like tera)
-impl From<tera::Error> for Error {
-    fn from(err: tera::Error) -> Self {
+// Conversion from template errors (Askama)
+impl From<askama::Error> for Error {
+    fn from(err: askama::Error) -> Self {
         error!("Template error occurred: {:?}", err);
         Self::Template(err.to_string())
     }

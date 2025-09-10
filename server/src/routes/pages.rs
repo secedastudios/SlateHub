@@ -1,8 +1,14 @@
+use askama::Template;
 use axum::{Router, extract::Request, response::Html, routing::get};
-
 use tracing::{debug, error};
 
-use crate::{error::Error, middleware::UserExtractor, templates};
+use crate::{
+    error::Error,
+    middleware::UserExtractor,
+    templates::{
+        AboutTemplate, Activity, BaseContext, IndexTemplate, PeopleTemplate, ProjectsTemplate, User,
+    },
+};
 
 pub fn router() -> Router {
     Router::new()
@@ -15,58 +21,56 @@ pub fn router() -> Router {
 async fn index(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering index page");
 
-    let mut context = templates::base_context();
-    context.insert("active_page", "home");
+    let mut base = BaseContext::new().with_page("home");
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        context.insert(
-            "user",
-            &serde_json::json!({
-                "id": user.id,
-                "name": user.username,
-                "email": user.email,
-                "avatar": format!("/api/avatar?id={}", user.id)
-            }),
-        );
+        base = base.with_user(User {
+            id: user.id.clone(),
+            name: user.username.clone(),
+            email: user.email.clone(),
+            avatar: format!("/api/avatar?id={}", user.id),
+        });
     }
 
+    // Create the index template with sample data
+    let mut template = IndexTemplate::new(base);
+
     // Add static stats data (in production, fetch from database)
-    context.insert("project_count", &1247);
-    context.insert("user_count", &5892);
-    context.insert("connection_count", &18453);
+    template.project_count = 1247;
+    template.user_count = 5892;
+    template.connection_count = 18453;
 
     // Add sample activities (in production, fetch from database)
-    let activities = vec![
-        serde_json::json!({
-            "user": "Sarah Johnson",
-            "action": "created a new project",
-            "time": "2 minutes ago"
-        }),
-        serde_json::json!({
-            "user": "Mike Chen",
-            "action": "joined the platform",
-            "time": "15 minutes ago"
-        }),
-        serde_json::json!({
-            "user": "Emily Rodriguez",
-            "action": "posted a job opening",
-            "time": "1 hour ago"
-        }),
-        serde_json::json!({
-            "user": "David Kim",
-            "action": "completed a collaboration",
-            "time": "3 hours ago"
-        }),
-        serde_json::json!({
-            "user": "Lisa Thompson",
-            "action": "updated their portfolio",
-            "time": "5 hours ago"
-        }),
+    template.activities = vec![
+        Activity {
+            user: "Sarah Johnson".to_string(),
+            action: "created a new project".to_string(),
+            time: "2 minutes ago".to_string(),
+        },
+        Activity {
+            user: "Mike Chen".to_string(),
+            action: "joined the platform".to_string(),
+            time: "15 minutes ago".to_string(),
+        },
+        Activity {
+            user: "Emily Rodriguez".to_string(),
+            action: "posted a job opening".to_string(),
+            time: "1 hour ago".to_string(),
+        },
+        Activity {
+            user: "David Kim".to_string(),
+            action: "completed a collaboration".to_string(),
+            time: "3 hours ago".to_string(),
+        },
+        Activity {
+            user: "Lisa Thompson".to_string(),
+            action: "updated their portfolio".to_string(),
+            time: "5 hours ago".to_string(),
+        },
     ];
-    context.insert("activities", &activities);
 
-    let html = templates::render_with_context("index.html", &context).map_err(|e| {
+    let html = template.render().map_err(|e| {
         error!("Failed to render index template: {}", e);
         Error::template(e.to_string())
     })?;
@@ -77,23 +81,24 @@ async fn index(request: Request) -> Result<Html<String>, Error> {
 async fn projects(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering projects page");
 
-    let mut context = templates::base_context();
-    context.insert("active_page", "projects");
+    let mut base = BaseContext::new().with_page("projects");
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        context.insert(
-            "user",
-            &serde_json::json!({
-                "id": user.id,
-                "name": user.username,
-                "email": user.email,
-                "avatar": format!("/api/avatar?id={}", user.id)
-            }),
-        );
+        base = base.with_user(User {
+            id: user.id.clone(),
+            name: user.username.clone(),
+            email: user.email.clone(),
+            avatar: format!("/api/avatar?id={}", user.id),
+        });
     }
 
-    let html = templates::render_with_context("projects.html", &context).map_err(|e| {
+    let template = ProjectsTemplate::new(base);
+
+    // In production, you would fetch projects from the database here
+    // and populate template.projects
+
+    let html = template.render().map_err(|e| {
         error!("Failed to render projects template: {}", e);
         Error::template(e.to_string())
     })?;
@@ -104,23 +109,36 @@ async fn projects(request: Request) -> Result<Html<String>, Error> {
 async fn people(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering people page");
 
-    let mut context = templates::base_context();
-    context.insert("active_page", "people");
+    let mut base = BaseContext::new().with_page("people");
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        context.insert(
-            "user",
-            &serde_json::json!({
-                "id": user.id,
-                "name": user.username,
-                "email": user.email,
-                "avatar": format!("/api/avatar?id={}", user.id)
-            }),
-        );
+        base = base.with_user(User {
+            id: user.id.clone(),
+            name: user.username.clone(),
+            email: user.email.clone(),
+            avatar: format!("/api/avatar?id={}", user.id),
+        });
     }
 
-    let html = templates::render_with_context("people.html", &context).map_err(|e| {
+    let mut template = PeopleTemplate::new(base);
+
+    // Add specialties list (in production, fetch from database)
+    template.specialties = vec![
+        "Director".to_string(),
+        "Producer".to_string(),
+        "Cinematographer".to_string(),
+        "Editor".to_string(),
+        "Sound Designer".to_string(),
+        "Actor".to_string(),
+        "Writer".to_string(),
+        "Composer".to_string(),
+    ];
+
+    // In production, you would fetch people from the database here
+    // and populate template.people
+
+    let html = template.render().map_err(|e| {
         error!("Failed to render people template: {}", e);
         Error::template(e.to_string())
     })?;
@@ -131,23 +149,21 @@ async fn people(request: Request) -> Result<Html<String>, Error> {
 async fn about(request: Request) -> Result<Html<String>, Error> {
     debug!("Rendering about page");
 
-    let mut context = templates::base_context();
-    context.insert("active_page", "about");
+    let mut base = BaseContext::new().with_page("about");
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        context.insert(
-            "user",
-            &serde_json::json!({
-                "id": user.id,
-                "name": user.username,
-                "email": user.email,
-                "avatar": format!("/api/avatar?id={}", user.id)
-            }),
-        );
+        base = base.with_user(User {
+            id: user.id.clone(),
+            name: user.username.clone(),
+            email: user.email.clone(),
+            avatar: format!("/api/avatar?id={}", user.id),
+        });
     }
 
-    let html = templates::render_with_context("about.html", &context).map_err(|e| {
+    let template = AboutTemplate::new(base);
+
+    let html = template.render().map_err(|e| {
         error!("Failed to render about template: {}", e);
         Error::template(e.to_string())
     })?;

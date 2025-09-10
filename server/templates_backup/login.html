@@ -1,0 +1,75 @@
+{% extends "_layout.html" %} {% block title %}Login to {{ app_name }}{% endblock
+%} {% block description %}Log in to your SlateHub account to access your
+projects and network.{% endblock %} {% block content %}
+<article>
+    <hgroup>
+        <h1>Login to Your Account</h1>
+        <p>Welcome back! Please enter your credentials to continue.</p>
+    </hgroup>
+
+    <form method="POST" action="/login">
+        <fieldset>
+            <legend>Login Credentials</legend>
+
+            <label for="user">
+                Username or Email
+                <input
+                    type="text"
+                    id="user"
+                    name="user"
+                    placeholder="Your username or email"
+                    required
+                    autocomplete="username"
+                    {%
+                    if
+                    user_value
+                    %}value="{{ user_value }}"
+                    {%
+                    endif
+                    %}
+                    {%
+                    if
+                    error_message
+                    %}aria-invalid="true"
+                    aria-describedby="login-error"
+                    {%
+                    endif
+                    %}
+                />
+            </label>
+
+            <label for="pass">
+                Password
+                <input
+                    type="password"
+                    id="pass"
+                    name="pass"
+                    placeholder="Your password"
+                    required
+                    autocomplete="current-password"
+                    {%
+                    if
+                    error_message
+                    %}aria-invalid="true"
+                    aria-describedby="login-error"
+                    {%
+                    endif
+                    %}
+                />
+            </label>
+        </fieldset>
+
+        {% if error_message %}
+        <div id="login-error" role="alert" aria-live="polite">
+            {{ error_message }}
+        </div>
+        {% endif %} {% if success_message %}
+        <div role="status" aria-live="polite">{{ success_message }}</div>
+        {% endif %}
+
+        <button type="submit">Login</button>
+    </form>
+
+    <p>Don't have an account yet? <a href="/signup">Create one here</a>.</p>
+</article>
+{% endblock %}

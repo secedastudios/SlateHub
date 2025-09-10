@@ -1,0 +1,299 @@
+{# Reusable Tera Macros #}
+{# Import this file in templates with: {% import "macros.html" as macros %} #}
+
+{# Button Macro #}
+{% macro button(text, type="primary", size="medium", href=false, onclick=false, disabled=false) %}
+    {% if href %}
+        <a href="{{ href }}" class="button {{ type }} {{ size }}" {% if disabled %}aria-disabled="true"{% endif %}>
+            {{ text }}
+        </a>
+    {% else %}
+        <button
+            class="button {{ type }} {{ size }}"
+            {% if onclick %}data-on-click="{{ onclick }}"{% endif %}
+            {% if disabled %}disabled{% endif %}
+        >
+            {{ text }}
+        </button>
+    {% endif %}
+{% endmacro button %}
+
+{# Form Input Macro #}
+{% macro input(name, label, type="text", value="", placeholder="", required=false, error=false) %}
+    <div class="form-group">
+        <label for="{{ name }}" class="form-label">
+            {{ label }}
+            {% if required %}<span class="required">*</span>{% endif %}
+        </label>
+        <input
+            type="{{ type }}"
+            id="{{ name }}"
+            name="{{ name }}"
+            class="form-input {% if error %}error{% endif %}"
+            value="{{ value }}"
+            {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+            {% if required %}required{% endif %}
+        />
+        {% if error %}
+        <span class="form-error">{{ error }}</span>
+        {% endif %}
+    </div>
+{% endmacro input %}
+
+{# Alert/Notification Macro #}
+{% macro alert(message, type="info", dismissible=false) %}
+    <div class="alert alert-{{ type }}" {% if dismissible %}data-store="{dismissed: false}" data-show="!$dismissed"{% endif %}>
+        <div class="alert-content">
+            <span class="alert-icon">
+                {% if type == "success" %}✓{% elif type == "error" %}✕{% elif type == "warning" %}⚠{% else %}ℹ{% endif %}
+            </span>
+            <span class="alert-message">{{ message }}</span>
+        </div>
+        {% if dismissible %}
+        <button class="alert-dismiss" data-on-click="$dismissed = true" aria-label="Dismiss">
+            ×
+        </button>
+        {% endif %}
+    </div>
+{% endmacro alert %}
+
+{# User Avatar Macro #}
+{% macro avatar(user, size="medium", show_status=false) %}
+    <div class="avatar {{ size }}">
+        {% if user.avatar %}
+            <img src="{{ user.avatar }}" alt="{{ user.name }}" class="avatar-image" />
+        {% else %}
+            <div class="avatar-placeholder">{{ user.name | first | upper }}</div>
+        {% endif %}
+        {% if show_status %}
+            <span class="avatar-status {% if user.online %}online{% else %}offline{% endif %}"></span>
+        {% endif %}
+    </div>
+{% endmacro avatar %}
+
+{# Navigation Item Macro #}
+{% macro nav_item(text, href, active=false, icon=false) %}
+    <li class="nav-item">
+        <a href="{{ href }}" class="nav-link {% if active %}active{% endif %}">
+            {% if icon %}<span class="nav-icon">{{ icon }}</span>{% endif %}
+            <span class="nav-text">{{ text }}</span>
+        </a>
+    </li>
+{% endmacro nav_item %}
+
+{# Pagination Macro #}
+{% macro pagination(current_page, total_pages, base_url) %}
+    <div class="pagination">
+        <button
+            class="pagination-button"
+            {% if current_page <= 1 %}disabled{% endif %}
+            data-on-click="window.location.href='{{ base_url }}?page={{ current_page - 1 }}'"
+        >
+            Previous
+        </button>
+
+        <div class="pagination-pages">
+            {% for page in range(start=1, end=total_pages + 1) %}
+                {% if page == current_page %}
+                    <span class="pagination-current">{{ page }}</span>
+                {% elif page == 1 or page == total_pages or (page >= current_page - 2 and page <= current_page + 2) %}
+                    <a href="{{ base_url }}?page={{ page }}" class="pagination-link">{{ page }}</a>
+                {% elif page == 2 and current_page > 4 %}
+                    <span class="pagination-ellipsis">...</span>
+                {% elif page == total_pages - 1 and current_page < total_pages - 3 %}
+                    <span class="pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <button
+            class="pagination-button"
+            {% if current_page >= total_pages %}disabled{% endif %}
+            data-on-click="window.location.href='{{ base_url }}?page={{ current_page + 1 }}'"
+        >
+            Next
+        </button>
+    </div>
+{% endmacro pagination %}
+
+{# Loading State Macro #}
+{% macro loading(message="Loading...") %}
+    <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p class="loading-message">{{ message }}</p>
+    </div>
+{% endmacro loading %}
+
+{# Empty State Macro #}
+{% macro empty_state(title, message, icon="📭", action_text=false, action_href=false) %}
+    <div class="empty-state">
+        <div class="empty-icon">{{ icon }}</div>
+        <h3 class="empty-title">{{ title }}</h3>
+        <p class="empty-message">{{ message }}</p>
+        {% if action_text and action_href %}
+        <a href="{{ action_href }}" class="button primary">{{ action_text }}</a>
+        {% endif %}
+    </div>
+{% endmacro empty_state %}
+
+{# Project Card Macro #}
+{% macro project_card(project) %}
+    <article class="project-card">
+        <div class="project-thumbnail">
+            <img src="{{ project.thumbnail | default(value='/static/images/placeholder-project.jpg') }}" alt="{{ project.title }}" />
+            <span class="project-status status-{{ project.status | slugify }}">{{ project.status }}</span>
+        </div>
+        <div class="project-info">
+            <h3 class="project-name">
+                <a href="/projects/{{ project.id }}">{{ project.title }}</a>
+            </h3>
+            <p class="project-type">{{ project.category }} • {{ project.genre }}</p>
+            <p class="project-summary">{{ project.summary | truncate(length=120) }}</p>
+            <div class="project-details">
+                <span class="detail-item">📍 {{ project.location }}</span>
+                <span class="detail-item">👥 {{ project.team_size }} team</span>
+            </div>
+        </div>
+    </article>
+{% endmacro project_card %}
+
+{# Person Card Macro #}
+{% macro person_card(person) %}
+    <article class="person-card">
+        <div class="person-header">
+            <img class="person-avatar" src="{{ person.avatar | default(value='/static/images/placeholder-avatar.jpg') }}" alt="{{ person.name }}" />
+            <span class="availability-indicator {% if person.available %}available{% endif %}"></span>
+        </div>
+        <div class="person-info">
+            <h3 class="person-name">
+                <a href="/people/{{ person.id }}">{{ person.name }}</a>
+            </h3>
+            <p class="person-role">{{ person.role }}</p>
+            <p class="person-bio">{{ person.bio | truncate(length=100) }}</p>
+            <div class="person-skills">
+                {% for skill in person.skills | slice(end=3) %}
+                <span class="skill-tag">{{ skill }}</span>
+                {% endfor %}
+            </div>
+            <div class="person-meta">
+                <span class="meta-item">📍 {{ person.location }}</span>
+                <span class="meta-item">⭐ {{ person.rating }}/5</span>
+            </div>
+            <div class="person-actions">
+                <button class="button secondary small">Message</button>
+                <button class="button primary small">Connect</button>
+            </div>
+        </div>
+    </article>
+{% endmacro person_card %}
+
+{# Breadcrumb Macro #}
+{% macro breadcrumb(items) %}
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol class="breadcrumb-list">
+            {% for item in items %}
+                <li class="breadcrumb-item">
+                    {% if loop.last %}
+                        <span aria-current="page">{{ item.text }}</span>
+                    {% else %}
+                        <a href="{{ item.href }}">{{ item.text }}</a>
+                        <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    </nav>
+{% endmacro breadcrumb %}
+
+{# Stats Card Macro #}
+{% macro stat_card(value, label, icon=false, color="primary") %}
+    <div class="stat-card">
+        {% if icon %}
+        <div class="stat-icon color-{{ color }}">{{ icon }}</div>
+        {% endif %}
+        <div class="stat-value" data-text="{{ value }}">{{ value }}</div>
+        <div class="stat-label">{{ label }}</div>
+    </div>
+{% endmacro stat_card %}
+
+{# Modal Macro #}
+{% macro modal(id, title, content, footer=false) %}
+    <div class="modal" id="{{ id }}" data-store="{open: false}" data-show="$open">
+        <div class="modal-backdrop" data-on-click="$open = false"></div>
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2 class="modal-title">{{ title }}</h2>
+                <button class="modal-close" data-on-click="$open = false" aria-label="Close">
+                    ×
+                </button>
+            </div>
+            <div class="modal-body">
+                {{ content | safe }}
+            </div>
+            {% if footer %}
+            <div class="modal-footer">
+                {{ footer | safe }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro modal %}
+
+{# Tag List Macro #}
+{% macro tag_list(tags, clickable=false) %}
+    <div class="tag-list">
+        {% for tag in tags %}
+            {% if clickable %}
+                <a href="/search?tag={{ tag | urlencode }}" class="tag">{{ tag }}</a>
+            {% else %}
+                <span class="tag">{{ tag }}</span>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endmacro tag_list %}
+
+{# Rating Display Macro #}
+{% macro rating(value, max=5, show_text=true) %}
+    <div class="rating">
+        <div class="rating-stars">
+            {% for i in range(start=1, end=max + 1) %}
+                <span class="star {% if i <= value %}filled{% elif i - 0.5 <= value %}half{% endif %}">
+                    {% if i <= value %}★{% else %}☆{% endif %}
+                </span>
+            {% endfor %}
+        </div>
+        {% if show_text %}
+        <span class="rating-text">{{ value }}/{{ max }}</span>
+        {% endif %}
+    </div>
+{% endmacro rating %}
+
+{# Search Bar Macro #}
+{% macro search_bar(placeholder="Search...", action="/search", method="get") %}
+    <form class="search-form" action="{{ action }}" method="{{ method }}">
+        <div class="search-bar">
+            <input
+                type="search"
+                name="q"
+                class="search-input"
+                placeholder="{{ placeholder }}"
+                data-model="searchQuery"
+            />
+            <button type="submit" class="search-button">
+                <span aria-hidden="true">🔍</span>
+                <span class="sr-only">Search</span>
+            </button>
+        </div>
+    </form>
+{% endmacro search_bar %}
+
+{# Social Links Macro #}
+{% macro social_links(links) %}
+    <div class="social-links">
+        {% for link in links %}
+            <a href="{{ link.url }}" class="social-link" title="{{ link.platform }}" rel="noopener noreferrer">
+                <span class="social-icon">{{ link.icon | default(value=link.platform | first | upper) }}</span>
+            </a>
+        {% endfor %}
+    </div>
+{% endmacro social_links %}

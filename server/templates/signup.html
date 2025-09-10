@@ -1,120 +1,156 @@
-{% extends "_layout.html" %} {% block title %}Sign Up for {{ app_name }}{%
-endblock %} {% block description %}Create a new account on SlateHub to connect
-with creative professionals.{% endblock %} {% block content %}
-<article>
-    <hgroup>
-        <h1>Create Your Account</h1>
-        <p>
-            Join SlateHub and start collaborating with professionals in the TV,
-            film, and content industries.
-        </p>
-    </hgroup>
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Sign up for SlateHub - Join the entertainment industry platform" />
+    <title>{{ app_name }} - Sign Up</title>
 
-    <form method="POST" action="/signup">
-        <fieldset>
-            <legend>Sign Up Information</legend>
+    <!-- Pico CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
 
-            <label for="username">
-                Username
-                <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    placeholder="Choose a unique username"
-                    required
-                    autocomplete="username"
-                    {%
-                    if
-                    username_value
-                    %}value="{{ username_value }}"
-                    {%
-                    endif
-                    %}
-                    {%
-                    if
-                    error_message
-                    %}aria-invalid="true"
-                    aria-describedby="signup-error"
-                    {%
-                    endif
-                    %}
-                />
-            </label>
+    <!-- SlateHub Custom Overrides -->
+    <link rel="stylesheet" href="/static/css/slatehub-pico.css" />
+    <link rel="stylesheet" href="/static/css/layout.css" />
+    <link rel="stylesheet" href="/static/css/forms.css" />
 
-            <label for="email">
-                Email Address
-                <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    placeholder="Your email address"
-                    required
-                    autocomplete="email"
-                    {%
-                    if
-                    email_value
-                    %}value="{{ email_value }}"
-                    {%
-                    endif
-                    %}
-                    {%
-                    if
-                    error_message
-                    %}aria-invalid="true"
-                    aria-describedby="signup-error"
-                    {%
-                    endif
-                    %}
-                />
-            </label>
+    <!-- Theme Initialization Script -->
+    <script>
+        const savedTheme = localStorage.getItem("theme") || "dark";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+    </script>
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li>
+                    <a href="/"><strong>{{ app_name }}</strong></a>
+                </li>
+            </ul>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/projects">Projects</a></li>
+                <li><a href="/people">People</a></li>
+                <li><a href="/about">About</a></li>
+            </ul>
+            <ul>
+                <li>
+                    <button id="theme-toggle" type="button" aria-label="Toggle theme">
+                        <span data-theme-icon="light" aria-hidden="true">☀️</span>
+                        <span data-theme-icon="dark" aria-hidden="true">🌙</span>
+                    </button>
+                </li>
+                <li><a href="/login" role="button">Login</a></li>
+                <li><a href="/signup" role="button" aria-current="page">Sign Up</a></li>
+            </ul>
+        </nav>
+    </header>
 
-            <label for="password">
-                Password
-                <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    placeholder="Choose a secure password (min 8 characters)"
-                    required
-                    autocomplete="new-password"
-                    minlength="8"
-                    {%
-                    if
-                    error_message
-                    %}aria-invalid="true"
-                    aria-describedby="signup-error"
-                    {%
-                    endif
-                    %}
-                />
-                <small id="password-help"
-                    >Password must be at least 8 characters long</small
-                >
-            </label>
-        </fieldset>
+    <main>
+        <article data-auth-form="signup">
+            <hgroup>
+                <h1>Join {{ app_name }}</h1>
+                <p>Create your account and start connecting with the entertainment industry</p>
+            </hgroup>
 
-        {% if error_message %}
-        <div id="signup-error" role="alert" aria-live="polite">
-            {{ error_message }}
-        </div>
-        {% endif %} {% if success_message %}
-        <div role="status" aria-live="polite">
-            {{ success_message }} {% if redirect_to %}
-            <script>
-                setTimeout(() => {
-                    window.location.href = "{{ redirect_to }}";
-                }, 1500);
-            </script>
-            {% endif %}
-        </div>
-        {% endif %}
+            {% match error %}
+            {% when Some with (err) %}
+            <div role="alert" aria-live="polite">
+                {{ err }}
+            </div>
+            {% when None %}
+            {% endmatch %}
 
-        <button type="submit" {% if success_message %}disabled{% endif %}>
-            {% if success_message %} Account Created! {% else %} Create Account
-            {% endif %}
-        </button>
-    </form>
+            <form action="/signup" method="post">
+                <fieldset>
+                    <label for="username">
+                        Username
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            placeholder="Choose a username"
+                            required
+                            autofocus
+                            aria-required="true"
+                        />
+                    </label>
 
-    <p>Already have an account? <a href="/login">Log in here</a>.</p>
-</article>
-{% endblock %}
+                    <label for="email">
+                        Email Address
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            placeholder="Enter your email"
+                            required
+                            aria-required="true"
+                        />
+                    </label>
+
+                    <label for="password">
+                        Password
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Create a password (min 8 characters)"
+                            required
+                            minlength="8"
+                            aria-required="true"
+                        />
+                    </label>
+
+                    <label for="confirm_password">
+                        Confirm Password
+                        <input
+                            type="password"
+                            id="confirm_password"
+                            name="confirm_password"
+                            placeholder="Confirm your password"
+                            required
+                            minlength="8"
+                            aria-required="true"
+                        />
+                    </label>
+
+                    <label for="terms">
+                        <input type="checkbox" id="terms" name="terms" required />
+                        I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>
+                    </label>
+                </fieldset>
+
+                <button type="submit">Create Account</button>
+
+                <nav aria-label="Signup alternatives">
+                    <p>Already have an account? <a href="/login">Log in</a></p>
+                </nav>
+            </form>
+        </article>
+    </main>
+
+    <footer>
+        <section>
+            <p><small>© {{ year }} {{ app_name }}. All rights reserved.</small></p>
+            <p><small>v{{ version }}</small></p>
+        </section>
+    </footer>
+
+    <!-- Theme Toggle Logic -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const themeToggle = document.getElementById("theme-toggle");
+            if (themeToggle) {
+                themeToggle.addEventListener("click", function () {
+                    const currentTheme = document.documentElement.getAttribute("data-theme");
+                    const newTheme = currentTheme === "light" ? "dark" : "light";
+                    document.documentElement.setAttribute("data-theme", newTheme);
+                    localStorage.setItem("theme", newTheme);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,670 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ app_name }} - Projects{% endblock %}
+
+{% block description %}Browse and manage creative projects in film, TV, and content production{% endblock %}
+
+{% block content %}
+<article id="projects-page">
+    <section class="page-header">
+        <h1 class="page-title">Projects</h1>
+        <p class="page-subtitle">
+            Discover and collaborate on creative projects across the entertainment industry
+        </p>
+    </section>
+
+    <section class="projects-controls">
+        <div class="search-bar">
+            <input
+                type="search"
+                class="search-input"
+                placeholder="Search projects..."
+                data-model="searchQuery"
+            />
+            <button class="search-button">
+                <span aria-hidden="true">🔍</span>
+                <span class="sr-only">Search</span>
+            </button>
+        </div>
+
+        <div class="filter-controls" data-store="{filterOpen: false, selectedCategory: 'all', selectedStatus: 'all'}">
+            <button
+                class="filter-toggle"
+                data-on-click="$filterOpen = !$filterOpen"
+                aria-expanded="$filterOpen"
+            >
+                <span>Filters</span>
+                <span aria-hidden="true">▼</span>
+            </button>
+
+            <div class="filter-panel" data-show="$filterOpen">
+                <div class="filter-group">
+                    <label class="filter-label">Category</label>
+                    <select class="filter-select" data-model="selectedCategory">
+                        <option value="all">All Categories</option>
+                        <option value="film">Film</option>
+                        <option value="tv">Television</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="documentary">Documentary</option>
+                        <option value="music-video">Music Video</option>
+                        <option value="web-series">Web Series</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Status</label>
+                    <select class="filter-select" data-model="selectedStatus">
+                        <option value="all">All Status</option>
+                        <option value="pre-production">Pre-Production</option>
+                        <option value="production">In Production</option>
+                        <option value="post-production">Post-Production</option>
+                        <option value="completed">Completed</option>
+                        <option value="on-hold">On Hold</option>
+                    </select>
+                </div>
+
+                <div class="filter-actions">
+                    <button class="button secondary" data-on-click="$selectedCategory = 'all'; $selectedStatus = 'all'">
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="view-controls" data-store="{viewMode: 'grid'}">
+            <button
+                class="view-button"
+                data-class-active="$viewMode === 'grid'"
+                data-on-click="$viewMode = 'grid'"
+                aria-label="Grid view"
+            >
+                <span aria-hidden="true">⊞</span>
+            </button>
+            <button
+                class="view-button"
+                data-class-active="$viewMode === 'list'"
+                data-on-click="$viewMode = 'list'"
+                aria-label="List view"
+            >
+                <span aria-hidden="true">☰</span>
+            </button>
+        </div>
+    </section>
+
+    <section class="featured-projects">
+        <h2 class="section-title">Featured Projects</h2>
+        <div class="featured-carousel" data-store="{currentSlide: 0}">
+            <div class="carousel-track">
+                <div class="featured-card" data-show="$currentSlide === 0">
+                    <div class="featured-image">
+                        <img src="/static/images/placeholder-project.jpg" alt="Project thumbnail" />
+                        <span class="project-badge">Featured</span>
+                    </div>
+                    <div class="featured-content">
+                        <h3 class="project-title">Midnight Chronicles</h3>
+                        <p class="project-category">Feature Film • Drama</p>
+                        <p class="project-description">
+                            A compelling drama exploring the interconnected lives of three families
+                            in modern-day Los Angeles. Currently in pre-production.
+                        </p>
+                        <div class="project-meta">
+                            <span class="meta-item">📍 Los Angeles, CA</span>
+                            <span class="meta-item">📅 Starting Jan 2025</span>
+                            <span class="meta-item">👥 15 crew needed</span>
+                        </div>
+                        <a href="/projects/midnight-chronicles" class="button primary">View Project</a>
+                    </div>
+                </div>
+            </div>
+            <div class="carousel-nav">
+                <button class="carousel-button prev" data-on-click="$currentSlide = Math.max(0, $currentSlide - 1)">
+                    ←
+                </button>
+                <button class="carousel-button next" data-on-click="$currentSlide = Math.min(2, $currentSlide + 1)">
+                    →
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section class="projects-section" data-store="{projects: [], loading: true}">
+        <div class="section-header">
+            <h2 class="section-title">All Projects</h2>
+            <div class="section-actions">
+                <button class="button primary">
+                    + Create New Project
+                </button>
+            </div>
+        </div>
+
+        <div class="loading-state" data-show="$loading">
+            <div class="loading-spinner"></div>
+            <p>Loading projects...</p>
+        </div>
+
+        <div class="projects-grid" data-show="!$loading && $viewMode === 'grid'">
+            <template data-for="project in $projects">
+                <article class="project-card">
+                    <div class="project-thumbnail">
+                        <img data-bind-src="project.thumbnail" data-bind-alt="project.title + ' thumbnail'" />
+                        <span class="project-status" data-text="project.status"></span>
+                    </div>
+                    <div class="project-info">
+                        <h3 class="project-name">
+                            <a data-bind-href="'/projects/' + project.id" data-text="project.title"></a>
+                        </h3>
+                        <p class="project-type" data-text="project.category + ' • ' + project.genre"></p>
+                        <p class="project-summary" data-text="project.summary"></p>
+                        <div class="project-details">
+                            <span class="detail-item" data-text="'📍 ' + project.location"></span>
+                            <span class="detail-item" data-text="'👥 ' + project.teamSize + ' team'"></span>
+                        </div>
+                    </div>
+                </article>
+            </template>
+        </div>
+
+        <div class="projects-list" data-show="!$loading && $viewMode === 'list'">
+            <table class="projects-table">
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Location</th>
+                        <th>Team Size</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template data-for="project in $projects">
+                        <tr>
+                            <td>
+                                <a data-bind-href="'/projects/' + project.id" data-text="project.title"></a>
+                            </td>
+                            <td data-text="project.category"></td>
+                            <td>
+                                <span class="status-badge" data-text="project.status"></span>
+                            </td>
+                            <td data-text="project.location"></td>
+                            <td data-text="project.teamSize"></td>
+                            <td>
+                                <button class="button small">View</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty state -->
+        <div class="empty-state" data-show="!$loading && $projects.length === 0">
+            <div class="empty-icon">🎬</div>
+            <h3>No Projects Found</h3>
+            <p>Try adjusting your filters or create a new project to get started.</p>
+            <button class="button primary">Create Your First Project</button>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" data-show="!$loading && $projects.length > 0">
+            <button class="pagination-button" disabled>Previous</button>
+            <span class="pagination-info">Page 1 of 5</span>
+            <button class="pagination-button">Next</button>
+        </div>
+    </section>
+
+    <!-- Simulate loading projects -->
+    <script data-signals>
+        setTimeout(() => {
+            $projects = [
+                {
+                    id: '1',
+                    title: 'Urban Legends',
+                    category: 'TV Series',
+                    genre: 'Horror',
+                    status: 'In Production',
+                    location: 'Atlanta, GA',
+                    teamSize: 45,
+                    thumbnail: '/static/images/placeholder-project.jpg',
+                    summary: 'A thrilling anthology series exploring modern urban legends.'
+                },
+                {
+                    id: '2',
+                    title: 'Summer Dreams',
+                    category: 'Feature Film',
+                    genre: 'Romance',
+                    status: 'Pre-Production',
+                    location: 'Miami, FL',
+                    teamSize: 30,
+                    thumbnail: '/static/images/placeholder-project.jpg',
+                    summary: 'A heartwarming story of love and second chances.'
+                },
+                {
+                    id: '3',
+                    title: 'Tech Revolution',
+                    category: 'Documentary',
+                    genre: 'Technology',
+                    status: 'Post-Production',
+                    location: 'San Francisco, CA',
+                    teamSize: 12,
+                    thumbnail: '/static/images/placeholder-project.jpg',
+                    summary: 'Exploring the impact of AI on creative industries.'
+                },
+                {
+                    id: '4',
+                    title: 'Night Shift',
+                    category: 'Web Series',
+                    genre: 'Comedy',
+                    status: 'Completed',
+                    location: 'New York, NY',
+                    teamSize: 20,
+                    thumbnail: '/static/images/placeholder-project.jpg',
+                    summary: 'Comedy series about overnight workers in a 24-hour diner.'
+                }
+            ];
+            $loading = false;
+        }, 800);
+    </script>
+</article>
+
+<style>
+    /* Projects Page Styles */
+    .page-header {
+        text-align: center;
+        padding: 3rem 2rem 2rem;
+        background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-alt) 100%);
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--color-primary);
+    }
+
+    .page-subtitle {
+        font-size: 1.125rem;
+        color: var(--color-text-muted);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* Controls Section */
+    .projects-controls {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .search-bar {
+        flex: 1;
+        min-width: 300px;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--color-border);
+        border-radius: 0.5rem;
+        background: var(--color-surface);
+        font-size: 1rem;
+    }
+
+    .search-button {
+        padding: 0.75rem 1rem;
+        background: var(--color-primary);
+        color: var(--color-text-inverse);
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: background var(--transition-base);
+    }
+
+    .filter-controls {
+        position: relative;
+    }
+
+    .filter-toggle {
+        padding: 0.75rem 1rem;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 0.5rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-panel {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        left: 0;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-lg);
+        z-index: 100;
+        min-width: 300px;
+        display: none;
+    }
+
+    .filter-panel[data-show="true"] {
+        display: block;
+    }
+
+    .filter-group {
+        margin-bottom: 1rem;
+    }
+
+    .filter-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .filter-select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid var(--color-border);
+        border-radius: 0.25rem;
+        background: var(--color-background);
+    }
+
+    .view-controls {
+        display: flex;
+        gap: 0.25rem;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 0.5rem;
+        padding: 0.25rem;
+    }
+
+    .view-button {
+        padding: 0.5rem 0.75rem;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: background var(--transition-base);
+        border-radius: 0.25rem;
+    }
+
+    .view-button[data-class-active="true"] {
+        background: var(--color-primary);
+        color: var(--color-text-inverse);
+    }
+
+    /* Featured Projects */
+    .featured-projects {
+        margin-bottom: 3rem;
+    }
+
+    .featured-carousel {
+        position: relative;
+        background: var(--color-surface);
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+
+    .featured-card {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        padding: 2rem;
+    }
+
+    .featured-image {
+        position: relative;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    .featured-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .project-badge {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        background: var(--color-primary);
+        color: var(--color-text-inverse);
+        padding: 0.25rem 0.75rem;
+        border-radius: 2rem;
+        font-size: 0.875rem;
+    }
+
+    .featured-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .project-category {
+        color: var(--color-text-muted);
+        margin-bottom: 1rem;
+    }
+
+    .project-description {
+        margin-bottom: 1.5rem;
+        line-height: 1.6;
+    }
+
+    .project-meta {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .meta-item {
+        color: var(--color-text-muted);
+        font-size: 0.875rem;
+    }
+
+    /* Projects Grid */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .projects-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .project-card {
+        background: var(--color-surface);
+        border-radius: 0.75rem;
+        overflow: hidden;
+        transition: transform var(--transition-base), box-shadow var(--transition-base);
+    }
+
+    .project-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .project-thumbnail {
+        position: relative;
+        height: 200px;
+        overflow: hidden;
+        background: var(--color-surface-alt);
+    }
+
+    .project-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .project-status {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: var(--color-success);
+        color: var(--color-text-inverse);
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+
+    .project-info {
+        padding: 1.5rem;
+    }
+
+    .project-name {
+        margin-bottom: 0.5rem;
+    }
+
+    .project-name a {
+        color: var(--color-text);
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .project-name a:hover {
+        color: var(--color-primary);
+    }
+
+    .project-type {
+        color: var(--color-text-muted);
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    .project-summary {
+        margin-bottom: 1rem;
+        line-height: 1.5;
+        color: var(--color-text-secondary);
+    }
+
+    .project-details {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.875rem;
+        color: var(--color-text-muted);
+    }
+
+    /* List View */
+    .projects-table {
+        width: 100%;
+        background: var(--color-surface);
+        border-radius: 0.75rem;
+        overflow: hidden;
+    }
+
+    .projects-table th {
+        background: var(--color-surface-alt);
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .projects-table td {
+        padding: 1rem;
+        border-top: 1px solid var(--color-border);
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: var(--color-info);
+        color: var(--color-text-inverse);
+        border-radius: 2rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+
+    /* Loading State */
+    .loading-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .loading-spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid var(--color-border);
+        border-top-color: var(--color-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .pagination-button {
+        padding: 0.5rem 1rem;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: background var(--transition-base);
+    }
+
+    .pagination-button:hover:not(:disabled) {
+        background: var(--color-surface-alt);
+    }
+
+    .pagination-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .featured-card {
+            grid-template-columns: 1fr;
+        }
+
+        .projects-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-bar {
+            min-width: 100%;
+        }
+
+        .filter-panel {
+            left: 0;
+            right: 0;
+        }
+    }
+</style>
+{% endblock %}

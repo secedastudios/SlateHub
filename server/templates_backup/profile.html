@@ -1,0 +1,254 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ profile_user.username }}'s Profile - SlateHub{% endblock %}
+
+{% block content %}
+<main>
+    <article data-profile="true" data-username="{{ profile_user.username }}">
+        <header></header>
+            <h1>
+                {% if profile_user.profile.name %}
+                    {{ profile_user.profile.name }}
+                {% else %}
+                    {{ profile_user.username }}
+                {% endif %}
+            </h1>
+
+            {% if profile_user.profile.headline %}
+            <p data-headline="true">{{ profile_user.profile.headline }}</p>
+            {% endif %}
+
+            {% if profile_user.is_own_profile %}
+            <nav aria-label="Profile actions">
+                <a href="/profile/edit" role="button">Edit Profile</a>
+            </nav>
+            {% endif %}
+        </header>
+
+        {% if profile_user.profile %}
+        <section aria-labelledby="about-heading">
+            <h2 id="about-heading">About</h2>
+
+            {% if profile_user.profile.bio %}
+            <p data-bio="true">{{ profile_user.profile.bio }}</p>
+            {% endif %}
+
+            <dl>
+                {% if profile_user.profile.location %}
+                <dt>Location</dt>
+                <dd>{{ profile_user.profile.location }}</dd>
+                {% endif %}
+
+                {% if profile_user.profile.website %}
+                <dt>Website</dt>
+                <dd><a href="{{ profile_user.profile.website }}" target="_blank" rel="noopener">{{ profile_user.profile.website }}</a></dd>
+                {% endif %}
+
+                {% if profile_user.is_own_profile and profile_user.email %}
+                <dt>Email</dt>
+                <dd>{{ profile_user.email }}</dd>
+                {% endif %}
+
+                {% if profile_user.is_own_profile and profile_user.profile.phone %}
+                <dt>Phone</dt>
+                <dd>{{ profile_user.profile.phone }}</dd>
+                {% endif %}
+            </dl>
+        </section>
+
+        {% if profile_user.profile.professional.skills | length > 0 or profile_user.profile.professional.languages | length > 0 or profile_user.profile.professional.unions | length > 0 %}
+        <section aria-labelledby="professional-heading">
+            <h2 id="professional-heading">Professional Details</h2>
+
+            {% if profile_user.profile.professional.skills | length > 0 %}
+            <section aria-labelledby="skills-heading">
+                <h3 id="skills-heading">Skills</h3>
+                <ul data-skills="true">
+                    {% for skill in profile_user.profile.professional.skills %}
+                    <li>{{ skill }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if profile_user.profile.professional.languages | length > 0 %}
+            <section aria-labelledby="languages-heading">
+                <h3 id="languages-heading">Languages</h3>
+                <ul data-languages="true">
+                    {% for language in profile_user.profile.professional.languages %}
+                    <li>{{ language }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if profile_user.profile.professional.unions | length > 0 %}
+            <section aria-labelledby="unions-heading">
+                <h3 id="unions-heading">Union Affiliations</h3>
+                <ul data-unions="true">
+                    {% for union in profile_user.profile.professional.unions %}
+                    <li>{{ union }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if profile_user.profile.professional.availability %}
+            <section aria-labelledby="availability-heading">
+                <h3 id="availability-heading">Availability</h3>
+                <p>{{ profile_user.profile.professional.availability }}</p>
+            </section>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        {% if profile_user.profile.professional.experience | length > 0 %}
+        <section aria-labelledby="experience-heading">
+            <h2 id="experience-heading">Experience</h2>
+            {% for exp in profile_user.profile.professional.experience %}
+            <article data-experience="true">
+                <h3>{{ exp.role }}</h3>
+                {% if exp.production %}
+                <p data-production="true">{{ exp.production }}</p>
+                {% endif %}
+                {% if exp.dates %}
+                <time datetime="{{ exp.dates.start }}">{{ exp.dates.start }}</time>
+                {% if exp.dates.end %}
+                - <time datetime="{{ exp.dates.end }}">{{ exp.dates.end }}</time>
+                {% else %}
+                - <span data-current="true">Present</span>
+                {% endif %}
+                {% endif %}
+                {% if exp.description %}
+                <p>{{ exp.description }}</p>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        {% if profile_user.profile.professional.education | length > 0 %}
+        <section aria-labelledby="education-heading">
+            <h2 id="education-heading">Education</h2>
+            {% for edu in profile_user.profile.professional.education %}
+            <article data-education="true">
+                <h3>{{ edu.institution }}</h3>
+                {% if edu.degree %}
+                <p data-degree="true">{{ edu.degree }}</p>
+                {% endif %}
+                {% if edu.field %}
+                <p data-field="true">{{ edu.field }}</p>
+                {% endif %}
+                {% if edu.dates %}
+                <time datetime="{{ edu.dates.start }}">{{ edu.dates.start }}</time>
+                {% if edu.dates.end %}
+                - <time datetime="{{ edu.dates.end }}">{{ edu.dates.end }}</time>
+                {% endif %}
+                {% endif %}
+            </article>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        {% if profile_user.profile.professional.awards | length > 0 %}
+        <section aria-labelledby="awards-heading">
+            <h2 id="awards-heading">Awards & Recognition</h2>
+            {% for award in profile_user.profile.professional.awards %}
+            <article data-award="true">
+                <h3>{{ award.name }}</h3>
+                {% if award.year %}
+                <time datetime="{{ award.year }}">{{ award.year }}</time>
+                {% endif %}
+                {% if award.description %}
+                <p>{{ award.description }}</p>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        {% if profile_user.profile.physical %}
+        <section aria-labelledby="physical-heading">
+            <h2 id="physical-heading">Physical Attributes</h2>
+            <dl>
+                {% if profile_user.profile.physical.height_mm %}
+                <dt>Height</dt>
+                <dd data-height="{{ profile_user.profile.physical.height_mm }}">{{ (profile_user.profile.physical.height_mm / 10) | round }}cm</dd>
+                {% endif %}
+
+                {% if profile_user.profile.physical.weight_kg %}
+                <dt>Weight</dt>
+                <dd data-weight="{{ profile_user.profile.physical.weight_kg }}">{{ profile_user.profile.physical.weight_kg }}kg</dd>
+                {% endif %}
+
+                {% if profile_user.profile.physical.hair_color %}
+                <dt>Hair Color</dt>
+                <dd>{{ profile_user.profile.physical.hair_color }}</dd>
+                {% endif %}
+
+                {% if profile_user.profile.physical.eye_color %}
+                <dt>Eye Color</dt>
+                <dd>{{ profile_user.profile.physical.eye_color }}</dd>
+                {% endif %}
+
+                {% if profile_user.profile.physical.gender %}
+                <dt>Gender</dt>
+                <dd>{{ profile_user.profile.physical.gender }}</dd>
+                {% endif %}
+
+                {% if profile_user.profile.physical.ethnicity | length > 0 %}
+                <dt>Ethnicity</dt>
+                <dd>{{ profile_user.profile.physical.ethnicity | join(sep=", ") }}</dd>
+                {% endif %}
+
+                {% if profile_user.profile.physical.age_range %}
+                <dt>Playing Age</dt>
+                <dd>{{ profile_user.profile.physical.age_range.min }} - {{ profile_user.profile.physical.age_range.max }}</dd>
+                {% endif %}
+            </dl>
+        </section>
+        {% endif %}
+
+        {% if profile_user.profile.social_links | length > 0 %}
+        <section aria-labelledby="social-heading">
+            <h2 id="social-heading">Connect</h2>
+            <nav aria-label="Social media links">
+                <ul>
+                    {% for link in profile_user.profile.social_links %}
+                    <li>
+                        <a href="{{ link.url }}"
+                           target="_blank"
+                           rel="noopener"
+                           data-platform="{{ link.platform }}">
+                            {{ link.platform }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        </section>
+        {% endif %}
+
+        {% else %}
+        <section>
+            <p>This user hasn't set up their profile yet.</p>
+            {% if profile_user.is_own_profile %}
+            <nav aria-label="Profile actions">
+                <a href="/profile/edit" role="button">Create Your Profile</a>
+            </nav>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        {% if not profile_user.is_own_profile %}
+        <footer>
+            <p data-privacy="true">
+                {% if profile_user.profile and not profile_user.profile.is_public %}
+                <small>This is a limited view of the profile. Some information may be hidden.</small>
+                {% endif %}
+            </p>
+        </footer>
+        {% endif %}
+    </article>
+</main>
+{% endblock %}
