@@ -1,1 +1,138 @@
-<!doctype html><html><head><title>{{ app_name }}</title></head><body><h1>{{ app_name }}</h1></body></html>
+{% extends "_layout.html" %} {% block title %}{{ profile.name }} - {{ app_name
+}}{% endblock %} {% block content %}
+<main>
+    <article data-profile="true" data-username="{{ profile.username }}">
+        <header>
+            <h1>{{ profile.name }}</h1>
+
+            {% if profile.headline.is_some() %}
+            <p data-headline="true">{{ profile.headline.as_ref().unwrap() }}</p>
+            {% endif %} {% if profile.is_own_profile %}
+            <nav aria-label="Profile actions">
+                <a href="/profile/edit" role="button">Edit Profile</a>
+            </nav>
+            {% endif %}
+        </header>
+
+        <section aria-labelledby="about-heading">
+            <h2 id="about-heading">About</h2>
+
+            {% if profile.bio.is_some() %}
+            <p data-bio="true">{{ profile.bio.as_ref().unwrap() }}</p>
+            {% endif %}
+
+            <dl>
+                {% if profile.location.is_some() %}
+                <dt>Location</dt>
+                <dd>{{ profile.location.as_ref().unwrap() }}</dd>
+                {% endif %} {% if profile.website.is_some() %}
+                <dt>Website</dt>
+                <dd>
+                    <a
+                        href="{{ profile.website.as_ref().unwrap() }}"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        {{ profile.website.as_ref().unwrap() }}
+                    </a>
+                </dd>
+                {% endif %} {% if profile.is_own_profile %}
+                <dt>Email</dt>
+                <dd>{{ profile.email }}</dd>
+                {% endif %}
+            </dl>
+        </section>
+
+        {% if !profile.skills.is_empty() || !profile.languages.is_empty() %}
+        <section aria-labelledby="professional-heading">
+            <h2 id="professional-heading">Professional Details</h2>
+
+            {% if !profile.skills.is_empty() %}
+            <section aria-labelledby="skills-heading">
+                <h3 id="skills-heading">Skills</h3>
+                <ul data-skills="true">
+                    {% for skill in profile.skills %}
+                    <li>{{ skill }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %} {% if !profile.languages.is_empty() %}
+            <section aria-labelledby="languages-heading">
+                <h3 id="languages-heading">Languages</h3>
+                <ul data-languages="true">
+                    {% for language in profile.languages %}
+                    <li>{{ language }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %} {% if profile.availability.is_some() %}
+            <section aria-labelledby="availability-heading">
+                <h3 id="availability-heading">Availability</h3>
+                <p>{{ profile.availability.as_ref().unwrap() }}</p>
+            </section>
+            {% endif %}
+        </section>
+        {% endif %} {% if !profile.experience.is_empty() %}
+        <section aria-labelledby="experience-heading">
+            <h2 id="experience-heading">Experience</h2>
+            {% for exp in profile.experience %}
+            <article data-experience="true">
+                <h3>{{ exp.role }}</h3>
+                {% if exp.production.is_some() %}
+                <p data-production="true">
+                    {{ exp.production.as_ref().unwrap() }}
+                </p>
+                {% endif %} {% if exp.dates.is_some() %} {% let dates =
+                exp.dates.as_ref().unwrap() %} {% if dates.start.is_some() %}
+                <time>{{ dates.start.as_ref().unwrap() }}</time>
+                {% endif %} {% if dates.end.is_some() %} -
+                <time>{{ dates.end.as_ref().unwrap() }}</time> {% else %} -
+                <span data-current="true">Present</span>
+                {% endif %} {% endif %} {% if exp.description.is_some() %}
+                <p>{{ exp.description.as_ref().unwrap() }}</p>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </section>
+        {% endif %} {% if !profile.education.is_empty() %}
+        <section aria-labelledby="education-heading">
+            <h2 id="education-heading">Education</h2>
+            {% for edu in profile.education %}
+            <article data-education="true">
+                <h3>{{ edu.institution }}</h3>
+                {% if edu.degree.is_some() %}
+                <p data-degree="true">{{ edu.degree.as_ref().unwrap() }}</p>
+                {% endif %} {% if edu.field.is_some() %}
+                <p data-field="true">{{ edu.field.as_ref().unwrap() }}</p>
+                {% endif %} {% if edu.dates.is_some() %} {% let dates =
+                edu.dates.as_ref().unwrap() %} {% if dates.start.is_some() %}
+                <time>{{ dates.start.as_ref().unwrap() }}</time>
+                {% endif %} {% if dates.end.is_some() %} -
+                <time>{{ dates.end.as_ref().unwrap() }}</time>
+                {% endif %} {% endif %}
+            </article>
+            {% endfor %}
+        </section>
+        {% endif %} {% if profile.bio.is_none() && profile.headline.is_none() &&
+        profile.skills.is_empty() %}
+        <section>
+            <p>This user hasn't set up their profile yet.</p>
+            {% if profile.is_own_profile %}
+            <nav aria-label="Profile actions">
+                <a href="/profile/edit" role="button">Create Your Profile</a>
+            </nav>
+            {% endif %}
+        </section>
+        {% endif %} {% if !profile.is_own_profile && !profile.is_public %}
+        <footer>
+            <p data-privacy="true">
+                <small
+                    >This is a limited view of the profile. Some information may
+                    be hidden.</small
+                >
+            </p>
+        </footer>
+        {% endif %}
+    </article>
+</main>
+{% endblock %}

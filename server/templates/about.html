@@ -1,1 +1,392 @@
-<!doctype html><html><head><title>{{ app_name }}</title></head><body><h1>{{ app_name }}</h1></body></html>
+{% extends "_layout.html" %} {% block title %}About - {{ app_name }}{% endblock
+%} {% block content %}
+<main>
+    <article class="about-page">
+        <section class="hero-section">
+            <div class="hero-content">
+                <h1>About SlateHub</h1>
+                <p class="hero-subtitle">
+                    Connecting creative professionals in the film and media
+                    industry
+                </p>
+            </div>
+        </section>
+
+        <section class="mission-section">
+            <div class="container">
+                <h2>Our Mission</h2>
+                <p class="mission-statement">
+                    SlateHub is dedicated to revolutionizing how film and media
+                    professionals connect, collaborate, and create. We believe
+                    that great productions start with great teams, and our
+                    platform makes it easier than ever to find the perfect
+                    collaborators for your next project.
+                </p>
+            </div>
+        </section>
+
+        <section class="values-section">
+            <div class="container">
+                <h2>Why SlateHub?</h2>
+                <div class="values-grid">
+                    <div class="value-card">
+                        <div class="value-icon">🎬</div>
+                        <h3>Industry-Focused</h3>
+                        <p>
+                            Built specifically for film and media professionals,
+                            with features tailored to the unique needs of
+                            creative productions.
+                        </p>
+                    </div>
+                    <div class="value-card">
+                        <div class="value-icon">🤝</div>
+                        <h3>Collaborative</h3>
+                        <p>
+                            Foster meaningful connections with talented
+                            individuals who share your passion for storytelling
+                            and creative excellence.
+                        </p>
+                    </div>
+                    <div class="value-card">
+                        <div class="value-icon">🚀</div>
+                        <h3>Career Growth</h3>
+                        <p>
+                            Showcase your portfolio, discover opportunities, and
+                            advance your career in the entertainment industry.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features-section">
+            <div class="container">
+                <h2>Platform Features</h2>
+                <div class="features-grid">
+                    <div class="feature-item">
+                        <h3>Professional Profiles</h3>
+                        <p>
+                            Create a comprehensive profile showcasing your
+                            skills, experience, and portfolio. Let your work
+                            speak for itself.
+                        </p>
+                    </div>
+                    <div class="feature-item">
+                        <h3>Project Discovery</h3>
+                        <p>
+                            Find exciting projects that match your expertise and
+                            interests. Filter by genre, budget, location, and
+                            more.
+                        </p>
+                    </div>
+                    <div class="feature-item">
+                        <h3>Team Building</h3>
+                        <p>
+                            Assemble the perfect crew for your production.
+                            Search for professionals by role, availability, and
+                            specialization.
+                        </p>
+                    </div>
+                    <div class="feature-item">
+                        <h3>Secure Messaging</h3>
+                        <p>
+                            Communicate directly with potential collaborators
+                            through our integrated messaging system.
+                        </p>
+                    </div>
+                    <div class="feature-item">
+                        <h3>Portfolio Hosting</h3>
+                        <p>
+                            Upload and showcase your work samples, demo reels,
+                            and project highlights in one centralized location.
+                        </p>
+                    </div>
+                    <div class="feature-item">
+                        <h3>Industry Insights</h3>
+                        <p>
+                            Stay updated with the latest trends, opportunities,
+                            and news in the film and media industry.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats-section">
+            <div class="container">
+                <h2>Growing Community</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">10,000+</div>
+                        <div class="stat-label">Creative Professionals</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">2,500+</div>
+                        <div class="stat-label">Active Projects</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">50+</div>
+                        <div class="stat-label">Countries Represented</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">95%</div>
+                        <div class="stat-label">Success Rate</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="contact-section">
+            <div class="container">
+                <h2>Get in Touch</h2>
+                <p>
+                    Have questions, suggestions, or feedback? We'd love to hear
+                    from you.
+                </p>
+                <div class="contact-options">
+                    <a
+                        href="mailto:hello@slatehub.com"
+                        class="button button-primary"
+                    >
+                        Email Us
+                    </a>
+                    <a href="/help" class="button button-secondary">
+                        Help Center
+                    </a>
+                </div>
+            </div>
+        </section>
+    </article>
+</main>
+
+<style>
+    .about-page {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .container {
+        padding: 2rem;
+    }
+
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+
+    .hero-content h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1.25rem;
+        opacity: 0.95;
+    }
+
+    .mission-section {
+        padding: 4rem 0;
+        background: #f8f9fa;
+    }
+
+    .mission-section h2 {
+        text-align: center;
+        font-size: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .mission-statement {
+        max-width: 800px;
+        margin: 0 auto;
+        font-size: 1.1rem;
+        line-height: 1.8;
+        text-align: center;
+        color: var(--color-text-secondary);
+    }
+
+    .values-section {
+        padding: 4rem 0;
+    }
+
+    .values-section h2 {
+        text-align: center;
+        font-size: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .values-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+    }
+
+    .value-card {
+        text-align: center;
+        padding: 2rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .value-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .value-card h3 {
+        margin-bottom: 1rem;
+        color: var(--color-primary);
+    }
+
+    .value-card p {
+        color: var(--color-text-secondary);
+        line-height: 1.6;
+    }
+
+    .features-section {
+        padding: 4rem 0;
+        background: #f8f9fa;
+    }
+
+    .features-section h2 {
+        text-align: center;
+        font-size: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+    }
+
+    .feature-item {
+        padding: 1.5rem;
+    }
+
+    .feature-item h3 {
+        margin-bottom: 0.75rem;
+        color: var(--color-primary);
+    }
+
+    .feature-item p {
+        color: var(--color-text-secondary);
+        line-height: 1.6;
+    }
+
+    .stats-section {
+        padding: 4rem 0;
+    }
+
+    .stats-section h2 {
+        text-align: center;
+        font-size: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+    }
+
+    .stat-card {
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: var(--color-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: var(--color-text-secondary);
+        font-size: 1rem;
+    }
+
+    .contact-section {
+        padding: 4rem 0;
+        text-align: center;
+        background: #f8f9fa;
+    }
+
+    .contact-section h2 {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .contact-section p {
+        color: var(--color-text-secondary);
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
+
+    .contact-options {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .button {
+        display: inline-block;
+        padding: 0.75rem 2rem;
+        border-radius: 4px;
+        text-decoration: none;
+        transition: all 0.2s;
+        font-size: 1rem;
+    }
+
+    .button-primary {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .button-primary:hover {
+        background: var(--color-primary-dark);
+        transform: translateY(-2px);
+    }
+
+    .button-secondary {
+        background: white;
+        color: var(--color-primary);
+        border: 2px solid var(--color-primary);
+    }
+
+    .button-secondary:hover {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    @media (max-width: 768px) {
+        .hero-content h1 {
+            font-size: 2rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1rem;
+        }
+
+        .values-grid,
+        .features-grid,
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .contact-options {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .button {
+            width: 100%;
+            max-width: 300px;
+        }
+    }
+</style>
+{% endblock %}

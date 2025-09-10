@@ -1,1 +1,448 @@
-<!doctype html><html><head><title>{{ app_name }}</title></head><body><h1>{{ app_name }}</h1></body></html>
+{% extends "_layout.html" %} {% block title %}Edit Profile - {{ app_name }}{%
+endblock %} {% block content %}
+<main>
+    <article data-profile-edit="true">
+        <header>
+            <h1>Edit Profile</h1>
+        </header>
+
+        {% if error.is_some() %}
+        <div role="alert" data-error="true">{{ error.as_ref().unwrap() }}</div>
+        {% endif %} {% if success.is_some() %}
+        <div role="status" data-success="true">
+            {{ success.as_ref().unwrap() }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="/profile/edit">
+            <section aria-labelledby="basic-info-heading">
+                <h2 id="basic-info-heading">Basic Information</h2>
+
+                <div>
+                    <label for="name">Display Name</label>
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        value="{{ profile.name }}"
+                        placeholder="Your full name"
+                    />
+                </div>
+
+                <div>
+                    <label for="headline">Headline</label>
+                    <input
+                        type="text"
+                        id="headline"
+                        name="headline"
+                        value="{% if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}{% endif %}"
+                        placeholder="e.g., Award-winning Director & Producer"
+                    />
+                </div>
+
+                <div>
+                    <label for="bio">Bio</label>
+                    <textarea
+                        id="bio"
+                        name="bio"
+                        rows="5"
+                        placeholder="Tell us about yourself..."
+                    >
+{% if profile.bio.is_some() %}{{ profile.bio.as_ref().unwrap() }}{% endif %}</textarea
+                    >
+                </div>
+
+                <div>
+                    <label for="location">Location</label>
+                    <input
+                        type="text"
+                        id="location"
+                        name="location"
+                        value="{% if profile.location.is_some() %}{{ profile.location.as_ref().unwrap() }}{% endif %}"
+                        placeholder="e.g., Los Angeles, CA"
+                    />
+                </div>
+
+                <div>
+                    <label for="website">Website</label>
+                    <input
+                        type="url"
+                        id="website"
+                        name="website"
+                        value="{% if profile.website.is_some() %}{{ profile.website.as_ref().unwrap() }}{% endif %}"
+                        placeholder="https://yourwebsite.com"
+                    />
+                </div>
+
+                <div>
+                    <label for="availability">Availability</label>
+                    <input
+                        type="text"
+                        id="availability"
+                        name="availability"
+                        value="{% if profile.availability.is_some() %}{{ profile.availability.as_ref().unwrap() }}{% endif %}"
+                        placeholder="e.g., Available for projects starting Q2 2024"
+                    />
+                </div>
+            </section>
+
+            <section aria-labelledby="professional-heading">
+                <h2 id="professional-heading">Professional Details</h2>
+
+                <div>
+                    <label for="skills">Skills</label>
+                    <input
+                        type="text"
+                        id="skills"
+                        name="skills"
+                        value="{% for skill in profile.skills %}{% if !loop.first %}, {% endif %}{{ skill }}{% endfor %}"
+                        placeholder="Directing, Cinematography, Editing (comma-separated)"
+                    />
+                    <small>Separate skills with commas</small>
+                </div>
+
+                <div>
+                    <label for="languages">Languages</label>
+                    <input
+                        type="text"
+                        id="languages"
+                        name="languages"
+                        value="{% for language in profile.languages %}{% if !loop.first %}, {% endif %}{{ language }}{% endfor %}"
+                        placeholder="English, Spanish, French (comma-separated)"
+                    />
+                    <small>Separate languages with commas</small>
+                </div>
+            </section>
+
+            <section aria-labelledby="experience-heading">
+                <h2 id="experience-heading">Experience</h2>
+                <div id="experience-container">
+                    {% if !profile.experience.is_empty() %} {% for exp in
+                    profile.experience %}
+                    <fieldset data-experience-item="true">
+                        <legend>Experience {{ loop.index }}</legend>
+                        <div>
+                            <label>Role</label>
+                            <input
+                                type="text"
+                                name="exp_role[]"
+                                value="{{ exp.role }}"
+                                placeholder="e.g., Director"
+                            />
+                        </div>
+                        <div>
+                            <label>Production</label>
+                            <input
+                                type="text"
+                                name="exp_production[]"
+                                value="{% if exp.production.is_some() %}{{ exp.production.as_ref().unwrap() }}{% endif %}"
+                                placeholder="e.g., Feature Film Title"
+                            />
+                        </div>
+                        <div>
+                            <label>Description</label>
+                            <textarea
+                                name="exp_description[]"
+                                rows="3"
+                                placeholder="Describe your role and achievements..."
+                            >
+{% if exp.description.is_some() %}{{ exp.description.as_ref().unwrap() }}{% endif %}</textarea
+                            >
+                        </div>
+                        {% if exp.dates.is_some() %} {% let dates =
+                        exp.dates.as_ref().unwrap() %}
+                        <div>
+                            <label>Start Date</label>
+                            <input
+                                type="text"
+                                name="exp_start[]"
+                                value="{% if dates.start.is_some() %}{{ dates.start.as_ref().unwrap() }}{% endif %}"
+                                placeholder="e.g., 2020"
+                            />
+                        </div>
+                        <div>
+                            <label>End Date</label>
+                            <input
+                                type="text"
+                                name="exp_end[]"
+                                value="{% if dates.end.is_some() %}{{ dates.end.as_ref().unwrap() }}{% endif %}"
+                                placeholder="e.g., 2022 or leave blank for current"
+                            />
+                        </div>
+                        {% else %}
+                        <div>
+                            <label>Start Date</label>
+                            <input
+                                type="text"
+                                name="exp_start[]"
+                                value=""
+                                placeholder="e.g., 2020"
+                            />
+                        </div>
+                        <div>
+                            <label>End Date</label>
+                            <input
+                                type="text"
+                                name="exp_end[]"
+                                value=""
+                                placeholder="e.g., 2022 or leave blank for current"
+                            />
+                        </div>
+                        {% endif %}
+                    </fieldset>
+                    {% endfor %} {% else %}
+                    <fieldset data-experience-item="true">
+                        <legend>Experience 1</legend>
+                        <div>
+                            <label>Role</label>
+                            <input
+                                type="text"
+                                name="exp_role[]"
+                                placeholder="e.g., Director"
+                            />
+                        </div>
+                        <div>
+                            <label>Production</label>
+                            <input
+                                type="text"
+                                name="exp_production[]"
+                                placeholder="e.g., Feature Film Title"
+                            />
+                        </div>
+                        <div>
+                            <label>Description</label>
+                            <textarea
+                                name="exp_description[]"
+                                rows="3"
+                                placeholder="Describe your role and achievements..."
+                            ></textarea>
+                        </div>
+                        <div>
+                            <label>Start Date</label>
+                            <input
+                                type="text"
+                                name="exp_start[]"
+                                placeholder="e.g., 2020"
+                            />
+                        </div>
+                        <div>
+                            <label>End Date</label>
+                            <input
+                                type="text"
+                                name="exp_end[]"
+                                placeholder="e.g., 2022 or leave blank for current"
+                            />
+                        </div>
+                    </fieldset>
+                    {% endif %}
+                </div>
+                <button type="button" onclick="addExperience()">
+                    Add Experience
+                </button>
+            </section>
+
+            <section aria-labelledby="education-heading">
+                <h2 id="education-heading">Education</h2>
+                <div id="education-container">
+                    {% if !profile.education.is_empty() %} {% for edu in
+                    profile.education %}
+                    <fieldset data-education-item="true">
+                        <legend>Education {{ loop.index }}</legend>
+                        <div>
+                            <label>Institution</label>
+                            <input
+                                type="text"
+                                name="edu_institution[]"
+                                value="{{ edu.institution }}"
+                                placeholder="e.g., University of Southern California"
+                            />
+                        </div>
+                        <div>
+                            <label>Degree</label>
+                            <input
+                                type="text"
+                                name="edu_degree[]"
+                                value="{% if edu.degree.is_some() %}{{ edu.degree.as_ref().unwrap() }}{% endif %}"
+                                placeholder="e.g., Bachelor of Arts"
+                            />
+                        </div>
+                        <div>
+                            <label>Field of Study</label>
+                            <input
+                                type="text"
+                                name="edu_field[]"
+                                value="{% if edu.field.is_some() %}{{ edu.field.as_ref().unwrap() }}{% endif %}"
+                                placeholder="e.g., Film Production"
+                            />
+                        </div>
+                        {% if edu.dates.is_some() %} {% let dates =
+                        edu.dates.as_ref().unwrap() %}
+                        <div>
+                            <label>Start Year</label>
+                            <input
+                                type="text"
+                                name="edu_start[]"
+                                value="{% if dates.start.is_some() %}{{ dates.start.as_ref().unwrap() }}{% endif %}"
+                                placeholder="e.g., 2016"
+                            />
+                        </div>
+                        <div>
+                            <label>End Year</label>
+                            <input
+                                type="text"
+                                name="edu_end[]"
+                                value="{% if dates.end.is_some() %}{{ dates.end.as_ref().unwrap() }}{% endif %}"
+                                placeholder="e.g., 2020"
+                            />
+                        </div>
+                        {% else %}
+                        <div>
+                            <label>Start Year</label>
+                            <input
+                                type="text"
+                                name="edu_start[]"
+                                value=""
+                                placeholder="e.g., 2016"
+                            />
+                        </div>
+                        <div>
+                            <label>End Year</label>
+                            <input
+                                type="text"
+                                name="edu_end[]"
+                                value=""
+                                placeholder="e.g., 2020"
+                            />
+                        </div>
+                        {% endif %}
+                    </fieldset>
+                    {% endfor %} {% else %}
+                    <fieldset data-education-item="true">
+                        <legend>Education 1</legend>
+                        <div>
+                            <label>Institution</label>
+                            <input
+                                type="text"
+                                name="edu_institution[]"
+                                placeholder="e.g., University of Southern California"
+                            />
+                        </div>
+                        <div>
+                            <label>Degree</label>
+                            <input
+                                type="text"
+                                name="edu_degree[]"
+                                placeholder="e.g., Bachelor of Arts"
+                            />
+                        </div>
+                        <div>
+                            <label>Field of Study</label>
+                            <input
+                                type="text"
+                                name="edu_field[]"
+                                placeholder="e.g., Film Production"
+                            />
+                        </div>
+                        <div>
+                            <label>Start Year</label>
+                            <input
+                                type="text"
+                                name="edu_start[]"
+                                placeholder="e.g., 2016"
+                            />
+                        </div>
+                        <div>
+                            <label>End Year</label>
+                            <input
+                                type="text"
+                                name="edu_end[]"
+                                placeholder="e.g., 2020"
+                            />
+                        </div>
+                    </fieldset>
+                    {% endif %}
+                </div>
+                <button type="button" onclick="addEducation()">
+                    Add Education
+                </button>
+            </section>
+
+            <div data-form-actions="true">
+                <button type="submit">Save Profile</button>
+                <a
+                    href="/profile/{{ profile.username }}"
+                    role="button"
+                    data-secondary="true"
+                    >Cancel</a
+                >
+            </div>
+        </form>
+    </article>
+</main>
+
+<script>
+    function addExperience() {
+        const container = document.getElementById("experience-container");
+        const count =
+            container.querySelectorAll("[data-experience-item]").length + 1;
+        const fieldset = document.createElement("fieldset");
+        fieldset.setAttribute("data-experience-item", "true");
+        fieldset.innerHTML = `
+        <legend>Experience ${count}</legend>
+        <div>
+            <label>Role</label>
+            <input type="text" name="exp_role[]" placeholder="e.g., Director">
+        </div>
+        <div>
+            <label>Production</label>
+            <input type="text" name="exp_production[]" placeholder="e.g., Feature Film Title">
+        </div>
+        <div>
+            <label>Description</label>
+            <textarea name="exp_description[]" rows="3" placeholder="Describe your role and achievements..."></textarea>
+        </div>
+        <div>
+            <label>Start Date</label>
+            <input type="text" name="exp_start[]" placeholder="e.g., 2020">
+        </div>
+        <div>
+            <label>End Date</label>
+            <input type="text" name="exp_end[]" placeholder="e.g., 2022 or leave blank for current">
+        </div>
+    `;
+        container.appendChild(fieldset);
+    }
+
+    function addEducation() {
+        const container = document.getElementById("education-container");
+        const count =
+            container.querySelectorAll("[data-education-item]").length + 1;
+        const fieldset = document.createElement("fieldset");
+        fieldset.setAttribute("data-education-item", "true");
+        fieldset.innerHTML = `
+        <legend>Education ${count}</legend>
+        <div>
+            <label>Institution</label>
+            <input type="text" name="edu_institution[]" placeholder="e.g., University of Southern California">
+        </div>
+        <div>
+            <label>Degree</label>
+            <input type="text" name="edu_degree[]" placeholder="e.g., Bachelor of Arts">
+        </div>
+        <div>
+            <label>Field of Study</label>
+            <input type="text" name="edu_field[]" placeholder="e.g., Film Production">
+        </div>
+        <div>
+            <label>Start Year</label>
+            <input type="text" name="edu_start[]" placeholder="e.g., 2016">
+        </div>
+        <div>
+            <label>End Year</label>
+            <input type="text" name="edu_end[]" placeholder="e.g., 2020">
+        </div>
+    `;
+        container.appendChild(fieldset);
+    }
+</script>
+{% endblock %}
