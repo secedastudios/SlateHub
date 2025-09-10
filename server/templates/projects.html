@@ -1,327 +1,140 @@
-{% extends "_layout.html" %} {% block title %}Projects - {{ app_name }}{%
-endblock %} {% block content %}
-<main>
-    <article class="projects-page">
-        <section class="page-header">
-            <h1>Projects</h1>
-            <p>Discover film and media projects seeking collaborators</p>
-        </section>
+{% extends "_layout.html" %}
+{% block title %}Projects - {{ app_name }}{% endblock %}
+{% block page_name %}projects{% endblock %}
+{% block content %}
+<section id="projects-main" data-component="projects-page">
+    <header id="projects-header" data-role="page-header">
+        <h1 id="heading-projects">Projects</h1>
+        <p>Discover film and media projects seeking collaborators</p>
+    </header>
 
-        <section class="projects-controls">
-            <div class="search-bar">
-                <form method="get" action="/projects">
+    <section id="section-controls" data-section="controls">
+        <div data-component="search-bar">
+            <form id="form-search-projects" method="get" action="/projects">
+                <div data-field="search">
+                    <label for="input-search" hidden>Search projects</label>
                     <input
                         type="search"
+                        id="input-search"
                         name="filter"
                         placeholder="Search projects..."
                         value="{% if filter.is_some() %}{{ filter.as_ref().unwrap() }}{% endif %}"
-                        class="search-input"
+                        aria-label="Search projects"
                     />
-                    <button type="submit" class="search-button">
+                    <button type="submit" data-type="primary">
                         <span>Search</span>
                     </button>
-                </form>
-            </div>
+                </div>
+            </form>
+        </div>
 
-            <div class="sort-controls">
-                <label for="sort">Sort by:</label>
-                <select name="sort" id="sort" onchange="updateSort(this.value)">
-                    <option value="recent" {% if sort_by == "recent" %}selected{% endif %}>
-                        Most Recent
-                    </option>
-                    <option value="title" {% if sort_by == "title" %}selected{% endif %}>
-                        Title
-                    </option>
-                    <option value="status" {% if sort_by == "status" %}selected{% endif %}>
-                        Status
-                    </option>
-                </select>
-            </div>
-        </section>
+        <div data-component="sort-controls">
+            <label for="select-sort">Sort by:</label>
+            <select
+                id="select-sort"
+                name="sort"
+                onchange="updateSort(this.value)"
+                aria-label="Sort projects"
+            >
+                <option value="recent" {% if sort_by == "recent" %}selected{% endif %}>
+                    Most Recent
+                </option>
+                <option value="title" {% if sort_by == "title" %}selected{% endif %}>
+                    Title
+                </option>
+                <option value="status" {% if sort_by == "status" %}selected{% endif %}>
+                    Status
+                </option>
+            </select>
+        </div>
+    </section>
 
-        <section class="projects-grid">
-            {% if !projects.is_empty() %} {% for project in projects %}
-            <article class="project-card">
-                <header class="project-header">
-                    <h2 class="project-title">
-                        <a href="/projects/{{ project.id }}"
-                            >{{ project.title }}</a
-                        >
+    <section
+        id="section-projects-list"
+        data-section="projects-list"
+        data-layout="grid"
+        data-state="{% if projects.is_empty() %}empty{% else %}ready{% endif %}"
+    >
+        {% if !projects.is_empty() %}
+        <div data-role="content-container">
+            {% for project in projects %}
+            <article
+                data-component="project-card"
+                data-project-id="{{ project.id }}"
+                data-status="{{ project.status }}"
+            >
+                <header data-role="card-header">
+                    <h2 id="project-title-{{ project.id }}">
+                        <a href="/projects/{{ project.id }}">
+                            {{ project.title }}
+                        </a>
                     </h2>
-                    <span class="project-status status-{{ project.status }}">
+                    <span
+                        data-role="status-badge"
+                        data-status="{{ project.status }}"
+                    >
                         {{ project.status }}
                     </span>
                 </header>
 
-                <div class="project-body">
-                    <p class="project-description">{{ project.description }}</p>
+                <div data-role="card-body">
+                    <p data-role="description">{{ project.description }}</p>
 
-                    <div class="project-meta">
-                        <span class="project-owner"
-                            >By {{ project.owner }}</span
+                    <div data-role="metadata">
+                        <span data-field="owner">By {{ project.owner }}</span>
+                        <time
+                            datetime="{{ project.created_at }}"
+                            data-field="created-date"
                         >
-                        <span class="project-date"
-                            >{{ project.created_at }}</span
-                        >
+                            {{ project.created_at }}
+                        </time>
                     </div>
 
                     {% if !project.tags.is_empty() %}
-                    <div class="project-tags">
+                    <div data-role="tags-list">
                         {% for tag in project.tags %}
-                        <span class="tag">{{ tag }}</span>
+                        <span data-role="tag" data-tag="{{ tag }}">
+                            {{ tag }}
+                        </span>
                         {% endfor %}
                     </div>
                     {% endif %}
                 </div>
 
-                <footer class="project-footer">
-                    <a
-                        href="/projects/{{ project.id }}"
-                        class="button button-primary"
-                        >View Details</a
-                    >
+                <footer data-role="card-footer">
+                    <nav data-role="card-actions">
+                        <a
+                            href="/projects/{{ project.id }}"
+                            role="button"
+                            data-type="primary"
+                        >
+                            View Details
+                        </a>
+                    </nav>
                 </footer>
             </article>
-            {% endfor %} {% else %}
-            <div class="empty-state">
-                <h2>No projects found</h2>
-                {% if filter.is_some() %}
-                <p>
-                    No projects match your search criteria. Try adjusting your
-                    filters.
-                </p>
-                {% else %}
-                <p>Be the first to create a project!</p>
-                {% endif %}
-                <a href="/projects/new" class="button button-primary"
-                    >Create Project</a
-                >
-            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div id="empty-state-projects" data-role="empty-state">
+            <h2 id="heading-empty">No projects found</h2>
+            {% if filter.is_some() %}
+            <p>
+                No projects match your search criteria. Try adjusting your
+                filters.
+            </p>
+            {% else %}
+            <p>Be the first to create a project!</p>
             {% endif %}
-        </section>
-    </article>
-</main>
-
-<style>
-    .projects-page {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    .page-header {
-        text-align: center;
-        margin-bottom: 3rem;
-    }
-
-    .page-header h1 {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .page-header p {
-        color: var(--color-text-secondary);
-        font-size: 1.1rem;
-    }
-
-    .projects-controls {
-        display: flex;
-        gap: 2rem;
-        margin-bottom: 2rem;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-    .search-bar {
-        flex: 1;
-        min-width: 300px;
-    }
-
-    .search-bar form {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .search-input {
-        flex: 1;
-        padding: 0.75rem;
-        border: 1px solid var(--color-border);
-        border-radius: 4px;
-        font-size: 1rem;
-    }
-
-    .search-button {
-        padding: 0.75rem 1.5rem;
-        background: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-
-    .search-button:hover {
-        background: var(--color-primary-dark);
-    }
-
-    .sort-controls {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .sort-controls select {
-        padding: 0.5rem;
-        border: 1px solid var(--color-border);
-        border-radius: 4px;
-    }
-
-    .projects-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-        gap: 2rem;
-    }
-
-    .project-card {
-        background: white;
-        border: 1px solid var(--color-border);
-        border-radius: 8px;
-        padding: 1.5rem;
-        display: flex;
-        flex-direction: column;
-        transition: box-shadow 0.2s;
-    }
-
-    .project-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .project-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: start;
-        margin-bottom: 1rem;
-    }
-
-    .project-title {
-        font-size: 1.5rem;
-        margin: 0;
-    }
-
-    .project-title a {
-        color: inherit;
-        text-decoration: none;
-    }
-
-    .project-title a:hover {
-        color: var(--color-primary);
-    }
-
-    .project-status {
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-
-    .status-active {
-        background: #d4edda;
-        color: #155724;
-    }
-
-    .status-planning {
-        background: #cce5ff;
-        color: #004085;
-    }
-
-    .status-completed {
-        background: #d1ecf1;
-        color: #0c5460;
-    }
-
-    .project-body {
-        flex: 1;
-    }
-
-    .project-description {
-        color: var(--color-text-secondary);
-        line-height: 1.6;
-        margin-bottom: 1rem;
-    }
-
-    .project-meta {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1rem;
-        font-size: 0.875rem;
-        color: var(--color-text-muted);
-    }
-
-    .project-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .tag {
-        background: #f0f0f0;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.875rem;
-    }
-
-    .project-footer {
-        padding-top: 1rem;
-        border-top: 1px solid var(--color-border);
-    }
-
-    .button {
-        display: inline-block;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        text-decoration: none;
-        transition: background 0.2s;
-    }
-
-    .button-primary {
-        background: var(--color-primary);
-        color: white;
-    }
-
-    .button-primary:hover {
-        background: var(--color-primary-dark);
-    }
-
-    .empty-state {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 4rem 2rem;
-    }
-
-    .empty-state h2 {
-        margin-bottom: 1rem;
-    }
-
-    .empty-state p {
-        color: var(--color-text-secondary);
-        margin-bottom: 2rem;
-    }
-
-    @media (max-width: 768px) {
-        .projects-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .projects-controls {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .search-bar {
-            min-width: auto;
-        }
-    }
-</style>
+            <nav data-role="empty-state-actions">
+                <a href="/projects/new" role="button" data-type="primary">
+                    Create Project
+                </a>
+            </nav>
+        </div>
+        {% endif %}
+    </section>
+</section>
 
 <script>
     function updateSort(value) {

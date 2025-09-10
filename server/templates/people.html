@@ -1,371 +1,150 @@
 {% extends "_layout.html" %} {% block title %}People - {{ app_name }}{% endblock
-%} {% block content %}
-<main>
-    <article class="people-page">
-        <section class="page-header">
-            <h1>People</h1>
-            <p>Connect with talented professionals in the film industry</p>
-        </section>
+%} {% block page_name %}people{% endblock %} {% block content %}
+<section id="people-main" data-component="people-page">
+    <header id="people-header" data-role="page-header">
+        <h1 id="heading-people">People</h1>
+        <p>Connect with talented professionals in the film industry</p>
+    </header>
 
-        <section class="people-controls">
-            <div class="search-bar">
-                <form method="get" action="/people">
+    <section id="section-controls" data-section="controls">
+        <div data-component="search-bar">
+            <form id="form-search-people" method="get" action="/people">
+                <div data-field="search">
+                    <label for="input-search" hidden>Search people</label>
                     <input
                         type="search"
+                        id="input-search"
                         name="filter"
                         placeholder="Search by name, skill, or location..."
                         value="{% if filter.is_some() %}{{ filter.as_ref().unwrap() }}{% endif %}"
-                        class="search-input"
+                        aria-label="Search people"
                     />
-                    <button type="submit" class="search-button">
+                    <button type="submit" data-type="primary">
                         <span>Search</span>
                     </button>
-                </form>
-            </div>
-
-            {% if !specialties.is_empty() %}
-            <div class="specialty-filters">
-                <label>Filter by specialty:</label>
-                <div class="specialty-tags">
-                    {% for specialty in specialties %}
-                    <button
-                        class="specialty-tag"
-                        onclick="filterBySpecialty('{{ specialty }}')"
-                    >
-                        {{ specialty }}
-                    </button>
-                    {% endfor %}
                 </div>
-            </div>
-            {% endif %}
-        </section>
+            </form>
+        </div>
 
-        <section class="people-grid">
-            {% if !people.is_empty() %} {% for person in people %}
-            <article class="person-card">
-                <header class="person-header">
+        {% if !specialties.is_empty() %}
+        <div id="specialty-filters" data-component="filter-tags">
+            <label id="label-specialties">Filter by specialty:</label>
+            <div data-role="tag-list" aria-labelledby="label-specialties">
+                {% for specialty in specialties %}
+                <button
+                    type="button"
+                    data-role="filter-tag"
+                    data-filter="{{ specialty }}"
+                    onclick="filterBySpecialty('{{ specialty }}')"
+                >
+                    {{ specialty }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </section>
+
+    <section
+        id="section-people-list"
+        data-section="people-list"
+        data-layout="grid"
+        data-state="{% if people.is_empty() %}empty{% else %}ready{% endif %}"
+    >
+        {% if !people.is_empty() %}
+        <div data-role="content-container">
+            {% for person in people %}
+            <article
+                data-component="person-card"
+                data-person-id="{{ person.id }}"
+                data-username="{{ person.username }}"
+            >
+                <header data-role="card-header">
                     <img
                         src="{{ person.avatar }}"
                         alt="{{ person.name }}"
-                        class="person-avatar"
+                        data-role="avatar"
+                        width="80"
+                        height="80"
                     />
-                    <div class="person-info">
-                        <h2 class="person-name">
-                            <a href="/profile/{{ person.username }}"
-                                >{{ person.name }}</a
-                            >
+                    <div data-role="person-info">
+                        <h2 id="person-name-{{ person.id }}">
+                            <a href="/profile/{{ person.username }}">
+                                {{ person.name }}
+                            </a>
                         </h2>
                         {% if person.headline.is_some() %}
-                        <p class="person-headline">
+                        <p data-role="headline">
                             {{ person.headline.as_ref().unwrap() }}
                         </p>
                         {% endif %} {% if person.location.is_some() %}
-                        <p class="person-location">
-                            📍 {{ person.location.as_ref().unwrap() }}
+                        <p data-role="location">
+                            <span aria-hidden="true">📍</span>
+                            <span>{{ person.location.as_ref().unwrap() }}</span>
                         </p>
                         {% endif %}
                     </div>
                 </header>
 
-                {% if person.bio.is_some() %}
-                <div class="person-bio">
-                    <p>{{ person.bio.as_ref().unwrap() }}</p>
+                <div data-role="card-body">
+                    {% if person.bio.is_some() %}
+                    <div data-role="bio">
+                        <p>{{ person.bio.as_ref().unwrap() }}</p>
+                    </div>
+                    {% endif %} {% if !person.skills.is_empty() %}
+                    <div data-role="skills-list">
+                        {% for skill in person.skills %}
+                        <span data-role="skill-tag" data-skill="{{ skill }}">
+                            {{ skill }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %} {% if !person.skills.is_empty() %}
-                <div class="person-skills">
-                    {% for skill in person.skills %}
-                    <span class="skill-tag">{{ skill }}</span>
-                    {% endfor %}
-                </div>
-                {% endif %}
 
-                <footer class="person-footer">
-                    <a
-                        href="/profile/{{ person.username }}"
-                        class="button button-primary"
-                        >View Profile</a
-                    >
-                    <button
-                        class="button button-secondary"
-                        onclick="sendMessage('{{ person.id }}')"
-                    >
-                        Message
-                    </button>
+                <footer data-role="card-footer">
+                    <nav data-role="card-actions">
+                        <a
+                            href="/profile/{{ person.username }}"
+                            role="button"
+                            data-type="primary"
+                        >
+                            View Profile
+                        </a>
+                        <button
+                            type="button"
+                            data-type="secondary"
+                            data-action="message"
+                            data-person-id="{{ person.id }}"
+                            onclick="sendMessage('{{ person.id }}')"
+                        >
+                            Message
+                        </button>
+                    </nav>
                 </footer>
             </article>
-            {% endfor %} {% else %}
-            <div class="empty-state">
-                <h2>No people found</h2>
-                {% if filter.is_some() %}
-                <p>
-                    No people match your search criteria. Try adjusting your
-                    filters.
-                </p>
-                {% else %}
-                <p>Be the first to join our community!</p>
-                {% endif %}
-                <a href="/signup" class="button button-primary">Join Now</a>
-            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div id="empty-state-people" data-role="empty-state">
+            <h2 id="heading-empty">No people found</h2>
+            {% if filter.is_some() %}
+            <p>
+                No people match your search criteria. Try adjusting your
+                filters.
+            </p>
+            {% else %}
+            <p>Be the first to join our community!</p>
             {% endif %}
-        </section>
-    </article>
-</main>
-
-<style>
-    .people-page {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    .page-header {
-        text-align: center;
-        margin-bottom: 3rem;
-    }
-
-    .page-header h1 {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .page-header p {
-        color: var(--color-text-secondary);
-        font-size: 1.1rem;
-    }
-
-    .people-controls {
-        margin-bottom: 2rem;
-    }
-
-    .search-bar {
-        margin-bottom: 1.5rem;
-    }
-
-    .search-bar form {
-        display: flex;
-        gap: 0.5rem;
-        max-width: 600px;
-        margin: 0 auto;
-    }
-
-    .search-input {
-        flex: 1;
-        padding: 0.75rem;
-        border: 1px solid var(--color-border);
-        border-radius: 4px;
-        font-size: 1rem;
-    }
-
-    .search-button {
-        padding: 0.75rem 1.5rem;
-        background: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-
-    .search-button:hover {
-        background: var(--color-primary-dark);
-    }
-
-    .specialty-filters {
-        text-align: center;
-    }
-
-    .specialty-filters label {
-        display: block;
-        margin-bottom: 0.5rem;
-        color: var(--color-text-secondary);
-    }
-
-    .specialty-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        justify-content: center;
-    }
-
-    .specialty-tag {
-        padding: 0.5rem 1rem;
-        background: #f0f0f0;
-        border: 1px solid var(--color-border);
-        border-radius: 20px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .specialty-tag:hover {
-        background: var(--color-primary);
-        color: white;
-        border-color: var(--color-primary);
-    }
-
-    .people-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 2rem;
-        margin-top: 3rem;
-    }
-
-    .person-card {
-        background: white;
-        border: 1px solid var(--color-border);
-        border-radius: 8px;
-        padding: 1.5rem;
-        display: flex;
-        flex-direction: column;
-        transition: box-shadow 0.2s;
-    }
-
-    .person-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .person-header {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .person-avatar {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        object-fit: cover;
-        flex-shrink: 0;
-    }
-
-    .person-info {
-        flex: 1;
-    }
-
-    .person-name {
-        font-size: 1.25rem;
-        margin: 0 0 0.25rem 0;
-    }
-
-    .person-name a {
-        color: inherit;
-        text-decoration: none;
-    }
-
-    .person-name a:hover {
-        color: var(--color-primary);
-    }
-
-    .person-headline {
-        color: var(--color-text-secondary);
-        font-size: 0.95rem;
-        margin: 0 0 0.25rem 0;
-    }
-
-    .person-location {
-        color: var(--color-text-muted);
-        font-size: 0.875rem;
-        margin: 0;
-    }
-
-    .person-bio {
-        margin-bottom: 1rem;
-    }
-
-    .person-bio p {
-        color: var(--color-text-secondary);
-        line-height: 1.6;
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        margin: 0;
-    }
-
-    .person-skills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .skill-tag {
-        background: #e3f2fd;
-        color: #1976d2;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.875rem;
-    }
-
-    .person-footer {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: auto;
-        padding-top: 1rem;
-        border-top: 1px solid var(--color-border);
-    }
-
-    .button {
-        flex: 1;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        text-decoration: none;
-        text-align: center;
-        transition: all 0.2s;
-        cursor: pointer;
-        border: none;
-        font-size: 0.875rem;
-    }
-
-    .button-primary {
-        background: var(--color-primary);
-        color: white;
-    }
-
-    .button-primary:hover {
-        background: var(--color-primary-dark);
-    }
-
-    .button-secondary {
-        background: white;
-        color: var(--color-primary);
-        border: 1px solid var(--color-primary);
-    }
-
-    .button-secondary:hover {
-        background: var(--color-primary);
-        color: white;
-    }
-
-    .empty-state {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 4rem 2rem;
-    }
-
-    .empty-state h2 {
-        margin-bottom: 1rem;
-    }
-
-    .empty-state p {
-        color: var(--color-text-secondary);
-        margin-bottom: 2rem;
-    }
-
-    @media (max-width: 768px) {
-        .people-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .person-header {
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-
-        .person-footer {
-            flex-direction: column;
-        }
-    }
-</style>
+            <nav data-role="empty-state-actions">
+                <a href="/signup" role="button" data-type="primary">
+                    Join Now
+                </a>
+            </nav>
+        </div>
+        {% endif %}
+    </section>
+</section>
 
 <script>
     function filterBySpecialty(specialty) {

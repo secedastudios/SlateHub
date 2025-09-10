@@ -1,0 +1,475 @@
+/* People Page Styles
+   ===================
+   This file demonstrates how to style the people page using only
+   semantic selectors, IDs, and data attributes - no CSS classes needed.
+*/
+
+/* Page-specific layout */
+[data-page="people"] #main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header Section */
+#people-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+#heading-people {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--pico-h1-color);
+}
+
+#people-header p {
+    color: var(--pico-muted-color);
+    font-size: 1.1rem;
+}
+
+/* Controls Section */
+#section-controls {
+    margin-bottom: 2rem;
+}
+
+/* Search Bar */
+[data-component="search-bar"] {
+    margin-bottom: 1.5rem;
+}
+
+#form-search-people [data-field="search"] {
+    display: flex;
+    gap: 0.5rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+#input-search {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid var(--pico-border-color);
+    border-radius: var(--pico-border-radius);
+    font-size: 1rem;
+    background: var(--pico-background-color);
+    color: var(--pico-color);
+}
+
+#input-search:focus {
+    border-color: var(--pico-primary);
+    outline: 2px solid var(--pico-primary-focus);
+    outline-offset: 2px;
+}
+
+/* Specialty Filters */
+#specialty-filters {
+    text-align: center;
+}
+
+#label-specialties {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--pico-muted-color);
+    font-weight: 500;
+}
+
+[data-component="filter-tags"] [data-role="tag-list"] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+[data-role="filter-tag"] {
+    padding: 0.5rem 1rem;
+    background: var(--pico-secondary-background);
+    border: 1px solid var(--pico-border-color);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--pico-color);
+}
+
+[data-role="filter-tag"]:hover {
+    background: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+    border-color: var(--pico-primary);
+    transform: translateY(-1px);
+}
+
+[data-role="filter-tag"]:active {
+    transform: translateY(0);
+}
+
+/* People Grid Layout */
+#section-people-list[data-layout="grid"] [data-role="content-container"] {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 2rem;
+    margin-top: 3rem;
+}
+
+/* Person Card Component */
+[data-component="person-card"] {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-card-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+[data-component="person-card"]:hover {
+    box-shadow: var(--pico-card-box-shadow);
+    transform: translateY(-2px);
+}
+
+/* Card Header */
+[data-component="person-card"] [data-role="card-header"] {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Avatar */
+[data-component="person-card"] img[data-role="avatar"] {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid var(--pico-border-color);
+}
+
+/* Person Info */
+[data-role="person-info"] {
+    flex: 1;
+}
+
+[data-component="person-card"] h2 {
+    font-size: 1.25rem;
+    margin: 0 0 0.25rem 0;
+}
+
+[data-component="person-card"] h2 a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+[data-component="person-card"] h2 a:hover {
+    color: var(--pico-primary);
+}
+
+[data-role="headline"] {
+    color: var(--pico-muted-color);
+    font-size: 0.95rem;
+    margin: 0 0 0.25rem 0;
+}
+
+[data-role="location"] {
+    color: var(--pico-muted-color);
+    font-size: 0.875rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+[data-role="location"] span[aria-hidden="true"] {
+    font-size: 1rem;
+}
+
+/* Card Body */
+[data-component="person-card"] [data-role="card-body"] {
+    flex: 1;
+}
+
+[data-role="bio"] {
+    margin-bottom: 1rem;
+}
+
+[data-role="bio"] p {
+    color: var(--pico-muted-color);
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+}
+
+/* Skills List */
+[data-role="skills-list"] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+[data-role="skill-tag"] {
+    background: var(--pico-primary-background);
+    color: var(--pico-primary);
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+[data-role="skill-tag"]:hover {
+    background: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+}
+
+/* Card Footer */
+[data-component="person-card"] [data-role="card-footer"] {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid var(--pico-border-color);
+}
+
+[data-component="person-card"] [data-role="card-actions"] {
+    display: flex;
+    gap: 0.5rem;
+}
+
+[data-component="person-card"] [data-role="card-actions"] > * {
+    flex: 1;
+}
+
+/* Button Variations */
+button[data-type="primary"],
+a[role="button"][data-type="primary"] {
+    background: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+    border: 1px solid var(--pico-primary);
+    padding: 0.5rem 1rem;
+    border-radius: var(--pico-border-radius);
+    text-decoration: none;
+    text-align: center;
+    display: inline-block;
+    transition: background 0.2s, transform 0.1s;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+button[data-type="primary"]:hover,
+a[role="button"][data-type="primary"]:hover {
+    background: var(--pico-primary-hover);
+    border-color: var(--pico-primary-hover);
+    transform: translateY(-1px);
+}
+
+button[data-type="secondary"],
+a[role="button"][data-type="secondary"] {
+    background: var(--pico-background-color);
+    color: var(--pico-primary);
+    border: 1px solid var(--pico-primary);
+    padding: 0.5rem 1rem;
+    border-radius: var(--pico-border-radius);
+    text-decoration: none;
+    text-align: center;
+    display: inline-block;
+    transition: all 0.2s;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+button[data-type="secondary"]:hover,
+a[role="button"][data-type="secondary"]:hover {
+    background: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+}
+
+button[data-type="primary"]:active,
+button[data-type="secondary"]:active,
+a[role="button"][data-type="primary"]:active,
+a[role="button"][data-type="secondary"]:active {
+    transform: translateY(0);
+}
+
+/* Empty State */
+[data-role="empty-state"] {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+#heading-empty {
+    margin-bottom: 1rem;
+    color: var(--pico-h2-color);
+}
+
+[data-role="empty-state"] p {
+    color: var(--pico-muted-color);
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+[data-role="empty-state-actions"] {
+    margin-top: 2rem;
+}
+
+/* Loading State */
+[data-state="loading"] {
+    position: relative;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+[data-state="loading"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2rem;
+    height: 2rem;
+    margin: -1rem 0 0 -1rem;
+    border: 2px solid var(--pico-primary);
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    [data-page="people"] #main-content {
+        padding: 1rem;
+    }
+
+    #section-people-list[data-layout="grid"] [data-role="content-container"] {
+        grid-template-columns: 1fr;
+    }
+
+    [data-component="person-card"] [data-role="card-header"] {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    [data-role="person-info"] {
+        text-align: center;
+    }
+
+    [data-role="location"] {
+        justify-content: center;
+    }
+
+    [data-component="person-card"] [data-role="card-actions"] {
+        flex-direction: column;
+    }
+
+    #heading-people {
+        font-size: 2rem;
+    }
+
+    #form-search-people [data-field="search"] {
+        flex-direction: column;
+    }
+
+    #input-search {
+        width: 100%;
+    }
+
+    button[type="submit"] {
+        width: 100%;
+    }
+}
+
+/* Dark Theme Overrides */
+[data-theme="dark"] [data-component="person-card"] {
+    background: var(--pico-card-background-color);
+    border-color: var(--pico-card-border-color);
+}
+
+[data-theme="dark"] [data-component="person-card"]:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] [data-role="filter-tag"] {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] [data-role="skill-tag"] {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--pico-color);
+}
+
+[data-theme="dark"] [data-role="skill-tag"]:hover {
+    background: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+}
+
+[data-theme="dark"] img[data-role="avatar"] {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Print Styles */
+@media print {
+    #section-controls {
+        display: none;
+    }
+
+    [data-component="person-card"] {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+
+    [data-role="card-actions"] {
+        display: none;
+    }
+}
+
+/* Accessibility - Focus Styles */
+[data-component="person-card"] h2 a:focus-visible,
+[data-role="filter-tag"]:focus-visible,
+[data-role="skill-tag"]:focus-visible,
+button[data-type="primary"]:focus-visible,
+button[data-type="secondary"]:focus-visible,
+a[role="button"][data-type="primary"]:focus-visible,
+a[role="button"][data-type="secondary"]:focus-visible {
+    outline: 2px solid var(--pico-primary);
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    [data-component="person-card"] {
+        border-width: 2px;
+    }
+
+    [data-role="filter-tag"],
+    [data-role="skill-tag"] {
+        border: 1px solid currentColor;
+    }
+
+    img[data-role="avatar"] {
+        border-width: 3px;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    [data-component="person-card"],
+    button[data-type="primary"],
+    button[data-type="secondary"],
+    a[role="button"],
+    [data-role="filter-tag"],
+    [data-role="skill-tag"] {
+        transition: none;
+    }
+
+    [data-state="loading"]::after {
+        animation: none;
+        border: 2px dotted var(--pico-primary);
+    }
+}

@@ -1,156 +1,388 @@
 <!doctype html>
 <html lang="en" data-theme="dark">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="description" content="Sign up for SlateHub - Join the entertainment industry platform" />
-    <title>{{ app_name }} - Sign Up</title>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <meta
+            name="description"
+            content="Sign up for SlateHub - Join the entertainment industry platform"
+        />
+        <title>{{ app_name }} - Sign Up</title>
 
-    <!-- Pico CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+        <!-- Pico CSS -->
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+        />
 
-    <!-- SlateHub Custom Overrides -->
-    <link rel="stylesheet" href="/static/css/slatehub-pico.css" />
-    <link rel="stylesheet" href="/static/css/layout.css" />
-    <link rel="stylesheet" href="/static/css/forms.css" />
+        <!-- SlateHub Custom Overrides -->
+        <link rel="stylesheet" href="/static/css/slatehub-pico.css" />
+        <link rel="stylesheet" href="/static/css/layout.css" />
+        <link rel="stylesheet" href="/static/css/forms.css" />
 
-    <!-- Theme Initialization Script -->
-    <script>
-        const savedTheme = localStorage.getItem("theme") || "dark";
-        document.documentElement.setAttribute("data-theme", savedTheme);
-    </script>
-</head>
-<body>
-    <header>
-        <nav>
-            <ul>
-                <li>
-                    <a href="/"><strong>{{ app_name }}</strong></a>
-                </li>
-            </ul>
-            <ul>
-                <li><a href="/">Home</a></li>
-                <li><a href="/projects">Projects</a></li>
-                <li><a href="/people">People</a></li>
-                <li><a href="/about">About</a></li>
-            </ul>
-            <ul>
-                <li>
-                    <button id="theme-toggle" type="button" aria-label="Toggle theme">
-                        <span data-theme-icon="light" aria-hidden="true">☀️</span>
-                        <span data-theme-icon="dark" aria-hidden="true">🌙</span>
-                    </button>
-                </li>
-                <li><a href="/login" role="button">Login</a></li>
-                <li><a href="/signup" role="button" aria-current="page">Sign Up</a></li>
-            </ul>
-        </nav>
-    </header>
+        <!-- Theme Initialization Script -->
+        <script>
+            const savedTheme = localStorage.getItem("theme") || "dark";
+            document.documentElement.setAttribute("data-theme", savedTheme);
+        </script>
+    </head>
+    <body data-page="signup" data-user="anonymous">
+        <header id="site-header">
+            <nav id="main-nav" aria-label="Main navigation">
+                <ul data-role="nav-brand">
+                    <li>
+                        <a href="/" id="site-logo"
+                            ><strong>{{ app_name }}</strong></a
+                        >
+                    </li>
+                </ul>
+                <ul data-role="nav-primary">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/projects">Projects</a></li>
+                    <li><a href="/people">People</a></li>
+                    <li><a href="/about">About</a></li>
+                </ul>
+                <ul data-role="nav-user">
+                    <li data-component="theme-toggle">
+                        <button
+                            id="theme-toggle"
+                            type="button"
+                            aria-label="Toggle theme"
+                            data-tooltip="Toggle theme"
+                            data-placement="bottom"
+                        >
+                            <span data-theme-icon="light" aria-hidden="true"
+                                >☀️</span
+                            >
+                            <span data-theme-icon="dark" aria-hidden="true"
+                                >🌙</span
+                            >
+                        </button>
+                    </li>
+                    <li>
+                        <a href="/login" role="button" data-type="secondary"
+                            >Login</a
+                        >
+                    </li>
+                    <li>
+                        <a
+                            href="/signup"
+                            role="button"
+                            data-type="primary"
+                            aria-current="page"
+                            >Sign Up</a
+                        >
+                    </li>
+                </ul>
+            </nav>
+        </header>
 
-    <main>
-        <article data-auth-form="signup">
-            <hgroup>
-                <h1>Join {{ app_name }}</h1>
-                <p>Create your account and start connecting with the entertainment industry</p>
-            </hgroup>
+        <main id="main-content">
+            <section data-component="auth-form" data-type="signup">
+                <header data-role="form-header">
+                    <hgroup>
+                        <h1 id="heading-signup">Join {{ app_name }}</h1>
+                        <p>
+                            Create your account and start connecting with the
+                            entertainment industry
+                        </p>
+                    </hgroup>
+                </header>
 
-            {% match error %}
-            {% when Some with (err) %}
-            <div role="alert" aria-live="polite">
-                {{ err }}
-            </div>
-            {% when None %}
-            {% endmatch %}
+                {% match error %} {% when Some with (err) %}
+                <div
+                    id="error-signup"
+                    role="alert"
+                    aria-live="polite"
+                    data-role="error-message"
+                >
+                    {{ err }}
+                </div>
+                {% when None %} {% endmatch %}
 
-            <form action="/signup" method="post">
-                <fieldset>
-                    <label for="username">
-                        Username
-                        <input
-                            type="text"
-                            id="username"
-                            name="username"
-                            placeholder="Choose a username"
-                            required
-                            autofocus
-                            aria-required="true"
-                        />
-                    </label>
+                <form
+                    id="form-signup"
+                    data-component="form"
+                    method="post"
+                    action="/signup"
+                >
+                    <fieldset data-role="form-section">
+                        <div data-field="username">
+                            <label for="input-username">Username</label>
+                            <input
+                                type="text"
+                                id="input-username"
+                                name="username"
+                                placeholder="Choose a username"
+                                required
+                                autofocus
+                                aria-required="true"
+                                aria-describedby="help-username"
+                                {%
+                                match
+                                error
+                                %}
+                                {%
+                                when
+                                Some
+                                with
+                                (_)
+                                %}
+                                aria-invalid="true"
+                                {%
+                                when
+                                None
+                                %}
+                                aria-invalid="false"
+                                {%
+                                endmatch
+                                %}
+                            />
+                            <small
+                                id="help-username"
+                                data-role="help-text"
+                                hidden
+                            >
+                                Your unique username for SlateHub
+                            </small>
+                        </div>
 
-                    <label for="email">
-                        Email Address
-                        <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            placeholder="Enter your email"
-                            required
-                            aria-required="true"
-                        />
-                    </label>
+                        <div data-field="email">
+                            <label for="input-email">Email Address</label>
+                            <input
+                                type="email"
+                                id="input-email"
+                                name="email"
+                                placeholder="Enter your email"
+                                required
+                                aria-required="true"
+                                aria-describedby="help-email"
+                                {%
+                                match
+                                error
+                                %}
+                                {%
+                                when
+                                Some
+                                with
+                                (_)
+                                %}
+                                aria-invalid="true"
+                                {%
+                                when
+                                None
+                                %}
+                                aria-invalid="false"
+                                {%
+                                endmatch
+                                %}
+                            />
+                            <small id="help-email" data-role="help-text" hidden>
+                                We'll use this for account notifications
+                            </small>
+                        </div>
 
-                    <label for="password">
-                        Password
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            placeholder="Create a password (min 8 characters)"
-                            required
-                            minlength="8"
-                            aria-required="true"
-                        />
-                    </label>
+                        <div data-field="password">
+                            <label for="input-password">Password</label>
+                            <input
+                                type="password"
+                                id="input-password"
+                                name="password"
+                                placeholder="Create a password (min 8 characters)"
+                                required
+                                minlength="8"
+                                aria-required="true"
+                                aria-describedby="help-password"
+                                {%
+                                match
+                                error
+                                %}
+                                {%
+                                when
+                                Some
+                                with
+                                (_)
+                                %}
+                                aria-invalid="true"
+                                {%
+                                when
+                                None
+                                %}
+                                aria-invalid="false"
+                                {%
+                                endmatch
+                                %}
+                            />
+                            <small
+                                id="help-password"
+                                data-role="help-text"
+                                hidden
+                            >
+                                Must be at least 8 characters long
+                            </small>
+                        </div>
 
-                    <label for="confirm_password">
-                        Confirm Password
-                        <input
-                            type="password"
-                            id="confirm_password"
-                            name="confirm_password"
-                            placeholder="Confirm your password"
-                            required
-                            minlength="8"
-                            aria-required="true"
-                        />
-                    </label>
+                        <div data-field="confirm-password">
+                            <label for="input-confirm-password"
+                                >Confirm Password</label
+                            >
+                            <input
+                                type="password"
+                                id="input-confirm-password"
+                                name="confirm_password"
+                                placeholder="Confirm your password"
+                                required
+                                minlength="8"
+                                aria-required="true"
+                                aria-describedby="help-confirm-password"
+                                {%
+                                match
+                                error
+                                %}
+                                {%
+                                when
+                                Some
+                                with
+                                (_)
+                                %}
+                                aria-invalid="true"
+                                {%
+                                when
+                                None
+                                %}
+                                aria-invalid="false"
+                                {%
+                                endmatch
+                                %}
+                            />
+                            <small
+                                id="help-confirm-password"
+                                data-role="help-text"
+                                hidden
+                            >
+                                Enter the same password again
+                            </small>
+                        </div>
 
-                    <label for="terms">
-                        <input type="checkbox" id="terms" name="terms" required />
-                        I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>
-                    </label>
-                </fieldset>
+                        <div data-field="terms">
+                            <label for="input-terms">
+                                <input
+                                    type="checkbox"
+                                    id="input-terms"
+                                    name="terms"
+                                    required
+                                    aria-required="true"
+                                />
+                                I agree to the
+                                <a href="/terms" target="_blank" rel="noopener"
+                                    >Terms of Service</a
+                                >
+                                and
+                                <a
+                                    href="/privacy"
+                                    target="_blank"
+                                    rel="noopener"
+                                    >Privacy Policy</a
+                                >
+                            </label>
+                        </div>
+                    </fieldset>
 
-                <button type="submit">Create Account</button>
+                    <div data-role="form-actions">
+                        <button type="submit" data-type="primary">
+                            Create Account
+                        </button>
+                    </div>
 
-                <nav aria-label="Signup alternatives">
-                    <p>Already have an account? <a href="/login">Log in</a></p>
-                </nav>
-            </form>
-        </article>
-    </main>
+                    <nav
+                        id="nav-signup-alternatives"
+                        aria-label="Signup alternatives"
+                        data-role="form-footer"
+                    >
+                        <p>
+                            Already have an account?
+                            <a href="/login">Log in</a>
+                        </p>
+                    </nav>
+                </form>
+            </section>
+        </main>
 
-    <footer>
-        <section>
-            <p><small>© {{ year }} {{ app_name }}. All rights reserved.</small></p>
-            <p><small>v{{ version }}</small></p>
-        </section>
-    </footer>
+        <footer id="site-footer">
+            <section data-role="footer-main">
+                <div data-role="footer-brand">
+                    <hgroup>
+                        <h3 id="footer-brand-title">{{ app_name }}</h3>
+                        <p>
+                            A free, open-source SaaS platform for the TV, film,
+                            and content industries.
+                        </p>
+                    </hgroup>
+                </div>
 
-    <!-- Theme Toggle Logic -->
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const themeToggle = document.getElementById("theme-toggle");
-            if (themeToggle) {
-                themeToggle.addEventListener("click", function () {
-                    const currentTheme = document.documentElement.getAttribute("data-theme");
-                    const newTheme = currentTheme === "light" ? "dark" : "light";
-                    document.documentElement.setAttribute("data-theme", newTheme);
-                    localStorage.setItem("theme", newTheme);
-                });
-            }
-        });
-    </script>
-</body>
+                <div data-role="footer-links">
+                    <h4 id="footer-links-title">Quick Links</h4>
+                    <nav aria-labelledby="footer-links-title">
+                        <ul>
+                            <li><a href="/docs">Documentation</a></li>
+                            <li><a href="/api">API</a></li>
+                            <li><a href="/privacy">Privacy Policy</a></li>
+                            <li><a href="/terms">Terms of Service</a></li>
+                        </ul>
+                    </nav>
+                </div>
+
+                <div data-role="footer-connect">
+                    <h4 id="footer-connect-title">Connect</h4>
+                    <nav aria-labelledby="footer-connect-title">
+                        <ul>
+                            <li>
+                                <a
+                                    href="https://github.com/slatehub"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                    >GitHub</a
+                                >
+                            </li>
+                            <li><a href="/contact">Contact</a></li>
+                            <li><a href="/blog">Blog</a></li>
+                        </ul>
+                    </nav>
+                </div>
+            </section>
+
+            <hr />
+
+            <section data-role="footer-copyright">
+                <p>
+                    <small
+                        >© {{ year }} {{ app_name }}. All rights
+                        reserved.</small
+                    >
+                </p>
+                <p><small data-role="version">v{{ version }}</small></p>
+            </section>
+        </footer>
+
+        <!-- Theme Toggle Logic -->
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const themeToggle = document.getElementById("theme-toggle");
+                if (themeToggle) {
+                    themeToggle.addEventListener("click", function () {
+                        const currentTheme =
+                            document.documentElement.getAttribute("data-theme");
+                        const newTheme =
+                            currentTheme === "light" ? "dark" : "light";
+                        document.documentElement.setAttribute(
+                            "data-theme",
+                            newTheme,
+                        );
+                        localStorage.setItem("theme", newTheme);
+                    });
+                }
+            });
+        </script>
+    </body>
 </html>

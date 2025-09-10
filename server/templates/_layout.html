@@ -31,17 +31,20 @@
 
         {% block head %}{% endblock %}
     </head>
-    <body>
-        <header>
-            <nav>
-                <ul>
+    <body
+        data-page="{% block page_name %}default{% endblock %}"
+        data-user="{% if user.is_some() %}authenticated{% else %}anonymous{% endif %}"
+    >
+        <header id="site-header">
+            <nav id="main-nav" aria-label="Main navigation">
+                <ul data-role="nav-brand">
                     <li>
-                        <a href="/">
+                        <a href="/" id="site-logo">
                             <strong>{{ app_name }}</strong>
                         </a>
                     </li>
                 </ul>
-                <ul>
+                <ul data-role="nav-primary">
                     <li>
                         <a href="/" {% if active_page == "home" %}aria-current="page"{% endif %}>Home</a>
                     </li>
@@ -55,8 +58,8 @@
                         <a href="/about" {% if active_page == "about" %}aria-current="page"{% endif %}>About</a>
                     </li>
                 </ul>
-                <ul>
-                    <li>
+                <ul data-role="nav-user">
+                    <li data-component="theme-toggle">
                         <!-- Theme Toggle -->
                         <button
                             id="theme-toggle"
@@ -69,56 +72,62 @@
                             <span data-theme-icon="dark" aria-hidden="true">🌙</span>
                         </button>
                     </li>
-                    <li>
-                        <!-- User Menu -->
-                        {% match user %}
-                        {% when Some with (user) %}
-                        <details>
-                            <summary role="button">
+                    {% match user %}
+                    {% when Some with (user) %}
+                    <li data-component="user-menu">
+                        <details id="user-menu">
+                            <summary role="button" aria-label="User menu">
                                 <img
                                     src="{{ user.avatar }}"
                                     alt="{{ user.name }}"
+                                    data-role="avatar"
                                 />
                             </summary>
-                            <ul dir="rtl">
+                            <ul data-role="dropdown-menu" dir="rtl">
                                 <li><a href="/profile">Profile</a></li>
                                 <li><a href="/settings">Settings</a></li>
                                 <li><hr /></li>
                                 <li>
-                                    <form action="/logout" method="post">
+                                    <form
+                                        id="form-logout"
+                                        action="/logout"
+                                        method="post"
+                                    >
                                         <button type="submit">Logout</button>
                                     </form>
                                 </li>
                             </ul>
                         </details>
-                        {% when None %}
-                        <a href="/login" role="button">Login</a>
+                    </li>
+                    {% when None %}
+                    <li>
+                        <a href="/login" role="button" data-type="primary">Login</a>
                     </li>
                     <li>
-                        <a href="/signup" role="button">Sign Up</a>
-                        {% endmatch %}
+                        <a href="/signup" role="button" data-type="secondary">Sign Up</a>
                     </li>
+                    {% endmatch %}
                 </ul>
             </nav>
         </header>
 
-        <main>{% block content %}{% endblock %}</main>
+        <main id="main-content">{% block content %}{% endblock %}</main>
 
-        <footer>
-            <section>
-                <article>
+        <footer id="site-footer">
+            <section data-role="footer-main">
+                <div data-role="footer-brand">
                     <hgroup>
-                        <h3>{{ app_name }}</h3>
+                        <h3 id="footer-brand-title">{{ app_name }}</h3>
                         <p>
                             A free, open-source SaaS platform for the TV, film,
                             and content industries.
                         </p>
                     </hgroup>
-                </article>
+                </div>
 
-                <article>
-                    <h4>Quick Links</h4>
-                    <nav>
+                <div data-role="footer-links">
+                    <h4 id="footer-links-title">Quick Links</h4>
+                    <nav aria-labelledby="footer-links-title">
                         <ul>
                             <li><a href="/docs">Documentation</a></li>
                             <li><a href="/api">API</a></li>
@@ -126,11 +135,11 @@
                             <li><a href="/terms">Terms of Service</a></li>
                         </ul>
                     </nav>
-                </article>
+                </div>
 
-                <article>
-                    <h4>Connect</h4>
-                    <nav>
+                <div data-role="footer-connect">
+                    <h4 id="footer-connect-title">Connect</h4>
+                    <nav aria-labelledby="footer-connect-title">
                         <ul>
                             <li>
                                 <a
@@ -143,17 +152,17 @@
                             <li><a href="/blog">Blog</a></li>
                         </ul>
                     </nav>
-                </article>
+                </div>
             </section>
 
             <hr />
 
-            <section>
+            <section data-role="footer-copyright">
                 <p>
                     <small>© {{ year }} {{ app_name }}. All rights reserved.</small>
                 </p>
                 <p>
-                    <small>v{{ version }}</small>
+                    <small data-role="version">v{{ version }}</small>
                 </p>
             </section>
         </footer>

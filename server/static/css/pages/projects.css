@@ -1,0 +1,402 @@
+/* Projects Page Styles
+   =====================
+   This file demonstrates how to style the projects page using only
+   semantic selectors, IDs, and data attributes - no CSS classes needed.
+*/
+
+/* Page-specific layout */
+[data-page="projects"] #main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header Section */
+#projects-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+#heading-projects {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--pico-h1-color);
+}
+
+#projects-header p {
+    color: var(--pico-muted-color);
+    font-size: 1.1rem;
+}
+
+/* Controls Section */
+#section-controls {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Search Bar Component */
+[data-component="search-bar"] {
+    flex: 1;
+    min-width: 300px;
+}
+
+#form-search-projects [data-field="search"] {
+    display: flex;
+    gap: 0.5rem;
+}
+
+#input-search {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid var(--pico-border-color);
+    border-radius: var(--pico-border-radius);
+    font-size: 1rem;
+    background: var(--pico-background-color);
+    color: var(--pico-color);
+}
+
+#input-search:focus {
+    border-color: var(--pico-primary);
+    outline: 2px solid var(--pico-primary-focus);
+    outline-offset: 2px;
+}
+
+/* Sort Controls */
+[data-component="sort-controls"] {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#select-sort {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--pico-border-color);
+    border-radius: var(--pico-border-radius);
+    background: var(--pico-background-color);
+    color: var(--pico-color);
+    cursor: pointer;
+}
+
+#select-sort:hover {
+    border-color: var(--pico-primary);
+}
+
+/* Projects Grid Layout */
+#section-projects-list[data-layout="grid"] [data-role="content-container"] {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 2rem;
+}
+
+/* Project Card Component */
+[data-component="project-card"] {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-card-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+[data-component="project-card"]:hover {
+    box-shadow: var(--pico-card-box-shadow);
+    transform: translateY(-2px);
+}
+
+/* Card Header */
+[data-component="project-card"] [data-role="card-header"] {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+[data-component="project-card"] h2 {
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+[data-component="project-card"] h2 a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+[data-component="project-card"] h2 a:hover {
+    color: var(--pico-primary);
+}
+
+/* Status Badge */
+[data-role="status-badge"] {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+[data-role="status-badge"][data-status="active"] {
+    background: var(--pico-ins-color);
+    color: var(--pico-background-color);
+}
+
+[data-role="status-badge"][data-status="planning"] {
+    background: var(--pico-primary-background);
+    color: var(--pico-primary);
+}
+
+[data-role="status-badge"][data-status="completed"] {
+    background: var(--pico-secondary-background);
+    color: var(--pico-secondary);
+}
+
+[data-role="status-badge"][data-status="on-hold"] {
+    background: var(--pico-muted-background);
+    color: var(--pico-muted-color);
+}
+
+/* Card Body */
+[data-component="project-card"] [data-role="card-body"] {
+    flex: 1;
+}
+
+[data-component="project-card"] [data-role="description"] {
+    color: var(--pico-muted-color);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Metadata */
+[data-component="project-card"] [data-role="metadata"] {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    color: var(--pico-muted-color);
+}
+
+[data-component="project-card"] [data-field="owner"] {
+    font-weight: 500;
+}
+
+[data-component="project-card"] time {
+    opacity: 0.8;
+}
+
+/* Tags */
+[data-role="tags-list"] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+[data-role="tag"] {
+    background: var(--pico-secondary-background);
+    color: var(--pico-secondary);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--pico-border-radius);
+    font-size: 0.875rem;
+    transition: background 0.2s;
+}
+
+[data-role="tag"]:hover {
+    background: var(--pico-secondary);
+    color: var(--pico-background-color);
+}
+
+/* Card Footer */
+[data-component="project-card"] [data-role="card-footer"] {
+    padding-top: 1rem;
+    border-top: 1px solid var(--pico-border-color);
+}
+
+[data-component="project-card"] [data-role="card-actions"] {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Empty State */
+[data-role="empty-state"] {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+#heading-empty {
+    margin-bottom: 1rem;
+    color: var(--pico-h2-color);
+}
+
+[data-role="empty-state"] p {
+    color: var(--pico-muted-color);
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+[data-role="empty-state-actions"] {
+    margin-top: 2rem;
+}
+
+/* Button Variations using data-type */
+button[data-type="primary"],
+a[role="button"][data-type="primary"] {
+    background: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+    border: 1px solid var(--pico-primary);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--pico-border-radius);
+    text-decoration: none;
+    display: inline-block;
+    transition: background 0.2s, transform 0.1s;
+    cursor: pointer;
+}
+
+button[data-type="primary"]:hover,
+a[role="button"][data-type="primary"]:hover {
+    background: var(--pico-primary-hover);
+    border-color: var(--pico-primary-hover);
+    transform: translateY(-1px);
+}
+
+button[data-type="primary"]:active,
+a[role="button"][data-type="primary"]:active {
+    transform: translateY(0);
+}
+
+/* Loading State */
+[data-state="loading"] {
+    position: relative;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+[data-state="loading"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2rem;
+    height: 2rem;
+    margin: -1rem 0 0 -1rem;
+    border: 2px solid var(--pico-primary);
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    [data-page="projects"] #main-content {
+        padding: 1rem;
+    }
+
+    #section-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    [data-component="search-bar"] {
+        min-width: auto;
+        width: 100%;
+    }
+
+    [data-component="sort-controls"] {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    #section-projects-list[data-layout="grid"] [data-role="content-container"] {
+        grid-template-columns: 1fr;
+    }
+
+    #heading-projects {
+        font-size: 2rem;
+    }
+}
+
+/* Dark Theme Overrides */
+[data-theme="dark"] [data-component="project-card"] {
+    background: var(--pico-card-background-color);
+    border-color: var(--pico-card-border-color);
+}
+
+[data-theme="dark"] [data-component="project-card"]:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] [data-role="tag"] {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--pico-color);
+}
+
+[data-theme="dark"] [data-role="tag"]:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Print Styles */
+@media print {
+    #section-controls {
+        display: none;
+    }
+
+    [data-component="project-card"] {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+
+    [data-role="card-actions"] {
+        display: none;
+    }
+}
+
+/* Accessibility - Focus Styles */
+[data-component="project-card"] h2 a:focus-visible,
+[data-role="tag"]:focus-visible,
+button[data-type="primary"]:focus-visible,
+a[role="button"][data-type="primary"]:focus-visible {
+    outline: 2px solid var(--pico-primary);
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    [data-component="project-card"] {
+        border-width: 2px;
+    }
+
+    [data-role="status-badge"],
+    [data-role="tag"] {
+        border: 1px solid currentColor;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    [data-component="project-card"],
+    button[data-type="primary"],
+    a[role="button"][data-type="primary"],
+    [data-role="tag"] {
+        transition: none;
+    }
+
+    [data-state="loading"]::after {
+        animation: none;
+        border: 2px dotted var(--pico-primary);
+    }
+}
