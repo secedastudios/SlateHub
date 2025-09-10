@@ -1,0 +1,55 @@
+<article
+    data-component="project-card"
+    data-project-id="{{ project.id }}"
+    data-status="{{ project.status }}"
+>
+    <header data-role="card-header">
+        <h2 id="project-title-{{ project.id }}">
+            <a href="/projects/{{ project.id }}">
+                {{ project.title }}
+            </a>
+        </h2>
+        <span
+            data-role="status-badge"
+            data-status="{{ project.status }}"
+        >
+            {{ project.status }}
+        </span>
+    </header>
+
+    <div data-role="card-body">
+        <p data-role="description">{{ project.description }}</p>
+
+        <div data-role="metadata">
+            <span data-field="owner">By {{ project.owner }}</span>
+            <time
+                datetime="{{ project.created_at }}"
+                data-field="created-date"
+            >
+                {{ project.created_at }}
+            </time>
+        </div>
+
+        {% if !project.tags.is_empty() %}
+        <div data-role="tags-list">
+            {% for tag in project.tags %}
+            <span data-role="tag" data-tag="{{ tag }}">
+                {{ tag }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <footer data-role="card-footer">
+        <nav data-role="card-actions">
+            <a
+                href="/projects/{{ project.id }}"
+                role="button"
+                data-type="primary"
+            >
+                View Details
+            </a>
+        </nav>
+    </footer>
+</article>

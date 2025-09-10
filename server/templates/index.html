@@ -1,356 +1,173 @@
-<!doctype html>
-<html lang="en" data-theme="dark">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="color-scheme" content="light dark" />
-        <meta
-            name="description"
-            content="SlateHub - Connect, collaborate, and create in the entertainment industry"
-        />
-        <title>{{ app_name }} - Home</title>
+{% extends "_layout.html" %} {% block title %}Home - {{ app_name }}{% endblock
+%} {% block page_name %}home{% endblock %} {% block page_styles %}
+<link rel="stylesheet" href="/static/css/home-modern.css" />
+{% endblock %} {% block content %}
+<article id="homepage">
+    <section data-hero="true">
+        <h1>Welcome to {{ app_name }}</h1>
+        <p>
+            A free, open-source platform connecting filmmakers, creatives,
+            brands, crew, and agencies.
+        </p>
+        <div data-actions="hero">
+            <a href="/signup" role="button">Get Started</a>
+            <a href="/about" role="button" data-secondary="true">Learn More</a>
+        </div>
+    </section>
 
-        <!-- Pico CSS -->
-        <link
-            rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
-        />
-
-        <!-- SlateHub Custom Overrides -->
-        <link rel="stylesheet" href="/static/css/slatehub-pico.css" />
-        <link rel="stylesheet" href="/static/css/layout.css" />
-        <link rel="stylesheet" href="/static/css/forms.css" />
-
-        <!-- Modern Theme -->
-        <link rel="stylesheet" href="/static/css/modern-theme.css" />
-        <link rel="stylesheet" href="/static/css/modern-enhancements.css" />
-        <link rel="stylesheet" href="/static/css/home-modern.css" />
-
-        <!-- Theme Initialization Script -->
-        <script>
-            const savedTheme = localStorage.getItem("theme") || "dark";
-            document.documentElement.setAttribute("data-theme", savedTheme);
-        </script>
-    </head>
-    <body>
-        <header>
-            <nav>
-                <ul>
-                    <li>
-                        <a href="/"><strong>{{ app_name }}</strong></a>
-                    </li>
-                </ul>
-                <ul>
-                    <li><a href="/" aria-current="page">Home</a></li>
-                    <li><a href="/projects">Projects</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/about">About</a></li>
-                </ul>
-                <ul>
-                    <li>
-                        <button
-                            id="theme-toggle"
-                            type="button"
-                            aria-label="Toggle theme"
-                            data-tooltip="Toggle theme"
-                            data-placement="bottom"
-                        >
-                            <span data-theme-icon="light" aria-hidden="true"
-                                >☀️</span
-                            >
-                            <span data-theme-icon="dark" aria-hidden="true"
-                                >🌙</span
-                            >
-                        </button>
-                    </li>
-                    {% match user %} {% when Some with (user) %}
-                    <li>
-                        <details>
-                            <summary role="button">
-                                <img
-                                    src="{{ user.avatar }}"
-                                    alt="{{ user.name }}"
-                                />
-                            </summary>
-                            <ul dir="rtl">
-                                <li><a href="/profile">Profile</a></li>
-                                <li><a href="/settings">Settings</a></li>
-                                <li><hr /></li>
-                                <li>
-                                    <form action="/logout" method="post">
-                                        <button type="submit">Logout</button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </details>
-                    </li>
-                    {% when None %}
-                    <li><a href="/login" role="button">Login</a></li>
-                    <li><a href="/signup" role="button">Sign Up</a></li>
-                    {% endmatch %}
-                </ul>
+    <section data-features="true">
+        <h2>Platform Features</h2>
+        <div data-tabs="features">
+            <nav role="tablist">
+                <button
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="panel-networking"
+                    id="tab-networking"
+                >
+                    Networking
+                </button>
+                <button
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="panel-projects"
+                    id="tab-projects"
+                >
+                    Project Management
+                </button>
+                <button
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="panel-search"
+                    id="tab-search"
+                >
+                    Semantic Search
+                </button>
             </nav>
-        </header>
 
-        <main>
-            <article id="homepage">
-                <section data-hero="true">
-                    <h1>Welcome to {{ app_name }}</h1>
-                    <p>
-                        A free, open-source platform connecting filmmakers,
-                        creatives, brands, crew, and agencies.
-                    </p>
-                    <div data-actions="hero">
-                        <a href="/signup" role="button">Get Started</a>
-                        <a href="/about" role="button" data-secondary="true"
-                            >Learn More</a
-                        >
-                    </div>
-                </section>
-
-                <section data-features="true">
-                    <h2>Platform Features</h2>
-                    <div data-tabs="features">
-                        <nav role="tablist">
-                            <button
-                                role="tab"
-                                aria-selected="true"
-                                aria-controls="panel-networking"
-                                id="tab-networking"
-                            >
-                                Networking
-                            </button>
-                            <button
-                                role="tab"
-                                aria-selected="false"
-                                aria-controls="panel-projects"
-                                id="tab-projects"
-                            >
-                                Project Management
-                            </button>
-                            <button
-                                role="tab"
-                                aria-selected="false"
-                                aria-controls="panel-search"
-                                id="tab-search"
-                            >
-                                Semantic Search
-                            </button>
-                        </nav>
-
-                        <div
-                            role="tabpanel"
-                            id="panel-networking"
-                            aria-labelledby="tab-networking"
-                        >
-                            <h3>Professional Networking</h3>
-                            <p>
-                                Connect with industry professionals, build your
-                                network, and discover opportunities in the TV,
-                                film, and content industries.
-                            </p>
-                            <ul>
-                                <li>
-                                    Professional profiles with portfolio
-                                    showcases
-                                </li>
-                                <li>Industry-specific networking tools</li>
-                                <li>Collaboration requests and messaging</li>
-                            </ul>
-                        </div>
-
-                        <div
-                            role="tabpanel"
-                            id="panel-projects"
-                            aria-labelledby="tab-projects"
-                            hidden
-                        >
-                            <h3>Project Management</h3>
-                            <p>
-                                Manage your creative projects with tools
-                                designed specifically for film and TV
-                                production.
-                            </p>
-                            <ul>
-                                <li>Production planning and scheduling</li>
-                                <li>Crew and resource management</li>
-                                <li>Budget tracking and reporting</li>
-                            </ul>
-                        </div>
-
-                        <div
-                            role="tabpanel"
-                            id="panel-search"
-                            aria-labelledby="tab-search"
-                            hidden
-                        >
-                            <h3>AI-Powered Search</h3>
-                            <p>
-                                Find the perfect collaborators with semantic
-                                search and AI-assisted matching.
-                            </p>
-                            <ul>
-                                <li>
-                                    Semantic search across profiles and projects
-                                </li>
-                                <li>AI-powered skill matching</li>
-                                <li>
-                                    Smart recommendations based on your needs
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </section>
-
-                <section data-stats="true">
-                    <h2>Platform Statistics</h2>
-                    <div data-grid="stats">
-                        <article data-stat="projects">
-                            <data value="{{ project_count }}"
-                                >{{ project_count }}</data
-                            >
-                            <label>Active Projects</label>
-                        </article>
-                        <article data-stat="users">
-                            <data value="{{ user_count }}"
-                                >{{ user_count }}</data
-                            >
-                            <label>Creative Professionals</label>
-                        </article>
-                        <article data-stat="connections">
-                            <data value="{{ connection_count }}"
-                                >{{ connection_count }}</data
-                            >
-                            <label>Connections Made</label>
-                        </article>
-                    </div>
-                </section>
-
-                {% if !activities.is_empty() %}
-                <section data-activity="true">
-                    <h2>Recent Activity</h2>
-                    <ul role="feed" aria-label="Recent platform activity">
-                        {% for activity in activities %}
-                        <li>
-                            <strong>{{ activity.user }}</strong>
-                            <span>{{ activity.action }}</span>
-                            <time>{{ activity.time }}</time>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </section>
-                {% endif %}
-
-                <section data-cta="true">
-                    <h2>Ready to Join the Community?</h2>
-                    <p>
-                        Start connecting with creative professionals and bring
-                        your projects to life.
-                    </p>
-                    <div data-actions="cta">
-                        <a href="/signup" role="button">Create Free Account</a>
-                        <a href="/demo" role="button" data-secondary="true"
-                            >Watch Demo</a
-                        >
-                    </div>
-                </section>
-            </article>
-        </main>
-
-        <footer>
-            <section>
-                <article>
-                    <hgroup>
-                        <h3>{{ app_name }}</h3>
-                        <p>
-                            A free, open-source SaaS platform for the TV, film,
-                            and content industries.
-                        </p>
-                    </hgroup>
-                </article>
-
-                <article>
-                    <h4>Quick Links</h4>
-                    <nav>
-                        <ul>
-                            <li><a href="/docs">Documentation</a></li>
-                            <li><a href="/api">API</a></li>
-                            <li><a href="/privacy">Privacy Policy</a></li>
-                            <li><a href="/terms">Terms of Service</a></li>
-                        </ul>
-                    </nav>
-                </article>
-
-                <article>
-                    <h4>Connect</h4>
-                    <nav>
-                        <ul>
-                            <li>
-                                <a
-                                    href="https://github.com/slatehub"
-                                    rel="noopener noreferrer"
-                                    target="_blank"
-                                    >GitHub</a
-                                >
-                            </li>
-                            <li><a href="/contact">Contact</a></li>
-                            <li><a href="/blog">Blog</a></li>
-                        </ul>
-                    </nav>
-                </article>
-            </section>
-
-            <hr />
-
-            <section>
+            <div
+                role="tabpanel"
+                id="panel-networking"
+                aria-labelledby="tab-networking"
+            >
+                <h3>Professional Networking</h3>
                 <p>
-                    <small
-                        >© {{ year }} {{ app_name }}. All rights
-                        reserved.</small
-                    >
+                    Connect with industry professionals, build your network, and
+                    discover opportunities in the TV, film, and content
+                    industries.
                 </p>
-                <p><small>v{{ version }}</small></p>
-            </section>
-        </footer>
+                <ul>
+                    <li>Professional profiles with portfolio showcases</li>
+                    <li>Industry-specific networking tools</li>
+                    <li>Collaboration requests and messaging</li>
+                </ul>
+            </div>
 
-        <!-- Theme Toggle Logic -->
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                const themeToggle = document.getElementById("theme-toggle");
-                if (themeToggle) {
-                    themeToggle.addEventListener("click", function () {
-                        const currentTheme =
-                            document.documentElement.getAttribute("data-theme");
-                        const newTheme =
-                            currentTheme === "light" ? "dark" : "light";
-                        document.documentElement.setAttribute(
-                            "data-theme",
-                            newTheme,
-                        );
-                        localStorage.setItem("theme", newTheme);
-                    });
-                }
+            <div
+                role="tabpanel"
+                id="panel-projects"
+                aria-labelledby="tab-projects"
+                hidden
+            >
+                <h3>Project Management</h3>
+                <p>
+                    Manage your creative projects with tools designed
+                    specifically for film and TV production.
+                </p>
+                <ul>
+                    <li>Production planning and scheduling</li>
+                    <li>Crew and resource management</li>
+                    <li>Budget tracking and reporting</li>
+                </ul>
+            </div>
 
-                // Tab functionality
-                const tabs = document.querySelectorAll('[role="tab"]');
-                const panels = document.querySelectorAll('[role="tabpanel"]');
+            <div
+                role="tabpanel"
+                id="panel-search"
+                aria-labelledby="tab-search"
+                hidden
+            >
+                <h3>AI-Powered Search</h3>
+                <p>
+                    Find the perfect collaborators with semantic search and
+                    AI-assisted matching.
+                </p>
+                <ul>
+                    <li>Semantic search across profiles and projects</li>
+                    <li>AI-powered skill matching</li>
+                    <li>Smart recommendations based on your needs</li>
+                </ul>
+            </div>
+        </div>
+    </section>
 
-                tabs.forEach((tab) => {
-                    tab.addEventListener("click", function () {
-                        // Deactivate all tabs and panels
-                        tabs.forEach((t) =>
-                            t.setAttribute("aria-selected", "false"),
-                        );
-                        panels.forEach((p) => (p.hidden = true));
+    <section data-stats="true">
+        <h2>Platform Statistics</h2>
+        <div data-grid="stats">
+            <article data-stat="projects">
+                <data value="{{ project_count }}">{{ project_count }}</data>
+                <label>Active Projects</label>
+            </article>
+            <article data-stat="users">
+                <data value="{{ user_count }}">{{ user_count }}</data>
+                <label>Creative Professionals</label>
+            </article>
+            <article data-stat="connections">
+                <data value="{{ connection_count }}"
+                    >{{ connection_count }}</data
+                >
+                <label>Connections Made</label>
+            </article>
+        </div>
+    </section>
 
-                        // Activate clicked tab and corresponding panel
-                        this.setAttribute("aria-selected", "true");
-                        const panelId = this.getAttribute("aria-controls");
-                        const panel = document.getElementById(panelId);
-                        if (panel) panel.hidden = false;
-                    });
-                });
+    {% if !activities.is_empty() %}
+    <section data-activity="true">
+        <h2>Recent Activity</h2>
+        <ul role="feed" aria-label="Recent platform activity">
+            {% for activity in activities %}
+            <li>
+                <strong>{{ activity.user }}</strong>
+                <span>{{ activity.action }}</span>
+                <time>{{ activity.time }}</time>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    <section data-cta="true">
+        <h2>Ready to Join the Community?</h2>
+        <p>
+            Start connecting with creative professionals and bring your projects
+            to life.
+        </p>
+        <div data-actions="cta">
+            <a href="/signup" role="button">Create Free Account</a>
+            <a href="/demo" role="button" data-secondary="true">Watch Demo</a>
+        </div>
+    </section>
+</article>
+{% endblock %} {% block page_scripts %}
+<script>
+    // Tab functionality
+    document.addEventListener("DOMContentLoaded", function () {
+        const tabs = document.querySelectorAll('[role="tab"]');
+        const panels = document.querySelectorAll('[role="tabpanel"]');
+
+        tabs.forEach((tab) => {
+            tab.addEventListener("click", function () {
+                // Deactivate all tabs and panels
+                tabs.forEach((t) => t.setAttribute("aria-selected", "false"));
+                panels.forEach((p) => (p.hidden = true));
+
+                // Activate clicked tab and corresponding panel
+                this.setAttribute("aria-selected", "true");
+                const panelId = this.getAttribute("aria-controls");
+                const panel = document.getElementById(panelId);
+                if (panel) panel.hidden = false;
             });
-        </script>
-    </body>
-</html>
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+<footer id="site-footer">
+    <section data-role="footer-main">
+        <div data-role="footer-brand">
+            <hgroup>
+                <h3 id="footer-brand-title">{{ app_name }}</h3>
+                <p>
+                    A free, open-source SaaS platform for the TV, film,
+                    and content industries.
+                </p>
+            </hgroup>
+        </div>
+
+        <div data-role="footer-links">
+            <h4 id="footer-links-title">Quick Links</h4>
+            <nav aria-labelledby="footer-links-title">
+                <ul>
+                    <li><a href="/docs">Documentation</a></li>
+                    <li><a href="/api">API</a></li>
+                    <li><a href="/privacy">Privacy Policy</a></li>
+                    <li><a href="/terms">Terms of Service</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <div data-role="footer-connect">
+            <h4 id="footer-connect-title">Connect</h4>
+            <nav aria-labelledby="footer-connect-title">
+                <ul>
+                    <li>
+                        <a
+                            href="https://github.com/slatehub"
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >GitHub</a>
+                    </li>
+                    <li><a href="/contact">Contact</a></li>
+                    <li><a href="/blog">Blog</a></li>
+                </ul>
+            </nav>
+        </div>
+    </section>
+
+    <hr />
+
+    <section data-role="footer-copyright">
+        <p>
+            <small>© {{ year }} {{ app_name }}. All rights reserved.</small>
+        </p>
+        <p>
+            <small data-role="version">v{{ version }}</small>
+        </p>
+    </section>
+</footer>

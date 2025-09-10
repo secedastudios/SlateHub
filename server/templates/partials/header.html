@@ -1,0 +1,74 @@
+<header id="site-header">
+    <nav id="main-nav" aria-label="Main navigation">
+        <ul data-role="nav-brand">
+            <li>
+                <a href="/" id="site-logo">
+                    <strong>{{ app_name }}</strong>
+                </a>
+            </li>
+        </ul>
+        <ul data-role="nav-primary">
+            <li>
+                <a href="/" {% if active_page == "home" %}aria-current="page"{% endif %}>Home</a>
+            </li>
+            <li>
+                <a href="/projects" {% if active_page == "projects" %}aria-current="page"{% endif %}>Projects</a>
+            </li>
+            <li>
+                <a href="/people" {% if active_page == "people" %}aria-current="page"{% endif %}>People</a>
+            </li>
+            <li>
+                <a href="/about" {% if active_page == "about" %}aria-current="page"{% endif %}>About</a>
+            </li>
+        </ul>
+        <ul data-role="nav-user">
+            <li data-component="theme-toggle">
+                <button
+                    id="theme-toggle"
+                    type="button"
+                    aria-label="Toggle theme"
+                    data-tooltip="Toggle theme"
+                    data-placement="bottom"
+                >
+                    <span data-theme-icon="light" aria-hidden="true">☀️</span>
+                    <span data-theme-icon="dark" aria-hidden="true">🌙</span>
+                </button>
+            </li>
+            {% match user %}
+            {% when Some with (user) %}
+            <li data-component="user-menu">
+                <details id="user-menu">
+                    <summary role="button" aria-label="User menu">
+                        <img
+                            src="{{ user.avatar }}"
+                            alt="{{ user.name }}"
+                            data-role="avatar"
+                        />
+                    </summary>
+                    <ul data-role="dropdown-menu" dir="rtl">
+                        <li><a href="/profile">Profile</a></li>
+                        <li><a href="/settings">Settings</a></li>
+                        <li><hr /></li>
+                        <li>
+                            <form
+                                id="form-logout"
+                                action="/logout"
+                                method="post"
+                            >
+                                <button type="submit">Logout</button>
+                            </form>
+                        </li>
+                    </ul>
+                </details>
+            </li>
+            {% when None %}
+            <li>
+                <a href="/login" role="button" data-type="primary">Login</a>
+            </li>
+            <li>
+                <a href="/signup" role="button" data-type="secondary">Sign Up</a>
+            </li>
+            {% endmatch %}
+        </ul>
+    </nav>
+</header>
