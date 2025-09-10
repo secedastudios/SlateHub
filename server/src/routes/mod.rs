@@ -67,7 +67,7 @@ pub fn app() -> Router {
                         "→ Request started"
                     );
                 })
-                .on_response(|response: &Response<_>, latency: Duration, span: &Span| {
+                .on_response(|response: &Response<_>, latency: Duration, _span: &Span| {
                     info!(
                         status = %response.status(),
                         latency = ?latency,
@@ -77,7 +77,7 @@ pub fn app() -> Router {
                 .on_failure(
                     |error: tower_http::classify::ServerErrorsFailureClass,
                      latency: Duration,
-                     span: &Span| {
+                     _span: &Span| {
                         error!(
                             error = ?error,
                             latency = ?latency,
