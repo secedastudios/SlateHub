@@ -162,7 +162,7 @@ async fn login(Form(form): Form<LoginUser>) -> Result<Response, Error> {
 }
 
 #[axum::debug_handler]
-async fn logout() -> Response {
+async fn logout(jar: CookieJar) -> Response {
     debug!("Processing logout");
 
     // Create a cookie that expires immediately to clear the auth
@@ -174,5 +174,5 @@ async fn logout() -> Response {
         .max_age(Default::default())
         .build();
 
-    (CookieJar::new().remove(cookie), response::redirect("/")).into_response()
+    (jar.remove(cookie), response::redirect("/")).into_response()
 }
