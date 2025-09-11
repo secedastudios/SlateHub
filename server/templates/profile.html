@@ -1,6 +1,6 @@
 {% extends "_layout.html" %} {% block title %}{{ profile.name }} - {{ app_name
 }}{% endblock %} {% block page_name %}profile{% endblock %} {% block content %}
-<article
+<section
     id="profile-main"
     data-component="profile"
     data-user-id="{{ profile.id }}"
@@ -239,5 +239,5 @@
         </p>
     </footer>
     {% endif %}
-</article>
+</section>
 {% endblock %}

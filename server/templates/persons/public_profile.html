@@ -1,0 +1,207 @@
+{% extends "_layout.html" %} {% block title %}{{ person.username }} - {{
+app_name }}{% endblock %} {% block page_name %}public-profile{% endblock %} {%
+block head %}
+<link rel="stylesheet" href="/static/css/pages/public-profile.css" />
+{% endblock %} {% block content %}
+<section
+    id="public-profile-main"
+    data-component="public-profile"
+    data-username="{{ person.username }}"
+>
+    <header id="public-profile-header" data-role="profile-header">
+        <h1 id="public-profile-name">
+            {% match person.profile %} {% when Some with (profile) %} {% match
+            profile.name %} {% when Some with (name) %} {{ name }} {% when None
+            %} {{ person.username }} {% endmatch %} {% when None %} {{
+            person.username }} {% endmatch %}
+        </h1>
+
+        <p id="public-profile-username" data-role="username">
+            @{{ person.username }}
+        </p>
+
+        {% match person.profile %} {% when Some with (profile) %} {% match
+        profile.headline %} {% when Some with (headline) %}
+        <p id="public-profile-headline" data-role="headline">{{ headline }}</p>
+        {% when None %} {% endmatch %} {% when None %} {% endmatch %} {% if
+        is_own_profile %}
+        <nav
+            id="public-profile-actions"
+            aria-label="Profile actions"
+            data-role="profile-actions"
+        >
+            <a href="/profile/edit" role="button" data-type="primary"
+                >Edit Profile</a
+            >
+        </nav>
+        {% endif %}
+    </header>
+
+    <section
+        id="section-about"
+        aria-labelledby="heading-about"
+        data-section="about"
+    >
+        <h2 id="heading-about">About</h2>
+
+        {% match person.profile %} {% when Some with (profile) %} {% match
+        profile.bio %} {% when Some with (bio) %}
+        <p id="public-profile-bio" data-role="bio">{{ bio }}</p>
+        {% when None %}
+        <p data-state="empty">No bio provided yet.</p>
+        {% endmatch %}
+
+        <dl id="public-profile-details" data-role="details-list">
+            {% match profile.location %} {% when Some with (location) %}
+            <dt>Location</dt>
+            <dd id="public-profile-location" data-field="location">
+                {{ location }}
+            </dd>
+            {% when None %} {% endmatch %} {% match profile.website %} {% when
+            Some with (website) %}
+            <dt>Website</dt>
+            <dd id="public-profile-website" data-field="website">
+                <a
+                    href="{{ website }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    {{ website }}
+                </a>
+            </dd>
+            {% when None %} {% endmatch %}
+        </dl>
+        {% when None %}
+        <p data-state="empty">No bio provided yet.</p>
+        {% endmatch %}
+    </section>
+
+    {% match person.profile %} {% when Some with (profile) %} {% if
+    !profile.skills.is_empty() %}
+    <section
+        id="section-skills"
+        aria-labelledby="heading-skills"
+        data-section="skills"
+    >
+        <h2 id="heading-skills">Skills</h2>
+        <ul id="public-profile-skills-list" data-role="skills-list">
+            {% for skill in profile.skills %}
+            <li data-skill="{{ skill }}">{{ skill }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %} {% if !profile.experience.is_empty() %}
+    <section
+        id="section-experience"
+        aria-labelledby="heading-experience"
+        data-section="experience"
+    >
+        <h2 id="heading-experience">Experience</h2>
+        <div data-role="experience-list">
+            {% for exp in profile.experience %}
+            <div
+                data-component="experience-item"
+                data-experience-id="{{ loop.index }}"
+            >
+                <header data-role="experience-header">
+                    <h3 id="experience-role-{{ loop.index }}">
+                        {{ exp.role }}
+                    </h3>
+
+                    {% match exp.production %} {% when Some with (production) %}
+                    <p data-role="production-name">{{ production }}</p>
+                    {% when None %} {% endmatch %} {% match exp.description %}
+                    {% when Some with (description) %}
+                    <p data-role="experience-description">{{ description }}</p>
+                    {% when None %} {% endmatch %}
+                </header>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %} {% if !profile.education.is_empty() %}
+    <section
+        id="section-education"
+        aria-labelledby="heading-education"
+        data-section="education"
+    >
+        <h2 id="heading-education">Education</h2>
+        <div data-role="education-list">
+            {% for edu in profile.education %}
+            <div
+                data-component="education-item"
+                data-education-id="{{ loop.index }}"
+            >
+                <header data-role="education-header">
+                    <h3 id="education-institution-{{ loop.index }}">
+                        {{ edu.institution }}
+                    </h3>
+
+                    {% match edu.degree %} {% when Some with (degree) %}
+                    <p data-role="degree">{{ degree }}</p>
+                    {% when None %} {% endmatch %} {% match edu.field %} {% when
+                    Some with (field) %}
+                    <p data-role="field-of-study">{{ field }}</p>
+                    {% when None %} {% endmatch %}
+                </header>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %} {% when None %} {% endmatch %} {% if !organizations.is_empty()
+    %}
+    <section
+        id="section-organizations"
+        aria-labelledby="heading-organizations"
+        data-section="organizations"
+    >
+        <h2 id="heading-organizations">Organizations</h2>
+        <ul
+            id="public-profile-organizations-list"
+            data-role="organizations-list"
+        >
+            {% for org in organizations %}
+            <li data-organization="{{ org.org_slug }}">
+                <a href="/org/{{ org.org_slug }}">
+                    {{ org.org_name }}
+                    <span data-role="organization-role">({{ org.role }})</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %} {% match person.profile %} {% when Some with (profile) %} {% if
+    profile.bio.is_none() && profile.headline.is_none() &&
+    profile.skills.is_empty() && profile.experience.is_empty() %}
+    <section
+        id="section-empty-state"
+        data-state="empty"
+        data-role="empty-state"
+    >
+        <p>This user hasn't set up their profile yet.</p>
+        {% if is_own_profile %}
+        <nav aria-label="Profile actions" data-role="empty-state-actions">
+            <a href="/profile/edit" role="button" data-type="primary"
+                >Create Your Profile</a
+            >
+        </nav>
+        {% endif %}
+    </section>
+    {% endif %} {% when None %}
+    <section
+        id="section-empty-state"
+        data-state="empty"
+        data-role="empty-state"
+    >
+        <p>This user hasn't set up their profile yet.</p>
+        {% if is_own_profile %}
+        <nav aria-label="Profile actions" data-role="empty-state-actions">
+            <a href="/profile/edit" role="button" data-type="primary"
+                >Create Your Profile</a
+            >
+        </nav>
+        {% endif %}
+    </section>
+    {% endmatch %}
+</section>
+{% endblock %}

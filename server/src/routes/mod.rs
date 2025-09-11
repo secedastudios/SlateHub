@@ -10,6 +10,7 @@ mod api;
 mod auth;
 mod pages;
 mod profile;
+mod public_profiles;
 
 pub fn app() -> Router {
     // Static file service
@@ -29,6 +30,9 @@ pub fn app() -> Router {
         .nest("/api", api::router())
         // Static files
         .nest_service("/static", get_service(static_service))
+        // Mount public profiles last to handle /<username> routes
+        // This must be last to avoid conflicts with other routes
+        .merge(public_profiles::router())
         // Apply auth middleware to extract user from JWT cookies
         .layer(middleware::from_fn(auth_middleware))
         // Apply request ID middleware early in the stack
