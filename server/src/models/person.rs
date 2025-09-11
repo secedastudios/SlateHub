@@ -10,7 +10,7 @@ use crate::error::{Error, Result};
 use crate::{db_span, log_error};
 use serde::{Deserialize, Serialize};
 use surrealdb::RecordId;
-use tracing::debug;
+use tracing::{debug, error};
 
 // -----------------------------------------------------------------------------
 // Core Person Model
@@ -406,6 +406,156 @@ impl Person {
                 .and_then(|p| p.name.clone())
                 .unwrap_or_else(|| self.username.clone()),
         }
+    }
+
+    /// Updates a user's profile information.
+    ///
+    /// # Arguments
+    /// * `user_id` - The ID of the user to update
+    /// * `name` - Optional new display name
+    /// * `headline` - Optional new headline
+    /// * `bio` - Optional new bio
+    /// * `location` - Optional new location
+    /// * `website` - Optional new website
+    /// * `skills` - Optional comma-separated list of skills
+    /// * `languages` - Optional comma-separated list of languages
+    /// * `availability` - Optional availability status
+    ///
+    /// # Returns
+    /// * `Result<Option<Person>>` - The updated person record if successful
+    pub async fn update_profile(
+        user_id: &str,
+        name: Option<String>,
+        headline: Option<String>,
+        bio: Option<String>,
+        location: Option<String>,
+        website: Option<String>,
+        skills: Option<String>,
+        languages: Option<String>,
+        availability: Option<String>,
+    ) -> Result<Option<Self>> {
+        let _span = db_span!("Person::update_profile", user_id);
+
+        // Security: Only update the profile for the authenticated user's ID
+        // The user_id parameter should always be the authenticated user's ID from the middleware
+        // First, fetch the existing person record for this specific user
+        let mut person = match Self::find_by_id(user_id).await? {
+            Some(p) => {
+                // Verify ownership: The fetched person's ID must match the requested user_id
+                // This is implicit since find_by_id already filters by user_id, but we can be explicit
+                if p.id.to_string() != user_id && !user_id.starts_with("person:") {
+                    // Also check if user_id is missing the "person:" prefix
+                    let full_id = format!("person:{}", user_id);
+                    if p.id.to_string() != full_id {
+                        error!(
+                            "User {} attempted to update profile for different user",
+                            user_id
+                        );
+                        return Err(Error::Forbidden);
+                    }
+                }
+                p
+            }
+            None => {
+                debug!("Person not found for update: {}", user_id);
+                return Ok(None);
+            }
+        };
+
+        // Initialize profile if it doesn't exist
+        if person.profile.is_none() {
+            person.profile = Some(Profile {
+                name: None,
+                avatar: None,
+                headline: None,
+                bio: None,
+                location: None,
+                website: None,
+                phone: None,
+                is_public: false,
+                height_mm: None,
+                weight_kg: None,
+                body_type: None,
+                hair_color: None,
+                eye_color: None,
+                gender: None,
+                ethnicity: Vec::new(),
+                age_range: None,
+                skills: Vec::new(),
+                unions: Vec::new(),
+                languages: Vec::new(),
+                availability: None,
+                experience: Vec::new(),
+                education: Vec::new(),
+                awards: Vec::new(),
+                reels: Vec::new(),
+                media_other: Vec::new(),
+                resume: None,
+                social_links: Vec::new(),
+            });
+        }
+
+        // Update the profile fields if provided
+        if let Some(profile) = &mut person.profile {
+            if let Some(n) = name {
+                profile.name = if n.is_empty() { None } else { Some(n) };
+            }
+            if let Some(h) = headline {
+                profile.headline = if h.is_empty() { None } else { Some(h) };
+            }
+            if let Some(b) = bio {
+                profile.bio = if b.is_empty() { None } else { Some(b) };
+            }
+            if let Some(l) = location {
+                profile.location = if l.is_empty() { None } else { Some(l) };
+            }
+            if let Some(w) = website {
+                profile.website = if w.is_empty() { None } else { Some(w) };
+            }
+            if let Some(s) = skills {
+                profile.skills = if s.is_empty() {
+                    Vec::new()
+                } else {
+                    s.split(',')
+                        .map(|skill| skill.trim().to_string())
+                        .filter(|skill| !skill.is_empty())
+                        .collect()
+                };
+            }
+            if let Some(l) = languages {
+                profile.languages = if l.is_empty() {
+                    Vec::new()
+                } else {
+                    l.split(',')
+                        .map(|lang| lang.trim().to_string())
+                        .filter(|lang| !lang.is_empty())
+                        .collect()
+                };
+            }
+            if let Some(a) = availability {
+                profile.availability = if a.is_empty() { None } else { Some(a) };
+            }
+        }
+
+        // Update only the profile field in the database
+        // Use MERGE to update just the profile field without affecting other fields like password
+        let query = "UPDATE $id MERGE { profile: $profile } RETURN AFTER";
+        let mut response = DB
+            .query(query)
+            .bind(("id", person.id.clone()))
+            .bind(("profile", person.profile.clone()))
+            .await
+            .map_err(|e| {
+                log_error!(e, "Failed to update person profile");
+                Error::from(e)
+            })?;
+
+        let updated: Option<Person> = response.take(0).map_err(|e| {
+            log_error!(e, "Failed to extract updated person from response");
+            Error::from(e)
+        })?;
+
+        Ok(updated)
     }
 }
 

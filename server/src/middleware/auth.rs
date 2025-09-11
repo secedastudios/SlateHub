@@ -1,4 +1,9 @@
-use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
+use axum::{
+    extract::{FromRequestParts, Request},
+    http::{StatusCode, request::Parts},
+    middleware::Next,
+    response::Response,
+};
 use axum_extra::extract::cookie::CookieJar;
 use std::sync::Arc;
 use tracing::{debug, error, info_span, warn};
@@ -148,5 +153,24 @@ pub trait UserExtractor {
 impl UserExtractor for Request {
     fn get_user(&self) -> Option<Arc<CurrentUser>> {
         self.extensions().get::<Arc<CurrentUser>>().cloned()
+    }
+}
+
+/// Extractor for authenticated users that can be used with Form and other body-consuming extractors
+pub struct AuthenticatedUser(pub Arc<CurrentUser>);
+
+impl<S> FromRequestParts<S> for AuthenticatedUser
+where
+    S: Send + Sync,
+{
+    type Rejection = Error;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        parts
+            .extensions
+            .get::<Arc<CurrentUser>>()
+            .cloned()
+            .map(AuthenticatedUser)
+            .ok_or(Error::Unauthorized)
     }
 }

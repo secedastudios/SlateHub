@@ -9,7 +9,7 @@ use tracing::{debug, error, info};
 
 use crate::{
     error::Error,
-    middleware::UserExtractor,
+    middleware::{AuthenticatedUser, UserExtractor},
     models::person::Person,
     templates::{
         BaseContext, DateRange, Education, Experience, ProfileData, ProfileEditTemplate,
@@ -251,22 +251,49 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
 }
 
 /// Handler for updating the user's profile
-async fn update_profile(Form(_form): Form<UpdateProfileForm>) -> Result<Response, Error> {
+async fn update_profile(
+    AuthenticatedUser(current_user): AuthenticatedUser,
+    Form(form): Form<UpdateProfileForm>,
+) -> Result<Response, Error> {
     debug!("Handling profile update request");
 
-    // TODO: Implement Person::update_profile method
-    // For now, just redirect back to the profile page
-    // In a real implementation, we would:
-    // 1. Get the current user from request extensions
-    // 2. Update the profile in the database
-    // 3. Handle success/error cases appropriately
-
-    Ok(Redirect::to("/profile").into_response())
+    // Update the profile in the database
+    match Person::update_profile(
+        &current_user.id,
+        form.name,
+        form.headline,
+        form.bio,
+        form.location,
+        form.website,
+        form.skills,
+        form.languages,
+        form.availability,
+    )
+    .await
+    {
+        Ok(Some(_)) => {
+            info!(
+                "Successfully updated profile for user: {}",
+                current_user.username
+            );
+            Ok(Redirect::to(&format!("/profile/{}", current_user.username)).into_response())
+        }
+        Ok(None) => {
+            error!("Profile not found for user: {}", current_user.username);
+            Err(Error::NotFound)
+        }
+        Err(e) => {
+            error!(
+                "Failed to update profile for user {}: {}",
+                current_user.username, e
+            );
+            Err(e)
+        }
+    }
 }
 
 /// Form data for updating a user profile
 #[derive(Debug, serde::Deserialize)]
-#[allow(dead_code)] // TODO: These fields will be used when Person::update_profile is implemented
 pub struct UpdateProfileForm {
     pub name: Option<String>,
     pub headline: Option<String>,
