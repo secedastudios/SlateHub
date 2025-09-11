@@ -106,6 +106,7 @@ DEFINE FIELD uri ON media TYPE string PERMISSIONS FULL;
 DEFINE TABLE organization TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD name ON organization TYPE string PERMISSIONS FULL;
+DEFINE FIELD slug ON organization TYPE string VALUE string::slug($this.name) PERMISSIONS FULL;
 DEFINE FIELD type ON organization TYPE string PERMISSIONS FULL;  -- From organization_type
 DEFINE FIELD description ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD location ON organization TYPE option<string> PERMISSIONS FULL;  -- e.g., "Los Angeles, CA" for search
@@ -188,6 +189,7 @@ DEFINE INDEX idx_person_skills ON person FIELDS profile.skills;
 DEFINE TABLE production TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD title ON production TYPE string PERMISSIONS FULL;
+DEFINE FIELD slug ON production TYPE string VALUE string::slug($this.title) PERMISSIONS FULL;
 DEFINE FIELD type ON production TYPE string PERMISSIONS FULL;  -- From production_type
 DEFINE FIELD status ON production TYPE string PERMISSIONS FULL;  -- From production_status
 DEFINE FIELD start_date ON production TYPE option<datetime> PERMISSIONS FULL;
