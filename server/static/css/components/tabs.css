@@ -1,0 +1,458 @@
+/* ==========================================================================
+   Tabs - Elegant tab styles for creative professionals
+   ========================================================================== */
+
+/* ==========================================================================
+   Tab List Container
+   ========================================================================== */
+
+nav[role="tablist"] {
+    display: flex;
+    gap: var(--space-2);
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: var(--space-6);
+    position: relative;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+nav[role="tablist"]::-webkit-scrollbar {
+    height: 6px;
+}
+
+nav[role="tablist"]::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+nav[role="tablist"]::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+}
+
+nav[role="tablist"]::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary-400);
+}
+
+/* Center align tabs when in specific containers */
+[data-tabs] nav[role="tablist"] {
+    justify-content: center;
+}
+
+/* ==========================================================================
+   Tab Buttons
+   ========================================================================== */
+
+button[role="tab"] {
+    position: relative;
+    padding: var(--space-3) var(--space-4);
+    margin: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: var(--transition-all);
+    white-space: nowrap;
+    user-select: none;
+}
+
+button[role="tab"]::before {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: transparent;
+    transition: background var(--duration-base) var(--ease-out);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+button[role="tab"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 0;
+    background: var(--color-primary-100);
+    border-radius: var(--radius-full);
+    opacity: 0.3;
+    transition: width var(--duration-base) var(--ease-out),
+                height var(--duration-base) var(--ease-out);
+}
+
+/* Hover state */
+button[role="tab"]:hover:not([aria-selected="true"]) {
+    color: var(--color-text-primary);
+}
+
+button[role="tab"]:hover::after {
+    width: 100%;
+    height: 100%;
+}
+
+/* Focus state */
+button[role="tab"]:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 4px;
+    border-radius: var(--radius-sm);
+}
+
+/* Selected state */
+button[role="tab"][aria-selected="true"] {
+    color: var(--color-primary-600);
+    font-weight: var(--font-weight-semibold);
+}
+
+button[role="tab"][aria-selected="true"]::before {
+    background: var(--gradient-primary);
+    animation: slideIn var(--duration-base) var(--ease-out);
+}
+
+/* Disabled state */
+button[role="tab"][disabled],
+button[role="tab"][aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+button[role="tab"][disabled]:hover,
+button[role="tab"][aria-disabled="true"]:hover {
+    color: var(--color-text-muted);
+}
+
+/* ==========================================================================
+   Tab Panels
+   ========================================================================== */
+
+div[role="tabpanel"] {
+    padding: var(--space-6);
+    background: var(--color-background);
+    border-radius: var(--radius-lg);
+    min-height: 200px;
+    animation: fadeIn var(--duration-base) var(--ease-out);
+    position: relative;
+}
+
+div[role="tabpanel"][hidden] {
+    display: none;
+}
+
+/* Panel content styling */
+div[role="tabpanel"] h3:first-child {
+    margin-top: 0;
+    font-family: var(--font-serif);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-4);
+}
+
+div[role="tabpanel"] p {
+    color: var(--color-text-secondary);
+    line-height: var(--line-height-relaxed);
+    margin-bottom: var(--space-4);
+    text-align: left;
+    hyphens: none;
+}
+
+div[role="tabpanel"] ul {
+    list-style: none;
+    padding: 0;
+    margin: var(--space-4) 0;
+}
+
+div[role="tabpanel"] ul li {
+    position: relative;
+    padding-left: var(--space-6);
+    margin-bottom: var(--space-3);
+    color: var(--color-text-secondary);
+    line-height: var(--line-height-relaxed);
+}
+
+div[role="tabpanel"] ul li::before {
+    content: "✦";
+    position: absolute;
+    left: 0;
+    color: var(--color-primary-500);
+    font-size: var(--font-size-lg);
+}
+
+/* ==========================================================================
+   Features Tabs Specific Styles
+   ========================================================================== */
+
+[data-tabs="features"] nav[role="tablist"] {
+    background: transparent;
+    padding: 0;
+    margin-bottom: var(--space-6);
+}
+
+[data-tabs="features"] button[role="tab"] {
+    flex: 1;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--font-size-sm);
+}
+
+[data-tabs="features"] div[role="tabpanel"] {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-all);
+}
+
+[data-tabs="features"] div[role="tabpanel"]:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* ==========================================================================
+   Vertical Tabs Layout
+   ========================================================================== */
+
+[data-tabs-orientation="vertical"] {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-6);
+}
+
+[data-tabs-orientation="vertical"] nav[role="tablist"] {
+    flex-direction: column;
+    border-bottom: none;
+    border-right: 2px solid var(--color-border);
+    padding-right: var(--space-4);
+    margin-bottom: 0;
+    overflow-x: visible;
+    overflow-y: auto;
+}
+
+[data-tabs-orientation="vertical"] button[role="tab"] {
+    text-align: left;
+    width: 100%;
+}
+
+[data-tabs-orientation="vertical"] button[role="tab"]::before {
+    top: 0;
+    bottom: 0;
+    left: auto;
+    right: calc(-1 * var(--space-4) - 2px);
+    width: 3px;
+    height: auto;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+/* ==========================================================================
+   Pill Style Tabs
+   ========================================================================== */
+
+[data-tabs-style="pills"] nav[role="tablist"] {
+    border-bottom: none;
+    background: var(--color-surface);
+    padding: var(--space-2);
+    border-radius: var(--radius-full);
+    gap: var(--space-1);
+}
+
+[data-tabs-style="pills"] button[role="tab"] {
+    border-radius: var(--radius-full);
+    padding: var(--space-2) var(--space-4);
+}
+
+[data-tabs-style="pills"] button[role="tab"]::before {
+    display: none;
+}
+
+[data-tabs-style="pills"] button[role="tab"][aria-selected="true"] {
+    background: var(--gradient-primary);
+    color: white;
+}
+
+[data-tabs-style="pills"] button[role="tab"]:hover:not([aria-selected="true"]) {
+    background: var(--color-background);
+}
+
+/* ==========================================================================
+   Loading State for Tab Panels
+   ========================================================================== */
+
+div[role="tabpanel"][data-state="loading"] {
+    position: relative;
+    min-height: 200px;
+}
+
+div[role="tabpanel"][data-state="loading"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary-600);
+    border-radius: var(--radius-full);
+    animation: spin var(--duration-slower) linear infinite;
+}
+
+/* ==========================================================================
+   Dark Theme Adjustments
+   ========================================================================== */
+
+[data-theme="dark"] nav[role="tablist"] {
+    border-bottom-color: var(--color-border);
+}
+
+[data-theme="dark"] div[role="tabpanel"] {
+    background: var(--color-surface);
+}
+
+[data-theme="dark"] [data-tabs="features"] div[role="tabpanel"] {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] [data-tabs-style="pills"] nav[role="tablist"] {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] [data-tabs-style="pills"] button[role="tab"]:hover:not([aria-selected="true"]) {
+    background: var(--color-surface);
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    nav[role="tablist"] {
+        gap: var(--space-1);
+        padding-bottom: var(--space-2);
+    }
+
+    button[role="tab"] {
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--font-size-xs);
+    }
+
+    div[role="tabpanel"] {
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
+    }
+
+    [data-tabs="features"] button[role="tab"] {
+        flex: none;
+    }
+
+    [data-tabs-orientation="vertical"] {
+        display: block;
+    }
+
+    [data-tabs-orientation="vertical"] nav[role="tablist"] {
+        flex-direction: row;
+        border-right: none;
+        border-bottom: 2px solid var(--color-border);
+        padding-right: 0;
+        padding-bottom: 0;
+        margin-bottom: var(--space-4);
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+
+    [data-tabs-orientation="vertical"] button[role="tab"]::before {
+        top: auto;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        width: auto;
+        height: 3px;
+    }
+}
+
+@media (max-width: 480px) {
+    button[role="tab"] {
+        padding: var(--space-2);
+        letter-spacing: var(--letter-spacing-wide);
+    }
+
+    div[role="tabpanel"] {
+        padding: var(--space-3);
+        min-height: 150px;
+    }
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes slideIn {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    nav[role="tablist"] {
+        display: none;
+    }
+
+    div[role="tabpanel"] {
+        display: block !important;
+        border: 1px solid var(--color-border);
+        margin-bottom: var(--space-4);
+        page-break-inside: avoid;
+    }
+
+    div[role="tabpanel"]::before {
+        content: attr(aria-labelledby) ": ";
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    button[role="tab"],
+    button[role="tab"]::before,
+    button[role="tab"]::after,
+    div[role="tabpanel"] {
+        animation: none;
+        transition: none;
+    }
+
+    div[role="tabpanel"][data-state="loading"]::after {
+        animation-duration: 2s;
+    }
+}

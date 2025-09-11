@@ -1,0 +1,476 @@
+/* ==========================================================================
+   Grid Layout System - Layout utilities for existing semantic elements
+   ========================================================================== */
+
+/* ==========================================================================
+   Base Body and Main Content Layout
+   ========================================================================== */
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--color-background);
+}
+
+#main-content {
+    flex: 1 0 auto;
+    width: 100%;
+    max-width: var(--container-xl);
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-4);
+}
+
+/* Specific page layouts */
+[data-page="home"] #main-content {
+    max-width: 100%;
+    padding: 0;
+}
+
+[data-page="profile"] #main-content,
+[data-page="projects"] #main-content,
+[data-page="people"] #main-content {
+    max-width: var(--container-xl);
+}
+
+[data-page="login"] #main-content,
+[data-page="signup"] #main-content {
+    max-width: var(--container-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - var(--header-height) - var(--footer-min-height));
+}
+
+/* ==========================================================================
+   Article and Section Layouts
+   ========================================================================== */
+
+article,
+section {
+    width: 100%;
+    margin-bottom: var(--space-8);
+}
+
+/* Homepage article */
+#homepage {
+    width: 100%;
+}
+
+#homepage > section {
+    padding: var(--space-10) var(--space-6);
+}
+
+/* ==========================================================================
+   Hero Section Layout
+   ========================================================================== */
+
+[data-hero="true"] {
+    min-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--space-10) var(--space-4);
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+        135deg,
+        var(--color-surface) 0%,
+        var(--color-background) 100%
+    );
+}
+
+[data-hero="true"]::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+        circle,
+        var(--color-primary-100) 0%,
+        transparent 70%
+    );
+    opacity: 0.3;
+    animation: float 20s ease-in-out infinite;
+}
+
+[data-hero="true"] > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* ==========================================================================
+   Features Section with Tabs
+   ========================================================================== */
+
+[data-features="true"] {
+    padding: var(--space-10) var(--space-6);
+    background: var(--color-surface);
+}
+
+[data-features="true"] > h2 {
+    text-align: center;
+    margin-bottom: var(--space-8);
+}
+
+[data-tabs="features"] {
+    max-width: var(--container-lg);
+    margin: 0 auto;
+}
+
+[data-tabs="features"] nav[role="tablist"] {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+    border-bottom: 2px solid var(--color-border);
+}
+
+[data-tabs="features"] [role="tabpanel"] {
+    padding: var(--space-6);
+    background: var(--color-background);
+    border-radius: var(--radius-lg);
+    min-height: 300px;
+}
+
+/* ==========================================================================
+   Stats Grid Layout
+   ========================================================================== */
+
+[data-stats="true"] {
+    padding: var(--space-10) var(--space-6);
+    background: var(--color-background);
+}
+
+[data-stats="true"] > h2 {
+    text-align: center;
+    margin-bottom: var(--space-6);
+}
+
+[data-grid="stats"] {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-6);
+    max-width: var(--container-lg);
+    margin: 0 auto;
+}
+
+[data-stat] {
+    text-align: center;
+    padding: var(--space-6);
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    transition: var(--transition-all);
+}
+
+[data-stat]:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-primary-400);
+}
+
+[data-stat] data {
+    display: block;
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary-600);
+    margin-bottom: var(--space-2);
+    font-family: var(--font-serif);
+}
+
+[data-stat] label {
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    color: var(--color-text-muted);
+    font-family: var(--font-sans);
+}
+
+/* ==========================================================================
+   Activity Feed Layout
+   ========================================================================== */
+
+[data-activity="true"] {
+    padding: var(--space-10) var(--space-6);
+    background: var(--color-surface);
+}
+
+[data-activity="true"] > h2 {
+    text-align: center;
+    margin-bottom: var(--space-6);
+}
+
+[data-activity="true"] ul[role="feed"] {
+    max-width: var(--container-md);
+    margin: 0 auto;
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+[data-activity="true"] ul[role="feed"] li {
+    padding: var(--space-4);
+    background: var(--color-background);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    transition: var(--transition-all);
+}
+
+[data-activity="true"] ul[role="feed"] li:hover {
+    box-shadow: var(--shadow-sm);
+    transform: translateX(4px);
+}
+
+/* ==========================================================================
+   CTA Section Layout
+   ========================================================================== */
+
+[data-cta="true"] {
+    padding: var(--space-10) var(--space-6);
+    text-align: center;
+    background: linear-gradient(
+        135deg,
+        var(--color-primary-50) 0%,
+        var(--color-secondary-50) 100%
+    );
+    border-radius: var(--radius-xl);
+    margin: var(--space-10) auto;
+    max-width: var(--container-lg);
+}
+
+/* ==========================================================================
+   Action Buttons Layout
+   ========================================================================== */
+
+[data-actions] {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: var(--space-6);
+}
+
+[data-actions="hero"] {
+    margin-top: var(--space-8);
+}
+
+[data-actions="cta"] {
+    margin-top: var(--space-6);
+}
+
+/* ==========================================================================
+   Form Layouts
+   ========================================================================== */
+
+[data-component="auth-form"] {
+    width: 100%;
+    max-width: var(--container-sm);
+    padding: var(--space-8);
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+}
+
+[data-component="form"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+[data-role="form-section"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+[data-field] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+[data-role="form-actions"] {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+[data-role="form-footer"] {
+    margin-top: var(--space-6);
+    text-align: center;
+}
+
+/* ==========================================================================
+   Project Cards Grid (when they exist)
+   ========================================================================== */
+
+[data-component="project-card"] {
+    display: block;
+}
+
+/* Container for multiple project cards */
+section:has([data-component="project-card"]) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--space-6);
+}
+
+/* ==========================================================================
+   Profile Page Layout
+   ========================================================================== */
+
+[data-page="profile"] [data-component="profile-header"] {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-6);
+    padding: var(--space-6);
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-6);
+}
+
+[data-page="profile"] [data-component="experience-list"],
+[data-page="profile"] [data-component="skills-list"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/* ==========================================================================
+   Responsive Breakpoints
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+    #main-content {
+        padding: var(--space-4) var(--space-3);
+    }
+
+    [data-grid="stats"] {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    section:has([data-component="project-card"]) {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    [data-hero="true"] {
+        min-height: 50vh;
+        padding: var(--space-8) var(--space-3);
+    }
+
+    [data-features="true"],
+    [data-stats="true"],
+    [data-activity="true"],
+    [data-cta="true"] {
+        padding: var(--space-8) var(--space-3);
+    }
+
+    [data-tabs="features"] nav[role="tablist"] {
+        flex-wrap: wrap;
+    }
+
+    [data-grid="stats"] {
+        grid-template-columns: 1fr;
+    }
+
+    [data-actions] {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    [data-actions] > * {
+        width: 100%;
+    }
+
+    [data-component="auth-form"] {
+        padding: var(--space-6) var(--space-4);
+    }
+
+    [data-page="profile"] [data-component="profile-header"] {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    section:has([data-component="project-card"]) {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    #main-content {
+        padding: var(--space-3) var(--space-2);
+    }
+
+    [data-hero="true"] {
+        padding: var(--space-6) var(--space-2);
+    }
+}
+
+/* ==========================================================================
+   Animation Keyframes
+   ========================================================================== */
+
+@keyframes float {
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    33% {
+        transform: translate(30px, -30px) rotate(120deg);
+    }
+    66% {
+        transform: translate(-20px, 20px) rotate(240deg);
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    #main-content {
+        max-width: 100%;
+        padding: 0;
+    }
+
+    [data-hero="true"] {
+        min-height: auto;
+        padding: var(--space-4) 0;
+    }
+
+    [data-grid="stats"] {
+        display: block;
+    }
+
+    [data-stat] {
+        page-break-inside: avoid;
+        margin-bottom: var(--space-4);
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    [data-hero="true"]::before {
+        animation: none;
+    }
+
+    [data-stat]:hover,
+    [data-activity="true"] ul[role="feed"] li:hover {
+        transform: none;
+    }
+}

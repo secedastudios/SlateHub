@@ -1,0 +1,525 @@
+/* ==========================================================================
+   Notifications - Elegant notification and alert styles for creative professionals
+   ========================================================================== */
+
+/* ==========================================================================
+   Base Notification Styles
+   ========================================================================== */
+
+[data-component="notification"],
+[role="alert"],
+[role="status"],
+[aria-live="polite"],
+[aria-live="assertive"] {
+    position: relative;
+    padding: var(--space-4);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    margin: var(--space-4) 0;
+    animation: slideInRight var(--duration-base) var(--ease-out);
+    transition: var(--transition-all);
+}
+
+[data-component="notification"]:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateX(-2px);
+}
+
+/* Notification with icon or status indicator */
+[data-component="notification"]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--color-gray-400);
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+/* ==========================================================================
+   Notification Types
+   ========================================================================== */
+
+/* Success Notifications */
+[data-component="notification"][data-type="success"],
+[role="alert"][data-type="success"],
+[data-role="success-message"] {
+    background: rgba(34, 197, 94, 0.05);
+    border-color: var(--color-success);
+    color: var(--color-text-primary);
+}
+
+[data-component="notification"][data-type="success"]::before {
+    background: var(--color-success);
+}
+
+[data-component="notification"][data-type="success"] strong,
+[data-component="notification"][data-type="success"] [id*="notification-title"] {
+    color: var(--color-success);
+}
+
+/* Warning Notifications */
+[data-component="notification"][data-type="warning"],
+[role="alert"][data-type="warning"],
+[data-role="warning-message"] {
+    background: rgba(245, 158, 11, 0.05);
+    border-color: var(--color-warning);
+    color: var(--color-text-primary);
+}
+
+[data-component="notification"][data-type="warning"]::before {
+    background: var(--color-warning);
+}
+
+[data-component="notification"][data-type="warning"] strong,
+[data-component="notification"][data-type="warning"] [id*="notification-title"] {
+    color: var(--color-warning);
+}
+
+/* Error Notifications */
+[data-component="notification"][data-type="error"],
+[role="alert"][data-type="error"],
+[data-role="error-message"],
+#error-login,
+#error-email,
+#error-password {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: var(--color-error);
+    color: var(--color-text-primary);
+}
+
+[data-component="notification"][data-type="error"]::before {
+    background: var(--color-error);
+}
+
+[data-component="notification"][data-type="error"] strong,
+[data-component="notification"][data-type="error"] [id*="notification-title"] {
+    color: var(--color-error);
+}
+
+/* Info Notifications */
+[data-component="notification"][data-type="info"],
+[role="alert"][data-type="info"],
+[data-role="info-message"] {
+    background: rgba(59, 130, 246, 0.05);
+    border-color: var(--color-info);
+    color: var(--color-text-primary);
+}
+
+[data-component="notification"][data-type="info"]::before {
+    background: var(--color-info);
+}
+
+[data-component="notification"][data-type="info"] strong,
+[data-component="notification"][data-type="info"] [id*="notification-title"] {
+    color: var(--color-info);
+}
+
+/* ==========================================================================
+   Notification Content
+   ========================================================================== */
+
+[data-role="notification-content"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding-left: var(--space-3);
+}
+
+[data-role="notification-content"] strong,
+[id*="notification-title"] {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+    display: block;
+    margin-bottom: var(--space-1);
+}
+
+[data-role="notification-content"] p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    line-height: var(--line-height-relaxed);
+    font-size: var(--font-size-sm);
+}
+
+/* ==========================================================================
+   Dismissible Notifications
+   ========================================================================== */
+
+[data-component="notification"]:has(button[data-action="dismiss"]) {
+    padding-right: var(--space-10);
+}
+
+[data-component="notification"] button[data-action="dismiss"],
+[data-component="notification"] button[aria-label*="Dismiss"] {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    transition: var(--transition-all);
+    padding: 0;
+}
+
+[data-component="notification"] button[data-action="dismiss"]:hover,
+[data-component="notification"] button[aria-label*="Dismiss"]:hover {
+    background: var(--color-background);
+    border-color: currentColor;
+    transform: rotate(90deg);
+}
+
+/* ==========================================================================
+   Toast Notifications
+   ========================================================================== */
+
+[data-component="toast"],
+[data-role="toast"] {
+    position: fixed;
+    bottom: var(--space-6);
+    right: var(--space-6);
+    max-width: 400px;
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    z-index: var(--z-notification);
+    animation: slideInUp var(--duration-base) var(--ease-out);
+    transition: var(--transition-all);
+}
+
+[data-component="toast"]:hover,
+[data-role="toast"]:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-2xl);
+}
+
+/* Toast container for multiple toasts */
+[data-component="toast-container"],
+[data-role="toast-container"] {
+    position: fixed;
+    bottom: var(--space-6);
+    right: var(--space-6);
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--space-3);
+    z-index: var(--z-notification);
+    pointer-events: none;
+}
+
+[data-component="toast-container"] > *,
+[data-role="toast-container"] > * {
+    pointer-events: auto;
+}
+
+/* ==========================================================================
+   Banner Notifications
+   ========================================================================== */
+
+[data-component="banner"],
+[data-role="banner"] {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: var(--space-3) var(--space-6);
+    background: var(--gradient-primary);
+    color: white;
+    text-align: center;
+    z-index: var(--z-sticky);
+    animation: slideDown var(--duration-base) var(--ease-out);
+}
+
+[data-component="banner"] p,
+[data-role="banner"] p {
+    margin: 0;
+    color: white;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--letter-spacing-wide);
+}
+
+[data-component="banner"] a,
+[data-role="banner"] a {
+    color: white;
+    text-decoration: underline;
+    font-weight: var(--font-weight-semibold);
+}
+
+[data-component="banner"] a:hover,
+[data-role="banner"] a:hover {
+    text-decoration: none;
+}
+
+/* ==========================================================================
+   Inline Notifications
+   ========================================================================== */
+
+[data-component="inline-notification"],
+[data-role="inline-notification"] {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    animation: fadeIn var(--duration-fast) var(--ease-out);
+}
+
+/* ==========================================================================
+   Notification Badge
+   ========================================================================== */
+
+[data-component="badge"],
+[data-role="badge"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 var(--space-1);
+    background: var(--color-error);
+    color: white;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    border-radius: var(--radius-full);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   Progress Notifications
+   ========================================================================== */
+
+[data-component="notification"][data-progress="true"] {
+    position: relative;
+    overflow: hidden;
+}
+
+[data-component="notification"][data-progress="true"]::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: var(--progress, 0%);
+    background: var(--gradient-primary);
+    transition: width var(--duration-slow) var(--ease-out);
+}
+
+/* ==========================================================================
+   Loading Notifications
+   ========================================================================== */
+
+[data-component="notification"][data-state="loading"] {
+    position: relative;
+    padding-left: var(--space-10);
+}
+
+[data-component="notification"][data-state="loading"]::after {
+    content: "";
+    position: absolute;
+    left: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-primary-600);
+    border-radius: var(--radius-full);
+    animation: spin var(--duration-slower) linear infinite;
+}
+
+/* ==========================================================================
+   Dark Theme Adjustments
+   ========================================================================== */
+
+[data-theme="dark"] [data-component="notification"],
+[data-theme="dark"] [role="alert"] {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] [data-component="notification"][data-type="success"] {
+    background: rgba(34, 197, 94, 0.1);
+}
+
+[data-theme="dark"] [data-component="notification"][data-type="warning"] {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+[data-theme="dark"] [data-component="notification"][data-type="error"],
+[data-theme="dark"] [data-role="error-message"] {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+[data-theme="dark"] [data-component="notification"][data-type="info"] {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+[data-theme="dark"] [data-component="toast"],
+[data-theme="dark"] [data-role="toast"] {
+    background: var(--color-surface);
+    box-shadow: var(--shadow-2xl);
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    [data-component="toast"],
+    [data-role="toast"] {
+        bottom: var(--space-4);
+        left: var(--space-4);
+        right: var(--space-4);
+        max-width: none;
+    }
+
+    [data-component="toast-container"],
+    [data-role="toast-container"] {
+        bottom: var(--space-4);
+        left: var(--space-4);
+        right: var(--space-4);
+    }
+
+    [data-component="banner"],
+    [data-role="banner"] {
+        padding: var(--space-2) var(--space-3);
+    }
+}
+
+@media (max-width: 480px) {
+    [data-component="notification"] {
+        padding: var(--space-3);
+        font-size: var(--font-size-sm);
+    }
+
+    [data-component="notification"]:has(button[data-action="dismiss"]) {
+        padding-right: var(--space-8);
+    }
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: translateY(-50%) rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    [data-component="notification"],
+    [data-component="toast"],
+    [data-component="banner"],
+    [data-role="toast"],
+    [data-role="banner"] {
+        position: static;
+        animation: none;
+        box-shadow: none;
+        border: 1px solid var(--color-border);
+    }
+
+    [data-component="notification"] button[data-action="dismiss"] {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    [data-component="notification"],
+    [data-component="toast"],
+    [data-component="banner"],
+    [role="alert"] {
+        animation: none;
+        transition: opacity var(--duration-instant);
+    }
+
+    [data-component="notification"]:hover,
+    [data-component="toast"]:hover {
+        transform: none;
+    }
+
+    [data-component="badge"] {
+        animation: none;
+    }
+
+    [data-component="notification"][data-state="loading"]::after {
+        animation-duration: 2s;
+    }
+}

@@ -1,0 +1,255 @@
+/* ==========================================================================
+   CSS Reset - Modern reset for SlateHub
+   ========================================================================== */
+
+/* Box sizing rules */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* Remove default margin and padding */
+* {
+    margin: 0;
+    padding: 0;
+}
+
+/* Set core root defaults */
+html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Set core body defaults */
+body {
+    min-height: 100vh;
+    line-height: 1.5;
+    position: relative;
+}
+
+/* Remove list styles on ul, ol elements */
+ul,
+ol {
+    list-style: none;
+}
+
+/* A elements that don't have a class get default styles */
+a {
+    text-decoration: none;
+    color: inherit;
+    background-color: transparent;
+}
+
+/* Make images easier to work with */
+img,
+picture,
+video,
+canvas,
+svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Remove default styling for form elements */
+input,
+button,
+textarea,
+select {
+    font: inherit;
+    color: inherit;
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+/* Remove all animations and transitions for people that prefer not to see them */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Remove default button styling */
+button {
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+}
+
+/* Remove default fieldset and legend styling */
+fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+legend {
+    padding: 0;
+}
+
+/* Remove default table spacing */
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+/* Remove default hr styling */
+hr {
+    border: none;
+    height: 0;
+    margin: 0;
+}
+
+/* Set defaults for semantic HTML5 elements */
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+main,
+menu,
+nav,
+section {
+    display: block;
+}
+
+/* Set default for summary element */
+summary {
+    display: list-item;
+    cursor: pointer;
+}
+
+/* Remove default details marker in Safari */
+details > summary::-webkit-details-marker {
+    display: none;
+}
+
+/* Set default for dialog element */
+dialog {
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+dialog:not([open]) {
+    display: none;
+}
+
+/* Remove default styling for address */
+address {
+    font-style: normal;
+}
+
+/* Set default for abbr element */
+abbr[title] {
+    text-decoration: none;
+    cursor: help;
+}
+
+/* Remove default quote styling */
+blockquote,
+q {
+    quotes: none;
+}
+
+blockquote::before,
+blockquote::after,
+q::before,
+q::after {
+    content: "";
+    content: none;
+}
+
+/* Normalize form elements */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+}
+
+/* Remove spinner from number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Normalize placeholders */
+::-webkit-input-placeholder {
+    color: inherit;
+    opacity: 0.54;
+}
+
+::-moz-placeholder {
+    color: inherit;
+    opacity: 0.54;
+}
+
+:-ms-input-placeholder {
+    color: inherit;
+    opacity: 0.54;
+}
+
+::-ms-input-placeholder {
+    color: inherit;
+    opacity: 0.54;
+}
+
+::placeholder {
+    color: inherit;
+    opacity: 0.54;
+}
+
+/* Make sure textareas without a rows attribute are not tiny */
+textarea:not([rows]) {
+    min-height: 4em;
+}
+
+/* Anything that has been anchored to should have extra scroll margin */
+:target {
+    scroll-margin-block: 5ex;
+}
+
+/* Remove outline for mouse users, keep for keyboard users */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Set cursor for disabled elements */
+[disabled],
+[aria-disabled="true"] {
+    cursor: not-allowed;
+}
+
+/* Hide elements with hidden attribute */
+[hidden] {
+    display: none !important;
+}
+
+/* Ensure virtual keyboard doesn't obscure form elements on mobile */
+@supports (height: 100dvh) {
+    body {
+        min-height: 100dvh;
+    }
+}

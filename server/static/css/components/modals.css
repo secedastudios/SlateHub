@@ -1,0 +1,485 @@
+/* ==========================================================================
+   Modals - Elegant modal dialog styles for creative professionals
+   ========================================================================== */
+
+/* ==========================================================================
+   Dialog Element Base Styles
+   ========================================================================== */
+
+dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    width: 90%;
+    max-width: var(--container-md);
+    max-height: 90vh;
+    padding: 0;
+    background: var(--color-surface-elevated);
+    border: none;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-2xl);
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-out),
+                transform var(--duration-base) var(--ease-out);
+    overflow: hidden;
+    z-index: var(--z-modal);
+}
+
+dialog[open] {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    animation: modalSlideIn var(--duration-base) var(--ease-out);
+}
+
+dialog::backdrop {
+    background: var(--color-backdrop);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: fadeIn var(--duration-base) var(--ease-out);
+}
+
+/* Fallback for browsers without ::backdrop support */
+dialog + .backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--color-backdrop);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: var(--z-modal-backdrop);
+    animation: fadeIn var(--duration-base) var(--ease-out);
+}
+
+/* ==========================================================================
+   Modal Content Container
+   ========================================================================== */
+
+[data-component="modal"] {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+[data-role="modal-content"] {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+}
+
+[data-role="modal-content"]::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: var(--gradient-primary);
+    opacity: 0.03;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: float 20s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   Modal Header
+   ========================================================================== */
+
+[data-role="modal-header"] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-6) var(--space-6) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-background);
+    position: relative;
+}
+
+[data-role="modal-header"] h2,
+[data-role="modal-header"] h3 {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-semibold);
+    font-style: italic;
+    color: var(--color-text-primary);
+    flex: 1;
+}
+
+[data-role="modal-header"]::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: var(--space-6);
+    width: 60px;
+    height: 3px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+}
+
+/* Close button in header */
+[data-role="modal-header"] button[data-action="close"],
+[data-role="modal-header"] button[aria-label*="Close"] {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xl);
+    cursor: pointer;
+    transition: var(--transition-all);
+    flex-shrink: 0;
+}
+
+[data-role="modal-header"] button[data-action="close"]:hover,
+[data-role="modal-header"] button[aria-label*="Close"]:hover {
+    background: var(--color-surface);
+    border-color: var(--color-primary-500);
+    color: var(--color-primary-600);
+    transform: rotate(90deg);
+}
+
+/* ==========================================================================
+   Modal Body
+   ========================================================================== */
+
+[data-role="modal-body"] {
+    flex: 1;
+    padding: var(--space-6);
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+[data-role="modal-body"]::-webkit-scrollbar {
+    width: 8px;
+}
+
+[data-role="modal-body"]::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+[data-role="modal-body"]::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+}
+
+[data-role="modal-body"]::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary-400);
+}
+
+/* Content typography in modal body */
+[data-role="modal-body"] p {
+    margin: 0 0 var(--space-4) 0;
+    color: var(--color-text-secondary);
+    line-height: var(--line-height-relaxed);
+}
+
+[data-role="modal-body"] h3,
+[data-role="modal-body"] h4 {
+    margin: var(--space-4) 0 var(--space-3) 0;
+    font-family: var(--font-serif);
+    color: var(--color-text-primary);
+}
+
+[data-role="modal-body"] h3:first-child,
+[data-role="modal-body"] h4:first-child {
+    margin-top: 0;
+}
+
+/* ==========================================================================
+   Modal Footer
+   ========================================================================== */
+
+[data-role="modal-footer"] {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-6) var(--space-6);
+    border-top: 1px solid var(--color-border);
+    background: var(--color-background);
+}
+
+[data-role="modal-footer"] button {
+    min-width: 120px;
+}
+
+/* Cancel/secondary actions */
+[data-role="modal-footer"] button[data-action="cancel"],
+[data-role="modal-footer"] button[data-type="secondary"] {
+    order: -1;
+}
+
+/* ==========================================================================
+   Modal Sizes
+   ========================================================================== */
+
+dialog[data-size="small"],
+[data-component="modal"][data-size="small"] {
+    max-width: var(--container-sm);
+}
+
+dialog[data-size="large"],
+[data-component="modal"][data-size="large"] {
+    max-width: var(--container-xl);
+}
+
+dialog[data-size="full"],
+[data-component="modal"][data-size="full"] {
+    width: calc(100% - var(--space-8));
+    height: calc(100% - var(--space-8));
+    max-width: none;
+    max-height: none;
+}
+
+/* ==========================================================================
+   Modal Types/Variants
+   ========================================================================== */
+
+/* Confirmation modals */
+dialog[data-type="confirm"] [data-role="modal-body"],
+[data-component="modal"][data-type="confirm"] [data-role="modal-body"] {
+    text-align: center;
+    padding: var(--space-8) var(--space-6);
+}
+
+dialog[data-type="confirm"] [data-role="modal-footer"],
+[data-component="modal"][data-type="confirm"] [data-role="modal-footer"] {
+    justify-content: center;
+}
+
+/* Alert/Warning modals */
+dialog[data-type="alert"] [data-role="modal-header"],
+[data-component="modal"][data-type="alert"] [data-role="modal-header"] {
+    background: rgba(245, 158, 11, 0.1);
+    border-bottom-color: var(--color-warning);
+}
+
+dialog[data-type="alert"] [data-role="modal-header"]::after,
+[data-component="modal"][data-type="alert"] [data-role="modal-header"]::after {
+    background: var(--color-warning);
+}
+
+/* Error modals */
+dialog[data-type="error"] [data-role="modal-header"],
+[data-component="modal"][data-type="error"] [data-role="modal-header"] {
+    background: rgba(239, 68, 68, 0.1);
+    border-bottom-color: var(--color-error);
+}
+
+dialog[data-type="error"] [data-role="modal-header"]::after,
+[data-component="modal"][data-type="error"] [data-role="modal-header"]::after {
+    background: var(--color-error);
+}
+
+/* Success modals */
+dialog[data-type="success"] [data-role="modal-header"],
+[data-component="modal"][data-type="success"] [data-role="modal-header"] {
+    background: rgba(34, 197, 94, 0.1);
+    border-bottom-color: var(--color-success);
+}
+
+dialog[data-type="success"] [data-role="modal-header"]::after,
+[data-component="modal"][data-type="success"] [data-role="modal-header"]::after {
+    background: var(--color-success);
+}
+
+/* ==========================================================================
+   Modal Forms
+   ========================================================================== */
+
+dialog form,
+[data-component="modal"] form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+dialog [data-role="modal-body"] form {
+    margin: 0;
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+dialog[data-state="loading"] [data-role="modal-body"],
+[data-component="modal"][data-state="loading"] [data-role="modal-body"] {
+    position: relative;
+    min-height: 200px;
+}
+
+dialog[data-state="loading"] [data-role="modal-body"]::after,
+[data-component="modal"][data-state="loading"] [data-role="modal-body"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50px;
+    height: 50px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary-600);
+    border-radius: var(--radius-full);
+    animation: spin var(--duration-slower) linear infinite;
+}
+
+/* ==========================================================================
+   Dark Theme Adjustments
+   ========================================================================== */
+
+[data-theme="dark"] dialog {
+    background: var(--color-surface);
+}
+
+[data-theme="dark"] [data-role="modal-header"],
+[data-theme="dark"] [data-role="modal-footer"] {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] [data-role="modal-header"] button[data-action="close"]:hover {
+    background: var(--color-surface);
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    dialog {
+        width: 95%;
+        max-height: 95vh;
+        border-radius: var(--radius-lg);
+    }
+
+    [data-role="modal-header"] {
+        padding: var(--space-4);
+    }
+
+    [data-role="modal-header"] h2,
+    [data-role="modal-header"] h3 {
+        font-size: var(--font-size-xl);
+    }
+
+    [data-role="modal-body"] {
+        padding: var(--space-4);
+    }
+
+    [data-role="modal-footer"] {
+        padding: var(--space-4);
+        flex-direction: column-reverse;
+    }
+
+    [data-role="modal-footer"] button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    dialog {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        border-radius: 0;
+    }
+
+    dialog[open] {
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1) translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    33% {
+        transform: translate(30px, -30px) rotate(120deg);
+    }
+    66% {
+        transform: translate(-20px, 20px) rotate(240deg);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    dialog {
+        position: static;
+        transform: none;
+        width: 100%;
+        max-width: none;
+        box-shadow: none;
+        border: 1px solid var(--color-border);
+    }
+
+    dialog::backdrop,
+    dialog + .backdrop {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    dialog,
+    dialog[open],
+    dialog::backdrop,
+    dialog + .backdrop,
+    [data-role="modal-content"]::before {
+        animation: none;
+        transition: opacity var(--duration-instant);
+    }
+
+    [data-role="modal-header"] button[data-action="close"]:hover {
+        transform: none;
+    }
+
+    dialog[data-state="loading"] [data-role="modal-body"]::after {
+        animation-duration: 2s;
+    }
+}

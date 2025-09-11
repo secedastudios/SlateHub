@@ -1,0 +1,566 @@
+/* ==========================================================================
+   Cards - Elegant card designs for creative professionals
+   ========================================================================== */
+
+/* ==========================================================================
+   Base Card Styles
+   ========================================================================== */
+
+article[data-component="content-card"],
+article[data-component="project-card"],
+[data-component="profile-card"],
+[data-component="card"] {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    transition: var(--transition-all);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+article[data-component="content-card"]:hover,
+article[data-component="project-card"]:hover,
+[data-component="profile-card"]:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-creative-hover);
+    border-color: var(--color-primary-400);
+}
+
+/* Card with featured state */
+article[data-featured="true"] {
+    border: 2px solid var(--color-primary-500);
+    background: linear-gradient(
+        135deg,
+        var(--color-surface) 0%,
+        var(--color-primary-50) 100%
+    );
+}
+
+/* ==========================================================================
+   Card Headers
+   ========================================================================== */
+
+[data-role="card-header"] {
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-background);
+}
+
+[data-role="card-header"] h3,
+[data-role="card-header"] h4 {
+    margin: 0 0 var(--space-2) 0;
+    font-family: var(--font-serif);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-xl);
+    line-height: var(--line-height-tight);
+    transition: var(--transition-colors);
+}
+
+article:hover [data-role="card-header"] h3,
+article:hover [data-role="card-header"] h4 {
+    color: var(--color-primary-600);
+}
+
+[data-role="metadata"] {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+[data-role="metadata"] time {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+}
+
+[data-role="metadata"] [data-role="author"] {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+}
+
+/* ==========================================================================
+   Card Body
+   ========================================================================== */
+
+[data-role="card-body"] {
+    padding: var(--space-4);
+    flex: 1;
+}
+
+[data-role="card-body"] p {
+    margin: 0 0 var(--space-3) 0;
+    color: var(--color-text-secondary);
+    line-height: var(--line-height-relaxed);
+    text-align: left;
+    hyphens: none;
+}
+
+[data-role="card-body"] p:last-child {
+    margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Card Footer
+   ========================================================================== */
+
+[data-role="card-footer"] {
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--color-border);
+    background: var(--color-background);
+    margin-top: auto;
+}
+
+[data-role="card-actions"] {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+[data-role="card-actions"] button {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-xs);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    transition: var(--transition-all);
+}
+
+[data-role="card-actions"] button:hover {
+    background: var(--gradient-primary);
+    color: white;
+    border-color: transparent;
+    transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   Project Cards
+   ========================================================================== */
+
+article[data-component="project-card"] {
+    min-height: 320px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+article[data-component="project-card"]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--duration-base) var(--ease-out);
+}
+
+article[data-component="project-card"]:hover::before {
+    transform: scaleX(1);
+}
+
+/* Project card thumbnail */
+article[data-component="project-card"] [data-role="thumbnail"] {
+    width: 100%;
+    height: 200px;
+    background: var(--color-gray-200);
+    overflow: hidden;
+    position: relative;
+}
+
+article[data-component="project-card"] [data-role="thumbnail"] img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: var(--transition-transform);
+}
+
+article[data-component="project-card"]:hover [data-role="thumbnail"] img {
+    transform: scale(1.05);
+}
+
+/* Project status badge */
+article[data-component="project-card"] [data-role="badge"] {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    padding: var(--space-1) var(--space-2);
+    background: var(--gradient-primary);
+    color: white;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    border-radius: var(--radius-full);
+    z-index: 1;
+}
+
+/* ==========================================================================
+   Profile Cards
+   ========================================================================== */
+
+[data-component="profile-card"] {
+    text-align: center;
+    padding: var(--space-6);
+}
+
+[data-component="profile-card"] [data-role="avatar"] {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius-full);
+    margin: 0 auto var(--space-4);
+    object-fit: cover;
+    border: 4px solid var(--color-border);
+    transition: var(--transition-all);
+}
+
+[data-component="profile-card"]:hover [data-role="avatar"] {
+    border-color: var(--color-primary-500);
+    transform: scale(1.05) rotate(3deg);
+}
+
+[data-component="profile-card"] h3 {
+    font-family: var(--font-serif);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-semibold);
+    margin: 0 0 var(--space-2) 0;
+    color: var(--color-text-primary);
+}
+
+[data-component="profile-card"] [data-role="title"] {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    margin-bottom: var(--space-4);
+}
+
+/* ==========================================================================
+   Stat Cards
+   ========================================================================== */
+
+article[data-stat] {
+    text-align: center;
+    padding: var(--space-6);
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    transition: var(--transition-all);
+    position: relative;
+    overflow: hidden;
+}
+
+article[data-stat]::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: var(--gradient-primary);
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-in-out);
+    border-radius: 50%;
+}
+
+article[data-stat]:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-primary-400);
+}
+
+article[data-stat]:hover::before {
+    opacity: 0.05;
+}
+
+article[data-stat] data {
+    display: block;
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary-600);
+    margin-bottom: var(--space-2);
+    font-family: var(--font-serif);
+    font-style: italic;
+    transition: var(--transition-all);
+}
+
+article[data-stat]:hover data {
+    transform: scale(1.1);
+}
+
+article[data-stat] label {
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    color: var(--color-text-muted);
+    font-family: var(--font-sans);
+    font-weight: var(--font-weight-medium);
+}
+
+/* ==========================================================================
+   Experience/Item Cards
+   ========================================================================== */
+
+[data-component="experience-item"],
+[data-component="skill-item"],
+div[data-item="true"] {
+    padding: var(--space-4);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    transition: var(--transition-all);
+    position: relative;
+    padding-left: var(--space-6);
+}
+
+[data-component="experience-item"]::before,
+[data-component="skill-item"]::before,
+div[data-item="true"]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    transition: width var(--duration-base) var(--ease-out);
+}
+
+[data-component="experience-item"]:hover,
+[data-component="skill-item"]:hover,
+div[data-item="true"]:hover {
+    box-shadow: var(--shadow-sm);
+    transform: translateX(4px);
+}
+
+[data-component="experience-item"]:hover::before,
+[data-component="skill-item"]:hover::before,
+div[data-item="true"]:hover::before {
+    width: 8px;
+}
+
+[data-role="item-header"] {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-2);
+    gap: var(--space-3);
+}
+
+[data-role="item-header"] h3,
+[data-role="item-header"] h4 {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+[data-role="item-header"] time {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    white-space: nowrap;
+}
+
+[data-role="item-body"] {
+    color: var(--color-text-secondary);
+    line-height: var(--line-height-relaxed);
+}
+
+/* ==========================================================================
+   Empty State Cards
+   ========================================================================== */
+
+[data-role="empty-state"] {
+    padding: var(--space-10) var(--space-6);
+    text-align: center;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 2px dashed var(--color-border);
+}
+
+[data-role="empty-state"] p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-lg);
+    font-style: italic;
+    margin: 0;
+    text-align: center;
+}
+
+[data-role="empty-state"] button {
+    margin-top: var(--space-4);
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+[data-state="loading"] article,
+article[data-state="loading"] {
+    position: relative;
+    overflow: hidden;
+}
+
+[data-state="loading"] article::after,
+article[data-state="loading"]::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    [data-role="card-header"],
+    [data-role="card-body"],
+    [data-role="card-footer"] {
+        padding: var(--space-3);
+    }
+
+    [data-component="profile-card"] {
+        padding: var(--space-4);
+    }
+
+    [data-component="profile-card"] [data-role="avatar"] {
+        width: 80px;
+        height: 80px;
+    }
+
+    article[data-stat] {
+        padding: var(--space-4);
+    }
+
+    article[data-stat] data {
+        font-size: var(--font-size-3xl);
+    }
+
+    [data-role="item-header"] {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    article[data-component="project-card"] [data-role="thumbnail"] {
+        height: 150px;
+    }
+
+    [data-component="experience-item"],
+    [data-component="skill-item"],
+    div[data-item="true"] {
+        padding-left: var(--space-4);
+    }
+}
+
+/* ==========================================================================
+   Dark Theme Adjustments
+   ========================================================================== */
+
+[data-theme="dark"] article[data-component="content-card"],
+[data-theme="dark"] article[data-component="project-card"],
+[data-theme="dark"] [data-component="profile-card"],
+[data-theme="dark"] article[data-stat],
+[data-theme="dark"] [data-component="experience-item"],
+[data-theme="dark"] [data-component="skill-item"],
+[data-theme="dark"] div[data-item="true"] {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] [data-role="card-header"],
+[data-theme="dark"] [data-role="card-footer"] {
+    background: var(--color-surface);
+}
+
+[data-theme="dark"] article[data-featured="true"] {
+    background: linear-gradient(
+        135deg,
+        var(--color-surface-elevated) 0%,
+        rgba(229, 90, 67, 0.1) 100%
+    );
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes shimmer {
+    to {
+        left: 100%;
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    article[data-component="content-card"],
+    article[data-component="project-card"],
+    [data-component="profile-card"] {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid var(--color-border);
+    }
+
+    article[data-component="project-card"] [data-role="thumbnail"] {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    article[data-component="content-card"],
+    article[data-component="project-card"],
+    [data-component="profile-card"],
+    article[data-stat],
+    [data-component="experience-item"],
+    [data-component="skill-item"],
+    div[data-item="true"] {
+        transition: none;
+    }
+
+    article[data-component="content-card"]:hover,
+    article[data-component="project-card"]:hover,
+    [data-component="profile-card"]:hover,
+    article[data-stat]:hover,
+    [data-component="experience-item"]:hover,
+    [data-component="skill-item"]:hover,
+    div[data-item="true"]:hover {
+        transform: none;
+    }
+
+    [data-state="loading"] article::after,
+    article[data-state="loading"]::after {
+        animation: none;
+    }
+}

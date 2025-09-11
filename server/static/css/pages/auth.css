@@ -1,0 +1,606 @@
+/* ==========================================================================
+   Auth Pages - Styles for login and signup pages
+   ========================================================================== */
+
+/* ==========================================================================
+   Auth Page Container
+   ========================================================================== */
+
+[data-page="login"],
+[data-page="signup"] {
+    background: linear-gradient(
+        135deg,
+        var(--color-primary-50) 0%,
+        var(--color-secondary-50) 100%
+    );
+    min-height: 100vh;
+}
+
+[data-page="login"] #main-content,
+[data-page="signup"] #main-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - var(--header-height));
+    padding: var(--space-6) var(--space-4);
+}
+
+/* ==========================================================================
+   Auth Form Component
+   ========================================================================== */
+
+[data-page="login"] [data-component="auth-form"],
+[data-page="signup"] [data-component="auth-form"] {
+    width: 100%;
+    max-width: var(--container-sm);
+    background: white;
+    border-radius: var(--radius-2xl);
+    box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.15);
+    padding: var(--space-8);
+    position: relative;
+    overflow: hidden;
+    animation: scaleIn var(--duration-base) var(--ease-out);
+}
+
+[data-page="login"] [data-component="auth-form"]::before,
+[data-page="signup"] [data-component="auth-form"]::before {
+    content: "";
+    position: absolute;
+    top: -150px;
+    right: -150px;
+    width: 300px;
+    height: 300px;
+    background: var(--gradient-primary);
+    opacity: 0.08;
+    border-radius: 50%;
+    animation: float 20s ease-in-out infinite;
+}
+
+[data-page="login"] [data-component="auth-form"]::after,
+[data-page="signup"] [data-component="auth-form"]::after {
+    content: "";
+    position: absolute;
+    bottom: -100px;
+    left: -100px;
+    width: 200px;
+    height: 200px;
+    background: var(--gradient-primary);
+    opacity: 0.05;
+    border-radius: 50%;
+    animation: float 25s ease-in-out infinite reverse;
+}
+
+/* ==========================================================================
+   Form Header
+   ========================================================================== */
+
+[data-page="login"] [data-role="form-header"],
+[data-page="signup"] [data-role="form-header"] {
+    text-align: center;
+    margin-bottom: var(--space-8);
+    position: relative;
+    z-index: 1;
+}
+
+[data-page="login"] [data-role="form-header"] h1,
+[data-page="signup"] [data-role="form-header"] h1,
+#heading-login,
+#heading-signup {
+    font-family: var(--font-serif);
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    font-style: italic;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-2) 0;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: fadeInDown var(--duration-base) var(--ease-out);
+}
+
+[data-page="login"] [data-role="form-header"] p,
+[data-page="signup"] [data-role="form-header"] p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-base);
+    margin: 0;
+    opacity: 0;
+    animation: fadeInUp var(--duration-base) var(--ease-out) 100ms forwards;
+}
+
+/* ==========================================================================
+   Form Fields
+   ========================================================================== */
+
+#form-login,
+#form-signup {
+    position: relative;
+    z-index: 1;
+}
+
+[data-page="login"] [data-field],
+[data-page="signup"] [data-field] {
+    margin-bottom: var(--space-5);
+    opacity: 0;
+    animation: fadeInUp var(--duration-base) var(--ease-out) forwards;
+}
+
+[data-page="login"] [data-field]:nth-child(1) { animation-delay: 200ms; }
+[data-page="login"] [data-field]:nth-child(2) { animation-delay: 300ms; }
+[data-page="login"] [data-field]:nth-child(3) { animation-delay: 400ms; }
+
+[data-page="signup"] [data-field]:nth-child(1) { animation-delay: 200ms; }
+[data-page="signup"] [data-field]:nth-child(2) { animation-delay: 250ms; }
+[data-page="signup"] [data-field]:nth-child(3) { animation-delay: 300ms; }
+[data-page="signup"] [data-field]:nth-child(4) { animation-delay: 350ms; }
+
+/* Labels */
+[data-page="login"] label,
+[data-page="signup"] label {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    color: var(--color-text-secondary);
+    display: block;
+    margin-bottom: var(--space-2);
+    transition: var(--transition-colors);
+}
+
+/* Input Fields */
+#input-email,
+#input-password,
+#input-username,
+#input-confirm-password,
+[data-page="login"] input[type="text"],
+[data-page="login"] input[type="email"],
+[data-page="login"] input[type="password"],
+[data-page="signup"] input[type="text"],
+[data-page="signup"] input[type="email"],
+[data-page="signup"] input[type="password"] {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-serif);
+    font-size: var(--font-size-base);
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: all var(--duration-base) var(--ease-out);
+}
+
+#input-email:focus,
+#input-password:focus,
+#input-username:focus,
+#input-confirm-password:focus,
+[data-page="login"] input:focus,
+[data-page="signup"] input:focus {
+    background: white;
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 4px rgba(229, 90, 67, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Checkbox for Remember Me */
+[data-field="remember"] {
+    display: flex;
+    align-items: center;
+}
+
+[data-field="remember"] label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    text-transform: none;
+    font-weight: var(--font-weight-regular);
+    user-select: none;
+}
+
+#input-remember {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: var(--transition-all);
+}
+
+#input-remember:checked {
+    background: var(--gradient-primary);
+    border-color: var(--color-primary-600);
+}
+
+#input-remember[role="switch"] {
+    width: 44px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    background: var(--color-gray-300);
+    border: none;
+    position: relative;
+}
+
+#input-remember[role="switch"]::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-all);
+}
+
+#input-remember[role="switch"]:checked {
+    background: var(--gradient-primary);
+}
+
+#input-remember[role="switch"]:checked::after {
+    transform: translateX(20px);
+}
+
+/* ==========================================================================
+   Error Messages
+   ========================================================================== */
+
+#error-login,
+#error-signup,
+#error-email,
+#error-password,
+[data-page="login"] [data-role="error-message"],
+[data-page="signup"] [data-role="error-message"] {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-4);
+    color: var(--color-error);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    animation: slideInDown var(--duration-base) var(--ease-out);
+    position: relative;
+    padding-left: var(--space-8);
+}
+
+#error-login::before,
+#error-signup::before,
+[data-page="login"] [data-role="error-message"]::before,
+[data-page="signup"] [data-role="error-message"]::before {
+    content: "⚠";
+    position: absolute;
+    left: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: var(--font-size-lg);
+}
+
+/* ==========================================================================
+   Form Actions
+   ========================================================================== */
+
+[data-page="login"] [data-role="form-actions"],
+[data-page="signup"] [data-role="form-actions"] {
+    margin-top: var(--space-6);
+    opacity: 0;
+    animation: fadeInUp var(--duration-base) var(--ease-out) 500ms forwards;
+}
+
+[data-page="login"] button[type="submit"],
+[data-page="signup"] button[type="submit"] {
+    width: 100%;
+    padding: var(--space-4) var(--space-6);
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-full);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    cursor: pointer;
+    transition: all var(--duration-base) var(--ease-out);
+    box-shadow: 0 10px 30px -10px rgba(229, 90, 67, 0.5);
+}
+
+[data-page="login"] button[type="submit"]:hover,
+[data-page="signup"] button[type="submit"]:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px -10px rgba(229, 90, 67, 0.6);
+}
+
+[data-page="login"] button[type="submit"]:active,
+[data-page="signup"] button[type="submit"]:active {
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Form Footer / Alternative Actions
+   ========================================================================== */
+
+#nav-login-alternatives,
+#nav-signup-alternatives,
+[data-page="login"] [data-role="form-footer"],
+[data-page="signup"] [data-role="form-footer"] {
+    margin-top: var(--space-6);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+    opacity: 0;
+    animation: fadeIn var(--duration-base) var(--ease-out) 600ms forwards;
+}
+
+[data-page="login"] [data-role="form-footer"] ul,
+[data-page="signup"] [data-role="form-footer"] ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+[data-page="login"] [data-role="form-footer"] a,
+[data-page="signup"] [data-role="form-footer"] a {
+    color: var(--color-primary-600);
+    text-decoration: none;
+    font-weight: var(--font-weight-medium);
+    transition: var(--transition-colors);
+    position: relative;
+}
+
+[data-page="login"] [data-role="form-footer"] a::after,
+[data-page="signup"] [data-role="form-footer"] a::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--gradient-primary);
+    transition: width var(--duration-base) var(--ease-out);
+}
+
+[data-page="login"] [data-role="form-footer"] a:hover::after,
+[data-page="signup"] [data-role="form-footer"] a:hover::after {
+    width: 100%;
+}
+
+[data-page="login"] [data-role="form-footer"] span,
+[data-page="signup"] [data-role="form-footer"] span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* ==========================================================================
+   Social Login Options (if present)
+   ========================================================================== */
+
+[data-page="login"] [data-role="social-login"],
+[data-page="signup"] [data-role="social-login"] {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+}
+
+[data-page="login"] [data-role="social-login"] button,
+[data-page="signup"] [data-role="social-login"] button {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
+    background: white;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-full);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: var(--transition-all);
+}
+
+[data-page="login"] [data-role="social-login"] button:hover,
+[data-page="signup"] [data-role="social-login"] button:hover {
+    background: var(--color-surface);
+    border-color: var(--color-primary-500);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+[data-page="login"] form[data-state="submitting"],
+[data-page="signup"] form[data-state="submitting"] {
+    pointer-events: none;
+}
+
+[data-page="login"] form[data-state="submitting"] button[type="submit"],
+[data-page="signup"] form[data-state="submitting"] button[type="submit"] {
+    position: relative;
+    color: transparent;
+}
+
+[data-page="login"] form[data-state="submitting"] button[type="submit"]::after,
+[data-page="signup"] form[data-state="submitting"] button[type="submit"]::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    top: 50%;
+    left: 50%;
+    margin-left: -10px;
+    margin-top: -10px;
+    border: 2px solid white;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin var(--duration-slower) linear infinite;
+}
+
+/* ==========================================================================
+   Dark Theme Adjustments
+   ========================================================================== */
+
+[data-theme="dark"][data-page="login"],
+[data-theme="dark"][data-page="signup"] {
+    background: linear-gradient(
+        135deg,
+        rgba(229, 90, 67, 0.1) 0%,
+        rgba(144, 97, 249, 0.1) 100%
+    );
+}
+
+[data-theme="dark"][data-page="login"] [data-component="auth-form"],
+[data-theme="dark"][data-page="signup"] [data-component="auth-form"] {
+    background: var(--color-surface-elevated);
+    box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"][data-page="login"] input,
+[data-theme="dark"][data-page="signup"] input {
+    background: var(--color-surface);
+}
+
+[data-theme="dark"][data-page="login"] input:focus,
+[data-theme="dark"][data-page="signup"] input:focus {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"][data-page="login"] [data-role="social-login"] button,
+[data-theme="dark"][data-page="signup"] [data-role="social-login"] button {
+    background: var(--color-surface);
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    [data-page="login"] [data-component="auth-form"],
+    [data-page="signup"] [data-component="auth-form"] {
+        padding: var(--space-6);
+        border-radius: var(--radius-xl);
+    }
+
+    [data-page="login"] [data-role="form-header"] h1,
+    [data-page="signup"] [data-role="form-header"] h1,
+    #heading-login,
+    #heading-signup {
+        font-size: var(--font-size-2xl);
+    }
+}
+
+@media (max-width: 480px) {
+    [data-page="login"] #main-content,
+    [data-page="signup"] #main-content {
+        padding: var(--space-3);
+    }
+
+    [data-page="login"] [data-component="auth-form"],
+    [data-page="signup"] [data-component="auth-form"] {
+        padding: var(--space-4);
+    }
+
+    [data-page="login"] button[type="submit"],
+    [data-page="signup"] button[type="submit"] {
+        padding: var(--space-3) var(--space-4);
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    [data-page="login"],
+    [data-page="signup"] {
+        background: white;
+    }
+
+    [data-page="login"] [data-component="auth-form"],
+    [data-page="signup"] [data-component="auth-form"] {
+        box-shadow: none;
+        border: 1px solid var(--color-border);
+    }
+
+    [data-page="login"] [data-component="auth-form"]::before,
+    [data-page="login"] [data-component="auth-form"]::after,
+    [data-page="signup"] [data-component="auth-form"]::before,
+    [data-page="signup"] [data-component="auth-form"]::after {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    [data-page="login"] [data-component="auth-form"],
+    [data-page="signup"] [data-component="auth-form"],
+    [data-page="login"] [data-field],
+    [data-page="signup"] [data-field],
+    [data-page="login"] [data-role="form-actions"],
+    [data-page="signup"] [data-role="form-actions"],
+    [data-page="login"] [data-role="form-footer"],
+    [data-page="signup"] [data-role="form-footer"] {
+        animation: none;
+        opacity: 1;
+    }
+
+    [data-page="login"] [data-component="auth-form"]::before,
+    [data-page="login"] [data-component="auth-form"]::after,
+    [data-page="signup"] [data-component="auth-form"]::before,
+    [data-page="signup"] [data-component="auth-form"]::after {
+        animation: none;
+    }
+
+    [data-page="login"] input:focus,
+    [data-page="signup"] input:focus,
+    [data-page="login"] button[type="submit"]:hover,
+    [data-page="signup"] button[type="submit"]:hover {
+        transform: none;
+    }
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    33% {
+        transform: translate(30px, -30px) rotate(120deg);
+    }
+    66% {
+        transform: translate(-20px, 20px) rotate(240deg);
+    }
+}

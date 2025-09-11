@@ -1,0 +1,504 @@
+/* ==========================================================================
+   Tables - Elegant table styles for creative professionals
+   ========================================================================== */
+
+/* ==========================================================================
+   Base Table Styles
+   ========================================================================== */
+
+table {
+    width: 100%;
+    background: var(--color-surface);
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin: var(--space-4) 0;
+    font-family: var(--font-sans);
+}
+
+/* Table with border */
+table[border] {
+    border: 1px solid var(--color-border);
+}
+
+/* ==========================================================================
+   Table Caption
+   ========================================================================== */
+
+caption {
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-serif);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    font-style: italic;
+    color: var(--color-text-primary);
+    text-align: left;
+    caption-side: top;
+    background: var(--color-background);
+    border-bottom: 2px solid var(--color-border);
+}
+
+caption::after {
+    content: "";
+    display: block;
+    width: 50px;
+    height: 3px;
+    background: var(--gradient-primary);
+    margin-top: var(--space-2);
+    border-radius: var(--radius-full);
+}
+
+/* ==========================================================================
+   Table Header
+   ========================================================================== */
+
+thead {
+    background: var(--color-background);
+    border-bottom: 2px solid var(--color-border);
+}
+
+thead tr {
+    position: relative;
+}
+
+thead th {
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    color: var(--color-text-secondary);
+    text-align: left;
+    white-space: nowrap;
+    position: relative;
+    transition: var(--transition-colors);
+}
+
+/* Sortable headers */
+thead th[aria-sort] {
+    cursor: pointer;
+    user-select: none;
+}
+
+thead th[aria-sort]:hover {
+    color: var(--color-primary-600);
+    background: var(--color-surface);
+}
+
+thead th[aria-sort]::after {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-left: var(--space-2);
+    vertical-align: middle;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    opacity: 0.3;
+    transition: var(--transition-all);
+}
+
+thead th[aria-sort="none"]::after,
+thead th[aria-sort]:not([aria-sort])::after {
+    border-top: 4px solid currentColor;
+    border-bottom: 4px solid currentColor;
+    height: 2px;
+}
+
+thead th[aria-sort="ascending"]::after {
+    border-bottom: 5px solid var(--color-primary-600);
+    opacity: 1;
+}
+
+thead th[aria-sort="descending"]::after {
+    border-top: 5px solid var(--color-primary-600);
+    opacity: 1;
+}
+
+/* Column with scope */
+th[scope="col"] {
+    vertical-align: bottom;
+}
+
+th[scope="row"] {
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+/* ==========================================================================
+   Table Body
+   ========================================================================== */
+
+tbody tr {
+    transition: var(--transition-all);
+    position: relative;
+}
+
+tbody tr::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 1px;
+    background: var(--color-border);
+    opacity: 0.5;
+}
+
+tbody tr:last-child::after {
+    display: none;
+}
+
+tbody tr:hover {
+    background: var(--color-background);
+    box-shadow: var(--shadow-xs);
+    transform: translateX(2px);
+}
+
+tbody tr:hover::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--gradient-primary);
+}
+
+tbody td {
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-serif);
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    vertical-align: middle;
+    transition: var(--transition-colors);
+}
+
+/* Numeric data cells */
+td[data-type="number"],
+td:has(data),
+td:has(time) {
+    font-family: var(--font-mono);
+    text-align: right;
+}
+
+/* Status cells */
+td[data-status] {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+td[data-status="active"],
+td[data-status="success"] {
+    color: var(--color-success);
+}
+
+td[data-status="pending"],
+td[data-status="warning"] {
+    color: var(--color-warning);
+}
+
+td[data-status="inactive"],
+td[data-status="error"] {
+    color: var(--color-error);
+}
+
+/* Links in table cells */
+tbody td a {
+    color: var(--color-primary-600);
+    text-decoration: none;
+    font-weight: var(--font-weight-medium);
+    transition: var(--transition-colors);
+}
+
+tbody td a:hover {
+    color: var(--color-primary-700);
+    text-decoration: underline;
+}
+
+/* Actions cell */
+td[data-role="actions"] {
+    text-align: right;
+    white-space: nowrap;
+}
+
+td[data-role="actions"] button {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+    margin-left: var(--space-1);
+}
+
+/* ==========================================================================
+   Table Footer
+   ========================================================================== */
+
+tfoot {
+    background: var(--color-background);
+    border-top: 2px solid var(--color-border);
+    font-weight: var(--font-weight-semibold);
+}
+
+tfoot td,
+tfoot th {
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+}
+
+/* ==========================================================================
+   Striped Tables
+   ========================================================================== */
+
+table[data-striped="true"] tbody tr:nth-child(even),
+tbody tr:nth-child(even) {
+    background: var(--color-surface);
+}
+
+table[data-striped="true"] tbody tr:nth-child(odd),
+tbody tr:nth-child(odd) {
+    background: var(--color-background);
+}
+
+/* ==========================================================================
+   Responsive Tables
+   ========================================================================== */
+
+/* Wrapper for responsive tables */
+[data-component="table-wrapper"],
+[data-role="table-container"] {
+    width: 100%;
+    overflow-x: auto;
+    margin: var(--space-4) 0;
+    border-radius: var(--radius-lg);
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+[data-component="table-wrapper"]::-webkit-scrollbar,
+[data-role="table-container"]::-webkit-scrollbar {
+    height: 8px;
+}
+
+[data-component="table-wrapper"]::-webkit-scrollbar-track,
+[data-role="table-container"]::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+[data-component="table-wrapper"]::-webkit-scrollbar-thumb,
+[data-role="table-container"]::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+}
+
+[data-component="table-wrapper"]::-webkit-scrollbar-thumb:hover,
+[data-role="table-container"]::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary-400);
+}
+
+/* ==========================================================================
+   Empty State
+   ========================================================================== */
+
+tbody:empty::after,
+tbody:has(tr:empty)::after {
+    content: "No data available";
+    display: block;
+    padding: var(--space-8) var(--space-4);
+    text-align: center;
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-family: var(--font-serif);
+    font-size: var(--font-size-lg);
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+table[data-state="loading"] tbody,
+tbody[data-state="loading"] {
+    position: relative;
+    min-height: 200px;
+}
+
+table[data-state="loading"] tbody::after,
+tbody[data-state="loading"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary-600);
+    border-radius: var(--radius-full);
+    animation: spin var(--duration-slower) linear infinite;
+}
+
+/* ==========================================================================
+   Dark Theme Adjustments
+   ========================================================================== */
+
+[data-theme="dark"] table {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] thead,
+[data-theme="dark"] tfoot,
+[data-theme="dark"] caption {
+    background: var(--color-surface);
+}
+
+[data-theme="dark"] tbody tr:hover {
+    background: var(--color-surface);
+}
+
+[data-theme="dark"] tbody tr:nth-child(even) {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] tbody tr:nth-child(odd) {
+    background: var(--color-surface);
+}
+
+/* ==========================================================================
+   Mobile Responsive
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    /* Convert table to card layout on mobile */
+    table,
+    thead,
+    tbody,
+    tfoot,
+    tr,
+    th,
+    td {
+        display: block;
+    }
+
+    thead {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+
+    tbody tr {
+        margin-bottom: var(--space-4);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: var(--space-3);
+        background: var(--color-surface);
+    }
+
+    tbody tr:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    tbody tr::after {
+        display: none;
+    }
+
+    tbody td {
+        position: relative;
+        padding-left: 50%;
+        text-align: right;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    tbody td:last-child {
+        border-bottom: none;
+    }
+
+    tbody td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: var(--space-3);
+        width: 45%;
+        text-align: left;
+        font-family: var(--font-sans);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: var(--letter-spacing-wide);
+        color: var(--color-text-secondary);
+    }
+
+    td[data-role="actions"] {
+        text-align: center;
+        padding-left: var(--space-3);
+    }
+
+    td[data-role="actions"]::before {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    table {
+        box-shadow: none;
+        border: 1px solid var(--color-border);
+        page-break-inside: avoid;
+    }
+
+    thead {
+        display: table-header-group;
+    }
+
+    tbody tr {
+        page-break-inside: avoid;
+    }
+
+    tbody tr:hover {
+        background: transparent;
+        transform: none;
+    }
+
+    tbody tr:hover::before {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes spin {
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    table,
+    tbody tr,
+    th,
+    td {
+        transition: none;
+    }
+
+    tbody tr:hover {
+        transform: none;
+    }
+
+    table[data-state="loading"] tbody::after,
+    tbody[data-state="loading"]::after {
+        animation-duration: 2s;
+    }
+}

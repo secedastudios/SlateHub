@@ -1,0 +1,553 @@
+/* ==========================================================================
+   States - Utility styles for different UI states
+   ========================================================================== */
+
+/* ==========================================================================
+   Loading States
+   ========================================================================== */
+
+[data-state="loading"],
+[aria-busy="true"] {
+    position: relative;
+    pointer-events: none;
+    user-select: none;
+    cursor: wait;
+}
+
+[data-state="loading"] > *,
+[aria-busy="true"] > * {
+    opacity: 0.5;
+    filter: blur(1px);
+}
+
+[data-state="loading"]::before,
+[aria-busy="true"]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--color-overlay-light);
+    z-index: 1;
+    border-radius: inherit;
+}
+
+/* ==========================================================================
+   Empty States
+   ========================================================================== */
+
+[data-state="empty"],
+[data-role="empty-state"] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: var(--space-8) var(--space-4);
+    text-align: center;
+}
+
+[data-state="empty"]::before {
+    content: "📭";
+    font-size: 4rem;
+    opacity: 0.3;
+    margin-bottom: var(--space-4);
+}
+
+[data-state="empty"] p,
+[data-role="empty-state"] p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-lg);
+    font-style: italic;
+    margin: 0;
+}
+
+/* ==========================================================================
+   Error States
+   ========================================================================== */
+
+[data-state="error"],
+[aria-invalid="true"] {
+    border-color: var(--color-error) !important;
+    background: rgba(239, 68, 68, 0.05) !important;
+}
+
+[data-state="error"]::before {
+    content: "⚠️";
+    position: absolute;
+    right: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-error);
+}
+
+/* ==========================================================================
+   Success States
+   ========================================================================== */
+
+[data-state="success"] {
+    border-color: var(--color-success) !important;
+    background: rgba(34, 197, 94, 0.05) !important;
+}
+
+[data-state="success"]::after {
+    content: "✓";
+    position: absolute;
+    right: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-success);
+    font-weight: bold;
+    font-size: var(--font-size-lg);
+}
+
+/* ==========================================================================
+   Disabled States
+   ========================================================================== */
+
+[disabled],
+[aria-disabled="true"],
+[data-state="disabled"] {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    pointer-events: none;
+    filter: grayscale(0.5);
+    user-select: none;
+}
+
+[disabled] *,
+[aria-disabled="true"] *,
+[data-state="disabled"] * {
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+/* ==========================================================================
+   Active/Selected States
+   ========================================================================== */
+
+[aria-selected="true"],
+[aria-current="page"],
+[aria-current="true"],
+[data-state="active"] {
+    position: relative;
+}
+
+[aria-selected="true"]::after,
+[aria-current="page"]::after,
+[data-state="active"]::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+}
+
+/* ==========================================================================
+   Expanded/Collapsed States
+   ========================================================================== */
+
+[aria-expanded="false"] + *,
+[data-collapsed="true"] + * {
+    display: none;
+}
+
+[aria-expanded="true"] + *,
+[data-collapsed="false"] + * {
+    display: block;
+    animation: fadeInUp var(--duration-base) var(--ease-out);
+}
+
+details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+details summary::before {
+    content: "▶";
+    display: inline-block;
+    margin-right: var(--space-2);
+    transition: transform var(--duration-base) var(--ease-out);
+}
+
+/* ==========================================================================
+   Pressed/Toggle States
+   ========================================================================== */
+
+[aria-pressed="true"] {
+    background: var(--gradient-primary) !important;
+    color: white !important;
+    border-color: transparent !important;
+}
+
+[aria-pressed="false"] {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border-color: var(--color-border);
+}
+
+/* ==========================================================================
+   Checked States
+   ========================================================================== */
+
+[aria-checked="true"],
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+    background: var(--gradient-primary);
+    border-color: var(--color-primary-600);
+}
+
+/* ==========================================================================
+   Focus States
+   ========================================================================== */
+
+:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 4px;
+    border-radius: var(--radius-sm);
+}
+
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ==========================================================================
+   Hover States
+   ========================================================================== */
+
+[data-state="hover"],
+:hover {
+    transition: var(--transition-all);
+}
+
+a:hover,
+button:hover:not([disabled]),
+[role="button"]:hover,
+[data-clickable]:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   Hidden/Visible States
+   ========================================================================== */
+
+[hidden],
+[aria-hidden="true"],
+[data-state="hidden"] {
+    display: none !important;
+}
+
+[data-state="visible"] {
+    display: block !important;
+}
+
+/* ==========================================================================
+   Ready State
+   ========================================================================== */
+
+[data-state="ready"] {
+    animation: fadeIn var(--duration-base) var(--ease-out);
+}
+
+[data-state="ready"] > * {
+    animation: fadeInUp var(--duration-base) var(--ease-out) backwards;
+}
+
+/* ==========================================================================
+   Submitting State (Forms)
+   ========================================================================== */
+
+form[data-state="submitting"],
+[data-state="submitting"] {
+    position: relative;
+    pointer-events: none;
+}
+
+form[data-state="submitting"] button[type="submit"],
+[data-state="submitting"] button[type="submit"] {
+    position: relative;
+    color: transparent;
+}
+
+form[data-state="submitting"] button[type="submit"]::after,
+[data-state="submitting"] button[type="submit"]::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    top: 50%;
+    left: 50%;
+    margin-left: -10px;
+    margin-top: -10px;
+    border: 2px solid white;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin var(--duration-slower) linear infinite;
+}
+
+/* ==========================================================================
+   Published/Draft States
+   ========================================================================== */
+
+[data-state="published"] {
+    border-left: 4px solid var(--color-success);
+}
+
+[data-state="draft"] {
+    border-left: 4px solid var(--color-warning);
+    opacity: 0.8;
+}
+
+/* ==========================================================================
+   Online/Offline States
+   ========================================================================== */
+
+[data-state="online"]::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--color-success);
+    border-radius: 50%;
+    margin-right: var(--space-2);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+[data-state="offline"]::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--color-gray-400);
+    border-radius: 50%;
+    margin-right: var(--space-2);
+}
+
+/* ==========================================================================
+   Featured State
+   ========================================================================== */
+
+[data-featured="true"] {
+    position: relative;
+    border: 2px solid var(--color-primary-500);
+    background: linear-gradient(
+        135deg,
+        var(--color-surface) 0%,
+        var(--color-primary-50) 100%
+    );
+}
+
+[data-featured="true"]::before {
+    content: "★";
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    color: var(--color-warning);
+    font-size: var(--font-size-xl);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* ==========================================================================
+   Editable State
+   ========================================================================== */
+
+[data-editable="true"],
+[contenteditable="true"] {
+    position: relative;
+    padding: var(--space-2);
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: text;
+    transition: var(--transition-all);
+}
+
+[data-editable="true"]:hover,
+[contenteditable="true"]:hover {
+    border-color: var(--color-primary-400);
+    background: var(--color-background);
+}
+
+[data-editable="true"]:focus,
+[contenteditable="true"]:focus {
+    outline: none;
+    border-style: solid;
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 4px rgba(229, 90, 67, 0.1);
+}
+
+/* ==========================================================================
+   Collapsible State
+   ========================================================================== */
+
+[data-collapsible="true"] {
+    transition: max-height var(--duration-base) var(--ease-in-out);
+    overflow: hidden;
+}
+
+[data-collapsible="true"][data-collapsed="true"] {
+    max-height: 0;
+}
+
+[data-collapsible="true"][data-collapsed="false"] {
+    max-height: 1000px;
+}
+
+/* ==========================================================================
+   Scrolled State
+   ========================================================================== */
+
+[data-scrolled="true"] {
+    box-shadow: var(--shadow-md);
+    background: var(--color-background);
+}
+
+/* ==========================================================================
+   Validation States
+   ========================================================================== */
+
+:valid:not(:placeholder-shown) {
+    border-color: var(--color-success);
+}
+
+:invalid:not(:placeholder-shown) {
+    border-color: var(--color-error);
+}
+
+:required {
+    position: relative;
+}
+
+/* ==========================================================================
+   Tab States
+   ========================================================================== */
+
+[role="tabpanel"][hidden] {
+    display: none;
+}
+
+[role="tabpanel"]:not([hidden]) {
+    display: block;
+    animation: fadeInUp var(--duration-base) var(--ease-out);
+}
+
+/* ==========================================================================
+   Modal States
+   ========================================================================== */
+
+dialog:not([open]) {
+    display: none;
+}
+
+dialog[open] {
+    display: flex;
+}
+
+/* ==========================================================================
+   Notification States
+   ========================================================================== */
+
+[role="alert"][hidden],
+[data-role="error-message"][hidden] {
+    display: none;
+}
+
+[role="alert"]:not([hidden]),
+[data-role="error-message"]:not([hidden]) {
+    display: block;
+    animation: slideInRight var(--duration-base) var(--ease-out);
+}
+
+/* ==========================================================================
+   Dark Theme State Adjustments
+   ========================================================================== */
+
+[data-theme="dark"] [data-state="error"],
+[data-theme="dark"] [aria-invalid="true"] {
+    background: rgba(239, 68, 68, 0.1) !important;
+}
+
+[data-theme="dark"] [data-state="success"] {
+    background: rgba(34, 197, 94, 0.1) !important;
+}
+
+[data-theme="dark"] [data-editable="true"],
+[data-theme="dark"] [contenteditable="true"] {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] [data-featured="true"] {
+    background: linear-gradient(
+        135deg,
+        var(--color-surface-elevated) 0%,
+        rgba(229, 90, 67, 0.1) 100%
+    );
+}
+
+/* ==========================================================================
+   Responsive State Adjustments
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    [data-state="empty"] {
+        min-height: 200px;
+        padding: var(--space-6) var(--space-3);
+    }
+
+    [data-state="empty"]::before {
+        font-size: 3rem;
+    }
+}
+
+/* ==========================================================================
+   Print State Adjustments
+   ========================================================================== */
+
+@media print {
+    [data-state="loading"]::before,
+    [data-state="loading"]::after,
+    [aria-busy="true"]::before,
+    [aria-busy="true"]::after {
+        display: none;
+    }
+
+    [data-state="draft"] {
+        opacity: 1;
+    }
+
+    [hidden],
+    [aria-hidden="true"],
+    [data-state="hidden"] {
+        display: none !important;
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion Support
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    [aria-expanded="true"] + *,
+    [data-collapsed="false"] + *,
+    [data-state="ready"],
+    [data-state="ready"] > *,
+    [role="tabpanel"]:not([hidden]),
+    [role="alert"]:not([hidden]) {
+        animation: none;
+    }
+
+    a:hover,
+    button:hover:not([disabled]),
+    [role="button"]:hover,
+    [data-clickable]:hover {
+        transform: none;
+    }
+
+    [data-state="online"]::before {
+        animation: none;
+    }
+}

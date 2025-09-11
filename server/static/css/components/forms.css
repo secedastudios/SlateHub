@@ -1,0 +1,648 @@
+/* ==========================================================================
+   Forms - Elegant form styles for creative professionals
+   ========================================================================== */
+
+/* ==========================================================================
+   Form Container Components
+   ========================================================================== */
+
+[data-component="auth-form"] {
+    width: 100%;
+    max-width: var(--container-sm);
+    margin: 0 auto;
+    padding: var(--space-8);
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-creative);
+    position: relative;
+    overflow: hidden;
+}
+
+[data-component="auth-form"]::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: var(--gradient-primary);
+    opacity: 0.05;
+    border-radius: 50%;
+    animation: float 15s ease-in-out infinite;
+}
+
+[data-component="form"] {
+    position: relative;
+    z-index: 1;
+}
+
+/* ==========================================================================
+   Form Headers
+   ========================================================================== */
+
+[data-role="form-header"] {
+    text-align: center;
+    margin-bottom: var(--space-6);
+}
+
+[data-role="form-header"] hgroup {
+    margin: 0;
+}
+
+[data-role="form-header"] h1,
+[data-role="form-header"] h2 {
+    margin: 0 0 var(--space-2) 0;
+    color: var(--color-text-primary);
+}
+
+[data-role="form-header"] p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-base);
+    margin: 0;
+    text-align: center;
+    hyphens: none;
+}
+
+/* ==========================================================================
+   Fieldsets and Form Sections
+   ========================================================================== */
+
+fieldset {
+    border: none;
+    padding: 0;
+    margin: 0 0 var(--space-4) 0;
+}
+
+[data-role="form-section"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+legend {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-4);
+    padding: 0;
+    position: relative;
+}
+
+legend::after {
+    content: "";
+    display: block;
+    width: 30px;
+    height: 2px;
+    background: var(--gradient-primary);
+    margin-top: var(--space-2);
+}
+
+/* ==========================================================================
+   Form Fields Container
+   ========================================================================== */
+
+[data-field] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    position: relative;
+}
+
+/* ==========================================================================
+   Labels
+   ========================================================================== */
+
+label {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+    letter-spacing: var(--letter-spacing-wide);
+    display: block;
+    margin-bottom: var(--space-1);
+    position: relative;
+    transition: var(--transition-colors);
+}
+
+/* Required field indicator */
+input[required] + label::after,
+label:has(+ input[required])::after,
+label:has(input[required])::after {
+    content: " *";
+    color: var(--color-primary-500);
+    font-weight: var(--font-weight-bold);
+}
+
+/* Checkbox and radio labels */
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]) {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    user-select: none;
+    font-weight: var(--font-weight-regular);
+}
+
+label:has(input[type="checkbox"]):hover,
+label:has(input[type="radio"]):hover {
+    color: var(--color-primary-600);
+}
+
+/* ==========================================================================
+   Input Fields
+   ========================================================================== */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+textarea,
+select {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-serif);
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    background: var(--color-background);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: var(--transition-all);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+/* Textarea specific */
+textarea {
+    min-height: 120px;
+    resize: vertical;
+    line-height: var(--line-height-relaxed);
+}
+
+/* Select specific */
+select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-3) center;
+    padding-right: var(--space-8);
+}
+
+/* Placeholder styling */
+input::placeholder,
+textarea::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.7;
+    font-style: italic;
+}
+
+/* Focus states */
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 4px rgba(229, 90, 67, 0.1);
+    background: var(--color-background);
+}
+
+/* Hover states */
+input:hover:not(:focus):not([disabled]),
+textarea:hover:not(:focus):not([disabled]),
+select:hover:not(:focus):not([disabled]) {
+    border-color: var(--color-border-hover);
+}
+
+/* Valid state */
+input:valid:not(:placeholder-shown),
+textarea:valid:not(:placeholder-shown) {
+    border-color: var(--color-success);
+}
+
+/* Invalid state */
+input[aria-invalid="true"],
+textarea[aria-invalid="true"],
+select[aria-invalid="true"],
+input:invalid:not(:placeholder-shown),
+textarea:invalid:not(:placeholder-shown),
+select:invalid:not(:placeholder-shown) {
+    border-color: var(--color-error);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+input[aria-invalid="true"]:focus,
+textarea[aria-invalid="true"]:focus,
+select[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+/* Disabled state */
+input[disabled],
+textarea[disabled],
+select[disabled],
+input[aria-disabled="true"],
+textarea[aria-disabled="true"],
+select[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--color-surface);
+}
+
+/* ==========================================================================
+   Checkboxes and Radio Buttons
+   ========================================================================== */
+
+input[type="checkbox"],
+input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    flex-shrink: 0;
+    border: 2px solid var(--color-border);
+    background: var(--color-background);
+    cursor: pointer;
+    transition: var(--transition-all);
+    position: relative;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+input[type="checkbox"] {
+    border-radius: var(--radius-sm);
+}
+
+input[type="radio"] {
+    border-radius: var(--radius-full);
+}
+
+/* Checked state */
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+    background: var(--gradient-primary);
+    border-color: var(--color-primary-600);
+}
+
+input[type="checkbox"]:checked::after {
+    content: "✓";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+input[type="radio"]:checked::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: var(--radius-full);
+}
+
+/* Hover state */
+input[type="checkbox"]:hover:not(:disabled),
+input[type="radio"]:hover:not(:disabled) {
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 4px rgba(229, 90, 67, 0.1);
+}
+
+/* Focus state */
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+}
+
+/* Switch style for checkbox with role="switch" */
+input[type="checkbox"][role="switch"] {
+    width: 44px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    background: var(--color-gray-300);
+    border: none;
+    position: relative;
+    transition: var(--transition-all);
+}
+
+input[type="checkbox"][role="switch"]::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-all);
+}
+
+input[type="checkbox"][role="switch"]:checked {
+    background: var(--gradient-primary);
+}
+
+input[type="checkbox"][role="switch"]:checked::after {
+    transform: translateX(20px);
+}
+
+/* ==========================================================================
+   Error Messages
+   ========================================================================== */
+
+[data-role="error-message"] {
+    padding: var(--space-3) var(--space-4);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-md);
+    color: var(--color-error);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-4);
+    animation: slideDown var(--duration-base) var(--ease-out);
+}
+
+[data-role="error-message"][hidden] {
+    display: none;
+}
+
+#error-email,
+#error-password,
+#error-login {
+    font-family: var(--font-sans);
+    font-weight: var(--font-weight-medium);
+}
+
+/* ==========================================================================
+   Help Text
+   ========================================================================== */
+
+[data-role="help-text"],
+small[id^="help-"] {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin-top: var(--space-1);
+}
+
+/* ==========================================================================
+   Form Actions
+   ========================================================================== */
+
+[data-role="form-actions"] {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+    justify-content: center;
+}
+
+[data-role="form-actions"] button {
+    flex: 1;
+    max-width: 200px;
+}
+
+/* ==========================================================================
+   Form Footer
+   ========================================================================== */
+
+[data-role="form-footer"] {
+    margin-top: var(--space-6);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+}
+
+[data-role="form-footer"] ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+[data-role="form-footer"] li {
+    margin: 0;
+}
+
+[data-role="form-footer"] a {
+    color: var(--color-primary-600);
+    text-decoration: none;
+    font-weight: var(--font-weight-medium);
+}
+
+[data-role="form-footer"] span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* ==========================================================================
+   File Input
+   ========================================================================== */
+
+input[type="file"] {
+    padding: var(--space-2);
+    background: var(--color-surface);
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: var(--transition-all);
+}
+
+input[type="file"]:hover {
+    border-color: var(--color-primary-500);
+    background: var(--color-background);
+}
+
+input[type="file"]:focus {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Range Input
+   ========================================================================== */
+
+input[type="range"] {
+    height: 6px;
+    background: var(--color-gray-300);
+    border-radius: var(--radius-full);
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-all);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: var(--shadow-md);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-all);
+    border: none;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: var(--shadow-md);
+}
+
+/* ==========================================================================
+   Dark Theme Adjustments
+   ========================================================================== */
+
+[data-theme="dark"] [data-component="auth-form"] {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] select:focus {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] input[type="checkbox"],
+[data-theme="dark"] input[type="radio"] {
+    background: var(--color-surface);
+}
+
+[data-theme="dark"] input[aria-invalid="true"],
+[data-theme="dark"] textarea[aria-invalid="true"],
+[data-theme="dark"] select[aria-invalid="true"] {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    [data-component="auth-form"] {
+        padding: var(--space-6) var(--space-4);
+        border-radius: var(--radius-lg);
+    }
+
+    [data-role="form-actions"] {
+        flex-direction: column;
+    }
+
+    [data-role="form-actions"] button {
+        width: 100%;
+        max-width: none;
+    }
+}
+
+@media (max-width: 480px) {
+    [data-component="auth-form"] {
+        padding: var(--space-4) var(--space-3);
+    }
+
+    input,
+    textarea,
+    select {
+        padding: var(--space-2) var(--space-3);
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    33% {
+        transform: translate(30px, -30px) rotate(120deg);
+    }
+    66% {
+        transform: translate(-20px, 20px) rotate(240deg);
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    [data-component="auth-form"] {
+        box-shadow: none;
+        border: 1px solid var(--color-border);
+    }
+
+    input,
+    textarea,
+    select {
+        border: 1px solid var(--color-border);
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    [data-component="auth-form"]::before {
+        animation: none;
+    }
+
+    input,
+    textarea,
+    select,
+    label {
+        transition: none;
+    }
+
+    [data-role="error-message"] {
+        animation: none;
+    }
+}

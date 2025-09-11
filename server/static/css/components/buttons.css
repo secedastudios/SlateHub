@@ -1,0 +1,514 @@
+/* ==========================================================================
+   Buttons - Elegant button styles for creative professionals
+   ========================================================================== */
+
+/* ==========================================================================
+   Base Button Styles
+   ========================================================================== */
+
+button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3) var(--space-5);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    line-height: 1;
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: var(--transition-all);
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    user-select: none;
+}
+
+button::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: var(--radius-full);
+    background: var(--gradient-primary);
+    opacity: 0.3;
+    transform: translate(-50%, -50%);
+    transition: width var(--duration-slow) var(--ease-out),
+                height var(--duration-slow) var(--ease-out);
+}
+
+button:hover {
+    color: var(--color-primary-600);
+    border-color: var(--color-primary-500);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+button:hover::before {
+    width: 300%;
+    height: 300%;
+}
+
+button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+button:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 4px;
+}
+
+button[disabled],
+button[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+button[disabled]:hover,
+button[aria-disabled="true"]:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* ==========================================================================
+   Primary Buttons
+   ========================================================================== */
+
+button[data-type="primary"],
+button[type="submit"]:not([data-type]) {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    font-weight: var(--font-weight-semibold);
+    box-shadow: var(--shadow-sm);
+}
+
+button[data-type="primary"]::before,
+button[type="submit"]:not([data-type])::before {
+    background: white;
+    opacity: 0.2;
+}
+
+button[data-type="primary"]:hover,
+button[type="submit"]:not([data-type]):hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--shadow-lg);
+    color: white;
+}
+
+button[data-type="primary"]:active,
+button[type="submit"]:not([data-type]):active {
+    transform: translateY(-1px) scale(0.98);
+}
+
+/* ==========================================================================
+   Secondary Buttons
+   ========================================================================== */
+
+button[data-type="secondary"] {
+    background: transparent;
+    color: var(--color-primary-600);
+    border-color: var(--color-primary-600);
+}
+
+button[data-type="secondary"]:hover {
+    background: var(--color-primary-600);
+    color: white;
+    border-color: var(--color-primary-600);
+}
+
+/* ==========================================================================
+   Danger/Destructive Buttons
+   ========================================================================== */
+
+button[data-type="danger"],
+button[data-action="delete"],
+button[data-action="remove"] {
+    background: transparent;
+    color: var(--color-error);
+    border-color: var(--color-error);
+}
+
+button[data-type="danger"]:hover,
+button[data-action="delete"]:hover,
+button[data-action="remove"]:hover {
+    background: var(--color-error);
+    color: white;
+    border-color: var(--color-error);
+}
+
+/* ==========================================================================
+   Links as Buttons
+   ========================================================================== */
+
+a[role="button"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3) var(--space-5);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    text-decoration: none;
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-full);
+    transition: var(--transition-all);
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+}
+
+a[role="button"]::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: var(--radius-full);
+    background: var(--gradient-primary);
+    opacity: 0.3;
+    transform: translate(-50%, -50%);
+    transition: width var(--duration-slow) var(--ease-out),
+                height var(--duration-slow) var(--ease-out);
+}
+
+a[role="button"]::after {
+    display: none; /* Remove the underline animation from links */
+}
+
+a[role="button"]:hover {
+    color: var(--color-primary-600);
+    border-color: var(--color-primary-500);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+a[role="button"]:hover::before {
+    width: 300%;
+    height: 300%;
+}
+
+/* Primary link buttons */
+a[role="button"][data-type="primary"] {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+}
+
+a[role="button"][data-type="primary"]:hover {
+    color: white;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Secondary link buttons */
+a[role="button"][data-secondary="true"],
+a[role="button"][data-type="secondary"] {
+    background: transparent;
+    color: var(--color-primary-600);
+    border-color: var(--color-primary-600);
+}
+
+a[role="button"][data-secondary="true"]:hover,
+a[role="button"][data-type="secondary"]:hover {
+    background: var(--color-primary-600);
+    color: white;
+}
+
+/* ==========================================================================
+   Tab Buttons
+   ========================================================================== */
+
+button[role="tab"] {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: var(--space-3) var(--space-4);
+    margin: 0;
+    color: var(--color-text-muted);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wider);
+    position: relative;
+    transition: var(--transition-all);
+}
+
+button[role="tab"]::before {
+    display: none;
+}
+
+button[role="tab"]::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: transparent;
+    transition: background var(--duration-base) var(--ease-in-out);
+}
+
+button[role="tab"]:hover {
+    color: var(--color-text-primary);
+    transform: none;
+    box-shadow: none;
+}
+
+button[role="tab"][aria-selected="true"] {
+    color: var(--color-primary-600);
+    font-weight: var(--font-weight-semibold);
+}
+
+button[role="tab"][aria-selected="true"]::after {
+    background: var(--gradient-primary);
+}
+
+/* ==========================================================================
+   Small Buttons
+   ========================================================================== */
+
+button[data-size="small"],
+[data-role="card-actions"] button,
+[data-role="item-actions"] button {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-xs);
+}
+
+/* ==========================================================================
+   Icon Buttons
+   ========================================================================== */
+
+button[data-action="close"],
+button[data-action="dismiss"],
+button[aria-label*="Close"],
+button[aria-label*="Dismiss"] {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xl);
+    line-height: 1;
+}
+
+button[data-action="close"]:hover,
+button[data-action="dismiss"]:hover,
+button[aria-label*="Close"]:hover,
+button[aria-label*="Dismiss"]:hover {
+    background: var(--color-surface);
+    color: var(--color-primary-600);
+    transform: rotate(90deg);
+}
+
+/* ==========================================================================
+   Button Groups
+   ========================================================================== */
+
+[data-role="form-actions"] {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+}
+
+[data-role="form-actions"] button {
+    flex: 1;
+}
+
+[data-actions] {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+[data-role="card-actions"] {
+    display: flex;
+    gap: var(--space-2);
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+button[data-state="loading"] {
+    color: transparent;
+    pointer-events: none;
+    position: relative;
+}
+
+button[data-state="loading"]::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    top: 50%;
+    left: 50%;
+    margin-left: -10px;
+    margin-top: -10px;
+    border: 2px solid var(--color-primary-300);
+    border-top-color: var(--color-primary-600);
+    border-radius: var(--radius-full);
+    animation: spin var(--duration-slower) linear infinite;
+}
+
+/* ==========================================================================
+   Toggle/Switch Buttons
+   ========================================================================== */
+
+button[aria-pressed] {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+}
+
+button[aria-pressed="true"] {
+    background: var(--color-primary-600);
+    color: white;
+    border-color: var(--color-primary-600);
+}
+
+button[aria-pressed="true"]:hover {
+    background: var(--color-primary-700);
+    border-color: var(--color-primary-700);
+}
+
+/* ==========================================================================
+   Filter Buttons
+   ========================================================================== */
+
+[data-role="filters"] button {
+    padding: var(--space-2) var(--space-4);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+}
+
+[data-role="filters"] button:hover {
+    border-color: var(--color-primary-500);
+    background: var(--color-surface);
+}
+
+[data-role="filters"] button[aria-pressed="true"],
+[data-role="filters"] button[data-active="true"] {
+    background: var(--gradient-primary);
+    color: white;
+    border-color: transparent;
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   Dark Theme Adjustments
+   ========================================================================== */
+
+[data-theme="dark"] button {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-border);
+}
+
+[data-theme="dark"] button:hover {
+    background: var(--color-surface);
+}
+
+[data-theme="dark"] button[data-type="primary"],
+[data-theme="dark"] button[type="submit"]:not([data-type]) {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+}
+
+[data-theme="dark"] a[role="button"] {
+    background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] button[role="tab"] {
+    background: transparent;
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    [data-role="form-actions"] {
+        flex-direction: column;
+    }
+
+    [data-role="form-actions"] button {
+        width: 100%;
+    }
+
+    [data-actions] {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    [data-actions] > * {
+        width: 100%;
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    button,
+    a[role="button"] {
+        border: 1px solid currentColor;
+        background: white;
+        color: black;
+    }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    button,
+    a[role="button"] {
+        transition: none;
+    }
+
+    button::before,
+    a[role="button"]::before,
+    button[role="tab"]::after {
+        transition: none;
+    }
+
+    button[data-state="loading"]::after {
+        animation-duration: 2s;
+    }
+
+    button[data-action="close"]:hover,
+    button[data-action="dismiss"]:hover {
+        transform: none;
+    }
+}
