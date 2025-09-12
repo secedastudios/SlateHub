@@ -42,7 +42,9 @@ endblock %} {% block content %}
                     >
                         <option value="">All Types</option>
                         {% for org_type in org_types %}
-                        <option value="{{ org_type }}">{{ org_type }}</option>
+                        <option value="{{ org_type.id }}">
+                            {{ org_type.name }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>

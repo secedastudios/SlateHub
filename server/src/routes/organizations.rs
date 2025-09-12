@@ -121,6 +121,18 @@ pub struct UpdateRoleForm {
 // Templates
 // ============================
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct OrgType {
+    pub id: String,
+    pub name: String,
+}
+
+impl std::fmt::Display for OrgType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
 #[derive(Template)]
 #[template(path = "organizations/list.html")]
 pub struct OrganizationsListTemplate {
@@ -131,7 +143,7 @@ pub struct OrganizationsListTemplate {
     pub user: Option<User>,
     pub organizations: Vec<Organization>,
     pub search_query: Option<String>,
-    pub org_types: Vec<String>,
+    pub org_types: Vec<OrgType>,
 }
 
 #[derive(Template)]
@@ -157,7 +169,7 @@ pub struct NewOrganizationTemplate {
     pub version: String,
     pub active_page: String,
     pub user: Option<User>,
-    pub org_types: Vec<String>,
+    pub org_types: Vec<OrgType>,
     pub error: Option<String>,
 }
 
@@ -170,7 +182,7 @@ pub struct EditOrganizationTemplate {
     pub active_page: String,
     pub user: Option<User>,
     pub organization: Organization,
-    pub org_types: Vec<String>,
+    pub org_types: Vec<OrgType>,
     pub error: Option<String>,
 }
 
@@ -225,7 +237,11 @@ async fn list_organizations(
         .await?;
 
     // Get organization types for filter
-    let org_types = model.get_organization_types().await?;
+    let org_types_data = model.get_organization_types().await?;
+    let org_types: Vec<OrgType> = org_types_data
+        .into_iter()
+        .map(|(id, name)| OrgType { id, name })
+        .collect();
 
     let template = OrganizationsListTemplate {
         app_name: base.app_name,
@@ -315,7 +331,11 @@ async fn new_organization_page(request: Request) -> Result<Html<String>, Error> 
 
     // Get organization types
     let model = OrganizationModel::new();
-    let org_types = model.get_organization_types().await?;
+    let org_types_data = model.get_organization_types().await?;
+    let org_types: Vec<OrgType> = org_types_data
+        .into_iter()
+        .map(|(id, name)| OrgType { id, name })
+        .collect();
 
     let template = NewOrganizationTemplate {
         app_name: base.app_name,
@@ -463,7 +483,11 @@ async fn edit_organization_page(
             .to_uppercase(),
     });
 
-    let org_types = model.get_organization_types().await?;
+    let org_types_data = model.get_organization_types().await?;
+    let org_types: Vec<OrgType> = org_types_data
+        .into_iter()
+        .map(|(id, name)| OrgType { id, name })
+        .collect();
 
     let template = EditOrganizationTemplate {
         app_name: base.app_name,

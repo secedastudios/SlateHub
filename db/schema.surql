@@ -7,85 +7,85 @@ OPTION IMPORT;
 -- ------------------------------
 -- ENUM TABLES (for dynamic lists queryable by frontend)
 -- These are simple tables holding possible values. Frontend can SELECT * FROM them.
--- We use SCHEMALESS for flexibility, but add a 'value' field.
+-- We use SCHEMALESS for flexibility, but add a 'name' field.
 -- ------------------------------
 
 -- Organization Types
 DEFINE TABLE organization_type SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON organization_type TYPE string;
-DEFINE INDEX idx_organization_type_value ON organization_type FIELDS value UNIQUE;
+DEFINE FIELD name ON organization_type TYPE string;
+DEFINE INDEX idx_organization_type_name ON organization_type FIELDS name UNIQUE;
 
 -- Production Types
 DEFINE TABLE production_type SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON production_type TYPE string;
-DEFINE INDEX idx_production_type_value ON production_type FIELDS value UNIQUE;
+DEFINE FIELD name ON production_type TYPE string;
+DEFINE INDEX idx_production_type_name ON production_type FIELDS name UNIQUE;
 
 -- Production Statuses
 DEFINE TABLE production_status SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON production_status TYPE string;
-DEFINE INDEX idx_production_status_value ON production_status FIELDS value UNIQUE;
+DEFINE FIELD name ON production_status TYPE string;
+DEFINE INDEX idx_production_status_name ON production_status FIELDS name UNIQUE;
 
 -- Involvement Relation Types
 DEFINE TABLE involvement_relation_type SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON involvement_relation_type TYPE string;
-DEFINE INDEX idx_involvement_relation_type_value ON involvement_relation_type FIELDS value UNIQUE;
+DEFINE FIELD name ON involvement_relation_type TYPE string;
+DEFINE INDEX idx_involvement_relation_type_name ON involvement_relation_type FIELDS name UNIQUE;
 
 -- Roles
 DEFINE TABLE role SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON role TYPE string;
+DEFINE FIELD name ON role TYPE string;
 DEFINE FIELD department ON role TYPE option<record<department>>;  -- Link to department if needed
-DEFINE INDEX idx_role_value ON role FIELDS value UNIQUE;
+DEFINE INDEX idx_role_name ON role FIELDS name UNIQUE;
 
 -- Departments
 DEFINE TABLE department SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON department TYPE string;
-DEFINE INDEX idx_department_value ON department FIELDS value UNIQUE;
+DEFINE FIELD name ON department TYPE string;
+DEFINE INDEX idx_department_name ON department FIELDS name UNIQUE;
 
 -- Phases
 DEFINE TABLE phase SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON phase TYPE string;
-DEFINE INDEX idx_phase_value ON phase FIELDS value UNIQUE;
+DEFINE FIELD name ON phase TYPE string;
+DEFINE INDEX idx_phase_name ON phase FIELDS name UNIQUE;
 
 -- Credit Types
 DEFINE TABLE credit_type SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON credit_type TYPE string;
-DEFINE INDEX idx_credit_type_value ON credit_type FIELDS value UNIQUE;
+DEFINE FIELD name ON credit_type TYPE string;
+DEFINE INDEX idx_credit_type_name ON credit_type FIELDS name UNIQUE;
 
 -- Ownership Types
 DEFINE TABLE ownership_type SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON ownership_type TYPE string;
-DEFINE INDEX idx_ownership_type_value ON ownership_type FIELDS value UNIQUE;
+DEFINE FIELD name ON ownership_type TYPE string;
+DEFINE INDEX idx_ownership_type_name ON ownership_type FIELDS name UNIQUE;
 
 -- Additional Enum Tables for Profile Fields
 -- Genders
 DEFINE TABLE gender SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON gender TYPE string;
-DEFINE INDEX idx_gender_value ON gender FIELDS value UNIQUE;
+DEFINE FIELD name ON gender TYPE string;
+DEFINE INDEX idx_gender_name ON gender FIELDS name UNIQUE;
 
 -- Ethnicities
 DEFINE TABLE ethnicity SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON ethnicity TYPE string;
-DEFINE INDEX idx_ethnicity_value ON ethnicity FIELDS value UNIQUE;
+DEFINE FIELD name ON ethnicity TYPE string;
+DEFINE INDEX idx_ethnicity_name ON ethnicity FIELDS name UNIQUE;
 
 -- Hair Colors
 DEFINE TABLE hair_color SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON hair_color TYPE string;
-DEFINE INDEX idx_hair_color_value ON hair_color FIELDS value UNIQUE;
+DEFINE FIELD name ON hair_color TYPE string;
+DEFINE INDEX idx_hair_color_name ON hair_color FIELDS name UNIQUE;
 
 -- Eye Colors
 DEFINE TABLE eye_color SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON eye_color TYPE string;
-DEFINE INDEX idx_eye_color_value ON eye_color FIELDS value UNIQUE;
+DEFINE FIELD name ON eye_color TYPE string;
+DEFINE INDEX idx_eye_color_name ON eye_color FIELDS name UNIQUE;
 
 -- Builds/Body Types
 DEFINE TABLE body_type SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON body_type TYPE string;
-DEFINE INDEX idx_body_type_value ON body_type FIELDS value UNIQUE;
+DEFINE FIELD name ON body_type TYPE string;
+DEFINE INDEX idx_body_type_name ON body_type FIELDS name UNIQUE;
 
 -- Unions
 DEFINE TABLE union SCHEMALESS PERMISSIONS FULL;
-DEFINE FIELD value ON union TYPE string;
-DEFINE INDEX idx_union_value ON union FIELDS value UNIQUE;
+DEFINE FIELD name ON union TYPE string;
+DEFINE INDEX idx_union_name ON union FIELDS name UNIQUE;
 
 -- ------------------------------
 -- TABLE: reserved_names
@@ -312,33 +312,33 @@ DEFINE ACCESS user ON DATABASE TYPE RECORD
 -- ------------------------------
 
 -- Organization Types
-INSERT INTO organization_type (value) VALUES
+INSERT INTO organization_type (name) VALUES
 ("production_company"), ("film_studio"), ("tv_production_company"), ("commercial_production_company"),
 ("animation_studio"), ("vfx_studio"), ("talent_agency"), ("management_company"), ("distribution_company"),
 ("marketing_agency"), ("post_production_house"), ("casting_agency"), ("sound_studio"), ("catering_company"),
 ("equipment_rental"), ("location_services"), ("film_school"), ("community_group"), ("guild"), ("other");
 
 -- Production Types
-INSERT INTO production_type (value) VALUES
+INSERT INTO production_type (name) VALUES
 ("film"), ("tv_series"), ("season"), ("episode"), ("documentary"), ("music_video"), ("commercial"),
 ("podcast"), ("webseries"), ("short_film"), ("animation"), ("reality_tv"), ("corporate_video"), ("other");
 
 -- Production Statuses
-INSERT INTO production_status (value) VALUES
+INSERT INTO production_status (name) VALUES
 ("development"), ("pre_production"), ("production"), ("post_production"), ("completed"), ("released"), ("canceled");
 
 -- Involvement Relation Types
-INSERT INTO involvement_relation_type (value) VALUES
+INSERT INTO involvement_relation_type (name) VALUES
 ("owner"), ("admin"), ("member"), ("credit"), ("contractor"), ("other");
 
 -- Departments
-INSERT INTO department (value) VALUES
+INSERT INTO department (name) VALUES
 ("above_the_line"), ("art"), ("camera"), ("sound"), ("lighting"), ("grip"), ("wardrobe"), ("makeup_hair"),
 ("production_management"), ("directing"), ("post_production"), ("casting"), ("stunts"), ("marketing"),
 ("distribution"), ("social_media"), ("vfx"), ("editing"), ("locations"), ("transportation"), ("other");
 
 -- Roles (Comprehensive list from standard film crew positions)
-INSERT INTO role (value, department) VALUES
+INSERT INTO role (name, department) VALUES
 ("director", department:above_the_line), ("producer", department:above_the_line), ("executive_producer", department:above_the_line),
 ("writer", department:above_the_line), ("screenwriter", department:above_the_line), ("actor", department:cast),
 ("principal_cast", department:cast), ("production_designer", department:art), ("art_director", department:art),
@@ -365,40 +365,40 @@ INSERT INTO role (value, department) VALUES
 ("caterer", department:other), ("other", null);
 
 -- Phases
-INSERT INTO phase (value) VALUES
+INSERT INTO phase (name) VALUES
 ("development"), ("pre_production"), ("production"), ("post_production"), ("distribution"), ("all");
 
 -- Credit Types
-INSERT INTO credit_type (value) VALUES
+INSERT INTO credit_type (name) VALUES
 ("cast"), ("crew"), ("above_the_line"), ("below_the_line");
 
 -- Ownership Types
-INSERT INTO ownership_type (value) VALUES
+INSERT INTO ownership_type (name) VALUES
 ("full"), ("partial"), ("subsidiary"), ("joint_venture"), ("other");
 
 -- Genders
-INSERT INTO gender (value) VALUES
+INSERT INTO gender (name) VALUES
 ("male"), ("female"), ("non_binary"), ("prefer_not_to_say"), ("other");
 
 -- Ethnicities (representative list)
-INSERT INTO ethnicity (value) VALUES
+INSERT INTO ethnicity (name) VALUES
 ("african_american"), ("asian"), ("caucasian"), ("hispanic_latino"), ("native_american"), ("pacific_islander"),
 ("middle_eastern"), ("mixed"), ("other");
 
 -- Hair Colors
-INSERT INTO hair_color (value) VALUES
+INSERT INTO hair_color (name) VALUES
 ("black"), ("brown"), ("blonde"), ("red"), ("gray"), ("white"), ("bald"), ("other");
 
 -- Eye Colors
-INSERT INTO eye_color (value) VALUES
+INSERT INTO eye_color (name) VALUES
 ("brown"), ("blue"), ("green"), ("hazel"), ("gray"), ("black"), ("other");
 
 -- Body Types
-INSERT INTO body_type (value) VALUES
+INSERT INTO body_type (name) VALUES
 ("athletic"), ("average"), ("slim"), ("curvy"), ("muscular"), ("petite"), ("tall"), ("other");
 
 -- Unions
-INSERT INTO union (value) VALUES
+INSERT INTO union (name) VALUES
 ("sag_aftra"), ("iatse"), ("dga"), ("wga"), ("pga"), ("asc"), ("ace"), ("other");
 
 -- Reserved Names (URLs that organizations cannot use)

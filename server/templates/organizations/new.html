@@ -55,7 +55,9 @@ endblock %} {% block content %}
                     <select id="select-org-type" name="org_type" required>
                         <option value="">Select type...</option>
                         {% for org_type in org_types %}
-                        <option value="{{ org_type }}">{{ org_type }}</option>
+                        <option value="{{ org_type.id }}">
+                            {{ org_type.name }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>

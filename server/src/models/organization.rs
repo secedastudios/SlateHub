@@ -471,12 +471,12 @@ impl OrganizationModel {
         Ok((true, None))
     }
 
-    /// Get all organization types
-    pub async fn get_organization_types(&self) -> Result<Vec<String>, Error> {
+    /// Get all organization types with ID and name
+    pub async fn get_organization_types(&self) -> Result<Vec<(String, String)>, Error> {
         debug!("Fetching organization types");
 
-        let types: Vec<(String,)> = DB
-            .query("SELECT `value` FROM organization_type ORDER BY `value`")
+        let types: Vec<(String, String)> = DB
+            .query("SELECT id, name FROM organization_type ORDER BY name")
             .await
             .map_err(|e| Error::database(format!("Failed to fetch organization types: {}", e)))?
             .take(0)
@@ -484,10 +484,7 @@ impl OrganizationModel {
 
         debug!("Fetched {} organization types: {:?}", types.len(), types);
 
-        let result: Vec<String> = types.into_iter().map(|(value,)| value).collect();
-        debug!("Returning organization types: {:?}", result);
-
-        Ok(result)
+        Ok(types)
     }
 
     /// Find a user by username or email
