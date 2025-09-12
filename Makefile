@@ -1,4 +1,4 @@
-.PHONY: help all start stop clean db-start db-stop db-init db-drop db-reset server-run server-build docker-up docker-down docker-restart docker-logs
+.PHONY: help all start stop clean db-start db-stop db-init db-drop db-reset server-run server-build docker-up docker-down docker-restart docker-logs minio-clean minio-list
 
 # Default target - show help
 help:
@@ -22,12 +22,16 @@ help:
 	@echo "  make docker-restart - Restart Docker services"
 	@echo "  make docker-logs    - Show Docker container logs"
 	@echo ""
+	@echo "MinIO Commands:"
+	@echo "  make minio-clean    - Delete all files from MinIO storage"
+	@echo "  make minio-list     - List all files in MinIO storage"
+	@echo ""
 	@echo "Database Commands:"
 	@echo "  make db-start       - Start SurrealDB container"
 	@echo "  make db-stop        - Stop SurrealDB container"
 	@echo "  make db-init        - Clean and initialize database with schema from db/schema.surql"
 	@echo "  make db-clean       - Remove all database content (tables, functions, etc.)"
-	@echo "  make db-drop        - Drop the entire database"
+	@echo "  make db-drop        - Drop the entire database and clean MinIO files"
 	@echo "  make db-reset       - Alias for db-init (clean and reinitialize)"
 	@echo ""
 	@echo "Server Commands:"
@@ -44,6 +48,7 @@ all: start
 clean: docker-down
 	@echo "Cleaning database data..."
 	@rm -rf db/data/*
+	@echo "Cleaning MinIO files..."
 	@rm -rf db/files/*
 	@echo "Clean complete!"
 
@@ -102,7 +107,7 @@ db-init: db-clean
 		echo "Warning: db/schema.surql not found. Skipping schema initialization."; \
 	fi
 
-db-drop:
+db-drop: minio-clean
 	@echo "Dropping database..."
 	@echo "REMOVE DATABASE main;" | docker exec -i slatehub-surrealdb /surreal sql \
 		--conn http://localhost:8000 \
@@ -112,8 +117,8 @@ db-drop:
 		--db main || true
 	@echo "Database dropped!"
 
-db-reset: db-init
-	@echo "Database reset complete!"
+db-reset: minio-clean db-init
+	@echo "Database and MinIO storage reset complete!"
 
 # Server commands
 server-run:
@@ -171,6 +176,29 @@ logs-surreal:
 
 logs-minio:
 	@docker logs -f slatehub-minio
+
+# MinIO commands
+minio-clean:
+	@echo "Cleaning all files from MinIO..."
+	@if docker ps | grep -q slatehub-minio; then \
+		docker exec slatehub-minio sh -c 'mc alias set local http://localhost:9000 slatehub slatehub123 2>/dev/null || true && \
+			mc rm -r --force local/slatehub-media/ 2>/dev/null || true && \
+			mc mb local/slatehub-media 2>/dev/null || true' && \
+		echo "MinIO storage cleaned!"; \
+	else \
+		echo "MinIO container not running, cleaning local files..."; \
+		rm -rf db/files/* 2>/dev/null || true; \
+		echo "Local MinIO files cleaned!"; \
+	fi
+
+minio-list:
+	@echo "Listing MinIO files..."
+	@if docker ps | grep -q slatehub-minio; then \
+		docker exec slatehub-minio sh -c 'mc alias set local http://localhost:9000 slatehub slatehub123 2>/dev/null || true && \
+			mc ls -r local/slatehub-media/ 2>/dev/null || echo "No files found or bucket does not exist"'; \
+	else \
+		echo "MinIO container not running"; \
+	fi
 
 # Status check
 status:
