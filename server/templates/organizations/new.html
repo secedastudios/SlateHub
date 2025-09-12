@@ -233,5 +233,48 @@ endblock %} {% block content %}
             }, 500);
         }
     });
+
+    // Debug: Check organization type dropdown on page load
+    document.addEventListener("DOMContentLoaded", function () {
+        const orgTypeSelect = document.getElementById("select-org-type");
+        const optionCount = orgTypeSelect ? orgTypeSelect.options.length : 0;
+
+        console.log("Organization Type Dropdown Debug:");
+        console.log("- Select element found:", !!orgTypeSelect);
+        console.log("- Number of options:", optionCount);
+        console.log("- Options (first 5):");
+
+        if (orgTypeSelect) {
+            for (
+                let i = 0;
+                i < Math.min(5, orgTypeSelect.options.length);
+                i++
+            ) {
+                const option = orgTypeSelect.options[i];
+                console.log(
+                    `  ${i}: value="${option.value}", text="${option.text}"`,
+                );
+            }
+        }
+
+        // Also check if org_types data was passed to template
+        console.log(
+            "- Template org_types length: {% if !org_types.is_empty() %}{{ org_types.len() }}{% else %}0{% endif %}",
+        );
+
+        // Visual indicator on the page
+        if (optionCount <= 1) {
+            console.error(
+                "WARNING: Organization type dropdown is empty or only has placeholder!",
+            );
+            const label = document.querySelector(
+                'label[for="select-org-type"]',
+            );
+            if (label) {
+                label.style.color = "red";
+                label.textContent += " (ERROR: No types loaded)";
+            }
+        }
+    });
 </script>
 {% endblock %}

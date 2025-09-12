@@ -28,6 +28,7 @@ pub fn router() -> Router {
             "/orgs/new",
             get(new_organization_page).post(create_organization),
         )
+        .route("/orgs/test-types", get(test_organization_types))
         // Organization profile uses slug for URL: /org/<organization-slug>
         .route("/org/{slug}", get(organization_profile))
         .route(
@@ -548,6 +549,55 @@ async fn update_organization(
     info!("Organization '{}' updated by user {}", slug, user.id);
 
     Ok(Redirect::to(&format!("/org/{}", slug)))
+}
+
+async fn test_organization_types() -> Result<Html<String>, Error> {
+    debug!("Test endpoint: fetching organization types");
+
+    let model = OrganizationModel::new();
+    let org_types_data = model.get_organization_types().await?;
+
+    let mut html = String::from(
+        r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>Organization Types Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        h1 { color: #333; }
+        .count { color: blue; font-weight: bold; }
+        .type { margin: 10px 0; padding: 10px; background: #f0f0f0; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Organization Types Test</h1>
+    <p>This endpoint tests if organization types are being fetched correctly from the database.</p>
+    "#,
+    );
+
+    html.push_str(&format!(
+        "<p class='count'>Total types found: {}</p>",
+        org_types_data.len()
+    ));
+
+    if org_types_data.is_empty() {
+        html.push_str("<p class='error'>ERROR: No organization types found! Database may not be initialized.</p>");
+        html.push_str("<p>Run: <code>make db-init</code></p>");
+    } else {
+        html.push_str("<p class='success'>SUCCESS: Organization types loaded correctly!</p>");
+        html.push_str("<h2>Organization Types:</h2>");
+        for (id, name) in org_types_data {
+            html.push_str(&format!(
+                "<div class='type'>ID: <strong>{}</strong><br>Name: <strong>{}</strong></div>",
+                id, name
+            ));
+        }
+    }
+
+    html.push_str("</body></html>");
+    Ok(Html(html))
 }
 
 async fn delete_organization(

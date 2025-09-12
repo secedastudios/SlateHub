@@ -474,30 +474,41 @@ impl OrganizationModel {
     /// Get all organization types with ID and name
     pub async fn get_organization_types(&self) -> Result<Vec<(String, String)>, Error> {
         debug!("Fetching organization types from database");
-        debug!("Using namespace: slatehub, database: main");
 
-        let query = "SELECT meta::id(id) as id, name FROM organization_type ORDER BY name";
-        debug!("Executing query: {}", query);
+        #[derive(Debug, Deserialize)]
+        struct OrgTypeRecord {
+            id: String,
+            name: String,
+        }
 
-        let mut response = DB.query(query).await.map_err(|e| {
-            error!("Database query failed: {}", e);
+        // Use meta::id() to get clean IDs without table prefix
+        let sql = "SELECT meta::id(id) as id, name FROM organization_type ORDER BY name";
+
+        let mut response = DB.query(sql).await.map_err(|e| {
+            error!("Failed to query organization types: {}", e);
             Error::database(format!("Failed to fetch organization types: {}", e))
         })?;
 
-        debug!("Query response received, attempting to extract data");
+        // Direct struct extraction
+        let records: Vec<OrgTypeRecord> = response.take(0).map_err(|e| {
+            error!("Failed to extract organization types: {}", e);
+            Error::database(format!("Failed to deserialize organization types: {}", e))
+        })?;
 
-        let types: Vec<(String, String)> = response.take(0).unwrap_or_else(|e| {
-            error!("Failed to extract organization types from response: {}", e);
-            Vec::new()
-        });
+        debug!("Fetched {} organization types", records.len());
 
-        debug!("Fetched {} organization types", types.len());
+        // Convert to tuples
+        let types: Vec<(String, String)> = records
+            .into_iter()
+            .map(|record| (record.id, record.name))
+            .collect();
+
         if types.is_empty() {
             warn!(
-                "No organization types found in database - this may indicate the database needs initialization"
+                "No organization types found - database may need initialization with 'make db-init'"
             );
         } else {
-            debug!("Organization types found: {:?}", types);
+            debug!("Successfully loaded {} organization types", types.len());
         }
 
         Ok(types)
