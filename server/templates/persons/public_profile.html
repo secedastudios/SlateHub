@@ -26,10 +26,7 @@ block head %}
             </div>
             <div data-role="profile-info">
                 <h1 id="public-profile-name">
-                    {% match person.profile %} {% when Some with (profile) %} {%
-                    match profile.name %} {% when Some with (name) %} {{ name }}
-                    {% when None %} {{ person.username }} {% endmatch %} {% when
-                    None %} {{ person.username }} {% endmatch %}
+                    {{ person.get_display_name() }}
                 </h1>
 
                 <p id="public-profile-username" data-role="username">

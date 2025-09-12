@@ -157,7 +157,7 @@ DEFINE FIELD profile.media_other ON person TYPE array<record<media>> PERMISSIONS
 
 DEFINE FIELD profile.reels ON person TYPE array<record<media>> PERMISSIONS FULL;  -- Demo reels/videos
 
-DEFINE FIELD profile.name ON person TYPE string PERMISSIONS FULL;
+DEFINE FIELD profile.name ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.skills ON person TYPE array<string> PERMISSIONS FULL;
 DEFINE FIELD profile.bio ON person TYPE option<string> PERMISSIONS FULL;  -- For semantic search (detailed description)
 DEFINE FIELD profile.social_links ON person TYPE array<object> PERMISSIONS FULL;
@@ -176,6 +176,7 @@ DEFINE FIELD profile.resume ON person TYPE option<record<media>> PERMISSIONS FUL
 DEFINE FIELD profile.website ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.phone ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD username ON person TYPE string VALUE string::lowercase($value) PERMISSIONS FOR select, update FULL, FOR create WHERE FULL;
+DEFINE FIELD name ON person TYPE option<string> PERMISSIONS FULL;  -- Optional display name
 
 DEFINE INDEX person_username_unique ON person FIELDS username UNIQUE;
 DEFINE INDEX person_email_unique ON person FIELDS email;

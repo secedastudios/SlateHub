@@ -78,9 +78,7 @@ async fn user_profile(
     let profile = profile_user.profile.as_ref();
     let profile_data = ProfileData {
         id: profile_user.id.to_string(),
-        name: profile
-            .and_then(|p| p.name.clone())
-            .unwrap_or_else(|| profile_user.username.clone()),
+        name: profile_user.get_display_name(),
         username: profile_user.username.clone(),
         email: profile_user.email.clone(),
         avatar: profile_user.get_avatar_url(),
@@ -180,9 +178,7 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
     let profile = profile_user.profile.as_ref();
     let profile_data = ProfileData {
         id: profile_user.id.to_string(),
-        name: profile
-            .and_then(|p| p.name.clone())
-            .unwrap_or_else(|| profile_user.username.clone()),
+        name: profile_user.get_display_name(),
         username: profile_user.username.clone(),
         email: profile_user.email.clone(),
         avatar: profile_user.get_avatar_url(),

@@ -25,6 +25,8 @@ pub struct Person {
     pub username: String,
     /// The person's unique email address.
     pub email: String,
+    /// The person's optional display name.
+    pub name: Option<String>,
     /// The detailed profile information for the person.
     #[serde(default)]
     pub profile: Option<Profile>,
@@ -411,9 +413,9 @@ impl Person {
     /// Get initials for display (for avatar fallback)
     pub fn get_initials(&self) -> String {
         let display_name = self
-            .profile
-            .as_ref()
-            .and_then(|p| p.name.clone())
+            .name
+            .clone()
+            .or_else(|| self.profile.as_ref().and_then(|p| p.name.clone()))
             .unwrap_or_else(|| self.username.clone());
 
         let parts: Vec<&str> = display_name.split_whitespace().collect();
@@ -441,6 +443,15 @@ impl Person {
     /// Get the avatar URL if one exists
     pub fn get_avatar_url(&self) -> Option<String> {
         self.profile.as_ref().and_then(|p| p.avatar.clone())
+    }
+
+    /// Get the display name for the person
+    /// Priority: person.name -> profile.name -> username
+    pub fn get_display_name(&self) -> String {
+        self.name
+            .clone()
+            .or_else(|| self.profile.as_ref().and_then(|p| p.name.clone()))
+            .unwrap_or_else(|| self.username.clone())
     }
 
     /// Updates a user's profile information.
@@ -500,7 +511,7 @@ impl Person {
         // Initialize profile if it doesn't exist
         if person.profile.is_none() {
             person.profile = Some(Profile {
-                name: None,
+                name: None, // Explicitly set to None to avoid database errors
                 avatar: None,
                 headline: None,
                 bio: None,
@@ -530,8 +541,14 @@ impl Person {
             });
         }
 
+        // Update the person name field if provided (at root level, not in profile)
+        if let Some(n) = name.clone() {
+            person.name = if n.is_empty() { None } else { Some(n) };
+        }
+
         // Update the profile fields if provided
         if let Some(profile) = &mut person.profile {
+            // Keep profile.name synchronized with person.name for backward compatibility
             if let Some(n) = name {
                 profile.name = if n.is_empty() { None } else { Some(n) };
             }
@@ -572,12 +589,13 @@ impl Person {
             }
         }
 
-        // Update only the profile field in the database
-        // Use MERGE to update just the profile field without affecting other fields like password
-        let query = "UPDATE $id MERGE { profile: $profile } RETURN AFTER";
+        // Update the name and profile fields in the database
+        // Use MERGE to update just these fields without affecting other fields like password
+        let query = "UPDATE $id MERGE { name: $name, profile: $profile } RETURN AFTER";
         let mut response = DB
             .query(query)
             .bind(("id", person.id.clone()))
+            .bind(("name", person.name.clone()))
             .bind(("profile", person.profile.clone()))
             .await
             .map_err(|e| {
@@ -621,12 +639,13 @@ impl Person {
         }
 
         // Create the person record
-        let sql = "CREATE person SET username = $username, email = $email, password = $password";
+        let sql = "CREATE person SET username = $username, email = $email, password = $password, name = $name";
         let mut response = DB
             .query(sql)
             .bind(("username", username.clone()))
             .bind(("email", email.clone()))
             .bind(("password", password_hash))
+            .bind(("name", None::<String>))
             .await?;
 
         // Get the created person

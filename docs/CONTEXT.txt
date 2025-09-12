@@ -781,6 +781,25 @@ When asked to modify or create templates:
 9. NEVER create non-semantic wrapper divs
 10. ALWAYS ensure forms have proper ID associations
 
+When working on the project in general:
+
+11. DO NOT CREATE TEST SCRIPTS
+    - Do not create shell scripts (.sh files) for testing functionality
+    - Do not create test automation scripts
+    - Testing should be done through Rust's built-in testing framework (cargo test)
+    - If testing instructions are needed, provide them as comments in code or simple command examples
+
+12. DO NOT ADD MIGRATION DOCS TO /docs
+    - Do not create migration documentation in the /docs folder
+    - Do not create update guides or changelog files in /docs
+    - The /docs folder should only contain architectural and API documentation
+    - Migration scripts belong in /scripts folder as SQL files only
+
+13. PREFERRED APPROACHES
+    - When fixing bugs: Provide code fixes directly with brief explanations as code comments
+    - When adding features: Follow MVC pattern, update schema.surql directly (no migration files)
+    - When documenting: Add technical docs to /docs only for architecture, include usage examples in code comments
+
 ================================================================================
 END OF CONTEXT
 ================================================================================
