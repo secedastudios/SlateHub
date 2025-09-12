@@ -8,7 +8,7 @@ license = "Apache-2.0"
 default-run = "slatehub"
 
 [dependencies]
-axum = { version = "0.8.4", features = ["macros"] }
+axum = { version = "0.8.4", features = ["macros", "multipart"] }
 axum-extra = { version = "0.10", features = ["cookie"] }
 chrono = "0.4"
 cookie = "0.18"
@@ -42,6 +42,11 @@ tracing-subscriber = { version = "0.3", features = [
 ] }
 uuid = { version = "1.10", features = ["v4"] }
 async-trait = "0.1.89"
+aws-config = "1.1"
+aws-sdk-s3 = "1.15"
+
+image = "0.24"
+bytes = "1.5"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

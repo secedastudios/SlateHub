@@ -1,0 +1,786 @@
+================================================================================
+SLATEHUB PROJECT CONTEXT - AI ASSISTANT PROMPT
+================================================================================
+
+You are working on SlateHub, a production-ready web application built with modern Rust technologies and strict architectural principles. This document provides the complete technical context you need to understand and contribute to the project.
+
+================================================================================
+PROJECT OVERVIEW
+================================================================================
+
+SlateHub is a free, open-source SaaS platform for the TV, film, and content industries. It combines professional networking (like LinkedIn) with project management capabilities (like GitHub), specifically tailored for creative professionals.
+
+================================================================================
+TECHNICAL STACK
+================================================================================
+
+BACKEND TECHNOLOGY:
+- Language: Rust (Edition 2024)
+- Web Framework: Axum 0.8.4 (async web framework)
+- Database: SurrealDB 2.3.7 (multi-model database)
+- Object Storage: MinIO/AWS S3 (via aws-sdk-s3)
+- Template Engine: Askama 0.12 (compile-time checked templates)
+- Authentication: JWT (jsonwebtoken), Argon2 password hashing
+- Async Runtime: Tokio (full features)
+
+ARCHITECTURE PATTERN:
+- MVC (Model-View-Controller) with strict separation
+- Server-Side Rendering (SSR) only - NO client-side frameworks
+- Models handle ALL database interactions exclusively
+- Controllers (routes) orchestrate between models and views
+- Views are Askama templates that generate HTML
+
+PROJECT STRUCTURE:
+```
+slatehub/
+├── server/
+│   ├── src/
+│   │   ├── models/        # Database models (ONLY place for DB access)
+│   │   ├── routes/        # HTTP route handlers (controllers)
+│   │   ├── services/      # Business logic and external services
+│   │   ├── middleware/    # Request/response middleware
+│   │   ├── templates/     # Askama HTML templates (views)
+│   │   ├── main.rs        # Application entry point
+│   │   ├── auth.rs        # Authentication logic
+│   │   ├── db.rs          # Database connection management
+│   │   ├── config.rs      # Configuration management
+│   │   └── error.rs       # Error handling
+│   ├── static/            # Static assets (CSS, images)
+│   └── Cargo.toml         # Rust dependencies
+├── db/
+│   └── schema.surql       # Complete database schema and seed data
+├── docs/                  # Documentation
+└── docker-compose.yml     # Local development environment
+```
+
+================================================================================
+CRITICAL ARCHITECTURAL PRINCIPLES
+================================================================================
+
+1. STRICT MVC SEPARATION:
+   - Models: ONLY access the database, NO business logic
+   - Controllers (Routes): Handle HTTP requests, call models and services
+   - Views (Templates): Render HTML, NO logic beyond display
+
+2. DATABASE ACCESS RULES:
+   - ONLY models can interact with SurrealDB
+   - Routes/controllers MUST use models for ALL database operations
+   - Services can call models but NEVER access DB directly
+   - Use SurrealDB's query builder, NOT raw SQL
+
+3. SERVER-SIDE RENDERING ONLY:
+   - ALL HTML is generated server-side using Askama templates
+   - NO React, Vue, Angular, or any client-side framework
+   - NO client-side state management libraries
+   - NO build tools for JavaScript (no webpack, no bundlers)
+   - NO datastar.js or similar reactive libraries
+   - NO Server-Sent Events (SSE) or WebSockets for UI updates
+   - JavaScript is minimal and only for progressive enhancement
+   - Forms submit via standard HTTP POST, not AJAX
+
+4. STRICT SEPARATION OF CONCERNS (NON-NEGOTIABLE):
+   HTML, CSS, and JavaScript must be completely separated:
+
+   HTML (Templates):
+   - MUST contain ONLY semantic markup
+   - MUST use semantic HTML5 elements (article, section, nav, header, footer, etc.)
+   - MUST use data attributes for component identification and state
+   - MUST use IDs for unique landmarks and form associations
+   - MUST NOT contain ANY styling classes
+   - MUST NOT contain inline styles
+   - MUST NOT reference visual appearance in any way
+
+   CSS (Stylesheets):
+   - MUST use ONLY semantic selectors
+   - MUST target elements by their semantic meaning, IDs, and data attributes
+   - MUST use attribute selectors for state (e.g., [aria-expanded="true"])
+   - MUST use pseudo-classes for interaction states (:hover, :focus, :active)
+   - MUST live in separate CSS files under /static/css/
+   - MUST NOT use CSS classes for styling
+
+   JavaScript:
+   - MUST be vanilla JavaScript (no frameworks)
+   - MUST use semantic selectors to find elements
+   - MUST manipulate state through data attributes and ARIA attributes
+   - MUST NOT add or remove CSS classes for styling
+
+5. TEMPLATE ENGINE (ASKAMA):
+   - Templates are compiled at build time for type safety
+   - Use template inheritance for consistent layouts
+   - Templates live in server/src/templates/
+   - Extension: .html (but they're Askama templates)
+
+6. AUTHENTICATION & AUTHORIZATION:
+   - JWT tokens for session management
+   - Tokens stored in HTTP-only cookies
+   - Argon2 for password hashing
+   - Middleware handles auth checks
+
+7. FILE STORAGE:
+   - MinIO (S3-compatible) for object storage
+   - Images, documents stored in MinIO buckets
+   - Database stores only file metadata and URLs
+
+================================================================================
+HTML STRUCTURE & NAMING CONVENTIONS
+================================================================================
+
+ID NAMING CONVENTIONS:
+IDs should be used for:
+1. Page landmarks - Major sections of the page
+2. Form associations - Linking labels to inputs and error messages
+3. Navigation targets - Anchor links and skip navigation
+4. Unique interactive elements - Elements that need JavaScript interaction
+
+ID Naming Pattern: [context]-[element]-[purpose]
+
+Examples:
+- #main-nav - Main navigation
+- #user-menu - User account menu
+- #profile-header - Profile page header
+- #form-login - Login form
+- #input-email - Email input field
+- #error-email - Email error message
+- #section-experience - Experience section
+- #heading-skills - Skills section heading
+
+DATA ATTRIBUTE CONVENTIONS:
+
+Component Identification:
+Use data-component for major reusable components:
+- <article data-component="profile-card" data-user-id="123">
+- <section data-component="media-gallery">
+- <nav data-component="breadcrumb">
+
+Page/Section Context:
+Use data-page and data-section for page-specific styling:
+- <body data-page="profile">
+- <main data-section="user-content">
+- <article data-section="project-details">
+
+State Management:
+Use data-state for element states:
+- <article data-state="published">
+- <button data-state="loading">
+- <form data-state="submitting">
+- <div data-state="empty">
+
+Feature Flags:
+Use specific data attributes for features:
+- <article data-featured="true">
+- <section data-editable="true">
+- <div data-collapsible="true" data-collapsed="false">
+
+Content Type:
+Use data-type for content variations:
+- <article data-type="blog-post">
+- <article data-type="project">
+- <button data-type="primary">
+- <button data-type="danger">
+
+Role/Purpose:
+Use data-role for semantic purposes (when ARIA roles aren't appropriate):
+- <div data-role="thumbnail">
+- <span data-role="badge">
+- <div data-role="overlay">
+
+================================================================================
+DATABASE SCHEMA PATTERNS
+================================================================================
+
+SURREALDB CONVENTIONS:
+- **SCHEMAFUL TABLES**: Always define tables with SCHEMAFULL mode
+- **NO MIGRATIONS**: Update schema.surql file directly instead of using migration files
+- **SEED DATA IN SCHEMA**: Include all lists, lookups, and internal data in schema.surql
+- Use ULID for record IDs
+- Relationships via RELATE statements
+- **PREFER GRAPH RELATIONS**: Use SurrealDB's graph capabilities whenever relationships make sense
+  - Use RELATE for many-to-many relationships
+  - Leverage graph traversal for connected data queries
+  - Model relationships as first-class entities when they have properties
+  - Examples: user->FOLLOWS->user, user->MEMBER_OF->organization, project->USES->skill
+- Define schemas with DEFINE statements
+
+SCHEMA MANAGEMENT:
+- All table definitions in db/schema.surql
+- Direct updates to schema.surql (no migration files)
+- Include seed data for:
+  - Lookup tables (countries, languages, skills, etc.)
+  - System roles and permissions
+  - Default categories and tags
+  - Any static reference data
+
+EXAMPLE SCHEMA (db/schema.surql):
+```sql
+-- Define schemaful table
+DEFINE TABLE user SCHEMAFULL;
+DEFINE FIELD username ON TABLE user TYPE string ASSERT $value != NONE;
+DEFINE FIELD email ON TABLE user TYPE string ASSERT string::is::email($value);
+DEFINE FIELD created_at ON TABLE user TYPE datetime DEFAULT time::now();
+DEFINE INDEX user_email ON TABLE user COLUMNS email UNIQUE;
+
+-- Define relationship tables
+DEFINE TABLE follows SCHEMAFULL;
+DEFINE FIELD in ON TABLE follows TYPE record<user>;
+DEFINE FIELD out ON TABLE follows TYPE record<user>;
+DEFINE FIELD created_at ON TABLE follows TYPE datetime DEFAULT time::now();
+
+-- Insert reference data directly
+INSERT INTO skill [
+    { id: skill:rust, name: "Rust", category: "Programming" },
+    { id: skill:typescript, name: "TypeScript", category: "Programming" },
+    { id: skill:editing, name: "Video Editing", category: "Post-Production" }
+];
+
+INSERT INTO role [
+    { id: role:admin, name: "Administrator", permissions: ["*"] },
+    { id: role:member, name: "Member", permissions: ["read", "write:own"] }
+];
+```
+
+EXAMPLE MODEL:
+```rust
+// Always use SurrealDB's typed queries
+let user: Option<User> = db
+    .select(("user", user_id))
+    .await?;
+
+// For complex queries
+let results = db
+    .query("SELECT * FROM user WHERE email = $email")
+    .bind(("email", email))
+    .await?;
+
+// PREFER GRAPH RELATIONS for connected data
+let connections = db
+    .query("SELECT ->follows->user FROM user:$user_id")
+    .bind(("user_id", user_id))
+    .await?;
+
+// Create relationships
+let _ = db
+    .query("RELATE $user->follows->$target")
+    .bind(("user", user_id))
+    .bind(("target", target_id))
+    .await?;
+```
+
+================================================================================
+SEMANTIC HTML STRUCTURE PATTERNS
+================================================================================
+
+PROPER ELEMENT USAGE:
+
+Article Element (<article>):
+- Use ONLY for self-contained, independently distributable content
+- Good for: Blog posts, news articles, project cards, user comments
+- NOT for: Forms, page sections, navigation, footers, UI components
+
+Section Element (<section>):
+- Use for thematic grouping of content with a heading
+- Good for: Page regions, form wrappers, content groups
+- Always include a heading (h1-h6) or aria-label
+
+Div Element (<div>):
+- Use for generic containers with no semantic meaning
+- Good for: Layout wrappers, styling hooks, JavaScript targets
+- Use when article/section aren't semantically appropriate
+
+PAGE LAYOUT STRUCTURE:
+```html
+<body data-page="[page-name]" data-user="[authenticated|anonymous]">
+    <header id="site-header">
+        <nav id="main-nav" aria-label="Main navigation">
+            <!-- Logo/Brand -->
+            <div data-role="brand">
+                <a href="/" id="site-logo">SlateHub</a>
+            </div>
+
+            <!-- Primary Navigation -->
+            <ul data-role="nav-primary">
+                <li><a href="/projects" aria-current="page">Projects</a></li>
+                <li><a href="/people">People</a></li>
+            </ul>
+
+            <!-- User Navigation -->
+            <ul data-role="nav-user">
+                <li data-component="theme-toggle">
+                    <button id="theme-toggle" aria-label="Toggle theme">
+                        <span data-theme-icon="light">☀️</span>
+                        <span data-theme-icon="dark">🌙</span>
+                    </button>
+                </li>
+                <li data-component="user-menu">
+                    <details id="user-menu">
+                        <summary>User Name</summary>
+                        <ul data-role="dropdown-menu">
+                            <li><a href="/profile">Profile</a></li>
+                            <li><a href="/logout">Logout</a></li>
+                        </ul>
+                    </details>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main id="main-content">
+        <!-- Page-specific content -->
+    </main>
+
+    <footer id="site-footer">
+        <section data-role="footer-main">
+            <div data-role="footer-brand">
+                <h3>Brand Name</h3>
+                <p>Description</p>
+            </div>
+            <div data-role="footer-links">
+                <h4>Links</h4>
+                <nav><!-- links --></nav>
+            </div>
+        </section>
+    </footer>
+</body>
+```
+
+FORM STRUCTURE:
+```html
+<section id="section-[form-name]" data-component="auth-form" data-type="[login|signup|etc]">
+    <header data-role="form-header">
+        <h2 id="heading-[form]">Form Title</h2>
+        <p>Form description</p>
+    </header>
+
+    <form id="form-[name]" data-component="form" method="post" action="/[endpoint]">
+        <fieldset data-role="form-section">
+            <legend>Section Title</legend>
+
+            <div data-field="email">
+                <label for="input-email">Email</label>
+                <input
+                    type="email"
+                    id="input-email"
+                    name="email"
+                    required
+                    aria-invalid="false"
+                    aria-describedby="help-email error-email"
+                >
+                <small id="help-email" data-role="help-text">
+                    Enter your email address
+                </small>
+                <div id="error-email" role="alert" data-role="error-message" hidden>
+                    <!-- Error message -->
+                </div>
+            </div>
+        </fieldset>
+
+        <div data-role="form-actions">
+            <button type="submit" data-type="primary">Submit</button>
+            <button type="button" data-type="secondary">Cancel</button>
+        </div>
+    </form>
+</section>
+```
+
+CONTENT CARD STRUCTURE:
+```html
+<!-- Use article ONLY for self-contained, redistributable content -->
+<article data-component="content-card" data-type="[project|post|news]" data-id="[id]">
+    <header data-role="card-header">
+        <h3 id="card-title-[id]">Title</h3>
+        <div data-role="metadata">
+            <time datetime="2024-01-01">January 1, 2024</time>
+            <span data-role="author">Author Name</span>
+        </div>
+    </header>
+
+    <div data-role="card-body">
+        <!-- Content -->
+    </div>
+
+    <footer data-role="card-footer">
+        <nav data-role="card-actions">
+            <button type="button" data-action="like">Like</button>
+            <button type="button" data-action="share">Share</button>
+        </nav>
+    </footer>
+</article>
+
+<!-- For non-article content items like experience entries, use div -->
+<div data-component="experience-item" data-id="[id]">
+    <header data-role="item-header">
+        <h3 id="item-title-[id]">Role Title</h3>
+        <time>2024</time>
+    </header>
+    <div data-role="item-body">
+        <!-- Description -->
+    </div>
+</div>
+```
+
+MODAL/DIALOG STRUCTURE:
+```html
+<dialog id="modal-[name]" data-component="modal" aria-labelledby="modal-title-[name]">
+    <div data-role="modal-content">
+        <header data-role="modal-header">
+            <h2 id="modal-title-[name]">Modal Title</h2>
+            <button type="button" data-action="close" aria-label="Close modal">×</button>
+        </header>
+
+        <div data-role="modal-body">
+            <!-- Content -->
+        </div>
+
+        <footer data-role="modal-footer">
+            <button type="button" data-type="primary">Confirm</button>
+            <button type="button" data-type="secondary" data-action="cancel">Cancel</button>
+        </footer>
+    </div>
+</dialog>
+```
+
+LIST/GRID STRUCTURE:
+```html
+<section data-component="content-list" data-layout="[grid|list]">
+    <header data-role="section-header">
+        <h2 id="heading-[section]">Section Title</h2>
+        <nav data-role="filters">
+            <button type="button" data-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-filter="recent" aria-pressed="false">Recent</button>
+        </nav>
+    </header>
+
+    <div data-role="content-container" data-state="[loading|empty|error|ready]">
+        <!-- When empty -->
+        <div data-role="empty-state" data-state="empty">
+            <p>No items found</p>
+        </div>
+
+        <!-- When has content -->
+        <ul data-role="item-list">
+            <li data-item="true" data-item-id="[id]">
+                <!-- Item content -->
+            </li>
+        </ul>
+    </div>
+
+    <footer data-role="section-footer">
+        <nav data-role="pagination" aria-label="Pagination">
+            <a href="?page=1" aria-current="page">1</a>
+            <a href="?page=2">2</a>
+        </nav>
+    </footer>
+</section>
+```
+
+================================================================================
+CSS SELECTOR PATTERNS
+================================================================================
+
+BASIC ELEMENT SELECTORS:
+```css
+/* Page-specific styling */
+[data-page="profile"] main { }
+[data-page="projects"] [data-section="filters"] { }
+
+/* Component styling */
+[data-component="content-card"] { }
+[data-component="content-card"][data-type="featured"] { }
+
+/* State-based styling */
+[data-state="loading"] { }
+[data-state="error"] { }
+form[data-state="submitting"] button[type="submit"] { }
+
+/* Navigation states */
+nav a[aria-current="page"] { }
+button[aria-pressed="true"] { }
+details[open] > summary { }
+
+/* Form states */
+input[aria-invalid="true"] { }
+input:required:valid { }
+[data-role="error-message"]:not([hidden]) { }
+
+/* Layout variations */
+[data-layout="grid"] { }
+[data-layout="list"] { }
+
+/* Responsive containers */
+[data-component="content-list"][data-layout="grid"] {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+```
+
+CSS ORGANIZATION:
+```
+/static/css/
+├── base/
+│   ├── reset.css         # CSS reset/normalize
+│   ├── variables.css     # CSS custom properties
+│   └── typography.css    # Base typography
+├── layout/
+│   ├── grid.css         # Grid system
+│   ├── header.css       # Site header
+│   ├── footer.css       # Site footer
+│   └── navigation.css   # Navigation components
+├── components/
+│   ├── cards.css        # Content cards
+│   ├── forms.css        # Form styling
+│   ├── buttons.css      # Button variations
+│   ├── modals.css       # Modal dialogs
+│   └── tables.css       # Data tables
+├── pages/
+│   ├── profile.css      # Profile page specific
+│   ├── projects.css     # Projects page specific
+│   └── dashboard.css    # Dashboard specific
+└── themes/
+    ├── light.css        # Light theme overrides
+    └── dark.css         # Dark theme overrides
+```
+
+================================================================================
+CODING STANDARDS & CONVENTIONS
+================================================================================
+
+RUST CONVENTIONS:
+- Use async/await for all I/O operations
+- Handle errors with Result types and thiserror
+- Use tracing for logging (not println!)
+- Follow Rust naming conventions (snake_case for functions/variables)
+
+MODEL STRUCTURE:
+```rust
+// models ONLY interact with database
+pub struct UserModel {
+    db: Arc<Surreal<Client>>,
+}
+
+impl UserModel {
+    pub async fn find_by_id(&self, id: &str) -> Result<User> {
+        // Database query here
+    }
+}
+```
+
+ROUTE STRUCTURE:
+```rust
+// routes orchestrate between models and templates
+pub async fn show_profile(
+    Path(username): Path<String>,
+    State(app_state): State<AppState>,
+) -> Result<ProfileTemplate> {
+    let user = app_state.models.user.find_by_username(&username).await?;
+    Ok(ProfileTemplate { user })
+}
+```
+
+TEMPLATE STRUCTURE:
+```html
+{# Askama template syntax #}
+{% extends "layouts/base.html" %}
+
+{% block content %}
+    <h1>{{ user.name }}</h1>
+{% endblock %}
+```
+
+================================================================================
+API DESIGN PATTERNS
+================================================================================
+
+RESTFUL ROUTES:
+- GET /users - List
+- GET /users/:id - Show
+- POST /users - Create
+- PUT /users/:id - Update
+- DELETE /users/:id - Delete
+
+RESPONSE FORMATS:
+- HTML for browser requests (via templates)
+- JSON for API endpoints (when needed)
+- Use proper HTTP status codes
+- Consistent error responses
+
+================================================================================
+ERROR HANDLING
+================================================================================
+
+ERROR TYPES:
+- Use thiserror for error definitions
+- Convert errors at boundaries
+- User-friendly error pages
+- Log errors with tracing
+
+PATTERN:
+```rust
+#[derive(thiserror::Error, Debug)]
+pub enum AppError {
+    #[error("User not found")]
+    UserNotFound,
+
+    #[error("Database error: {0}")]
+    Database(#[from] surrealdb::Error),
+}
+```
+
+================================================================================
+DEVELOPMENT WORKFLOW
+================================================================================
+
+LOCAL SETUP:
+1. docker-compose up (starts SurrealDB and MinIO)
+2. cargo run (starts the web server)
+3. Access at http://localhost:3000
+
+TESTING:
+- Unit tests for models
+- Integration tests for routes
+- Use cargo test
+
+DEPLOYMENT:
+- Production uses environment variables
+- Secrets in .env file (never commit)
+- Health checks at /health
+
+================================================================================
+KEY COMMANDS
+================================================================================
+
+# Start services
+docker-compose up -d
+
+# Run development server
+cargo run
+
+# Run with hot reload
+cargo watch -x run
+
+# Run tests
+cargo test
+
+# Format code
+cargo fmt
+
+# Lint code
+cargo clippy
+
+================================================================================
+TEMPLATE IMPLEMENTATION CHECKLIST
+================================================================================
+
+When creating or updating templates, ensure:
+
+STRUCTURE:
+- Every major section has a unique ID
+- All form inputs have associated labels via ID
+- Error messages are linked to inputs via aria-describedby
+- Major components use data-component attribute
+- Page context is set with data-page on body
+- Sections use data-section for context
+
+NAVIGATION:
+- Current page uses aria-current="page"
+- Navigation sections have aria-label
+- Skip links are provided for keyboard navigation
+- Dropdown menus use details/summary or proper ARIA
+
+FORMS:
+- Each form has a unique ID
+- All inputs have unique IDs
+- Labels are properly associated with inputs
+- Error messages have role="alert"
+- Required fields are marked with required attribute
+- Invalid fields use aria-invalid
+- Help text is linked via aria-describedby
+
+INTERACTIVE ELEMENTS:
+- Buttons specify type attribute
+- Toggle buttons use aria-pressed
+- Expandable sections use aria-expanded
+- Loading states are indicated with data-state
+- Modals use dialog element or proper ARIA
+
+CONTENT:
+- Headings follow proper hierarchy
+- Lists use appropriate ul/ol/dl elements
+- Time elements use datetime attribute
+- Images have alt text
+- Links to external sites use rel="noopener"
+
+================================================================================
+WHEN IMPLEMENTING FEATURES
+================================================================================
+
+1. ALWAYS start with the model if database is involved
+2. Create routes that use the models
+3. Build templates that routes render
+4. Add CSS using data attribute selectors
+5. Test the complete flow
+6. Handle errors gracefully
+
+REMEMBER:
+- Models access database ONLY
+- Routes orchestrate and handle HTTP
+- Templates render HTML
+- Services handle business logic
+- Middleware handles cross-cutting concerns
+- NO JavaScript frameworks
+- NO CSS classes for styling
+- Server-side rendering ONLY
+
+================================================================================
+RED FLAGS TO AVOID
+================================================================================
+
+CLASS-BASED STYLING (FORBIDDEN):
+- class="error", class="success", class="warning"
+- class="button primary", class="btn-large"
+- class="card", class="modal", class="dropdown"
+- Any Bootstrap, Tailwind, or other CSS framework classes
+
+INLINE STYLES (FORBIDDEN):
+- style="color: red"
+- style="display: none"
+- Any style attribute
+
+MISSING STRUCTURE (MUST FIX):
+- Forms without IDs
+- Inputs without IDs
+- Labels without for attributes
+- Missing aria-describedby for error messages
+- Components without data-component
+- Pages without data-page on body
+
+SEMANTIC MISUSE (MUST FIX):
+- Using <article> for forms, footers, or UI components
+- Using <section> without headings
+- Missing semantic HTML5 elements where appropriate
+- Using divs when semantic elements exist
+
+POOR NAMING (MUST FIX):
+- Generic IDs like id="1", id="div1"
+- Inconsistent naming patterns
+- Missing data attributes for state
+- No data-type for variations
+
+================================================================================
+AI TOOL INSTRUCTIONS
+================================================================================
+
+When asked to modify or create templates:
+
+1. ALWAYS follow the ID naming convention: [context]-[element]-[purpose]
+2. ALWAYS use data-component for major reusable components
+3. ALWAYS use data-state for stateful elements
+4. ALWAYS use data-type for variations
+5. ALWAYS use data-page on body element
+6. ALWAYS provide proper ARIA attributes
+7. NEVER add CSS classes for styling
+8. NEVER use inline styles
+9. NEVER create non-semantic wrapper divs
+10. ALWAYS ensure forms have proper ID associations
+
+================================================================================
+END OF CONTEXT
+================================================================================

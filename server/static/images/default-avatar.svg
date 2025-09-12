@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <clipPath id="circle-clip">
+      <circle cx="100" cy="100" r="98"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="98" fill="#e1e8ed" stroke="#c1cad2" stroke-width="2"/>
+
+  <!-- Person icon -->
+  <g clip-path="url(#circle-clip)">
+    <!-- Head -->
+    <circle cx="100" cy="70" r="25" fill="#73828c"/>
+
+    <!-- Body/shoulders -->
+    <path d="M 100 95
+             C 80 95, 65 105, 60 125
+             L 60 200
+             L 140 200
+             L 140 125
+             C 135 105, 120 95, 100 95 Z"
+          fill="#73828c"/>
+  </g>
+
+  <!-- Optional: Add a subtle gradient for depth -->
+  <defs>
+    <radialGradient id="gradient" cx="50%" cy="30%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0.1" />
+    </radialGradient>
+  </defs>
+
+  <circle cx="100" cy="100" r="98" fill="url(#gradient)" opacity="0.3"/>
+</svg>

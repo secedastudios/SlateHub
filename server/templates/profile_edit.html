@@ -1,5 +1,7 @@
 {% extends "_layout.html" %} {% block title %}Edit Profile - {{ app_name }}{%
-endblock %} {% block content %}
+endblock %} {% block head %}
+<link rel="stylesheet" href="/static/css/components/image-upload.css" />
+{% endblock %} {% block content %}
 <main>
     <article data-profile-edit="true">
         <header>
@@ -13,6 +15,11 @@ endblock %} {% block content %}
             {{ success.as_ref().unwrap() }}
         </div>
         {% endif %}
+
+        <section aria-labelledby="profile-image-heading">
+            <h2 id="profile-image-heading">Profile Image</h2>
+            <div id="profile-image-upload"></div>
+        </section>
 
         <form method="post" action="/profile/edit">
             <section aria-labelledby="basic-info-heading">
@@ -445,4 +452,5 @@ endblock %} {% block content %}
         container.appendChild(fieldset);
     }
 </script>
+<script src="/static/js/profile-image-upload.js"></script>
 {% endblock %}

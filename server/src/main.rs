@@ -1,5 +1,6 @@
 use slatehub::config::Config;
 use slatehub::db::{DB, ensure_db_initialized};
+use slatehub::services::s3::init_s3;
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root};
 use tracing::{debug, error, info};
 
@@ -89,6 +90,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => {
             error!("Database initialization verification failed: {}", e);
             return Err(e.into());
+        }
+    }
+
+    // Initialize S3/MinIO service
+    debug!("Initializing S3 service");
+    match init_s3().await {
+        Ok(_) => info!("S3 service initialized successfully"),
+        Err(e) => {
+            error!("Failed to initialize S3 service: {}", e);
+            // Continue without S3 - profile images won't work but app can run
+            error!("Warning: Profile image uploads will not work without S3 service");
         }
     }
 
