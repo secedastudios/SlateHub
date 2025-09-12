@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Organization Type Dropdown</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        body {
+            padding: 2rem;
+        }
+        [data-component="test-form"] {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        [data-role="test-output"] {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #f4f4f4;
+            border-radius: 4px;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body data-page="test-org-dropdown">
+    <main id="main-content">
+        <section data-component="test-form">
+            <header data-role="section-header">
+                <h1 id="heading-test">Organization Type Dropdown Test</h1>
+                <p>This page tests the organization type dropdown functionality.</p>
+            </header>
+
+            <article data-role="test-section">
+                <h2 id="heading-static">Static Test (Hardcoded Options)</h2>
+                <form id="form-static-test">
+                    <div data-field="org_type_static">
+                        <label for="select-org-type-static">Organization Type (Static)</label>
+                        <select id="select-org-type-static" name="org_type_static" required>
+                            <option value="">Select type...</option>
+                            <option value="production_company">Production Company</option>
+                            <option value="film_studio">Film Studio</option>
+                            <option value="tv_production_company">TV Production Company</option>
+                            <option value="commercial_production_company">Commercial Production Company</option>
+                            <option value="animation_studio">Animation Studio</option>
+                            <option value="vfx_studio">VFX Studio</option>
+                            <option value="talent_agency">Talent Agency</option>
+                            <option value="management_company">Management Company</option>
+                            <option value="distribution_company">Distribution Company</option>
+                            <option value="marketing_agency">Marketing Agency</option>
+                            <option value="post_production_house">Post Production House</option>
+                            <option value="casting_agency">Casting Agency</option>
+                            <option value="sound_studio">Sound Studio</option>
+                            <option value="catering_company">Catering Company</option>
+                            <option value="equipment_rental">Equipment Rental</option>
+                            <option value="location_services">Location Services</option>
+                            <option value="film_school">Film School</option>
+                            <option value="community_group">Community Group</option>
+                            <option value="guild">Guild</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </form>
+            </article>
+
+            <article data-role="test-section">
+                <h2 id="heading-dynamic">Dynamic Test (Fetched from Database)</h2>
+                <form id="form-dynamic-test">
+                    <div data-field="org_type_dynamic">
+                        <label for="select-org-type-dynamic">Organization Type (Dynamic)</label>
+                        <select id="select-org-type-dynamic" name="org_type_dynamic" required>
+                            <option value="">Loading types...</option>
+                        </select>
+                    </div>
+                </form>
+                <div data-role="actions">
+                    <button type="button" id="btn-fetch-types" data-type="primary">Fetch Organization Types</button>
+                </div>
+            </article>
+
+            <article data-role="test-output">
+                <h2 id="heading-output">Test Output</h2>
+                <pre id="output-log">Click "Fetch Organization Types" to load data from the database...</pre>
+            </article>
+        </section>
+    </main>
+
+    <script>
+        // Log function
+        function log(message) {
+            const output = document.getElementById('output-log');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `\n[${timestamp}] ${message}`;
+        }
+
+        // Static dropdown change handler
+        document.getElementById('select-org-type-static').addEventListener('change', function(e) {
+            if (e.target.value) {
+                log(`Static dropdown selected: ${e.target.value}`);
+            }
+        });
+
+        // Fetch organization types from database
+        document.getElementById('btn-fetch-types').addEventListener('click', async function() {
+            const select = document.getElementById('select-org-type-dynamic');
+            log('Fetching organization types from database...');
+
+            try {
+                // Direct database query using the same approach as the backend
+                const response = await fetch('http://localhost:8000/sql', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'text/plain',
+                        'Surreal-NS': 'slatehub',
+                        'Surreal-DB': 'main',
+                        'Authorization': 'Basic ' + btoa('root:root')
+                    },
+                    body: 'SELECT meta::id(id) as id, name FROM organization_type ORDER BY name;'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                log(`Response received: ${JSON.stringify(data, null, 2)}`);
+
+                if (data && data[0] && data[0].status === 'OK' && data[0].result) {
+                    const types = data[0].result;
+                    log(`Found ${types.length} organization types`);
+
+                    // Clear and populate the select
+                    select.innerHTML = '<option value="">Select type...</option>';
+
+                    types.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type.id;
+                        option.textContent = type.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        select.appendChild(option);
+                        log(`Added option: ${type.name} (${type.id})`);
+                    });
+
+                    log('✓ Successfully populated dropdown with organization types');
+                } else {
+                    throw new Error('Invalid response structure');
+                }
+            } catch (error) {
+                log(`✗ Error fetching organization types: ${error.message}`);
+                select.innerHTML = '<option value="">Error loading types</option>';
+            }
+        });
+
+        // Dynamic dropdown change handler
+        document.getElementById('select-org-type-dynamic').addEventListener('change', function(e) {
+            if (e.target.value) {
+                log(`Dynamic dropdown selected: ${e.target.value}`);
+            }
+        });
+
+        // Test if the actual form endpoint is accessible
+        async function testFormEndpoint() {
+            try {
+                const response = await fetch('/orgs/new', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                if (response.status === 401) {
+                    log('Form endpoint /orgs/new requires authentication (401 Unauthorized)');
+                } else if (response.ok) {
+                    log('Form endpoint /orgs/new is accessible');
+                } else {
+                    log(`Form endpoint /orgs/new returned status: ${response.status}`);
+                }
+            } catch (error) {
+                log(`Could not reach form endpoint: ${error.message}`);
+            }
+        }
+
+        // Run initial tests
+        window.addEventListener('load', function() {
+            log('Test page loaded');
+            log('Static dropdown has ' + (document.getElementById('select-org-type-static').options.length - 1) + ' organization types');
+            testFormEndpoint();
+        });
+    </script>
+</body>
+</html>

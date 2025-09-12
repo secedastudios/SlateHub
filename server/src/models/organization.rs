@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
-use tracing::debug;
+use tracing::{debug, error, warn};
 
 use crate::{db::DB, error::Error};
 
@@ -473,16 +473,32 @@ impl OrganizationModel {
 
     /// Get all organization types with ID and name
     pub async fn get_organization_types(&self) -> Result<Vec<(String, String)>, Error> {
-        debug!("Fetching organization types");
+        debug!("Fetching organization types from database");
+        debug!("Using namespace: slatehub, database: main");
 
-        let types: Vec<(String, String)> = DB
-            .query("SELECT id, name FROM organization_type ORDER BY name")
-            .await
-            .map_err(|e| Error::database(format!("Failed to fetch organization types: {}", e)))?
-            .take(0)
-            .unwrap_or_default();
+        let query = "SELECT meta::id(id) as id, name FROM organization_type ORDER BY name";
+        debug!("Executing query: {}", query);
 
-        debug!("Fetched {} organization types: {:?}", types.len(), types);
+        let mut response = DB.query(query).await.map_err(|e| {
+            error!("Database query failed: {}", e);
+            Error::database(format!("Failed to fetch organization types: {}", e))
+        })?;
+
+        debug!("Query response received, attempting to extract data");
+
+        let types: Vec<(String, String)> = response.take(0).unwrap_or_else(|e| {
+            error!("Failed to extract organization types from response: {}", e);
+            Vec::new()
+        });
+
+        debug!("Fetched {} organization types", types.len());
+        if types.is_empty() {
+            warn!(
+                "No organization types found in database - this may indicate the database needs initialization"
+            );
+        } else {
+            debug!("Organization types found: {:?}", types);
+        }
 
         Ok(types)
     }
