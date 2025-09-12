@@ -25,12 +25,7 @@ async fn index(request: Request) -> Result<Html<String>, Error> {
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
     // Create the index template with sample data
@@ -85,12 +80,7 @@ async fn projects(request: Request) -> Result<Html<String>, Error> {
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
     let template = ProjectsTemplate::new(base);
@@ -113,12 +103,7 @@ async fn people(request: Request) -> Result<Html<String>, Error> {
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
     let mut template = PeopleTemplate::new(base);
@@ -153,12 +138,7 @@ async fn about(request: Request) -> Result<Html<String>, Error> {
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
     let template = AboutTemplate::new(base);

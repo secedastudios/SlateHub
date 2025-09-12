@@ -35,7 +35,7 @@ pub struct Person {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Profile {
     pub name: Option<String>,
-    pub avatar: Option<RecordId>, // Record link to 'media' table
+    pub avatar: Option<String>, // Direct URL to profile image
     pub headline: Option<String>,
     pub bio: Option<String>,
     pub location: Option<String>,
@@ -406,6 +406,41 @@ impl Person {
                 .and_then(|p| p.name.clone())
                 .unwrap_or_else(|| self.username.clone()),
         }
+    }
+
+    /// Get initials for display (for avatar fallback)
+    pub fn get_initials(&self) -> String {
+        let display_name = self
+            .profile
+            .as_ref()
+            .and_then(|p| p.name.clone())
+            .unwrap_or_else(|| self.username.clone());
+
+        let parts: Vec<&str> = display_name.split_whitespace().collect();
+
+        if parts.len() >= 2 {
+            // Use first letter of first and last name
+            let first = parts[0].chars().next().unwrap_or('?');
+            let last = parts[parts.len() - 1].chars().next().unwrap_or('?');
+            format!("{}{}", first, last).to_uppercase()
+        } else if !parts.is_empty() {
+            // Use first two letters of single name
+            let chars: Vec<char> = parts[0].chars().take(2).collect();
+            if chars.len() == 2 {
+                format!("{}{}", chars[0], chars[1]).to_uppercase()
+            } else if chars.len() == 1 {
+                format!("{}", chars[0]).to_uppercase()
+            } else {
+                "??".to_string()
+            }
+        } else {
+            "??".to_string()
+        }
+    }
+
+    /// Get the avatar URL if one exists
+    pub fn get_avatar_url(&self) -> Option<String> {
+        self.profile.as_ref().and_then(|p| p.avatar.clone())
     }
 
     /// Updates a user's profile information.

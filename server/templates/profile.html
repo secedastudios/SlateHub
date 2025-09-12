@@ -1,5 +1,7 @@
 {% extends "_layout.html" %} {% block title %}{{ profile.name }} - {{ app_name
-}}{% endblock %} {% block page_name %}profile{% endblock %} {% block content %}
+}}{% endblock %} {% block page_name %}profile{% endblock %} {% block head %}
+<link rel="stylesheet" href="/static/css/pages/profile.css" />
+{% endblock %} {% block content %}
 <section
     id="profile-main"
     data-component="profile"
@@ -7,13 +9,29 @@
     data-username="{{ profile.username }}"
 >
     <header id="profile-header" data-role="profile-header">
-        <h1 id="profile-name">{{ profile.name }}</h1>
+        <div data-component="profile-header-main">
+            <div data-role="avatar-container">
+                {% if profile.avatar.is_some() %}
+                <img
+                    src="{{ profile.avatar.as_ref().unwrap() }}"
+                    alt="{{ profile.name }}'s avatar"
+                    data-role="avatar"
+                />
+                {% else %}
+                <div data-role="avatar-initials">{{ profile.initials }}</div>
+                {% endif %}
+            </div>
+            <div data-role="profile-info">
+                <h1 id="profile-name">{{ profile.name }}</h1>
 
-        {% if profile.headline.is_some() %}
-        <p id="profile-headline" data-role="headline">
-            {{ profile.headline.as_ref().unwrap() }}
-        </p>
-        {% endif %} {% if profile.is_own_profile %}
+                {% if profile.headline.is_some() %}
+                <p id="profile-headline" data-role="headline">
+                    {{ profile.headline.as_ref().unwrap() }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% if profile.is_own_profile %}
         <nav
             id="profile-actions"
             aria-label="Profile actions"

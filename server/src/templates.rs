@@ -2,13 +2,96 @@ use askama::Template;
 use chrono::Datelike;
 use serde::{Deserialize, Serialize};
 
-/// User information for templates
+use crate::db::DB;
+use crate::models::person::SessionUser;
+
+/// Represents a user for template rendering
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
     pub name: String,
     pub email: String,
-    pub avatar: String,
+    pub avatar: String,             // Compatibility field - either URL or empty
+    pub avatar_url: Option<String>, // Actual profile image URL if exists
+    pub initials: String,           // Fallback initials from username/name
+}
+
+impl User {
+    /// Create a User from a SessionUser, fetching the actual avatar URL from the database
+    pub async fn from_session_user(session_user: &SessionUser) -> Self {
+        // Generate initials from name or username
+        let initials = Self::generate_initials(&session_user.name);
+
+        // Try to fetch the avatar URL from the database
+        let avatar_url = Self::fetch_avatar_url(&session_user.id).await;
+
+        // For compatibility, set avatar to the URL if it exists, otherwise use /api/avatar endpoint
+        let avatar = avatar_url
+            .clone()
+            .unwrap_or_else(|| format!("/api/avatar?id={}", session_user.id));
+
+        User {
+            id: session_user.id.clone(),
+            name: session_user.name.clone(),
+            email: session_user.email.clone(),
+            avatar,
+            avatar_url,
+            initials,
+        }
+    }
+
+    /// Generate initials from a name or username
+    fn generate_initials(name: &str) -> String {
+        let parts: Vec<&str> = name.split_whitespace().collect();
+
+        if parts.len() >= 2 {
+            // Use first letter of first and last name
+            let first = parts[0].chars().next().unwrap_or('?');
+            let last = parts[parts.len() - 1].chars().next().unwrap_or('?');
+            format!("{}{}", first, last).to_uppercase()
+        } else if !parts.is_empty() {
+            // Use first two letters of single name
+            let chars: Vec<char> = parts[0].chars().take(2).collect();
+            if chars.len() == 2 {
+                format!("{}{}", chars[0], chars[1]).to_uppercase()
+            } else if chars.len() == 1 {
+                format!("{}", chars[0]).to_uppercase()
+            } else {
+                "??".to_string()
+            }
+        } else {
+            "??".to_string()
+        }
+    }
+
+    /// Fetch avatar URL from the database
+    async fn fetch_avatar_url(person_id: &str) -> Option<String> {
+        // Ensure we have full record ID
+        let person_record = if person_id.starts_with("person:") {
+            person_id.to_string()
+        } else {
+            format!("person:{}", person_id)
+        };
+
+        // Query for the person's avatar URL
+        let sql = format!("SELECT profile.avatar FROM {} LIMIT 1", person_record);
+
+        if let Ok(mut response) = DB.query(&sql).await {
+            if let Ok(result) = response.take::<Option<serde_json::Value>>(0) {
+                if let Some(data) = result {
+                    if let Some(avatar_url) = data
+                        .get("profile")
+                        .and_then(|p| p.get("avatar"))
+                        .and_then(|a| a.as_str())
+                    {
+                        return Some(avatar_url.to_string());
+                    }
+                }
+            }
+        }
+
+        None
+    }
 }
 
 /// Common template data
@@ -98,6 +181,8 @@ pub struct ProfileData {
     pub name: String,
     pub username: String,
     pub email: String,
+    pub avatar: Option<String>,
+    pub initials: String,
     pub headline: Option<String>,
     pub bio: Option<String>,
     pub location: Option<String>,

@@ -9,22 +9,42 @@ block head %}
     data-username="{{ person.username }}"
 >
     <header id="public-profile-header" data-role="profile-header">
-        <h1 id="public-profile-name">
-            {% match person.profile %} {% when Some with (profile) %} {% match
-            profile.name %} {% when Some with (name) %} {{ name }} {% when None
-            %} {{ person.username }} {% endmatch %} {% when None %} {{
-            person.username }} {% endmatch %}
-        </h1>
+        <div data-component="profile-header-main">
+            <div data-role="avatar-container">
+                {% match person.get_avatar_url() %} {% when Some with
+                (avatar_url) %}
+                <img
+                    src="{{ avatar_url }}"
+                    alt="{{ person.username }}'s avatar"
+                    data-role="avatar"
+                />
+                {% when None %}
+                <div data-role="avatar-initials">
+                    {{ person.get_initials() }}
+                </div>
+                {% endmatch %}
+            </div>
+            <div data-role="profile-info">
+                <h1 id="public-profile-name">
+                    {% match person.profile %} {% when Some with (profile) %} {%
+                    match profile.name %} {% when Some with (name) %} {{ name }}
+                    {% when None %} {{ person.username }} {% endmatch %} {% when
+                    None %} {{ person.username }} {% endmatch %}
+                </h1>
 
-        <p id="public-profile-username" data-role="username">
-            @{{ person.username }}
-        </p>
+                <p id="public-profile-username" data-role="username">
+                    @{{ person.username }}
+                </p>
 
-        {% match person.profile %} {% when Some with (profile) %} {% match
-        profile.headline %} {% when Some with (headline) %}
-        <p id="public-profile-headline" data-role="headline">{{ headline }}</p>
-        {% when None %} {% endmatch %} {% when None %} {% endmatch %} {% if
-        is_own_profile %}
+                {% match person.profile %} {% when Some with (profile) %} {%
+                match profile.headline %} {% when Some with (headline) %}
+                <p id="public-profile-headline" data-role="headline">
+                    {{ headline }}
+                </p>
+                {% when None %} {% endmatch %} {% when None %} {% endmatch %}
+            </div>
+        </div>
+        {% if is_own_profile %}
         <nav
             id="public-profile-actions"
             aria-label="Profile actions"

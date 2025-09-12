@@ -141,7 +141,7 @@ DEFINE TABLE person TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
 DEFINE FIELD email ON person TYPE string ASSERT string::is::email($value) PERMISSIONS FULL;
 DEFINE FIELD password ON person TYPE string PERMISSIONS FULL;
 DEFINE FIELD profile ON person FLEXIBLE TYPE option<object> PERMISSIONS FULL;
-DEFINE FIELD profile.avatar ON person TYPE option<record<media>> PERMISSIONS FULL;  -- Headshot
+DEFINE FIELD profile.avatar ON person TYPE option<string> PERMISSIONS FULL;  -- Profile image URL
 DEFINE FIELD profile.headline ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.height_mm ON person TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD profile.weight_kg ON person TYPE option<int> PERMISSIONS FULL;  -- Added for physical attributes

@@ -71,12 +71,7 @@ async fn user_profile(
     // Build base context
     let mut base = BaseContext::new().with_page("profile");
     if let Some(ref user) = current_user {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
     // Convert Person model to ProfileData
@@ -88,6 +83,8 @@ async fn user_profile(
             .unwrap_or_else(|| profile_user.username.clone()),
         username: profile_user.username.clone(),
         email: profile_user.email.clone(),
+        avatar: profile_user.get_avatar_url(),
+        initials: profile_user.get_initials(),
         headline: profile.and_then(|p| p.headline.clone()),
         bio: profile.and_then(|p| p.bio.clone()),
         location: profile.and_then(|p| p.location.clone()),
@@ -175,12 +172,9 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
     };
 
     // Build base context
-    let base = BaseContext::new().with_page("profile").with_user(User {
-        id: current_user.id.clone(),
-        name: current_user.username.clone(),
-        email: current_user.email.clone(),
-        avatar: format!("/api/avatar?id={}", current_user.id),
-    });
+    let base = BaseContext::new()
+        .with_page("profile")
+        .with_user(User::from_session_user(&current_user).await);
 
     // Convert Person model to ProfileData
     let profile = profile_user.profile.as_ref();
@@ -191,6 +185,8 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
             .unwrap_or_else(|| profile_user.username.clone()),
         username: profile_user.username.clone(),
         email: profile_user.email.clone(),
+        avatar: profile_user.get_avatar_url(),
+        initials: profile_user.get_initials(),
         headline: profile.and_then(|p| p.headline.clone()),
         bio: profile.and_then(|p| p.bio.clone()),
         location: profile.and_then(|p| p.location.clone()),

@@ -33,12 +33,7 @@ async fn signup_form(request: Request) -> Result<Html<String>, Error> {
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
     let template = SignupTemplate::new(base);
@@ -97,12 +92,7 @@ async fn login_form(request: Request) -> Result<Html<String>, Error> {
 
     // Add user to context if authenticated
     if let Some(user) = request.get_user() {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
     let template = LoginTemplate::new(base);

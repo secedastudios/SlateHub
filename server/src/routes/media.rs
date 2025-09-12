@@ -11,12 +11,7 @@ use std::io::Cursor;
 use tracing::{debug, info};
 use uuid::Uuid;
 
-use crate::{
-    error::Error,
-    middleware::AuthenticatedUser,
-    models::media::{CreateMediaInput, Media, MediaDimensions},
-    services::s3::s3,
-};
+use crate::{db::DB, error::Error, middleware::AuthenticatedUser, services::s3::s3};
 
 pub fn router() -> Router {
     Router::new()
@@ -106,7 +101,7 @@ async fn upload_profile_image(
         break;
     }
 
-    let (filename, _content_type, data) =
+    let (_filename, _content_type, data) =
         image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
 
     // Process the image
@@ -114,9 +109,11 @@ async fn upload_profile_image(
         process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
 
     // Generate unique keys for S3
+    // Remove "person:" prefix from ID to avoid colon in S3 paths
+    let sanitized_user_id = user.id.strip_prefix("person:").unwrap_or(&user.id);
     let image_id = Uuid::new_v4().to_string();
-    let main_key = format!("profiles/{}/{}.jpg", user.id, image_id);
-    let thumb_key = format!("profiles/{}/thumb_{}.jpg", user.id, image_id);
+    let main_key = format!("profiles/{}/{}.jpg", sanitized_user_id, image_id);
+    let thumb_key = format!("profiles/{}/thumb_{}.jpg", sanitized_user_id, image_id);
 
     // Upload to S3
     let s3_service = s3()?;
@@ -129,34 +126,23 @@ async fn upload_profile_image(
         .upload_file(&thumb_key, thumbnail, "image/jpeg")
         .await?;
 
-    // Get image dimensions
-    let img = image::load_from_memory(&processed_image)
-        .map_err(|e| Error::Internal(format!("Failed to read image dimensions: {}", e)))?;
-
-    let dimensions = MediaDimensions {
-        width: img.width(),
-        height: img.height(),
+    // Update the person's profile with the new avatar URL
+    let person_id = if user.id.starts_with("person:") {
+        user.id.clone()
+    } else {
+        format!("person:{}", user.id)
     };
 
-    // Use the full record ID
-    let person_id = user.id.clone();
+    // Update the person's profile.avatar field directly with the URL
+    let update_sql = format!(
+        "UPDATE {} SET profile.avatar = $avatar RETURN NONE",
+        person_id
+    );
 
-    // Create media record and get the ID
-    let media_id = Media::create(CreateMediaInput {
-        media_type: "profile_image".to_string(),
-        filename,
-        mime_type: "image/jpeg".to_string(),
-        size: processed_image.len() as i64,
-        bucket: "slatehub-media".to_string(),
-        object_key: main_key,
-        url: Some(main_url.clone()),
-        dimensions: Some(dimensions),
-        uploaded_by: person_id.clone(), // This is already the full "person:id" format
-    })
-    .await?;
-
-    // Set as profile image
-    Media::set_as_profile_image(&media_id, &person_id).await?;
+    DB.query(&update_sql)
+        .bind(("avatar", main_url.clone()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to update profile avatar: {}", e)))?;
 
     info!(
         "Profile image uploaded successfully for user {}",
@@ -164,8 +150,8 @@ async fn upload_profile_image(
     );
 
     Ok(Json(UploadResponse {
-        media_id,
-        url: main_url,
+        media_id: image_id, // Use the generated UUID as the ID
+        url: main_url.clone(),
         thumbnail_url: Some(thumb_url),
     }))
 }
@@ -262,22 +248,40 @@ async fn get_profile_image_url(
 ) -> Result<Json<serde_json::Value>, Error> {
     debug!("Getting profile image for person: {}", person_id);
 
-    // Get the profile image from database
-    let media = Media::get_profile_image(&person_id).await?;
+    // Ensure we have full record ID
+    let person_record = if person_id.starts_with("person:") {
+        person_id.clone()
+    } else {
+        format!("person:{}", person_id)
+    };
 
-    if let Some(media) = media {
-        // Generate a presigned URL if needed, or return the public URL
-        let s3_service = s3()?;
-        let url = if let Some(public_url) = media.url {
-            public_url
+    // Get the profile avatar URL directly from the person record
+    let sql = format!("SELECT profile.avatar FROM {} LIMIT 1", person_record);
+
+    let mut response = DB
+        .query(&sql)
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to fetch profile avatar: {}", e)))?;
+
+    let result: Option<serde_json::Value> = response.take(0).ok().and_then(|v| v);
+
+    if let Some(data) = result {
+        if let Some(avatar_url) = data
+            .get("profile")
+            .and_then(|p| p.get("avatar"))
+            .and_then(|a| a.as_str())
+        {
+            Ok(Json(serde_json::json!({
+                "url": avatar_url,
+                "media_id": null,
+            })))
         } else {
-            s3_service.generate_download_url(&media.object_key).await?
-        };
-
-        Ok(Json(serde_json::json!({
-            "url": url,
-            "media_id": media.id.to_string(),
-        })))
+            // Return default avatar URL
+            Ok(Json(serde_json::json!({
+                "url": "/static/images/default-avatar.png",
+                "media_id": null,
+            })))
+        }
     } else {
         // Return default avatar URL
         Ok(Json(serde_json::json!({

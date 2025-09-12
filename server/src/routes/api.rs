@@ -2,12 +2,13 @@ use axum::{
     Json, Router,
     extract::Query,
     response::{IntoResponse, Redirect},
-    routing::get,
+    routing::{get, post},
 };
 use serde::Serialize;
 use std::collections::HashMap;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
+use crate::db::DB;
 use crate::models::system::System;
 
 pub fn router() -> Router {
@@ -16,6 +17,7 @@ pub fn router() -> Router {
         .route("/stats", get(stats))
         .route("/avatar", get(avatar))
         .route("/debug/user", get(debug_user))
+        .route("/fix-avatar-urls", post(fix_avatar_urls))
 }
 
 #[axum::debug_handler]
@@ -74,13 +76,32 @@ async fn avatar(Query(params): Query<HashMap<String, String>>) -> impl IntoRespo
     let id = params.get("id").map(|s| s.as_str()).unwrap_or("unknown");
     debug!("Avatar requested for user: {}", id);
 
-    // For now, redirect to a default avatar service
-    // In production, you might:
-    // 1. Check if user has uploaded a custom avatar
-    // 2. Generate based on email hash (Gravatar style)
-    // 3. Return a stored image from MinIO
+    // First, try to get the actual avatar URL from the person's profile
+    let person_record = if id.starts_with("person:") {
+        id.to_string()
+    } else {
+        format!("person:{}", id)
+    };
 
-    // Using DiceBear for deterministic avatars based on user ID
+    // Query for the person's avatar URL
+    let sql = format!("SELECT profile.avatar FROM {} LIMIT 1", person_record);
+
+    if let Ok(mut response) = DB.query(&sql).await {
+        if let Ok(result) = response.take::<Option<serde_json::Value>>(0) {
+            if let Some(data) = result {
+                if let Some(avatar_url) = data
+                    .get("profile")
+                    .and_then(|p| p.get("avatar"))
+                    .and_then(|a| a.as_str())
+                {
+                    // User has a custom avatar, redirect to it
+                    return Redirect::permanent(avatar_url);
+                }
+            }
+        }
+    }
+
+    // Fall back to DiceBear for deterministic avatars based on user ID
     let avatar_url = format!(
         "https://api.dicebear.com/7.x/initials/svg?seed={}&backgroundColor=4f46e5",
         id
@@ -195,4 +216,39 @@ async fn debug_user(Query(params): Query<HashMap<String, String>>) -> impl IntoR
         "username": username,
         "tests": query_results
     }))
+}
+
+/// Fix avatar URLs by removing colons from paths (MinIO compatibility)
+async fn fix_avatar_urls() -> impl IntoResponse {
+    debug!("Fixing avatar URLs to remove colons from paths");
+
+    // Update all person records that have avatar URLs containing "person:" in the path
+    let sql = r#"
+        UPDATE person
+        SET profile.avatar = string::replace(profile.avatar, '/profiles/person:', '/profiles/')
+        WHERE profile.avatar CONTAINS '/profiles/person:'
+        RETURN AFTER
+    "#;
+
+    match DB.query(sql).await {
+        Ok(mut response) => {
+            let updated: Vec<serde_json::Value> = response.take(0).unwrap_or_default();
+            let count = updated.len();
+
+            info!("Fixed {} avatar URLs", count);
+
+            Json(serde_json::json!({
+                "success": true,
+                "message": format!("Fixed {} avatar URLs", count),
+                "updated": count
+            }))
+        }
+        Err(e) => {
+            error!("Failed to fix avatar URLs: {}", e);
+            Json(serde_json::json!({
+                "success": false,
+                "error": format!("Failed to fix avatar URLs: {}", e)
+            }))
+        }
+    }
 }

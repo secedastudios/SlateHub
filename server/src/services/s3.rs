@@ -101,11 +101,51 @@ impl S3Service {
                     .map_err(|e| Error::Internal(format!("Failed to create bucket: {}", e)))?;
 
                 // Set bucket policy to allow public read for profile images
-                // TODO: Configure proper bucket policies for different media types
+                self.set_bucket_policy().await?;
 
                 Ok(())
             }
         }
+    }
+
+    /// Set bucket policy to allow public read for profile images
+    async fn set_bucket_policy(&self) -> Result<()> {
+        debug!("Setting bucket policy for public profile images");
+
+        let policy = format!(
+            r#"{{
+                "Version": "2012-10-17",
+                "Statement": [
+                    {{
+                        "Effect": "Allow",
+                        "Principal": {{"AWS": ["*"]}},
+                        "Action": ["s3:GetObject"],
+                        "Resource": ["arn:aws:s3:::{}/profiles/*"]
+                    }}
+                ]
+            }}"#,
+            self.config.bucket_name
+        );
+
+        self.client
+            .put_bucket_policy()
+            .bucket(&self.config.bucket_name)
+            .policy(policy)
+            .send()
+            .await
+            .map_err(|e| {
+                // MinIO might not support bucket policies in some configurations
+                // Log the error but don't fail - we'll rely on object ACLs instead
+                debug!(
+                    "Could not set bucket policy (this is normal for some MinIO configs): {}",
+                    e
+                );
+                // Return Ok anyway since we set ACLs on individual objects
+            })
+            .ok();
+
+        info!("Bucket policy configured for public profile images");
+        Ok(())
     }
 
     /// Upload a file to S3/MinIO
@@ -114,12 +154,21 @@ impl S3Service {
 
         let body = ByteStream::from(data);
 
-        self.client
+        // For profile images, set public-read ACL
+        let mut request = self
+            .client
             .put_object()
             .bucket(&self.config.bucket_name)
             .key(key)
             .body(body)
-            .content_type(content_type)
+            .content_type(content_type);
+
+        // Make profile images publicly accessible
+        if key.starts_with("profiles/") {
+            request = request.acl(aws_sdk_s3::types::ObjectCannedAcl::PublicRead);
+        }
+
+        request
             .send()
             .await
             .map_err(|e| Error::Internal(format!("Failed to upload file: {}", e)))?;

@@ -39,11 +39,18 @@
             <li data-component="user-menu">
                 <details id="user-menu">
                     <summary role="button" aria-label="User menu">
+                        {% match user.avatar_url %}
+                        {% when Some with (url) %}
                         <img
-                            src="{{ user.avatar }}"
+                            src="{{ url }}"
                             alt="{{ user.name }}"
                             data-role="avatar"
                         />
+                        {% when None %}
+                        <div data-role="avatar-initials">
+                            {{ user.initials }}
+                        </div>
+                        {% endmatch %}
                     </summary>
                     <ul data-role="dropdown-menu" dir="rtl">
                         <li><a href="/profile">Profile</a></li>

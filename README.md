@@ -115,3 +115,26 @@ When running the server, you'll see logs like:
 ```
 
 For production deployments, use `LOG_FORMAT=json` to get structured logs that can be easily parsed by log aggregation systems.
+
+## Recent Updates
+
+### Profile Image Storage (January 2025)
+
+The profile image upload system has been simplified:
+
+- **Direct URL Storage**: Profile avatars now store the image URL directly in the `person.profile.avatar` field instead of using a separate media table with relationships
+- **Improved Performance**: Single database query retrieves the complete profile including the avatar URL
+- **Simplified Architecture**: No more complex relationship queries or media record management for profile images
+- **MinIO/S3 Integration**: Images are uploaded directly to object storage with automatic thumbnail generation
+
+For detailed information about the profile image upload system, see [Profile Image Upload Documentation](docs/PROFILE_IMAGE_UPLOAD.md).
+
+#### Testing Profile Upload
+
+A test script is provided to verify the profile upload functionality:
+
+```bash
+./test/test_profile_upload.sh
+```
+
+This will test image upload, storage, and retrieval to ensure everything is working correctly.

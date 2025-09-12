@@ -1,0 +1,175 @@
+/* ========================================
+   Avatar Component Styles
+   ======================================== */
+
+/* Avatar container in the user menu */
+[data-component="user-menu"] summary {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+/* Avatar image styling */
+[data-component="user-menu"] img[data-role="avatar"] {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--pico-primary-border, #e1e6eb);
+    transition: border-color 0.2s ease;
+}
+
+[data-component="user-menu"] summary:hover img[data-role="avatar"],
+[data-component="user-menu"] summary:focus img[data-role="avatar"] {
+    border-color: var(--pico-primary, #0172ad);
+}
+
+/* Avatar initials styling */
+[data-role="avatar-initials"] {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    border: 2px solid var(--pico-primary-border, #e1e6eb);
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+[data-component="user-menu"] summary:hover [data-role="avatar-initials"],
+[data-component="user-menu"] summary:focus [data-role="avatar-initials"] {
+    border-color: var(--pico-primary, #0172ad);
+    transform: scale(1.05);
+}
+
+/* Larger avatar variants (for profile pages) */
+[data-component="profile-header"] img[data-role="avatar"],
+[data-component="profile-header"] [data-role="avatar-initials"] {
+    width: 120px;
+    height: 120px;
+}
+
+[data-component="profile-header"] [data-role="avatar-initials"] {
+    font-size: 36px;
+    border-width: 3px;
+}
+
+/* Medium avatar variants (for cards) */
+[data-component="person-card"] img[data-role="avatar"],
+[data-component="person-card"] [data-role="avatar-initials"],
+[data-component="project-card"] img[data-role="avatar"],
+[data-component="project-card"] [data-role="avatar-initials"] {
+    width: 48px;
+    height: 48px;
+}
+
+[data-component="person-card"] [data-role="avatar-initials"],
+[data-component="project-card"] [data-role="avatar-initials"] {
+    font-size: 18px;
+}
+
+/* Avatar loading state */
+[data-role="avatar"][data-state="loading"] {
+    background: var(--pico-secondary-background, #f3f4f6);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Avatar with status indicator */
+[data-component="avatar-with-status"] {
+    position: relative;
+    display: inline-block;
+}
+
+[data-component="avatar-with-status"] [data-role="status-indicator"] {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+[data-component="avatar-with-status"] [data-role="status-indicator"][data-status="online"] {
+    background-color: #10b981;
+}
+
+[data-component="avatar-with-status"] [data-role="status-indicator"][data-status="away"] {
+    background-color: #f59e0b;
+}
+
+[data-component="avatar-with-status"] [data-role="status-indicator"][data-status="offline"] {
+    background-color: #6b7280;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+    [data-component="user-menu"] img[data-role="avatar"] {
+        border-color: var(--pico-primary-border, #374151);
+    }
+
+    [data-role="avatar-initials"] {
+        border-color: var(--pico-primary-border, #374151);
+    }
+
+    [data-component="avatar-with-status"] [data-role="status-indicator"] {
+        border-color: var(--pico-background-color, #111827);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    [data-component="user-menu"] img[data-role="avatar"],
+    [data-component="user-menu"] [data-role="avatar-initials"] {
+        width: 28px;
+        height: 28px;
+    }
+
+    [data-component="user-menu"] [data-role="avatar-initials"] {
+        font-size: 12px;
+    }
+}
+
+/* Avatar grid layout (for team/cast lists) */
+[data-component="avatar-grid"] {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 1rem;
+}
+
+[data-component="avatar-grid"] [data-role="avatar-item"] {
+    text-align: center;
+}
+
+[data-component="avatar-grid"] img[data-role="avatar"],
+[data-component="avatar-grid"] [data-role="avatar-initials"] {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 0.5rem;
+}
+
+[data-component="avatar-grid"] [data-role="avatar-name"] {
+    font-size: 0.875rem;
+    color: var(--pico-muted-color, #6b7280);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

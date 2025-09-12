@@ -111,12 +111,7 @@ async fn user_profile(
     // Build base context
     let mut base = BaseContext::new().with_page("public-profile");
     if let Some(ref user) = current_user {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
     // Create and render template
