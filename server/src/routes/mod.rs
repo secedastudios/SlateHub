@@ -9,6 +9,7 @@ use crate::middleware::{RequestIdExt, auth_middleware, request_id_middleware};
 mod api;
 mod auth;
 mod media;
+mod organizations;
 mod pages;
 mod profile;
 mod public_profiles;
@@ -25,6 +26,8 @@ pub fn app() -> Router {
         .merge(pages::router())
         // Mount auth routes
         .merge(auth::router())
+        // Mount organizations routes
+        .merge(organizations::router())
         // Mount profile routes
         .merge(profile::router())
         // Mount API routes under /api

@@ -1,0 +1,434 @@
+{% extends "_layout.html" %} {% block title %}{{ organization.name }} -
+SlateHub{% endblock %} {% block content %}
+<main
+    id="main-content"
+    data-page="organization-profile"
+    data-org-id="{{ organization.id }}"
+    data-org-slug="{{ organization.slug }}"
+>
+    <article
+        data-component="organization-profile"
+        data-org-type="{{ organization.org_type }}"
+    >
+        <header data-role="profile-header">
+            {% if organization.logo.is_some() %}
+            <div data-role="logo">
+                <img
+                    src="{{ organization.logo.as_ref().unwrap() }}"
+                    alt="{{ organization.name }} logo"
+                />
+            </div>
+            {% endif %}
+
+            <div data-role="title-section">
+                <h1 id="heading-organization">{{ organization.name }}</h1>
+                <span
+                    data-role="org-type"
+                    data-value="{{ organization.org_type }}"
+                    >{{ organization.org_type }}</span
+                >
+
+                {% if is_owner || is_admin %}
+                <nav
+                    data-role="admin-actions"
+                    aria-label="Organization management"
+                >
+                    <a
+                        href="/org/{{ organization.slug }}/edit"
+                        role="button"
+                        data-type="secondary"
+                    >
+                        Edit Organization
+                    </a>
+                    {% if is_owner %}
+                    <form
+                        id="form-delete-org"
+                        method="post"
+                        action="/org/{{ organization.slug }}/delete"
+                        data-confirm="Are you sure you want to delete this organization?"
+                    >
+                        <button type="submit" data-type="danger">
+                            Delete Organization
+                        </button>
+                    </form>
+                    {% endif %}
+                </nav>
+                {% endif %}
+            </div>
+        </header>
+
+        <section data-section="overview">
+            {% if organization.description.is_some() %}
+            <div data-role="description">
+                <h2 id="heading-about">About</h2>
+                <p>{{ organization.description.as_ref().unwrap() }}</p>
+            </div>
+            {% endif %}
+
+            <aside data-role="info-sidebar">
+                <h2 id="heading-details">Details</h2>
+                <dl data-role="organization-details">
+                    {% if organization.location.is_some() %}
+                    <div data-field="location">
+                        <dt>Location</dt>
+                        <dd>{{ organization.location.as_ref().unwrap() }}</dd>
+                    </div>
+                    {% endif %} {% if organization.founded_year.is_some() %}
+                    <div data-field="founded">
+                        <dt>Founded</dt>
+                        <dd>{{ organization.founded_year.unwrap() }}</dd>
+                    </div>
+                    {% endif %} {% if organization.employees_count.is_some() %}
+                    <div data-field="employees">
+                        <dt>Employees</dt>
+                        <dd>{{ organization.employees_count.unwrap() }}</dd>
+                    </div>
+                    {% endif %} {% if organization.website.is_some() %}
+                    <div data-field="website">
+                        <dt>Website</dt>
+                        <dd>
+                            <a
+                                href="{{ organization.website.as_ref().unwrap() }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                {{ organization.website.as_ref().unwrap() }}
+                            </a>
+                        </dd>
+                    </div>
+                    {% endif %} {% if organization.contact_email.is_some() %}
+                    <div data-field="email">
+                        <dt>Contact Email</dt>
+                        <dd>
+                            <a
+                                href="mailto:{{ organization.contact_email.as_ref().unwrap() }}"
+                            >
+                                {{ organization.contact_email.as_ref().unwrap()
+                                }}
+                            </a>
+                        </dd>
+                    </div>
+                    {% endif %} {% if organization.phone.is_some() %}
+                    <div data-field="phone">
+                        <dt>Phone</dt>
+                        <dd>
+                            <a
+                                href="tel:{{ organization.phone.as_ref().unwrap() }}"
+                            >
+                                {{ organization.phone.as_ref().unwrap() }}
+                            </a>
+                        </dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </aside>
+        </section>
+
+        {% if !organization.services.is_empty() %}
+        <section data-section="services">
+            <h2 id="heading-services">Services</h2>
+            <ul data-role="services-list">
+                {% for service in organization.services %}
+                <li data-service="{{ service }}">{{ service }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        <section data-section="members">
+            <header data-role="section-header">
+                <h2 id="heading-members">Members</h2>
+                {% if is_admin || is_owner %}
+                <nav data-role="member-actions">
+                    <button
+                        type="button"
+                        data-action="invite-member"
+                        data-type="primary"
+                    >
+                        Invite Member
+                    </button>
+                </nav>
+                {% endif %}
+            </header>
+
+            {% if members.len() == 0 %}
+            <div data-role="empty-state">
+                <p>No members yet</p>
+            </div>
+            {% else %}
+            <div data-layout="grid" data-grid="members">
+                {% for member in members %}
+                <article
+                    data-component="member-card"
+                    data-role-type="{{ member.role }}"
+                >
+                    <header data-role="card-header">
+                        <div data-role="avatar">
+                            <img
+                                src="/api/avatar?id={{ member.person_id }}"
+                                alt="{{ member.person_username }} avatar"
+                            />
+                        </div>
+                        <div data-role="member-info">
+                            <h3 id="member-{{ member.id }}">
+                                <a href="/{{ member.person_username }}">
+                                    {% if member.person_name.is_some() %} {{
+                                    member.person_name.as_ref().unwrap() }} {%
+                                    else %} @{{ member.person_username }} {%
+                                    endif %}
+                                </a>
+                            </h3>
+                            <span
+                                data-role="member-role"
+                                data-value="{{ member.role }}"
+                            >
+                                {{ member.role }}
+                            </span>
+                        </div>
+                    </header>
+
+                    <footer data-role="card-footer">
+                        <time
+                            datetime="{{ member.joined_at }}"
+                            data-role="join-date"
+                        >
+                            Joined {{ member.joined_at }}
+                        </time>
+
+                        {% if is_owner && member.role != "owner" %}
+                        <nav data-role="member-management">
+                            {% if member.role == "member" %}
+                            <form
+                                method="post"
+                                action="/org/{{ organization.slug }}/members/{{ member.id }}/role"
+                                data-inline="true"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="role"
+                                    value="admin"
+                                />
+                                <button
+                                    type="submit"
+                                    data-type="secondary"
+                                    data-size="small"
+                                >
+                                    Promote to Admin
+                                </button>
+                            </form>
+                            {% else if member.role == "admin" %}
+                            <form
+                                method="post"
+                                action="/org/{{ organization.slug }}/members/{{ member.id }}/role"
+                                data-inline="true"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="role"
+                                    value="member"
+                                />
+                                <button
+                                    type="submit"
+                                    data-type="secondary"
+                                    data-size="small"
+                                >
+                                    Demote to Member
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            <form
+                                method="post"
+                                action="/org/{{ organization.slug }}/members/{{ member.id }}/remove"
+                                data-inline="true"
+                                data-confirm="Remove this member from the organization?"
+                            >
+                                <button
+                                    type="submit"
+                                    data-type="danger"
+                                    data-size="small"
+                                >
+                                    Remove
+                                </button>
+                            </form>
+                        </nav>
+                        {% endif %}
+                    </footer>
+                </article>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+
+        {% if !is_member && user.is_some() %}
+        <section data-section="join-request">
+            <div data-role="call-to-action">
+                <h2>Want to join this organization?</h2>
+                <p>Request to become a member of {{ organization.name }}</p>
+                <form
+                    method="post"
+                    action="/org/{{ organization.slug }}/join-request"
+                >
+                    <button type="submit" data-type="primary">
+                        Request to Join
+                    </button>
+                </form>
+            </div>
+        </section>
+        {% endif %}
+
+        <footer data-role="profile-footer">
+            <div data-role="metadata">
+                <dl>
+                    <div data-field="created">
+                        <dt>Created</dt>
+                        <dd>
+                            <time datetime="{{ organization.created_at }}">
+                                {{ organization.created_at }}
+                            </time>
+                        </dd>
+                    </div>
+                    <div data-field="updated">
+                        <dt>Last Updated</dt>
+                        <dd>
+                            <time datetime="{{ organization.updated_at }}">
+                                {{ organization.updated_at }}
+                            </time>
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </footer>
+    </article>
+</main>
+
+<!-- Member Invitation Modal (hidden by default, shown via JavaScript) -->
+<dialog
+    id="modal-invite-member"
+    data-component="modal"
+    aria-labelledby="modal-title-invite"
+>
+    <article data-role="modal-content">
+        <header data-role="modal-header">
+            <h2 id="modal-title-invite">Invite Member</h2>
+            <button
+                type="button"
+                data-action="close-modal"
+                aria-label="Close modal"
+            >
+                ×
+            </button>
+        </header>
+
+        <form
+            id="form-invite-member"
+            method="post"
+            action="/org/{{ organization.slug }}/members/invite"
+        >
+            <fieldset>
+                <div data-field="username">
+                    <label for="input-invite-username">Username or Email</label>
+                    <input
+                        id="input-invite-username"
+                        name="username"
+                        type="text"
+                        required
+                        placeholder="Enter username or email"
+                        aria-describedby="help-invite"
+                    />
+                    <small id="help-invite"
+                        >Enter the SlateHub username or email of the person you
+                        want to invite</small
+                    >
+                </div>
+
+                <div data-field="role">
+                    <label for="select-invite-role">Role</label>
+                    <select id="select-invite-role" name="role" required>
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+
+                <div data-field="message">
+                    <label for="textarea-invite-message"
+                        >Message (optional)</label
+                    >
+                    <textarea
+                        id="textarea-invite-message"
+                        name="message"
+                        rows="3"
+                        placeholder="Add a personal message to the invitation..."
+                    ></textarea>
+                </div>
+            </fieldset>
+
+            <footer data-role="modal-footer">
+                <button
+                    type="button"
+                    data-action="close-modal"
+                    data-type="secondary"
+                >
+                    Cancel
+                </button>
+                <button type="submit" data-type="primary">
+                    Send Invitation
+                </button>
+            </footer>
+        </form>
+    </article>
+</dialog>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Handle member invitation modal
+        const inviteButton = document.querySelector(
+            '[data-action="invite-member"]',
+        );
+        const modal = document.getElementById("modal-invite-member");
+        const closeButtons = modal.querySelectorAll(
+            '[data-action="close-modal"]',
+        );
+
+        if (inviteButton && modal) {
+            inviteButton.addEventListener("click", function () {
+                modal.showModal();
+            });
+
+            closeButtons.forEach((button) => {
+                button.addEventListener("click", function () {
+                    modal.close();
+                });
+            });
+
+            // Close modal when clicking outside
+            modal.addEventListener("click", function (e) {
+                if (e.target === modal) {
+                    modal.close();
+                }
+            });
+        }
+
+        // Handle delete confirmation
+        const deleteForm = document.getElementById("form-delete-org");
+        if (deleteForm) {
+            deleteForm.addEventListener("submit", function (e) {
+                const message = this.dataset.confirm;
+                if (message && !confirm(message)) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // Handle other confirmation forms
+        document.querySelectorAll("form[data-confirm]").forEach((form) => {
+            form.addEventListener("submit", function (e) {
+                const message = this.dataset.confirm;
+                if (message && !confirm(message)) {
+                    e.preventDefault();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

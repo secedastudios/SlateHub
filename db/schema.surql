@@ -88,6 +88,15 @@ DEFINE FIELD value ON union TYPE string;
 DEFINE INDEX idx_union_value ON union FIELDS value UNIQUE;
 
 -- ------------------------------
+-- TABLE: reserved_names
+-- ------------------------------
+
+DEFINE TABLE reserved_names TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD name ON reserved_names TYPE string PERMISSIONS FULL;
+DEFINE INDEX idx_reserved_names_unique ON reserved_names FIELDS name UNIQUE;
+
+-- ------------------------------
 -- TABLE: media
 -- ------------------------------
 
@@ -119,6 +128,25 @@ DEFINE FIELD phone ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD services ON organization TYPE array<string> PERMISSIONS FULL;  -- e.g., ["vfx", "casting"]
 DEFINE FIELD founded_year ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD employees_count ON organization TYPE option<int> PERMISSIONS FULL;
+DEFINE FIELD created_by ON organization TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD created_at ON organization TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON organization TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_organization_slug ON organization FIELDS slug UNIQUE;
+
+-- ------------------------------
+-- TABLE: organization_members
+-- ------------------------------
+
+DEFINE TABLE organization_members TYPE RELATION FROM person TO organization SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD role ON organization_members TYPE string PERMISSIONS FULL;  -- "owner", "admin", "member"
+DEFINE FIELD joined_at ON organization_members TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD invitation_status ON organization_members TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined"
+DEFINE FIELD invited_by ON organization_members TYPE option<record<person>> PERMISSIONS FULL;
+DEFINE FIELD invited_at ON organization_members TYPE option<datetime> PERMISSIONS FULL;
+
+DEFINE INDEX idx_org_members_unique ON organization_members FIELDS in, out UNIQUE;
 
 -- ------------------------------
 -- TABLE: owns
@@ -372,3 +400,19 @@ INSERT INTO body_type (value) VALUES
 -- Unions
 INSERT INTO union (value) VALUES
 ("sag_aftra"), ("iatse"), ("dga"), ("wga"), ("pga"), ("asc"), ("ace"), ("other");
+
+-- Reserved Names (URLs that organizations cannot use)
+INSERT INTO reserved_names (name) VALUES
+("api"), ("admin"), ("auth"), ("login"), ("logout"), ("signup"), ("register"),
+("orgs"), ("org"), ("organizations"), ("organization"),
+("people"), ("person"), ("persons"), ("user"), ("users"),
+("projects"), ("project"), ("productions"), ("production"),
+("profile"), ("profiles"), ("settings"), ("account"),
+("about"), ("help"), ("support"), ("contact"), ("privacy"), ("terms"),
+("blog"), ("news"), ("events"), ("jobs"), ("careers"),
+("search"), ("explore"), ("discover"), ("trending"),
+("dashboard"), ("home"), ("index"), ("app"),
+("static"), ("assets"), ("media"), ("upload"), ("uploads"),
+("css"), ("js"), ("images"), ("img"), ("docs"), ("documentation"),
+("www"), ("mail"), ("ftp"), ("ssh"), ("git"),
+("test"), ("testing"), ("dev"), ("development"), ("staging"), ("prod");

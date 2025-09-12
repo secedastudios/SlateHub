@@ -1,0 +1,235 @@
+{% extends "_layout.html" %} {% block title %}Create Organization - SlateHub{%
+endblock %} {% block content %}
+<main id="main-content" data-page="new-organization">
+    <header>
+        <h1 id="heading-new-organization">Create Organization</h1>
+        <p>Set up your organization profile on SlateHub</p>
+    </header>
+
+    {% if error.is_some() %}
+    <div id="error-form" role="alert" data-state="error">
+        <p>{{ error.as_ref().unwrap() }}</p>
+    </div>
+    {% endif %}
+
+    <section data-component="auth-form" data-type="create-organization">
+        <form id="form-create-organization" method="post" action="/orgs/new">
+            <fieldset data-role="form-section" data-section="basic-info">
+                <legend>Basic Information</legend>
+
+                <div data-field="name">
+                    <label for="input-name">Organization Name</label>
+                    <input
+                        id="input-name"
+                        name="name"
+                        type="text"
+                        required
+                        placeholder="Acme Productions"
+                        aria-describedby="help-name"
+                    />
+                    <small id="help-name"
+                        >The official name of your organization</small
+                    >
+                </div>
+
+                <div data-field="slug">
+                    <label for="input-slug">URL Slug</label>
+                    <input
+                        id="input-slug"
+                        name="slug"
+                        type="text"
+                        required
+                        pattern="[a-z0-9-]+"
+                        placeholder="acme-productions"
+                        aria-describedby="help-slug"
+                    />
+                    <small id="help-slug"
+                        >Unique identifier for your organization URL (lowercase
+                        letters, numbers, and hyphens only)</small
+                    >
+                    <div id="slug-availability" data-state="unchecked"></div>
+                </div>
+
+                <div data-field="org_type">
+                    <label for="select-org-type">Organization Type</label>
+                    <select id="select-org-type" name="org_type" required>
+                        <option value="">Select type...</option>
+                        {% for org_type in org_types %}
+                        <option value="{{ org_type }}">{{ org_type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div data-field="description">
+                    <label for="textarea-description">Description</label>
+                    <textarea
+                        id="textarea-description"
+                        name="description"
+                        rows="4"
+                        placeholder="Tell us about your organization..."
+                        aria-describedby="help-description"
+                    ></textarea>
+                    <small id="help-description"
+                        >A brief description of what your organization
+                        does</small
+                    >
+                </div>
+            </fieldset>
+
+            <fieldset data-role="form-section" data-section="contact-info">
+                <legend>Contact Information</legend>
+
+                <div data-field="location">
+                    <label for="input-location">Location</label>
+                    <input
+                        id="input-location"
+                        name="location"
+                        type="text"
+                        placeholder="Los Angeles, CA"
+                        aria-describedby="help-location"
+                    />
+                    <small id="help-location">City and state/country</small>
+                </div>
+
+                <div data-field="website">
+                    <label for="input-website">Website</label>
+                    <input
+                        id="input-website"
+                        name="website"
+                        type="url"
+                        placeholder="https://example.com"
+                        aria-describedby="help-website"
+                    />
+                    <small id="help-website"
+                        >Your organization's website URL</small
+                    >
+                </div>
+
+                <div data-field="contact_email">
+                    <label for="input-contact-email">Contact Email</label>
+                    <input
+                        id="input-contact-email"
+                        name="contact_email"
+                        type="email"
+                        placeholder="contact@example.com"
+                        aria-describedby="help-contact-email"
+                    />
+                    <small id="help-contact-email"
+                        >Public contact email for inquiries</small
+                    >
+                </div>
+
+                <div data-field="phone">
+                    <label for="input-phone">Phone Number</label>
+                    <input
+                        id="input-phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="+1 (555) 123-4567"
+                    />
+                </div>
+            </fieldset>
+
+            <fieldset data-role="form-section" data-section="additional-info">
+                <legend>Additional Information</legend>
+
+                <div data-field="services">
+                    <label for="input-services">Services</label>
+                    <input
+                        id="input-services"
+                        name="services"
+                        type="text"
+                        placeholder="VFX, Post-Production, Color Grading"
+                        aria-describedby="help-services"
+                    />
+                    <small id="help-services"
+                        >Comma-separated list of services your organization
+                        provides</small
+                    >
+                </div>
+
+                <div data-field="founded_year">
+                    <label for="input-founded-year">Founded Year</label>
+                    <input
+                        id="input-founded-year"
+                        name="founded_year"
+                        type="number"
+                        min="1900"
+                        max="2024"
+                        placeholder="2020"
+                    />
+                </div>
+            </fieldset>
+
+            <div data-role="form-actions">
+                <button type="submit" data-type="primary">
+                    Create Organization
+                </button>
+                <a href="/orgs" role="button" data-type="secondary">Cancel</a>
+            </div>
+        </form>
+    </section>
+</main>
+
+<script>
+    // Slug auto-generation and availability checking
+    document.addEventListener("DOMContentLoaded", function () {
+        const nameInput = document.getElementById("input-name");
+        const slugInput = document.getElementById("input-slug");
+        const slugAvailability = document.getElementById("slug-availability");
+        let checkTimeout;
+
+        // Auto-generate slug from name
+        nameInput.addEventListener("input", function () {
+            if (!slugInput.value || slugInput.dataset.manual !== "true") {
+                const slug = nameInput.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/^-+|-+$/g, "");
+                slugInput.value = slug;
+                checkSlugAvailability(slug);
+            }
+        });
+
+        // Mark slug as manually edited
+        slugInput.addEventListener("input", function () {
+            slugInput.dataset.manual = "true";
+            checkSlugAvailability(slugInput.value);
+        });
+
+        function checkSlugAvailability(slug) {
+            clearTimeout(checkTimeout);
+
+            if (!slug) {
+                slugAvailability.textContent = "";
+                slugAvailability.dataset.state = "unchecked";
+                return;
+            }
+
+            slugAvailability.dataset.state = "checking";
+            slugAvailability.textContent = "Checking availability...";
+
+            checkTimeout = setTimeout(async function () {
+                try {
+                    const response = await fetch(
+                        `/api/organizations/check-slug?slug=${encodeURIComponent(slug)}`,
+                    );
+                    const data = await response.json();
+
+                    if (data.available) {
+                        slugAvailability.dataset.state = "available";
+                        slugAvailability.textContent = "✓ Available";
+                    } else {
+                        slugAvailability.dataset.state = "unavailable";
+                        slugAvailability.textContent = `✗ ${data.reason || "Not available"}`;
+                    }
+                } catch (error) {
+                    slugAvailability.dataset.state = "error";
+                    slugAvailability.textContent =
+                        "Error checking availability";
+                }
+            }, 500);
+        }
+    });
+</script>
+{% endblock %}

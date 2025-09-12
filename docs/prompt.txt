@@ -1,0 +1,1 @@
+Before you start please read and remember /docs/CONTEXT.txt adn HTML_CSS_GUIDELINES.md it is important you follow these guidelines. That being said, please

@@ -1,0 +1,119 @@
+{% extends "_layout.html" %}
+
+{% block title %}My Organizations - SlateHub{% endblock %}
+
+{% block content %}
+<main id="main-content" data-page="my-organizations">
+    <header>
+        <h1 id="heading-my-organizations">My Organizations</h1>
+        <p>Manage your organizations and memberships</p>
+    </header>
+
+    <section data-section="actions">
+        <nav data-role="page-actions">
+            <a href="/orgs/new" role="button" data-type="primary">
+                <span aria-hidden="true">+</span> Create New Organization
+            </a>
+            <a href="/orgs" role="button" data-type="secondary">
+                Browse All Organizations
+            </a>
+        </nav>
+    </section>
+
+    <section data-component="organizations-grid" data-section="my-orgs">
+        {% if organizations.is_empty() %}
+        <div data-role="empty-state">
+            <h2>You're not part of any organizations yet</h2>
+            <p>Create your own organization or browse existing ones to join.</p>
+            <nav data-role="empty-actions">
+                <a href="/orgs/new" role="button" data-type="primary">Create Organization</a>
+                <a href="/orgs" role="button" data-type="secondary">Browse Organizations</a>
+            </nav>
+        </div>
+        {% else %}
+        <div data-role="results-count">
+            <p>You are a member of {{ organizations.len() }} organization{% if organizations.len() != 1 %}s{% endif %}</p>
+        </div>
+
+        <div data-layout="grid" data-grid="my-organizations">
+            {% for membership in organizations %}
+            <article data-component="organization-card" data-org-type="{{ membership.organization.org_type }}" data-member-role="{{ membership.role }}">
+                <header data-role="card-header">
+                    {% if membership.organization.logo.is_some() %}
+                    <div data-role="logo">
+                        <img
+                            src="{{ membership.organization.logo.as_ref().unwrap() }}"
+                            alt="{{ membership.organization.name }} logo"
+                        />
+                    </div>
+                    {% endif %}
+                    <h2 id="org-{{ membership.organization.id }}">
+                        <a href="/org/{{ membership.organization.slug }}">{{ membership.organization.name }}</a>
+                    </h2>
+                    <div data-role="badges">
+                        <span data-role="org-type" data-value="{{ membership.organization.org_type }}">
+                            {{ membership.organization.org_type }}
+                        </span>
+                        <span data-role="member-role" data-value="{{ membership.role }}">
+                            {{ membership.role }}
+                        </span>
+                    </div>
+                </header>
+
+                <div data-role="card-body">
+                    {% if membership.organization.description.is_some() %}
+                    <p data-role="description">
+                        {{ membership.organization.description.as_ref().unwrap() }}
+                    </p>
+                    {% endif %}
+
+                    <dl data-role="metadata">
+                        {% if membership.organization.location.is_some() %}
+                        <div data-field="location">
+                            <dt>Location</dt>
+                            <dd>{{ membership.organization.location.as_ref().unwrap() }}</dd>
+                        </div>
+                        {% endif %}
+
+                        <div data-field="joined">
+                            <dt>Joined</dt>
+                            <dd>
+                                <time datetime="{{ membership.joined_at }}">
+                                    {{ membership.joined_at }}
+                                </time>
+                            </dd>
+                        </div>
+
+                        {% if membership.organization.employees_count.is_some() %}
+                        <div data-field="size">
+                            <dt>Size</dt>
+                            <dd>{{ membership.organization.employees_count.unwrap() }} employees</dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+
+                <footer data-role="card-footer">
+                    <nav data-role="card-actions">
+                        <a href="/org/{{ membership.organization.slug }}" aria-label="View {{ membership.organization.name }}">
+                            View Organization
+                        </a>
+                        {% if membership.role == "owner" || membership.role == "admin" %}
+                        <a href="/org/{{ membership.organization.slug }}/edit" aria-label="Edit {{ membership.organization.name }}">
+                            Edit
+                        </a>
+                        {% endif %}
+                        {% if membership.role == "owner" %}
+                        <a href="/org/{{ membership.organization.slug }}/members" aria-label="Manage members of {{ membership.organization.name }}">
+                            Manage Members
+                        </a>
+                        {% endif %}
+                    </nav>
+                </footer>
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}
