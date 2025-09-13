@@ -16,7 +16,7 @@ SlateHub{% endblock %} {% block content %}
         <form
             id="form-edit-organization"
             method="post"
-            action="/org/{{ organization.slug }}/edit"
+            action="/orgs/{{ organization.slug }}/edit"
         >
             <fieldset data-role="form-section" data-section="basic-info">
                 <legend>Basic Information</legend>
@@ -174,12 +174,28 @@ SlateHub{% endblock %} {% block content %}
                         >Approximate number of employees</small
                     >
                 </div>
-            </fieldset>
+
+                <div data-field="public">
+                    <label for="input-public">
+                        <input
+                            id="input-public"
+                            name="public"
+                            type="checkbox"
+                            value="on"
+                            {% if organization.public %}checked{% endif %}
+                        />
+                        Make organization profile public
+                    </label>
+                    <small id="help-public">
+                        If checked, anyone can view your organization's profile.
+                        If unchecked, only members can view it.
+                    </small>
+                </div>            </fieldset>
 
             <div data-role="form-actions">
                 <button type="submit" data-type="primary">Save Changes</button>
                 <a
-                    href="/org/{{ organization.slug }}"
+                    href="/orgs/{{ organization.slug }}"
                     role="button"
                     data-type="secondary"
                     >Cancel</a
@@ -201,7 +217,7 @@ SlateHub{% endblock %} {% block content %}
             <form
                 id="form-delete-org"
                 method="post"
-                action="/org/{{ organization.slug }}/delete"
+                action="/orgs/{{ organization.slug }}/delete"
                 data-inline="true"
             >
                 <button

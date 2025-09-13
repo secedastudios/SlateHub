@@ -161,6 +161,22 @@ endblock %} {% block content %}
                         placeholder="2020"
                     />
                 </div>
+
+                <div data-field="public">
+                    <label for="input-public">
+                        <input
+                            id="input-public"
+                            name="public"
+                            type="checkbox"
+                            value="on"
+                        />
+                        Make organization profile public
+                    </label>
+                    <small id="help-public">
+                        If checked, anyone can view your organization's profile.
+                        If unchecked, only members can view it.
+                    </small>
+                </div>
             </fieldset>
 
             <div data-role="form-actions">

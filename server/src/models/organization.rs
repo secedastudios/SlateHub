@@ -9,6 +9,12 @@ use crate::{db::DB, error::Error};
 // ============================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SocialLink {
+    pub platform: String,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Organization {
     pub id: String,
     pub name: String,
@@ -18,12 +24,14 @@ pub struct Organization {
     pub description: Option<String>,
     pub location: Option<String>,
     pub website: Option<String>,
+    pub social_links: Vec<SocialLink>,
     pub logo: Option<String>,
     pub contact_email: Option<String>,
     pub phone: Option<String>,
     pub services: Vec<String>,
     pub founded_year: Option<i32>,
     pub employees_count: Option<i32>,
+    pub public: bool,
     pub created_by: String,
     pub created_at: String,
     pub updated_at: String,
@@ -52,6 +60,8 @@ pub struct CreateOrganizationData {
     pub phone: Option<String>,
     pub services: Vec<String>,
     pub founded_year: Option<i32>,
+    pub employees_count: Option<i32>,
+    pub public: bool,
     pub created_by: String,
 }
 
@@ -67,6 +77,7 @@ pub struct UpdateOrganizationData {
     pub services: Vec<String>,
     pub founded_year: Option<i32>,
     pub employees_count: Option<i32>,
+    pub public: bool,
 }
 
 // ============================
@@ -87,13 +98,18 @@ impl OrganizationModel {
         // Check if slug is available
         let (available, reason) = self.check_slug_availability(&data.slug).await?;
         if !available {
+            error!("Slug '{}' is not available: {:?}", data.slug, reason);
             return Err(Error::validation(
                 reason.unwrap_or("Slug not available".to_string()),
             ));
         }
+        debug!(
+            "Slug '{}' is available, proceeding with creation",
+            data.slug
+        );
 
-        // Create the organization
-        let result: Option<Organization> = DB
+        // Create the organization first
+        let created_id: Option<String> = DB
             .query(
                 "CREATE organization SET
                     name = $name,
@@ -102,14 +118,16 @@ impl OrganizationModel {
                     description = $description,
                     location = $location,
                     website = $website,
+                    social_links = [],
                     contact_email = $contact_email,
                     phone = $phone,
                     services = $services,
                     founded_year = $founded_year,
+                    public = $public,
                     created_by = type::thing('person', $created_by),
                     created_at = time::now(),
                     updated_at = time::now()
-                RETURN *",
+                RETURN meta::id(id)",
             )
             .bind(("name", data.name.clone()))
             .bind(("slug", data.slug.clone()))
@@ -121,12 +139,51 @@ impl OrganizationModel {
             .bind(("phone", data.phone.clone()))
             .bind(("services", data.services.clone()))
             .bind(("founded_year", data.founded_year))
+            .bind(("public", data.public))
             .bind(("created_by", data.created_by.clone()))
             .await
-            .map_err(|e| Error::database(format!("Failed to create organization: {}", e)))?
+            .map_err(|e| {
+                error!("Failed to create organization: {}", e);
+                Error::database(format!("Failed to create organization: {}", e))
+            })?
             .take(0)?;
 
-        result.ok_or(Error::database("Failed to create organization"))
+        let org_id = created_id.ok_or_else(|| {
+            error!("Organization creation returned no ID");
+            Error::database("Failed to create organization - no ID returned")
+        })?;
+
+        debug!("Organization created with ID: {}", org_id);
+
+        // Now fetch the created organization with proper field formatting
+        let result: Option<Organization> = DB
+            .query(
+                "SELECT *, meta::id(created_by) as created_by FROM organization WHERE meta::id(id) = $id",
+            )
+            .bind(("id", org_id.clone()))
+            .await
+            .map_err(|e| {
+                error!("Failed to fetch created organization with ID '{}': {}", org_id, e);
+                Error::database(format!("Failed to fetch created organization: {}", e))
+            })?
+            .take(0)?;
+
+        match result {
+            Some(org) => {
+                debug!(
+                    "Successfully created and fetched organization: {} ({})",
+                    org.name, org.id
+                );
+                Ok(org)
+            }
+            None => {
+                error!(
+                    "Organization with ID '{}' was created but could not be fetched",
+                    org_id
+                );
+                Err(Error::database("Failed to fetch created organization"))
+            }
+        }
     }
 
     /// Get organization by slug
@@ -134,7 +191,9 @@ impl OrganizationModel {
         debug!("Fetching organization by slug: {}", slug);
 
         let result: Option<Organization> = DB
-            .query("SELECT * FROM organization WHERE slug = $slug")
+            .query(
+                "SELECT *, meta::id(created_by) as created_by FROM organization WHERE slug = $slug",
+            )
             .bind(("slug", slug.to_string()))
             .await
             .map_err(|e| Error::database(format!("Failed to fetch organization: {}", e)))?
@@ -152,7 +211,7 @@ impl OrganizationModel {
     ) -> Result<Vec<Organization>, Error> {
         debug!("Searching organizations with filters");
 
-        let mut sql = "SELECT * FROM organization".to_string();
+        let mut sql = "SELECT *, meta::id(created_by) as created_by FROM organization".to_string();
         let mut conditions = Vec::new();
 
         if let Some(q) = query {
@@ -201,6 +260,7 @@ impl OrganizationModel {
                     services = $services,
                     founded_year = $founded_year,
                     employees_count = $employees_count,
+                    public = $public,
                     updated_at = time::now()
                 RETURN *",
             )
@@ -215,6 +275,7 @@ impl OrganizationModel {
             .bind(("services", data.services))
             .bind(("founded_year", data.founded_year))
             .bind(("employees_count", data.employees_count))
+            .bind(("public", data.public))
             .await
             .map_err(|e| Error::database(format!("Failed to update organization: {}", e)))?
             .take(0)?;
@@ -331,8 +392,8 @@ impl OrganizationModel {
         )> = DB
             .query(
                 "SELECT
-                    id,
-                    in.id as person_id,
+                    meta::id(id) as id,
+                    meta::id(in) as person_id,
                     in.username as person_username,
                     in.profile.name as person_name,
                     role,
@@ -544,7 +605,26 @@ impl OrganizationModel {
         let result: Vec<(Organization, String, String)> = DB
             .query(
                 "SELECT
-                    out.* as organization,
+                    {
+                        id: meta::id(out.id),
+                        name: out.name,
+                        slug: out.slug,
+                        type: out.type,
+                        description: out.description,
+                        location: out.location,
+                        website: out.website,
+                        social_links: out.social_links,
+                        logo: out.logo,
+                        contact_email: out.contact_email,
+                        phone: out.phone,
+                        services: out.services,
+                        founded_year: out.founded_year,
+                        employees_count: out.employees_count,
+                        public: out.public,
+                        created_by: meta::id(out.created_by),
+                        created_at: out.created_at,
+                        updated_at: out.updated_at
+                    } as organization,
                     role,
                     joined_at
                 FROM organization_members

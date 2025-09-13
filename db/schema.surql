@@ -128,6 +128,7 @@ DEFINE FIELD phone ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD services ON organization TYPE array<string> PERMISSIONS FULL;  -- e.g., ["vfx", "casting"]
 DEFINE FIELD founded_year ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD employees_count ON organization TYPE option<int> PERMISSIONS FULL;
+DEFINE FIELD public ON organization TYPE bool DEFAULT false PERMISSIONS FULL;  -- Whether the organization profile is public
 DEFINE FIELD created_by ON organization TYPE record<person> PERMISSIONS FULL;
 DEFINE FIELD created_at ON organization TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON organization TYPE datetime DEFAULT time::now() PERMISSIONS FULL;

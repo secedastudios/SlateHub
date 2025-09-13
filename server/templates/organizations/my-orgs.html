@@ -48,7 +48,7 @@
                     </div>
                     {% endif %}
                     <h2 id="org-{{ membership.organization.id }}">
-                        <a href="/org/{{ membership.organization.slug }}">{{ membership.organization.name }}</a>
+                        <a href="/orgs/{{ membership.organization.slug }}">{{ membership.organization.name }}</a>
                     </h2>
                     <div data-role="badges">
                         <span data-role="org-type" data-value="{{ membership.organization.org_type }}">
@@ -95,16 +95,16 @@
 
                 <footer data-role="card-footer">
                     <nav data-role="card-actions">
-                        <a href="/org/{{ membership.organization.slug }}" aria-label="View {{ membership.organization.name }}">
+                        <a href="/orgs/{{ membership.organization.slug }}" aria-label="View {{ membership.organization.name }}">
                             View Organization
                         </a>
                         {% if membership.role == "owner" || membership.role == "admin" %}
-                        <a href="/org/{{ membership.organization.slug }}/edit" aria-label="Edit {{ membership.organization.name }}">
+                        <a href="/orgs/{{ membership.organization.slug }}/edit" aria-label="Edit {{ membership.organization.name }}">
                             Edit
                         </a>
                         {% endif %}
                         {% if membership.role == "owner" %}
-                        <a href="/org/{{ membership.organization.slug }}/members" aria-label="Manage members of {{ membership.organization.name }}">
+                        <a href="/orgs/{{ membership.organization.slug }}/members" aria-label="Manage members of {{ membership.organization.name }}">
                             Manage Members
                         </a>
                         {% endif %}

@@ -125,7 +125,7 @@ endblock %} {% block content %}
                     </div>
                     {% endif %}
                     <h2 id="org-{{ org.id }}">
-                        <a href="/org/{{ org.slug }}">{{ org.name }}</a>
+                        <a href="/orgs/{{ org.slug }}">{{ org.name }}</a>
                     </h2>
                     <span data-role="org-type" data-value="{{ org.org_type }}"
                         >{{ org.org_type }}</span
@@ -180,7 +180,7 @@ endblock %} {% block content %}
                 <footer data-role="card-footer">
                     <nav data-role="card-actions">
                         <a
-                            href="/org/{{ org.slug }}"
+                            href="/orgs/{{ org.slug }}"
                             aria-label="View {{ org.name }} profile"
                         >
                             View Profile

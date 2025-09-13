@@ -27,6 +27,13 @@ SlateHub{% endblock %} {% block content %}
                     data-value="{{ organization.org_type }}"
                     >{{ organization.org_type }}</span
                 >
+                <span
+                    data-role="visibility-badge"
+                    data-visibility="{% if organization.public %}public{% else %}private{% endif %}"
+                >
+                    {% if organization.public %} Public {% else %} Private
+                    (Members Only) {% endif %}
+                </span>
 
                 {% if is_owner || is_admin %}
                 <nav
@@ -34,7 +41,7 @@ SlateHub{% endblock %} {% block content %}
                     aria-label="Organization management"
                 >
                     <a
-                        href="/org/{{ organization.slug }}/edit"
+                        href="/orgs/{{ organization.slug }}/edit"
                         role="button"
                         data-type="secondary"
                     >
@@ -44,7 +51,7 @@ SlateHub{% endblock %} {% block content %}
                     <form
                         id="form-delete-org"
                         method="post"
-                        action="/org/{{ organization.slug }}/delete"
+                        action="/orgs/{{ organization.slug }}/delete"
                         data-confirm="Are you sure you want to delete this organization?"
                     >
                         <button type="submit" data-type="danger">
@@ -200,7 +207,7 @@ SlateHub{% endblock %} {% block content %}
                             {% if member.role == "member" %}
                             <form
                                 method="post"
-                                action="/org/{{ organization.slug }}/members/{{ member.id }}/role"
+                                action="/orgs/{{ organization.slug }}/members/{{ member.id }}/role"
                                 data-inline="true"
                             >
                                 <input
@@ -219,7 +226,7 @@ SlateHub{% endblock %} {% block content %}
                             {% else if member.role == "admin" %}
                             <form
                                 method="post"
-                                action="/org/{{ organization.slug }}/members/{{ member.id }}/role"
+                                action="/orgs/{{ organization.slug }}/members/{{ member.id }}/role"
                                 data-inline="true"
                             >
                                 <input
@@ -239,7 +246,7 @@ SlateHub{% endblock %} {% block content %}
 
                             <form
                                 method="post"
-                                action="/org/{{ organization.slug }}/members/{{ member.id }}/remove"
+                                action="/orgs/{{ organization.slug }}/members/{{ member.id }}/remove"
                                 data-inline="true"
                                 data-confirm="Remove this member from the organization?"
                             >
@@ -267,7 +274,7 @@ SlateHub{% endblock %} {% block content %}
                 <p>Request to become a member of {{ organization.name }}</p>
                 <form
                     method="post"
-                    action="/org/{{ organization.slug }}/join-request"
+                    action="/orgs/{{ organization.slug }}/join-request"
                 >
                     <button type="submit" data-type="primary">
                         Request to Join
@@ -323,7 +330,7 @@ SlateHub{% endblock %} {% block content %}
         <form
             id="form-invite-member"
             method="post"
-            action="/org/{{ organization.slug }}/members/invite"
+            action="/orgs/{{ organization.slug }}/members/invite"
         >
             <fieldset>
                 <div data-field="username">

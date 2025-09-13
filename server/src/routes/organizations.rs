@@ -29,25 +29,25 @@ pub fn router() -> Router {
             get(new_organization_page).post(create_organization),
         )
         .route("/orgs/test-types", get(test_organization_types))
-        // Organization profile uses slug for URL: /org/<organization-slug>
-        .route("/org/{slug}", get(organization_profile))
+        // Organization profile uses slug for URL: /orgs/<organization-slug>
+        .route("/orgs/{slug}", get(organization_profile))
         .route(
-            "/org/{slug}/edit",
+            "/orgs/{slug}/edit",
             get(edit_organization_page).post(update_organization),
         )
-        .route("/org/{slug}/delete", post(delete_organization))
+        .route("/orgs/{slug}/delete", post(delete_organization))
         // Member management
-        .route("/org/{slug}/members", get(list_members))
-        .route("/org/{slug}/members/invite", post(invite_member))
+        .route("/orgs/{slug}/members", get(list_members))
+        .route("/orgs/{slug}/members/invite", post(invite_member))
         .route(
-            "/org/{slug}/members/{member_id}/role",
+            "/orgs/{slug}/members/{member_id}/role",
             post(update_member_role),
         )
         .route(
-            "/org/{slug}/members/{member_id}/remove",
+            "/orgs/{slug}/members/{member_id}/remove",
             post(remove_member),
         )
-        .route("/org/{slug}/join-request", post(request_to_join))
+        .route("/orgs/{slug}/join-request", post(request_to_join))
         // API endpoints
         .route(
             "/api/organizations/check-slug",
@@ -76,8 +76,9 @@ pub struct CreateOrganizationForm {
     pub website: Option<String>,
     pub contact_email: Option<String>,
     pub phone: Option<String>,
-    pub services: Option<String>, // Comma-separated
-    pub founded_year: Option<i32>,
+    pub services: Option<String>,     // Comma-separated
+    pub founded_year: Option<String>, // Parse to i32 manually
+    pub public: Option<String>,       // Checkbox value "on" or None
 }
 
 #[derive(Debug, Deserialize)]
@@ -89,9 +90,10 @@ pub struct UpdateOrganizationForm {
     pub website: Option<String>,
     pub contact_email: Option<String>,
     pub phone: Option<String>,
-    pub services: Option<String>, // Comma-separated
-    pub founded_year: Option<i32>,
-    pub employees_count: Option<i32>,
+    pub services: Option<String>,        // Comma-separated
+    pub founded_year: Option<String>,    // Parse to i32 manually
+    pub employees_count: Option<String>, // Parse to i32 manually
+    pub public: Option<String>,          // Checkbox value "on" or None
 }
 
 #[derive(Debug, Deserialize)]
@@ -366,18 +368,27 @@ async fn create_organization(
         .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
         .unwrap_or_default();
 
+    // Parse founded_year from string to i32
+    let founded_year = data
+        .founded_year
+        .as_ref()
+        .filter(|s| !s.is_empty())
+        .and_then(|s| s.parse::<i32>().ok());
+
     // Prepare data for model
     let create_data = CreateOrganizationData {
         name: data.name,
         slug: data.slug.clone(),
         org_type: data.org_type,
-        description: data.description,
-        location: data.location,
-        website: data.website,
-        contact_email: data.contact_email,
-        phone: data.phone,
+        description: data.description.filter(|s| !s.is_empty()),
+        location: data.location.filter(|s| !s.is_empty()),
+        website: data.website.filter(|s| !s.is_empty()),
+        contact_email: data.contact_email.filter(|s| !s.is_empty()),
+        phone: data.phone.filter(|s| !s.is_empty()),
         services,
-        founded_year: data.founded_year,
+        founded_year,
+        employees_count: None,
+        public: data.public.as_deref() == Some("on"),
         created_by: user.id.clone(),
     };
 
@@ -390,7 +401,7 @@ async fn create_organization(
 
     info!("Organization '{}' created by user {}", data.slug, user.id);
 
-    Ok(Redirect::to(&format!("/org/{}", data.slug)))
+    Ok(Redirect::to(&format!("/orgs/{}", data.slug)))
 }
 
 async fn organization_profile(
@@ -408,7 +419,9 @@ async fn organization_profile(
     let model = OrganizationModel::new();
     let organization = model.get_by_slug(&slug).await?;
 
-    if let Some(user) = request.get_user() {
+    // Check if user is authenticated and their membership
+    let user_opt = request.get_user();
+    if let Some(user) = &user_opt {
         base = base.with_user(User {
             id: user.id.clone(),
             name: user.username.clone(),
@@ -429,6 +442,15 @@ async fn organization_profile(
             is_admin = membership == "admin" || membership == "owner";
             is_owner = membership == "owner";
         }
+    }
+
+    // Check if organization is public or user is a member
+    if !organization.public && !is_member {
+        debug!(
+            "Organization {} is not public and user is not a member",
+            slug
+        );
+        return Err(Error::Forbidden);
     }
 
     // Get organization members using model
@@ -529,18 +551,33 @@ async fn update_organization(
         .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
         .unwrap_or_default();
 
+    // Parse founded_year from string to i32
+    let founded_year = data
+        .founded_year
+        .as_ref()
+        .filter(|s| !s.is_empty())
+        .and_then(|s| s.parse::<i32>().ok());
+
+    // Parse employees_count from string to i32
+    let employees_count = data
+        .employees_count
+        .as_ref()
+        .filter(|s| !s.is_empty())
+        .and_then(|s| s.parse::<i32>().ok());
+
     // Prepare update data
     let update_data = UpdateOrganizationData {
         name: data.name,
         org_type: data.org_type,
-        description: data.description,
-        location: data.location,
-        website: data.website,
-        contact_email: data.contact_email,
-        phone: data.phone,
+        description: data.description.filter(|s| !s.is_empty()),
+        location: data.location.filter(|s| !s.is_empty()),
+        website: data.website.filter(|s| !s.is_empty()),
+        contact_email: data.contact_email.filter(|s| !s.is_empty()),
+        phone: data.phone.filter(|s| !s.is_empty()),
         services,
-        founded_year: data.founded_year,
-        employees_count: data.employees_count,
+        founded_year,
+        employees_count,
+        public: data.public.as_deref() == Some("on"),
     };
 
     // Use model to update
@@ -548,7 +585,7 @@ async fn update_organization(
 
     info!("Organization '{}' updated by user {}", slug, user.id);
 
-    Ok(Redirect::to(&format!("/org/{}", slug)))
+    Ok(Redirect::to(&format!("/orgs/{}", slug)))
 }
 
 async fn test_organization_types() -> Result<Html<String>, Error> {
