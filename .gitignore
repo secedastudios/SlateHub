@@ -24,6 +24,8 @@ target
 
 db/data
 db/files
+db/test-files
+db/test-data
 
 .DS_Store
 **/.DS_Store
