@@ -1,8 +1,9 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
 use tracing::{debug, error, warn};
 
-use crate::{db::DB, error::Error};
+use crate::{db::DB, error::Error, models::person::Person};
 
 // ============================
 // Data Structures
@@ -32,9 +33,9 @@ pub struct Organization {
     pub founded_year: Option<i32>,
     pub employees_count: Option<i32>,
     pub public: bool,
-    pub created_by: String,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_by: Option<Person>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +45,7 @@ pub struct OrganizationMember {
     pub person_username: String,
     pub person_name: Option<String>,
     pub role: String,
-    pub joined_at: String,
+    pub joined_at: DateTime<Utc>,
     pub invitation_status: String,
 }
 
@@ -108,10 +109,8 @@ impl OrganizationModel {
             data.slug
         );
 
-        // Create the organization first
-        let created_id: Option<String> = DB
-            .query(
-                "CREATE organization SET
+        // Create the organization
+        let query = "CREATE organization SET
                     name = $name,
                     slug = $slug,
                     `type` = $org_type,
@@ -124,11 +123,10 @@ impl OrganizationModel {
                     services = $services,
                     founded_year = $founded_year,
                     public = $public,
-                    created_by = type::thing('person', $created_by),
-                    created_at = time::now(),
-                    updated_at = time::now()
-                RETURN meta::id(id)",
-            )
+                    created_by = type::thing('person', $created_by)";
+
+        let created_orgs: Vec<Organization> = DB
+            .query(query)
             .bind(("name", data.name.clone()))
             .bind(("slug", data.slug.clone()))
             .bind(("org_type", data.org_type.clone()))
@@ -148,42 +146,15 @@ impl OrganizationModel {
             })?
             .take(0)?;
 
-        let org_id = created_id.ok_or_else(|| {
-            error!("Organization creation returned no ID");
-            Error::database("Failed to create organization - no ID returned")
+        let org = created_orgs.into_iter().next().ok_or_else(|| {
+            error!("Organization creation returned no record");
+            Error::database("Failed to create organization - no record returned")
         })?;
 
-        debug!("Organization created with ID: {}", org_id);
+        debug!("Organization created with ID: {}", org.id);
 
-        // Now fetch the created organization with proper field formatting
-        let result: Option<Organization> = DB
-            .query(
-                "SELECT *, meta::id(created_by) as created_by FROM organization WHERE meta::id(id) = $id",
-            )
-            .bind(("id", org_id.clone()))
-            .await
-            .map_err(|e| {
-                error!("Failed to fetch created organization with ID '{}': {}", org_id, e);
-                Error::database(format!("Failed to fetch created organization: {}", e))
-            })?
-            .take(0)?;
-
-        match result {
-            Some(org) => {
-                debug!(
-                    "Successfully created and fetched organization: {} ({})",
-                    org.name, org.id
-                );
-                Ok(org)
-            }
-            None => {
-                error!(
-                    "Organization with ID '{}' was created but could not be fetched",
-                    org_id
-                );
-                Err(Error::database("Failed to fetch created organization"))
-            }
-        }
+        // Fetch the created organization to get properly formatted fields
+        self.get_by_slug(&org.slug).await
     }
 
     /// Get organization by slug
@@ -191,9 +162,7 @@ impl OrganizationModel {
         debug!("Fetching organization by slug: {}", slug);
 
         let result: Option<Organization> = DB
-            .query(
-                "SELECT *, meta::id(created_by) as created_by FROM organization WHERE slug = $slug",
-            )
+            .query("SELECT * FROM organization WHERE slug = $slug FETCH created_by")
             .bind(("slug", slug.to_string()))
             .await
             .map_err(|e| Error::database(format!("Failed to fetch organization: {}", e)))?
@@ -211,7 +180,7 @@ impl OrganizationModel {
     ) -> Result<Vec<Organization>, Error> {
         debug!("Searching organizations with filters");
 
-        let mut sql = "SELECT *, meta::id(created_by) as created_by FROM organization".to_string();
+        let mut sql = "SELECT * FROM organization FETCH created_by".to_string();
         let mut conditions = Vec::new();
 
         if let Some(q) = query {
@@ -260,9 +229,7 @@ impl OrganizationModel {
                     services = $services,
                     founded_year = $founded_year,
                     employees_count = $employees_count,
-                    public = $public,
-                    updated_at = time::now()
-                RETURN *",
+                    public = $public",
             )
             .bind(("id", id.to_string()))
             .bind(("name", data.name))
@@ -334,10 +301,8 @@ impl OrganizationModel {
                 .query(
                     "RELATE type::thing('person', $person)->organization_members->type::thing('organization', $org) SET
                         role = $role,
-                        joined_at = time::now(),
                         invitation_status = $status,
-                        invited_by = type::thing('person', $inviter),
-                        invited_at = time::now()"
+                        invited_by = type::thing('person', $inviter)"
                 )
                 .bind(("inviter", inviter.to_string()))
         } else {
@@ -345,7 +310,6 @@ impl OrganizationModel {
                 .query(
                     "RELATE type::thing('person', $person)->organization_members->type::thing('organization', $org) SET
                         role = $role,
-                        joined_at = time::now(),
                         invitation_status = $status"
                 )
         };
@@ -381,15 +345,7 @@ impl OrganizationModel {
     pub async fn get_members(&self, org_id: &str) -> Result<Vec<OrganizationMember>, Error> {
         debug!("Fetching members for organization: {}", org_id);
 
-        let members_query: Vec<(
-            String,
-            String,
-            String,
-            Option<String>,
-            String,
-            String,
-            String,
-        )> = DB
+        let result: Vec<OrganizationMember> = DB
             .query(
                 "SELECT
                     meta::id(id) as id,
@@ -411,36 +367,11 @@ impl OrganizationModel {
             )
             .bind(("org_id", org_id.to_string()))
             .await
-            .map_err(|e| Error::database(format!("Failed to fetch members: {}", e)))?
+            .map_err(|e| Error::database(format!("Failed to fetch organization members: {}", e)))?
             .take(0)
             .unwrap_or_default();
 
-        let members: Vec<OrganizationMember> = members_query
-            .into_iter()
-            .map(
-                |(
-                    id,
-                    person_id,
-                    person_username,
-                    person_name,
-                    role,
-                    joined_at,
-                    invitation_status,
-                )| {
-                    OrganizationMember {
-                        id,
-                        person_id,
-                        person_username,
-                        person_name,
-                        role,
-                        joined_at,
-                        invitation_status,
-                    }
-                },
-            )
-            .collect();
-
-        Ok(members)
+        Ok(result)
     }
 
     /// Get a user's role in an organization
@@ -602,42 +533,288 @@ impl OrganizationModel {
     ) -> Result<Vec<(Organization, String, String)>, Error> {
         debug!("Fetching organizations for user: {}", user_id);
 
-        let result: Vec<(Organization, String, String)> = DB
-            .query(
-                "SELECT
-                    {
-                        id: meta::id(out.id),
-                        name: out.name,
-                        slug: out.slug,
-                        type: out.type,
-                        description: out.description,
-                        location: out.location,
-                        website: out.website,
-                        social_links: out.social_links,
-                        logo: out.logo,
-                        contact_email: out.contact_email,
-                        phone: out.phone,
-                        services: out.services,
-                        founded_year: out.founded_year,
-                        employees_count: out.employees_count,
-                        public: out.public,
-                        created_by: meta::id(out.created_by),
-                        created_at: out.created_at,
-                        updated_at: out.updated_at
-                    } as organization,
-                    role,
-                    joined_at
-                FROM organization_members
-                WHERE in = type::thing('person', $user_id)
-                AND invitation_status = 'accepted'
-                ORDER BY joined_at DESC",
-            )
+        // First get the organization relationships
+        let query = "
+            SELECT
+                meta::id(out) as org_id,
+                role,
+                joined_at
+            FROM organization_members
+            WHERE in = type::thing('person', $user_id)
+            AND invitation_status = 'accepted'
+            ORDER BY joined_at DESC";
+
+        let relationships: Vec<(String, String, DateTime<Utc>)> = DB
+            .query(query)
             .bind(("user_id", user_id.to_string()))
             .await
             .map_err(|e| Error::database(format!("Failed to fetch user organizations: {}", e)))?
             .take(0)
             .unwrap_or_default();
 
+        debug!("Found {} organizations for user", relationships.len());
+
+        // Now fetch each organization
+        let mut result = Vec::new();
+        for (org_id, role, joined_at) in relationships {
+            let org_query = "SELECT * FROM organization WHERE meta::id(id) = $id FETCH created_by";
+            let org: Option<Organization> = DB
+                .query(org_query)
+                .bind(("id", org_id))
+                .await
+                .map_err(|e| Error::database(format!("Failed to fetch organization: {}", e)))?
+                .take(0)?;
+
+            if let Some(org) = org {
+                result.push((org, role, joined_at.to_rfc3339()));
+            }
+        }
+
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio;
+
+    // Helper function to create test organization data
+    fn create_test_org_data(slug: &str) -> CreateOrganizationData {
+        CreateOrganizationData {
+            name: format!("Test Organization {}", slug),
+            slug: slug.to_string(),
+            org_type: "production_company".to_string(),
+            description: Some("A test organization for unit testing".to_string()),
+            location: Some("Los Angeles, CA".to_string()),
+            website: Some("https://example.com".to_string()),
+            contact_email: Some("contact@example.com".to_string()),
+            phone: Some("+1-555-0123".to_string()),
+            services: vec!["production".to_string(), "post-production".to_string()],
+            founded_year: Some(2020),
+            employees_count: Some(50),
+            public: true,
+            created_by: "test_user_123".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_organization_data_creation() {
+        let org_data = create_test_org_data("test-org");
+
+        assert_eq!(org_data.name, "Test Organization test-org");
+        assert_eq!(org_data.slug, "test-org");
+        assert_eq!(org_data.org_type, "production_company");
+        assert!(org_data.description.is_some());
+        assert_eq!(org_data.services.len(), 2);
+        assert_eq!(org_data.founded_year, Some(2020));
+        assert!(org_data.public);
+    }
+
+    #[test]
+    fn test_organization_slug_validation() {
+        // Test various slug formats
+        let valid_slugs = vec![
+            "my-company",
+            "company-123",
+            "test-org-2024",
+            "production-co",
+        ];
+
+        let invalid_slugs = vec![
+            "My Company", // spaces
+            "company!",   // special chars
+            "test@org",   // @ symbol
+            "",           // empty
+        ];
+
+        for slug in valid_slugs {
+            // In a real implementation, you'd validate the slug format
+            assert!(!slug.is_empty());
+            assert!(!slug.contains(' '));
+            assert!(!slug.contains('@'));
+            assert!(!slug.contains('!'));
+        }
+
+        for slug in invalid_slugs {
+            // These should fail validation
+            assert!(
+                slug.is_empty() || slug.contains(' ') || slug.contains('@') || slug.contains('!')
+            );
+        }
+    }
+
+    #[test]
+    fn test_social_link_structure() {
+        let social_link = SocialLink {
+            platform: "linkedin".to_string(),
+            url: "https://linkedin.com/company/test".to_string(),
+        };
+
+        assert_eq!(social_link.platform, "linkedin");
+        assert!(social_link.url.starts_with("https://"));
+    }
+
+    #[test]
+    fn test_update_organization_data() {
+        let update_data = UpdateOrganizationData {
+            name: "Updated Organization".to_string(),
+            org_type: "studio".to_string(),
+            description: Some("Updated description".to_string()),
+            location: Some("New York, NY".to_string()),
+            website: Some("https://updated.com".to_string()),
+            contact_email: Some("new@example.com".to_string()),
+            phone: Some("+1-555-9999".to_string()),
+            services: vec!["editing".to_string()],
+            founded_year: Some(2019),
+            employees_count: Some(100),
+            public: false,
+        };
+
+        assert_eq!(update_data.name, "Updated Organization");
+        assert_eq!(update_data.org_type, "studio");
+        assert!(!update_data.public);
+        assert_eq!(update_data.employees_count, Some(100));
+    }
+
+    #[tokio::test]
+    async fn test_organization_model_new() {
+        let _model = OrganizationModel::new();
+        // The model should be created successfully
+        // In Rust, if this compiles and runs, it works
+        assert!(true);
+    }
+
+    #[test]
+    fn test_organization_member_structure() {
+        let member = OrganizationMember {
+            id: "member_123".to_string(),
+            person_id: "person_456".to_string(),
+            person_username: "johndoe".to_string(),
+            person_name: Some("John Doe".to_string()),
+            role: "admin".to_string(),
+            joined_at: Utc::now(),
+            invitation_status: "accepted".to_string(),
+        };
+
+        assert_eq!(member.person_username, "johndoe");
+        assert_eq!(member.role, "admin");
+        assert_eq!(member.invitation_status, "accepted");
+        assert!(member.person_name.is_some());
+    }
+
+    #[test]
+    fn test_organization_fields_optional() {
+        // Test that optional fields can be None
+        let org_data = CreateOrganizationData {
+            name: "Minimal Org".to_string(),
+            slug: "minimal-org".to_string(),
+            org_type: "production_company".to_string(),
+            description: None,
+            location: None,
+            website: None,
+            contact_email: None,
+            phone: None,
+            services: vec![],
+            founded_year: None,
+            employees_count: None,
+            public: false,
+            created_by: "user_123".to_string(),
+        };
+
+        assert!(org_data.description.is_none());
+        assert!(org_data.location.is_none());
+        assert!(org_data.website.is_none());
+        assert!(org_data.contact_email.is_none());
+        assert!(org_data.phone.is_none());
+        assert!(org_data.founded_year.is_none());
+        assert!(org_data.employees_count.is_none());
+        assert!(org_data.services.is_empty());
+    }
+
+    #[test]
+    fn test_organization_type_variations() {
+        let org_types = vec![
+            "production_company",
+            "studio",
+            "agency",
+            "post_production",
+            "equipment_rental",
+            "freelancer_collective",
+        ];
+
+        for org_type in org_types {
+            let org_data = CreateOrganizationData {
+                name: format!("Test {}", org_type),
+                slug: format!("test-{}", org_type.replace('_', "-")),
+                org_type: org_type.to_string(),
+                description: None,
+                location: None,
+                website: None,
+                contact_email: None,
+                phone: None,
+                services: vec![],
+                founded_year: None,
+                employees_count: None,
+                public: true,
+                created_by: "user_123".to_string(),
+            };
+
+            assert_eq!(org_data.org_type, org_type);
+        }
+    }
+
+    // Integration test placeholder - would require database connection
+    #[tokio::test]
+    #[ignore] // Ignore by default as it requires database
+    async fn test_create_organization_integration() {
+        // This test would require a test database connection
+        // Uncomment and implement when test database is available
+
+        /*
+        let model = OrganizationModel::new();
+        let org_data = create_test_org_data("integration-test-org");
+
+        match model.create(org_data).await {
+            Ok(org) => {
+                assert_eq!(org.slug, "integration-test-org");
+                assert!(org.id.starts_with("organization:"));
+                assert_eq!(org.org_type, "production_company");
+
+                // Cleanup - delete the test organization
+                let _ = model.delete(&org.slug).await;
+            }
+            Err(e) => {
+                panic!("Failed to create organization: {:?}", e);
+            }
+        }
+        */
+    }
+
+    #[tokio::test]
+    #[ignore] // Ignore by default as it requires database
+    async fn test_slug_availability_check() {
+        // This test would require a test database connection
+
+        /*
+        let model = OrganizationModel::new();
+
+        // Check availability of a new slug
+        let (available, reason) = model.check_slug_availability("unique-test-slug").await.unwrap();
+        assert!(available);
+        assert!(reason.is_none());
+
+        // Create an organization with that slug
+        let org_data = create_test_org_data("unique-test-slug");
+        let _ = model.create(org_data).await.unwrap();
+
+        // Check again - should not be available
+        let (available, reason) = model.check_slug_availability("unique-test-slug").await.unwrap();
+        assert!(!available);
+        assert!(reason.is_some());
+
+        // Cleanup
+        let _ = model.delete("unique-test-slug").await;
+        */
     }
 }

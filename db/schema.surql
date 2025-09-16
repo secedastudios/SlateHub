@@ -131,7 +131,7 @@ DEFINE FIELD employees_count ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD public ON organization TYPE bool DEFAULT false PERMISSIONS FULL;  -- Whether the organization profile is public
 DEFINE FIELD created_by ON organization TYPE record<person> PERMISSIONS FULL;
 DEFINE FIELD created_at ON organization TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
-DEFINE FIELD updated_at ON organization TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON organization TYPE datetime VALUE time::now() PERMISSIONS FULL;
 
 DEFINE INDEX idx_organization_slug ON organization FIELDS slug UNIQUE;
 
@@ -145,7 +145,7 @@ DEFINE FIELD role ON organization_members TYPE string PERMISSIONS FULL;  -- "own
 DEFINE FIELD joined_at ON organization_members TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
 DEFINE FIELD invitation_status ON organization_members TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined"
 DEFINE FIELD invited_by ON organization_members TYPE option<record<person>> PERMISSIONS FULL;
-DEFINE FIELD invited_at ON organization_members TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD invited_at ON organization_members TYPE option<datetime> DEFAULT time::now() PERMISSIONS FULL;
 
 DEFINE INDEX idx_org_members_unique ON organization_members FIELDS in, out UNIQUE;
 

@@ -29,7 +29,7 @@ SlateHub uses a **CSS-only design system** where HTML structure is fixed and sem
 
 #### ✅ Use `<article>` for:
 - Blog posts
-- News items  
+- News items
 - Project cards
 - User comments
 - Any self-contained, redistributable content
@@ -119,11 +119,11 @@ Examples:
             <ul data-role="nav-user">...</ul>
         </nav>
     </header>
-    
+
     <main id="main-content">
         <!-- Page content -->
     </main>
-    
+
     <footer id="site-footer">
         <section data-role="footer-main">
             <div data-role="footer-brand">...</div>
@@ -139,7 +139,7 @@ Examples:
     <header data-role="form-header">
         <h2 id="heading-login">Title</h2>
     </header>
-    
+
     <form id="form-login" method="post">
         <fieldset data-role="form-section">
             <div data-field="email">
@@ -148,7 +148,7 @@ Examples:
                 <div id="error-email" role="alert">Error</div>
             </div>
         </fieldset>
-        
+
         <div data-role="form-actions">
             <button type="submit" data-type="primary">Submit</button>
         </div>
@@ -163,14 +163,14 @@ Examples:
         <h2 id="project-title-123">Title</h2>
         <span data-role="status-badge">Active</span>
     </header>
-    
+
     <div data-role="card-body">
         <p data-role="description">Description</p>
         <div data-role="metadata">
             <time datetime="2024-01-01">Date</time>
         </div>
     </div>
-    
+
     <footer data-role="card-footer">
         <nav data-role="card-actions">
             <a href="#" role="button" data-type="primary">Action</a>
@@ -202,21 +202,6 @@ Examples:
 [data-component="project-card"] [data-role="card-header"] { }
 ```
 
-### Layout Control
-```css
-/* Grid layouts */
-[data-layout="grid"] {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-}
-
-/* Responsive containers */
-@media (max-width: 768px) {
-    [data-layout="grid"] {
-        grid-template-columns: 1fr;
-    }
-}
-```
 
 ### Theme Support
 ```css

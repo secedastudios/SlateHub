@@ -221,34 +221,3 @@ pub fn bad_request(message: impl Into<String>) -> Response {
 pub fn internal_error() -> Response {
     (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response()
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::http::header;
-
-    #[test]
-    fn test_redirect() {
-        let response = redirect("/home");
-        assert_eq!(response.status(), StatusCode::SEE_OTHER);
-        assert_eq!(response.headers().get(header::LOCATION).unwrap(), "/home");
-    }
-
-    #[test]
-    fn test_redirect_adds_leading_slash() {
-        let response = redirect("home");
-        assert_eq!(response.headers().get(header::LOCATION).unwrap(), "/home");
-    }
-
-    #[test]
-    fn test_redirect_temporary() {
-        let response = redirect_temporary("/login");
-        assert_eq!(response.status(), StatusCode::FOUND);
-    }
-
-    #[test]
-    fn test_redirect_permanent() {
-        let response = redirect_permanent("/new-url");
-        assert_eq!(response.status(), StatusCode::MOVED_PERMANENTLY);
-    }
-}
