@@ -129,7 +129,6 @@ DEFINE FIELD services ON organization TYPE array<string> PERMISSIONS FULL;  -- e
 DEFINE FIELD founded_year ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD employees_count ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD public ON organization TYPE bool DEFAULT false PERMISSIONS FULL;  -- Whether the organization profile is public
-DEFINE FIELD created_by ON organization TYPE record<person> PERMISSIONS FULL;
 DEFINE FIELD created_at ON organization TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON organization TYPE datetime VALUE time::now() PERMISSIONS FULL;
 
@@ -139,9 +138,10 @@ DEFINE INDEX idx_organization_slug ON organization FIELDS slug UNIQUE;
 -- TABLE: organization_members
 -- ------------------------------
 
-DEFINE TABLE organization_members TYPE RELATION FROM person TO organization SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE organization_members TYPE RELATION FROM organization TO person SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD role ON organization_members TYPE string PERMISSIONS FULL;  -- "owner", "admin", "member"
+DEFINE FIELD permissions ON organization_members TYPE array<string> DEFAULT [] PERMISSIONS FULL;  -- Array of permission strings
 DEFINE FIELD joined_at ON organization_members TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
 DEFINE FIELD invitation_status ON organization_members TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined"
 DEFINE FIELD invited_by ON organization_members TYPE option<record<person>> PERMISSIONS FULL;

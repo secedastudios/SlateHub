@@ -1,9 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
 use tracing::{debug, error, warn};
 
-use crate::{db::DB, error::Error, models::person::Person};
+use crate::{
+    db::DB,
+    error::Error,
+    models::membership::{InvitationStatus, MembershipModel, MembershipRole},
+};
 
 // ============================
 // Data Structures
@@ -33,7 +36,6 @@ pub struct Organization {
     pub founded_year: Option<i32>,
     pub employees_count: Option<i32>,
     pub public: bool,
-    pub created_by: Option<Person>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -63,7 +65,6 @@ pub struct CreateOrganizationData {
     pub founded_year: Option<i32>,
     pub employees_count: Option<i32>,
     pub public: bool,
-    pub created_by: String,
 }
 
 #[derive(Debug)]
@@ -92,8 +93,12 @@ impl OrganizationModel {
         Self
     }
 
-    /// Create a new organization
-    pub async fn create(&self, data: CreateOrganizationData) -> Result<Organization, Error> {
+    /// Create a new organization with the creator as owner
+    pub async fn create(
+        &self,
+        data: CreateOrganizationData,
+        created_by: &str,
+    ) -> Result<Organization, Error> {
         debug!("Creating organization with slug: {}", data.slug);
 
         // Check if slug is available
@@ -109,52 +114,121 @@ impl OrganizationModel {
             data.slug
         );
 
-        // Create the organization
-        let query = "CREATE organization SET
-                    name = $name,
-                    slug = $slug,
-                    `type` = $org_type,
-                    description = $description,
-                    location = $location,
-                    website = $website,
-                    social_links = [],
-                    contact_email = $contact_email,
-                    phone = $phone,
-                    services = $services,
-                    founded_year = $founded_year,
-                    public = $public,
-                    created_by = type::thing('person', $created_by)";
-
-        let created_orgs: Vec<Organization> = DB
-            .query(query)
-            .bind(("name", data.name.clone()))
-            .bind(("slug", data.slug.clone()))
-            .bind(("org_type", data.org_type.clone()))
-            .bind(("description", data.description.clone()))
-            .bind(("location", data.location.clone()))
-            .bind(("website", data.website.clone()))
-            .bind(("contact_email", data.contact_email.clone()))
-            .bind(("phone", data.phone.clone()))
-            .bind(("services", data.services.clone()))
-            .bind(("founded_year", data.founded_year))
-            .bind(("public", data.public))
-            .bind(("created_by", data.created_by.clone()))
-            .await
-            .map_err(|e| {
-                error!("Failed to create organization: {}", e);
-                Error::database(format!("Failed to create organization: {}", e))
-            })?
-            .take(0)?;
-
-        let org = created_orgs.into_iter().next().ok_or_else(|| {
-            error!("Organization creation returned no record");
-            Error::database("Failed to create organization - no record returned")
+        // Start transaction
+        DB.query("BEGIN TRANSACTION").await.map_err(|e| {
+            error!("Failed to begin transaction: {}", e);
+            Error::database(format!("Failed to begin transaction: {}", e))
         })?;
 
-        debug!("Organization created with ID: {}", org.id);
+        // Try to create organization and membership in transaction
+        let result = async {
+            // Create the organization
+            let org_query = r#"
+                CREATE organization CONTENT {
+                    name: $name,
+                    slug: $slug,
+                    type: $org_type,
+                    description: $description,
+                    location: $location,
+                    website: $website,
+                    social_links: [],
+                    contact_email: $contact_email,
+                    phone: $phone,
+                    services: $services,
+                    founded_year: $founded_year,
+                    public: $public
+                } RETURN AFTER
+            "#;
 
-        // Fetch the created organization to get properly formatted fields
-        self.get_by_slug(&org.slug).await
+            let org: Option<Organization> = DB
+                .query(org_query)
+                .bind(("name", data.name.clone()))
+                .bind(("slug", data.slug.clone()))
+                .bind(("org_type", data.org_type.clone()))
+                .bind(("description", data.description.clone()))
+                .bind(("location", data.location.clone()))
+                .bind(("website", data.website.clone()))
+                .bind(("contact_email", data.contact_email.clone()))
+                .bind(("phone", data.phone.clone()))
+                .bind(("services", data.services.clone()))
+                .bind(("founded_year", data.founded_year))
+                .bind(("public", data.public))
+                .await
+                .map_err(|e| {
+                    error!("Failed to create organization: {}", e);
+                    Error::database(format!("Failed to create organization: {}", e))
+                })?
+                .take("AFTER")?;
+
+            let org = org.ok_or_else(|| {
+                error!("Organization creation returned no record");
+                Error::database("Failed to create organization - no record returned")
+            })?;
+
+            debug!("Organization created with ID: {}", org.id);
+
+            // Get default owner permissions as strings
+            let owner_permissions = vec![
+                "UpdateOrganization".to_string(),
+                "DeleteOrganization".to_string(),
+                "InviteMembers".to_string(),
+                "RemoveMembers".to_string(),
+                "UpdateMemberRoles".to_string(),
+                "CreateProjects".to_string(),
+                "UpdateProjects".to_string(),
+                "DeleteProjects".to_string(),
+                "ManageContent".to_string(),
+                "PublishContent".to_string(),
+            ];
+
+            // Create the membership relation
+            let membership_query = format!(
+                r#"
+                RELATE organization:{} -> organization_members -> person:{} SET
+                    role = 'owner',
+                    permissions = $permissions,
+                    invitation_status = 'accepted',
+                    joined_at = time::now()
+                "#,
+                org.id, created_by
+            );
+
+            DB.query(membership_query)
+                .bind(("permissions", owner_permissions))
+                .await
+                .map_err(|e| {
+                    error!("Failed to create membership relation: {}", e);
+                    Error::database(format!("Failed to create membership: {}", e))
+                })?;
+
+            debug!("Owner membership created for organization: {}", org.id);
+
+            Ok(org)
+        }
+        .await;
+
+        // Handle transaction result
+        match result {
+            Ok(org) => {
+                // Commit transaction
+                DB.query("COMMIT TRANSACTION").await.map_err(|e| {
+                    error!("Failed to commit transaction: {}", e);
+                    Error::database(format!("Failed to commit transaction: {}", e))
+                })?;
+
+                debug!(
+                    "Transaction committed successfully for organization: {}",
+                    org.id
+                );
+                Ok(org)
+            }
+            Err(e) => {
+                // Rollback transaction
+                let _ = DB.query("CANCEL TRANSACTION").await;
+                error!("Transaction rolled back due to error: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Get organization by slug
@@ -162,7 +236,7 @@ impl OrganizationModel {
         debug!("Fetching organization by slug: {}", slug);
 
         let result: Option<Organization> = DB
-            .query("SELECT * FROM organization WHERE slug = $slug FETCH created_by")
+            .query("SELECT * FROM organization WHERE slug = $slug")
             .bind(("slug", slug.to_string()))
             .await
             .map_err(|e| Error::database(format!("Failed to fetch organization: {}", e)))?
@@ -180,7 +254,7 @@ impl OrganizationModel {
     ) -> Result<Vec<Organization>, Error> {
         debug!("Searching organizations with filters");
 
-        let mut sql = "SELECT * FROM organization FETCH created_by".to_string();
+        let mut sql = "SELECT * FROM organization".to_string();
         let mut conditions = Vec::new();
 
         if let Some(q) = query {
@@ -299,7 +373,7 @@ impl OrganizationModel {
         let query = if let Some(inviter) = invited_by {
             DB
                 .query(
-                    "RELATE type::thing('person', $person)->organization_members->type::thing('organization', $org) SET
+                    "RELATE type::thing('organization', $org)->organization_members->type::thing('person', $person) SET
                         role = $role,
                         invitation_status = $status,
                         invited_by = type::thing('person', $inviter)"
@@ -308,15 +382,15 @@ impl OrganizationModel {
         } else {
             DB
                 .query(
-                    "RELATE type::thing('person', $person)->organization_members->type::thing('organization', $org) SET
+                    "RELATE type::thing('organization', $org)->organization_members->type::thing('person', $person) SET
                         role = $role,
                         invitation_status = $status"
                 )
         };
 
         let _: Option<()> = query
-            .bind(("person", person_id.to_string()))
             .bind(("org", org_id.to_string()))
+            .bind(("person", person_id.to_string()))
             .bind(("role", role.to_string()))
             .bind(("status", invitation_status))
             .await
@@ -330,13 +404,8 @@ impl OrganizationModel {
     pub async fn remove_member(&self, membership_id: &str) -> Result<(), Error> {
         debug!("Removing membership: {}", membership_id);
 
-        let _: Vec<()> = DB
-            .query("DELETE type::thing('organization_members', $id)")
-            .bind(("id", membership_id.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to remove member: {}", e)))?
-            .take(0)
-            .unwrap_or_default();
+        let membership_model = MembershipModel::new();
+        membership_model.delete(membership_id).await?;
 
         Ok(())
     }
@@ -349,14 +418,14 @@ impl OrganizationModel {
             .query(
                 "SELECT
                     meta::id(id) as id,
-                    meta::id(in) as person_id,
-                    in.username as person_username,
-                    in.profile.name as person_name,
+                    meta::id(out) as person_id,
+                    out.username as person_username,
+                    out.profile.name as person_name,
                     role,
                     joined_at,
                     invitation_status
                 FROM organization_members
-                WHERE out = type::thing('organization', $org_id)
+                WHERE in = type::thing('organization', $org_id)
                 ORDER BY
                     CASE role
                         WHEN 'owner' THEN 1
@@ -385,21 +454,14 @@ impl OrganizationModel {
             person_id, org_id
         );
 
-        let result: Vec<(String,)> = DB
-            .query(
-                "SELECT role FROM organization_members
-                WHERE in = type::thing('person', $person)
-                AND out = type::thing('organization', $org)
-                AND invitation_status = 'accepted'",
-            )
-            .bind(("person", person_id.to_string()))
-            .bind(("org", org_id.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to check membership: {}", e)))?
-            .take(0)
-            .unwrap_or_default();
+        let membership_model = MembershipModel::new();
+        let membership = membership_model
+            .find_by_person_and_org(person_id, org_id)
+            .await?;
 
-        Ok(result.first().map(|(role,)| role.clone()))
+        Ok(membership
+            .filter(|m| m.invitation_status == InvitationStatus::Accepted)
+            .map(|m| m.role.as_str().to_string()))
     }
 
     /// Update a member's role
@@ -413,16 +475,18 @@ impl OrganizationModel {
             membership_id, new_role
         );
 
-        let _: Option<()> = DB
-            .query(
-                "UPDATE type::thing('organization_members', $id) SET
-                    role = $role",
+        let membership_model = MembershipModel::new();
+        let role_enum = MembershipRole::from_str(new_role)?;
+
+        membership_model
+            .update(
+                membership_id,
+                crate::models::membership::UpdateMembershipData {
+                    role: Some(role_enum.clone()),
+                    permissions: Some(MembershipModel::get_default_permissions(&role_enum)),
+                },
             )
-            .bind(("id", membership_id.to_string()))
-            .bind(("role", new_role.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to update member role: {}", e)))?
-            .take(0)?;
+            .await?;
 
         Ok(())
     }
@@ -510,7 +574,7 @@ impl OrganizationModel {
     pub async fn find_user_by_username_or_email(&self, identifier: &str) -> Result<String, Error> {
         debug!("Finding user by identifier: {}", identifier);
 
-        let result: Vec<(Thing,)> = DB
+        let result: Vec<(String,)> = DB
             .query(
                 "SELECT id FROM person WHERE username = $identifier OR email = $identifier LIMIT 1",
             )
@@ -522,7 +586,7 @@ impl OrganizationModel {
 
         result
             .first()
-            .map(|(id,)| id.id.to_string())
+            .map(|(id,)| id.clone())
             .ok_or(Error::NotFound)
     }
 
@@ -536,11 +600,11 @@ impl OrganizationModel {
         // First get the organization relationships
         let query = "
             SELECT
-                meta::id(out) as org_id,
+                meta::id(in) as org_id,
                 role,
                 joined_at
             FROM organization_members
-            WHERE in = type::thing('person', $user_id)
+            WHERE out = type::thing('person', $user_id)
             AND invitation_status = 'accepted'
             ORDER BY joined_at DESC";
 
@@ -557,7 +621,7 @@ impl OrganizationModel {
         // Now fetch each organization
         let mut result = Vec::new();
         for (org_id, role, joined_at) in relationships {
-            let org_query = "SELECT * FROM organization WHERE meta::id(id) = $id FETCH created_by";
+            let org_query = "SELECT * FROM organization WHERE meta::id(id) = $id";
             let org: Option<Organization> = DB
                 .query(org_query)
                 .bind(("id", org_id))
@@ -594,7 +658,6 @@ mod tests {
             founded_year: Some(2020),
             employees_count: Some(50),
             public: true,
-            created_by: "test_user_123".to_string(),
         }
     }
 
@@ -757,7 +820,6 @@ mod tests {
                 founded_year: None,
                 employees_count: None,
                 public: true,
-                created_by: "user_123".to_string(),
             };
 
             assert_eq!(org_data.org_type, org_type);
@@ -765,6 +827,59 @@ mod tests {
     }
 
     // Integration test placeholder - would require database connection
+    #[tokio::test]
+    #[ignore] // Ignore by default as it requires database
+    async fn test_create_organization_with_membership() {
+        // This test would require a test database connection
+        // Uncomment and implement when test database is available
+
+        /*
+        let model = OrganizationModel::new();
+        let membership_model = crate::models::membership::MembershipModel::new();
+
+        // Create test organization data with a mock user ID
+        let user_id = "test_user_123";
+        let org_data = create_test_org_data("integration-test-org");
+
+        // Create the organization
+        match model.create(org_data, user_id).await {
+            Ok(org) => {
+                // Verify organization was created
+                assert_eq!(org.slug, "integration-test-org");
+                assert!(org.id.starts_with("organization:"));
+                assert_eq!(org.org_type, "production_company");
+
+
+                // Verify membership was created
+                let membership = membership_model
+                    .find_by_person_and_org(user_id, &org.id)
+                    .await
+                    .expect("Should find membership")
+                    .expect("Membership should exist");
+
+                assert_eq!(membership.person_id, user_id);
+                assert_eq!(membership.organization_id, org.id);
+                assert_eq!(membership.role, crate::models::membership::MembershipRole::Owner);
+                assert_eq!(membership.invitation_status, crate::models::membership::InvitationStatus::Accepted);
+
+                // Verify owner has all permissions
+                let has_delete_perm = membership_model
+                    .has_permission(user_id, &org.id, crate::models::membership::Permission::DeleteOrganization)
+                    .await
+                    .expect("Should check permission");
+                assert!(has_delete_perm, "Owner should have delete permission");
+
+                // Cleanup - delete the test organization and membership
+                let _ = membership_model.delete(&membership.id).await;
+                let _ = model.delete(&org.id).await;
+            }
+            Err(e) => {
+                panic!("Failed to create organization: {:?}", e);
+            }
+        }
+        */
+    }
+
     #[tokio::test]
     #[ignore] // Ignore by default as it requires database
     async fn test_create_organization_integration() {
@@ -775,14 +890,14 @@ mod tests {
         let model = OrganizationModel::new();
         let org_data = create_test_org_data("integration-test-org");
 
-        match model.create(org_data).await {
+        match model.create(org_data, "test_user").await {
             Ok(org) => {
                 assert_eq!(org.slug, "integration-test-org");
                 assert!(org.id.starts_with("organization:"));
                 assert_eq!(org.org_type, "production_company");
 
                 // Cleanup - delete the test organization
-                let _ = model.delete(&org.slug).await;
+                let _ = model.delete(&org.id).await;
             }
             Err(e) => {
                 panic!("Failed to create organization: {:?}", e);
@@ -806,7 +921,7 @@ mod tests {
 
         // Create an organization with that slug
         let org_data = create_test_org_data("unique-test-slug");
-        let _ = model.create(org_data).await.unwrap();
+        let _ = model.create(org_data, "test_user").await.unwrap();
 
         // Check again - should not be available
         let (available, reason) = model.check_slug_availability("unique-test-slug").await.unwrap();

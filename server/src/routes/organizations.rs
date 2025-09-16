@@ -389,15 +389,11 @@ async fn create_organization(
         founded_year,
         employees_count: None,
         public: data.public.as_deref() == Some("on"),
-        created_by: user.id.clone(),
     };
 
     // Use model to create organization
     let model = OrganizationModel::new();
-    let org = model.create(create_data).await?;
-
-    // Add creator as owner using model
-    model.add_member(&org.id, &user.id, "owner", None).await?;
+    let _org = model.create(create_data, &user.id).await?;
 
     info!("Organization '{}' created by user {}", data.slug, user.id);
 
