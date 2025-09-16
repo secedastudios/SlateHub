@@ -1,4 +1,4 @@
-.PHONY: help all start stop clean db-start db-stop db-init db-drop db-reset server-run server-build docker-up docker-down docker-restart docker-logs minio-clean minio-list
+.PHONY: help all start stop clean db-start db-stop db-init db-drop db-reset server-run server-build docker-up docker-down docker-restart docker-logs minio-clean minio-list test test-setup test-teardown test-watch test-integration test-unit test-clean
 
 # Default target - show help
 help:
@@ -15,6 +15,15 @@ help:
 	@echo "  make watch-run      - Watch, rebuild and restart server on changes"
 	@echo "  make watch-test     - Watch and run tests on changes"
 	@echo "  make install-watch  - Install cargo-watch if not already installed"
+	@echo ""
+	@echo "Test Commands:"
+	@echo "  make test           - Run all tests with setup/teardown"
+	@echo "  make test-setup     - Start test environment (SurrealDB + MinIO on test ports)"
+	@echo "  make test-teardown  - Stop test environment and clean test data"
+	@echo "  make test-watch     - Watch and run tests on changes"
+	@echo "  make test-integration - Run integration tests only"
+	@echo "  make test-unit      - Run unit tests only"
+	@echo "  make test-clean     - Clean all test data and containers"
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make docker-up      - Start Docker services (SurrealDB + MinIO)"
@@ -219,3 +228,152 @@ quick-start: install-watch docker-up db-init dev
 
 # Development with existing database
 quick-dev: install-watch dev
+
+# Test environment setup
+test-setup:
+	@echo "Starting test environment..."
+	@echo "Creating test data directories..."
+	@mkdir -p db/test-data db/test-files
+	@echo "Starting test Docker services..."
+	@docker-compose -f docker-compose.test.yml up -d
+	@echo "Waiting for test services to be ready..."
+	@sleep 5
+	@echo "Test environment ready!"
+	@echo "  SurrealDB Test: http://localhost:8100"
+	@echo "  MinIO Test API: http://localhost:9100"
+	@echo "  MinIO Test Console: http://localhost:9101"
+
+# Test environment teardown
+test-teardown:
+	@echo "Stopping test environment..."
+	@docker-compose -f docker-compose.test.yml down
+	@echo "Test environment stopped!"
+
+# Clean test data
+test-clean: test-teardown
+	@echo "Cleaning test data..."
+	@rm -rf db/test-data/* db/test-files/* 2>/dev/null || true
+	@echo "Removing test containers and volumes..."
+	@docker-compose -f docker-compose.test.yml down -v
+	@echo "Test environment cleaned!"
+
+# Run all tests with automatic setup and teardown
+test: test-setup
+	@echo "Running all tests..."
+	@cd server && \
+		DATABASE_URL=ws://localhost:8100/rpc \
+		DATABASE_USER=root \
+		DATABASE_PASS=root \
+		DATABASE_NS=slatehub-test \
+		DATABASE_DB=test \
+		MINIO_ENDPOINT=http://localhost:9100 \
+		MINIO_ACCESS_KEY=slatehub-test \
+		MINIO_SECRET_KEY=slatehub-test123 \
+		MINIO_BUCKET=slatehub-test-media \
+		cargo test --all -- --test-threads=1 || (make test-teardown && exit 1)
+	@make test-teardown
+	@echo "All tests completed!"
+
+# Run unit tests only
+test-unit: test-setup
+	@echo "Running unit tests..."
+	@cd server && \
+		DATABASE_URL=ws://localhost:8100/rpc \
+		DATABASE_USER=root \
+		DATABASE_PASS=root \
+		DATABASE_NS=slatehub-test \
+		DATABASE_DB=test \
+		MINIO_ENDPOINT=http://localhost:9100 \
+		MINIO_ACCESS_KEY=slatehub-test \
+		MINIO_SECRET_KEY=slatehub-test123 \
+		MINIO_BUCKET=slatehub-test-media \
+		cargo test --lib -- --test-threads=1 || (make test-teardown && exit 1)
+	@make test-teardown
+	@echo "Unit tests completed!"
+
+# Run integration tests only
+test-integration: test-setup
+	@echo "Running integration tests..."
+	@cd server && \
+		DATABASE_URL=ws://localhost:8100/rpc \
+		DATABASE_USER=root \
+		DATABASE_PASS=root \
+		DATABASE_NS=slatehub-test \
+		DATABASE_DB=test \
+		MINIO_ENDPOINT=http://localhost:9100 \
+		MINIO_ACCESS_KEY=slatehub-test \
+		MINIO_SECRET_KEY=slatehub-test123 \
+		MINIO_BUCKET=slatehub-test-media \
+		cargo test --test '*' -- --test-threads=1 || (make test-teardown && exit 1)
+	@make test-teardown
+	@echo "Integration tests completed!"
+
+# Watch tests with automatic rerun
+test-watch: test-setup
+	@echo "Watching tests (requires test environment to be running)..."
+	@cd server && \
+		DATABASE_URL=ws://localhost:8100/rpc \
+		DATABASE_USER=root \
+		DATABASE_PASS=root \
+		DATABASE_NS=slatehub-test \
+		DATABASE_DB=test \
+		MINIO_ENDPOINT=http://localhost:9100 \
+		MINIO_ACCESS_KEY=slatehub-test \
+		MINIO_SECRET_KEY=slatehub-test123 \
+		MINIO_BUCKET=slatehub-test-media \
+		cargo watch -x 'test -- --test-threads=1' -w src -w tests
+
+# Run specific test file
+test-file: test-setup
+	@if [ -z "$(FILE)" ]; then \
+		echo "Usage: make test-file FILE=test_name"; \
+		exit 1; \
+	fi
+	@echo "Running test file: $(FILE)..."
+	@cd server && \
+		DATABASE_URL=ws://localhost:8100/rpc \
+		DATABASE_USER=root \
+		DATABASE_PASS=root \
+		DATABASE_NS=slatehub-test \
+		DATABASE_DB=test \
+		MINIO_ENDPOINT=http://localhost:9100 \
+		MINIO_ACCESS_KEY=slatehub-test \
+		MINIO_SECRET_KEY=slatehub-test123 \
+		MINIO_BUCKET=slatehub-test-media \
+		cargo test $(FILE) -- --test-threads=1 || (make test-teardown && exit 1)
+	@make test-teardown
+
+# Check test environment status
+test-status:
+	@echo "Checking test environment status..."
+	@echo ""
+	@echo "Test Docker containers:"
+	@docker-compose -f docker-compose.test.yml ps
+	@echo ""
+	@echo "Test SurrealDB connection:"
+	@curl -s -X GET http://localhost:8100/health || echo "Test SurrealDB not responding"
+	@echo ""
+	@echo "Test MinIO Console: http://localhost:9101"
+	@echo "  Username: slatehub-test"
+	@echo "  Password: slatehub-test123"
+
+# Run tests with coverage (requires cargo-tarpaulin)
+test-coverage: test-setup
+	@echo "Running tests with coverage..."
+	@if ! command -v cargo-tarpaulin &> /dev/null; then \
+		echo "Installing cargo-tarpaulin..."; \
+		cargo install cargo-tarpaulin; \
+	fi
+	@cd server && \
+		DATABASE_URL=ws://localhost:8100/rpc \
+		DATABASE_USER=root \
+		DATABASE_PASS=root \
+		DATABASE_NS=slatehub-test \
+		DATABASE_DB=test \
+		MINIO_ENDPOINT=http://localhost:9100 \
+		MINIO_ACCESS_KEY=slatehub-test \
+		MINIO_SECRET_KEY=slatehub-test123 \
+		MINIO_BUCKET=slatehub-test-media \
+		cargo tarpaulin --out Html --output-dir ../target/coverage || (make test-teardown && exit 1)
+	@make test-teardown
+	@echo "Coverage report generated at: target/coverage/tarpaulin-report.html"

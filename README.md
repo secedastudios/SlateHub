@@ -138,3 +138,61 @@ A test script is provided to verify the profile upload functionality:
 ```
 
 This will test image upload, storage, and retrieval to ensure everything is working correctly.
+
+## Testing
+
+SlateHub includes a comprehensive testing suite with isolated test environments for unit and integration tests. The test infrastructure uses separate MinIO and SurrealDB instances to ensure tests don't interfere with development data.
+
+### Quick Start
+
+```bash
+# Run all tests with automatic setup/teardown
+make test
+
+# Run only unit tests
+make test-unit
+
+# Run only integration tests
+make test-integration
+
+# Watch and auto-run tests on file changes
+make test-watch
+```
+
+### Test Environment
+
+The test environment runs on separate ports:
+- **SurrealDB Test**: Port 8100 (vs 8000 for development)
+- **MinIO Test**: Ports 9100/9101 (vs 9000/9001 for development)
+
+Each test run:
+1. Starts fresh test containers
+2. Initializes a clean database schema
+3. Runs tests with `--test-threads=1` for isolation
+4. Automatically tears down and cleans up
+
+### Writing Tests
+
+Tests are organized in `server/tests/` with shared utilities in `tests/common/mod.rs`. Example:
+
+```rust
+#[tokio::test]
+async fn test_create_user() {
+    with_test_db(|db| async move {
+        let user_id = create_test_user(&db, "test@example.com", "testuser", "hash").await?;
+        assert!(!user_id.is_empty());
+        Ok(())
+    }).await.expect("Test failed");
+}
+```
+
+For detailed testing documentation, see [Testing Guide](docs/TESTING.md).
+
+### Coverage Reports
+
+Generate test coverage reports:
+
+```bash
+make test-coverage
+# View report at: target/coverage/tarpaulin-report.html
+```

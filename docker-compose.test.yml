@@ -1,0 +1,35 @@
+services:
+    surrealdb-test:
+        image: surrealdb/surrealdb:latest
+        container_name: slatehub-surrealdb-test
+        ports:
+            - "8100:8000"  # Different port for test instance
+        volumes:
+            - ./db/test-data:/data
+        command: start --log error --user root --pass root memory
+        environment:
+            - SURREAL_LOG=error
+        networks:
+            - slatehub-test-network
+        restart: unless-stopped
+
+    minio-test:
+        image: minio/minio:latest
+        container_name: slatehub-minio-test
+        ports:
+            - "9100:9000"  # Different port for test MinIO API
+            - "9101:9001"  # Different port for test MinIO Console
+        volumes:
+            - ./db/test-files:/data
+        environment:
+            - MINIO_ROOT_USER=slatehub-test
+            - MINIO_ROOT_PASSWORD=slatehub-test123
+            - MINIO_CONSOLE_ADDRESS=:9001
+        command: server /data --console-address ":9001"
+        networks:
+            - slatehub-test-network
+        restart: unless-stopped
+
+networks:
+    slatehub-test-network:
+        driver: bridge

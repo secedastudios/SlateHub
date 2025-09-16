@@ -52,3 +52,5 @@ bytes = "1.5"
 tower = { version = "0.5", features = ["util"] }
 once_cell = "1.19"
 urlencoding = "2.1"
+tokio-test = "0.4"
+serial_test = "3.0"
