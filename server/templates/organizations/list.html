@@ -113,7 +113,7 @@ endblock %} {% block content %}
             {% for org in organizations %}
             <article
                 data-component="organization-card"
-                data-org-type="{{ org.org_type }}"
+                data-org-type="{{ org.org_type.id }}"
             >
                 <header data-role="card-header">
                     {% if org.logo.is_some() %}
@@ -127,8 +127,10 @@ endblock %} {% block content %}
                     <h2 id="org-{{ org.id }}">
                         <a href="/orgs/{{ org.slug }}">{{ org.name }}</a>
                     </h2>
-                    <span data-role="org-type" data-value="{{ org.org_type }}"
-                        >{{ org.org_type }}</span
+                    <span
+                        data-role="org-type"
+                        data-value="{{ org.org_type.id }}"
+                        >{{ org.org_type.name }}</span
                     >
                 </header>
 

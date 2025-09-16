@@ -1,5 +1,8 @@
-{% extends "_layout.html" %} {% block title %}Edit {{ organization.name }} -
-SlateHub{% endblock %} {% block content %}
+{% extends "_layout.html" %}
+
+{% block title %}Edit {{ organization.name }} - SlateHub{% endblock %}
+
+{% block content %}
 <main id="main-content" data-page="edit-organization">
     <header>
         <h1 id="heading-edit-organization">Edit Organization</h1>
@@ -13,11 +16,7 @@ SlateHub{% endblock %} {% block content %}
     {% endif %}
 
     <section data-component="auth-form" data-type="edit-organization">
-        <form
-            id="form-edit-organization"
-            method="post"
-            action="/orgs/{{ organization.slug }}/edit"
-        >
+        <form id="form-edit-organization" method="post" action="/orgs/{{ organization.slug }}/edit">
             <fieldset data-role="form-section" data-section="basic-info">
                 <legend>Basic Information</legend>
 
@@ -32,9 +31,7 @@ SlateHub{% endblock %} {% block content %}
                         placeholder="Acme Productions"
                         aria-describedby="help-name"
                     />
-                    <small id="help-name"
-                        >The official name of your organization</small
-                    >
+                    <small id="help-name">The official name of your organization</small>
                 </div>
 
                 <div data-field="org_type">
@@ -42,7 +39,7 @@ SlateHub{% endblock %} {% block content %}
                     <select id="select-org-type" name="org_type" required>
                         <option value="">Select type...</option>
                         {% for org_type in org_types %}
-                        <option value="{{ org_type.id }}" {% if org_type.id == organization.org_type.as_str() %}selected{% endif %}>
+                        <option value="{{ org_type.id }}" {% if org_type.id.to_string() == organization.org_type.id.to_string() %}selected{% endif %}>
                             {{ org_type.name }}
                         </option>
                         {% endfor %}
@@ -57,13 +54,8 @@ SlateHub{% endblock %} {% block content %}
                         rows="4"
                         placeholder="Tell us about your organization..."
                         aria-describedby="help-description"
-                    >
-{% if organization.description.is_some() %}{{ organization.description.as_ref().unwrap() }}{% endif %}</textarea
-                    >
-                    <small id="help-description"
-                        >A brief description of what your organization
-                        does</small
-                    >
+                    >{% if organization.description.is_some() %}{{ organization.description.as_ref().unwrap() }}{% endif %}</textarea>
+                    <small id="help-description">A brief description of what your organization does</small>
                 </div>
             </fieldset>
 
@@ -93,9 +85,7 @@ SlateHub{% endblock %} {% block content %}
                         placeholder="https://example.com"
                         aria-describedby="help-website"
                     />
-                    <small id="help-website"
-                        >Your organization's website URL</small
-                    >
+                    <small id="help-website">Your organization's website URL</small>
                 </div>
 
                 <div data-field="contact_email">
@@ -108,9 +98,7 @@ SlateHub{% endblock %} {% block content %}
                         placeholder="contact@example.com"
                         aria-describedby="help-contact-email"
                     />
-                    <small id="help-contact-email"
-                        >Public contact email for inquiries</small
-                    >
+                    <small id="help-contact-email">Public contact email for inquiries</small>
                 </div>
 
                 <div data-field="phone">
@@ -138,10 +126,7 @@ SlateHub{% endblock %} {% block content %}
                         placeholder="VFX, Post-Production, Color Grading"
                         aria-describedby="help-services"
                     />
-                    <small id="help-services"
-                        >Comma-separated list of services your organization
-                        provides</small
-                    >
+                    <small id="help-services">Comma-separated list of services your organization provides</small>
                 </div>
 
                 <div data-field="founded_year">
@@ -158,9 +143,7 @@ SlateHub{% endblock %} {% block content %}
                 </div>
 
                 <div data-field="employees_count">
-                    <label for="input-employees-count"
-                        >Number of Employees</label
-                    >
+                    <label for="input-employees-count">Number of Employees</label>
                     <input
                         id="input-employees-count"
                         name="employees_count"
@@ -170,9 +153,7 @@ SlateHub{% endblock %} {% block content %}
                         placeholder="10"
                         aria-describedby="help-employees"
                     />
-                    <small id="help-employees"
-                        >Approximate number of employees</small
-                    >
+                    <small id="help-employees">Approximate number of employees</small>
                 </div>
 
                 <div data-field="public">
@@ -190,16 +171,12 @@ SlateHub{% endblock %} {% block content %}
                         If checked, anyone can view your organization's profile.
                         If unchecked, only members can view it.
                     </small>
-                </div>            </fieldset>
+                </div>
+            </fieldset>
 
             <div data-role="form-actions">
                 <button type="submit" data-type="primary">Save Changes</button>
-                <a
-                    href="/orgs/{{ organization.slug }}"
-                    role="button"
-                    data-type="secondary"
-                    >Cancel</a
-                >
+                <a href="/orgs/{{ organization.slug }}" role="button" data-type="secondary">Cancel</a>
             </div>
         </form>
     </section>
@@ -210,21 +187,9 @@ SlateHub{% endblock %} {% block content %}
         </header>
 
         <div data-role="danger-actions">
-            <p>
-                Once you delete an organization, there is no going back. Please
-                be certain.
-            </p>
-            <form
-                id="form-delete-org"
-                method="post"
-                action="/orgs/{{ organization.slug }}/delete"
-                data-inline="true"
-            >
-                <button
-                    type="submit"
-                    data-type="danger"
-                    data-confirm="Are you sure you want to delete this organization? This action cannot be undone."
-                >
+            <p>Once you delete an organization, there is no going back. Please be certain.</p>
+            <form id="form-delete-org" method="post" action="/orgs/{{ organization.slug }}/delete" data-inline="true">
+                <button type="submit" data-type="danger" data-confirm="Are you sure you want to delete this organization? This action cannot be undone.">
                     Delete Organization
                 </button>
             </form>
@@ -233,20 +198,18 @@ SlateHub{% endblock %} {% block content %}
 </main>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // Handle delete confirmation
-        const deleteForm = document.getElementById("form-delete-org");
-        if (deleteForm) {
-            deleteForm.addEventListener("submit", function (e) {
-                const confirmBtn =
-                    e.submitter ||
-                    e.target.querySelector('button[type="submit"]');
-                const message = confirmBtn.dataset.confirm;
-                if (message && !confirm(message)) {
-                    e.preventDefault();
-                }
-            });
-        }
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle delete confirmation
+    const deleteForm = document.getElementById('form-delete-org');
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function(e) {
+            const confirmBtn = e.submitter || e.target.querySelector('button[type="submit"]');
+            const message = confirmBtn.dataset.confirm;
+            if (message && !confirm(message)) {
+                e.preventDefault();
+            }
+        });
+    }
+});
 </script>
 {% endblock %}

@@ -1,8 +1,5 @@
-{% extends "_layout.html" %}
-
-{% block title %}My Organizations - SlateHub{% endblock %}
-
-{% block content %}
+{% extends "_layout.html" %} {% block title %}My Organizations - SlateHub{%
+endblock %} {% block content %}
 <main id="main-content" data-page="my-organizations">
     <header>
         <h1 id="heading-my-organizations">My Organizations</h1>
@@ -26,18 +23,29 @@
             <h2>You're not part of any organizations yet</h2>
             <p>Create your own organization or browse existing ones to join.</p>
             <nav data-role="empty-actions">
-                <a href="/orgs/new" role="button" data-type="primary">Create Organization</a>
-                <a href="/orgs" role="button" data-type="secondary">Browse Organizations</a>
+                <a href="/orgs/new" role="button" data-type="primary"
+                    >Create Organization</a
+                >
+                <a href="/orgs" role="button" data-type="secondary"
+                    >Browse Organizations</a
+                >
             </nav>
         </div>
         {% else %}
         <div data-role="results-count">
-            <p>You are a member of {{ organizations.len() }} organization{% if organizations.len() != 1 %}s{% endif %}</p>
+            <p>
+                You are a member of {{ organizations.len() }} organization{% if
+                organizations.len() != 1 %}s{% endif %}
+            </p>
         </div>
 
         <div data-layout="grid" data-grid="my-organizations">
             {% for membership in organizations %}
-            <article data-component="organization-card" data-org-type="{{ membership.organization.org_type }}" data-member-role="{{ membership.role }}">
+            <article
+                data-component="organization-card"
+                data-org-type="{{ membership.organization.org_type.id }}"
+                data-member-role="{{ membership.role }}"
+            >
                 <header data-role="card-header">
                     {% if membership.organization.logo.is_some() %}
                     <div data-role="logo">
@@ -48,13 +56,21 @@
                     </div>
                     {% endif %}
                     <h2 id="org-{{ membership.organization.id }}">
-                        <a href="/orgs/{{ membership.organization.slug }}">{{ membership.organization.name }}</a>
+                        <a href="/orgs/{{ membership.organization.slug }}"
+                            >{{ membership.organization.name }}</a
+                        >
                     </h2>
                     <div data-role="badges">
-                        <span data-role="org-type" data-value="{{ membership.organization.org_type }}">
-                            {{ membership.organization.org_type }}
+                        <span
+                            data-role="org-type"
+                            data-value="{{ membership.organization.org_type.id }}"
+                        >
+                            {{ membership.organization.org_type.name }}
                         </span>
-                        <span data-role="member-role" data-value="{{ membership.role }}">
+                        <span
+                            data-role="member-role"
+                            data-value="{{ membership.role }}"
+                        >
                             {{ membership.role }}
                         </span>
                     </div>
@@ -63,7 +79,8 @@
                 <div data-role="card-body">
                     {% if membership.organization.description.is_some() %}
                     <p data-role="description">
-                        {{ membership.organization.description.as_ref().unwrap() }}
+                        {{ membership.organization.description.as_ref().unwrap()
+                        }}
                     </p>
                     {% endif %}
 
@@ -71,7 +88,11 @@
                         {% if membership.organization.location.is_some() %}
                         <div data-field="location">
                             <dt>Location</dt>
-                            <dd>{{ membership.organization.location.as_ref().unwrap() }}</dd>
+                            <dd>
+                                {{
+                                membership.organization.location.as_ref().unwrap()
+                                }}
+                            </dd>
                         </div>
                         {% endif %}
 
@@ -84,10 +105,15 @@
                             </dd>
                         </div>
 
-                        {% if membership.organization.employees_count.is_some() %}
+                        {% if membership.organization.employees_count.is_some()
+                        %}
                         <div data-field="size">
                             <dt>Size</dt>
-                            <dd>{{ membership.organization.employees_count.unwrap() }} employees</dd>
+                            <dd>
+                                {{
+                                membership.organization.employees_count.unwrap()
+                                }} employees
+                            </dd>
                         </div>
                         {% endif %}
                     </dl>
@@ -95,16 +121,25 @@
 
                 <footer data-role="card-footer">
                     <nav data-role="card-actions">
-                        <a href="/orgs/{{ membership.organization.slug }}" aria-label="View {{ membership.organization.name }}">
+                        <a
+                            href="/orgs/{{ membership.organization.slug }}"
+                            aria-label="View {{ membership.organization.name }}"
+                        >
                             View Organization
                         </a>
-                        {% if membership.role == "owner" || membership.role == "admin" %}
-                        <a href="/orgs/{{ membership.organization.slug }}/edit" aria-label="Edit {{ membership.organization.name }}">
+                        {% if membership.role == "owner" || membership.role ==
+                        "admin" %}
+                        <a
+                            href="/orgs/{{ membership.organization.slug }}/edit"
+                            aria-label="Edit {{ membership.organization.name }}"
+                        >
                             Edit
                         </a>
-                        {% endif %}
-                        {% if membership.role == "owner" %}
-                        <a href="/orgs/{{ membership.organization.slug }}/members" aria-label="Manage members of {{ membership.organization.name }}">
+                        {% endif %} {% if membership.role == "owner" %}
+                        <a
+                            href="/orgs/{{ membership.organization.slug }}/members"
+                            aria-label="Manage members of {{ membership.organization.name }}"
+                        >
                             Manage Members
                         </a>
                         {% endif %}

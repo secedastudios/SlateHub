@@ -8,7 +8,7 @@ SlateHub{% endblock %} {% block content %}
 >
     <article
         data-component="organization-profile"
-        data-org-type="{{ organization.org_type }}"
+        data-org-type="{{ organization.org_type.id }}"
     >
         <header data-role="profile-header">
             {% if organization.logo.is_some() %}
@@ -24,8 +24,8 @@ SlateHub{% endblock %} {% block content %}
                 <h1 id="heading-organization">{{ organization.name }}</h1>
                 <span
                     data-role="org-type"
-                    data-value="{{ organization.org_type }}"
-                    >{{ organization.org_type }}</span
+                    data-value="{{ organization.org_type.id }}"
+                    >{{ organization.org_type.name }}</span
                 >
                 <span
                     data-role="visibility-badge"

@@ -116,7 +116,7 @@ DEFINE TABLE organization TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD name ON organization TYPE string PERMISSIONS FULL;
 DEFINE FIELD slug ON organization TYPE string VALUE string::slug($this.name) PERMISSIONS FULL;
-DEFINE FIELD type ON organization TYPE string PERMISSIONS FULL;  -- From organization_type
+DEFINE FIELD type ON organization TYPE record<organization_type> PERMISSIONS FULL;
 DEFINE FIELD description ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD location ON organization TYPE option<string> PERMISSIONS FULL;  -- e.g., "Los Angeles, CA" for search
 DEFINE FIELD website ON organization TYPE option<string> PERMISSIONS FULL;

@@ -6,6 +6,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use surrealdb::RecordId;
 use tracing::{debug, error};
 
 use crate::{db::DB, error::Error};
@@ -17,14 +18,14 @@ use crate::{db::DB, error::Error};
 /// Represents a membership relationship between a person and an organization
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Membership {
-    pub id: String,
-    pub person_id: String,
-    pub organization_id: String,
+    pub id: RecordId,
+    pub person_id: RecordId,
+    pub organization_id: RecordId,
     pub role: MembershipRole,
     pub permissions: Vec<Permission>,
     pub joined_at: DateTime<Utc>,
     pub invitation_status: InvitationStatus,
-    pub invited_by: Option<String>,
+    pub invited_by: Option<RecordId>,
     pub invited_at: Option<DateTime<Utc>>,
 }
 
@@ -113,12 +114,12 @@ impl InvitationStatus {
 /// Data for creating a new membership
 #[derive(Debug)]
 pub struct CreateMembershipData {
-    pub person_id: String,
-    pub organization_id: String,
+    pub person_id: String,       // Keep as String since it comes from routes
+    pub organization_id: String, // Keep as String since it comes from routes
     pub role: MembershipRole,
     pub permissions: Vec<Permission>,
     pub invitation_status: InvitationStatus,
-    pub invited_by: Option<String>,
+    pub invited_by: Option<String>, // Keep as String since it comes from routes
 }
 
 /// Data for updating a membership
@@ -188,11 +189,7 @@ impl MembershipModel {
             .bind(("permissions", data.permissions.clone()))
             .bind(("status", data.invitation_status.as_str().to_string()))
             .bind(("inviter", data.invited_by.clone()))
-            .await
-            .map_err(|e| {
-                error!("Failed to create membership: {}", e);
-                Error::database(format!("Failed to create membership: {}", e))
-            })?
+            .await?
             .take("AFTER")?;
 
         result.ok_or_else(|| {
@@ -219,11 +216,7 @@ impl MembershipModel {
             .query(query)
             .bind(("org", org_id.to_string()))
             .bind(("person", person_id.to_string()))
-            .await
-            .map_err(|e| {
-                error!("Failed to find membership: {}", e);
-                Error::database(format!("Failed to find membership: {}", e))
-            })?
+            .await?
             .take(0)?;
 
         Ok(result)
@@ -243,8 +236,7 @@ impl MembershipModel {
 
         if let Some(permissions) = data.permissions {
             updates.push("permissions = $permissions");
-            let permissions_json = serde_json::to_value(permissions)
-                .map_err(|e| Error::database(format!("Failed to serialize permissions: {}", e)))?;
+            let permissions_json = serde_json::to_value(permissions)?;
             bindings.push(("permissions", permissions_json.to_string()));
         }
 
@@ -263,13 +255,7 @@ impl MembershipModel {
             query_builder = query_builder.bind((key, value.to_string()));
         }
 
-        let result: Option<Membership> = query_builder
-            .await
-            .map_err(|e| {
-                error!("Failed to update membership: {}", e);
-                Error::database(format!("Failed to update membership: {}", e))
-            })?
-            .take("AFTER")?;
+        let result: Option<Membership> = query_builder.await?.take("AFTER")?;
 
         result.ok_or(Error::NotFound)
     }
@@ -286,11 +272,7 @@ impl MembershipModel {
         let result: Option<Membership> = DB
             .query(query)
             .bind(("id", id.to_string()))
-            .await
-            .map_err(|e| {
-                error!("Failed to accept invitation: {}", e);
-                Error::database(format!("Failed to accept invitation: {}", e))
-            })?
+            .await?
             .take("AFTER")?;
 
         result.ok_or(Error::NotFound)
@@ -303,13 +285,7 @@ impl MembershipModel {
         let query = "UPDATE organization_members:$id SET
                      invitation_status = 'declined'";
 
-        DB.query(query)
-            .bind(("id", id.to_string()))
-            .await
-            .map_err(|e| {
-                error!("Failed to decline invitation: {}", e);
-                Error::database(format!("Failed to decline invitation: {}", e))
-            })?;
+        DB.query(query).bind(("id", id.to_string())).await?;
 
         Ok(())
     }
@@ -320,13 +296,7 @@ impl MembershipModel {
 
         let query = "DELETE organization_members:$id";
 
-        DB.query(query)
-            .bind(("id", id.to_string()))
-            .await
-            .map_err(|e| {
-                error!("Failed to delete membership: {}", e);
-                Error::database(format!("Failed to delete membership: {}", e))
-            })?;
+        DB.query(query).bind(("id", id.to_string())).await?;
 
         Ok(())
     }
@@ -345,11 +315,7 @@ impl MembershipModel {
         let result: Vec<Membership> = DB
             .query(query)
             .bind(("org", org_id.to_string()))
-            .await
-            .map_err(|e| {
-                error!("Failed to fetch organization memberships: {}", e);
-                Error::database(format!("Failed to fetch organization memberships: {}", e))
-            })?
+            .await?
             .take(0)
             .unwrap_or_default();
 
@@ -368,11 +334,7 @@ impl MembershipModel {
         let result: Vec<Membership> = DB
             .query(query)
             .bind(("person", person_id.to_string()))
-            .await
-            .map_err(|e| {
-                error!("Failed to fetch person memberships: {}", e);
-                Error::database(format!("Failed to fetch person memberships: {}", e))
-            })?
+            .await?
             .take(0)
             .unwrap_or_default();
 

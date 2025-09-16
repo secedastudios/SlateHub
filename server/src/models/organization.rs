@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use surrealdb::RecordId;
 use tracing::{debug, error, warn};
 
 use crate::{
@@ -18,13 +20,22 @@ pub struct SocialLink {
     pub url: String,
 }
 
+/// Represents an organization type with its full RecordId
+/// The id field contains the complete reference (e.g., "organization_type:abc123")
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrganizationType {
+    pub id: RecordId,
+    pub name: String,
+}
+
+/// Organization entity with all RecordId references properly typed
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Organization {
-    pub id: String,
+    pub id: RecordId, // Full RecordId (e.g., "organization:xyz789")
     pub name: String,
     pub slug: String,
     #[serde(rename = "type")]
-    pub org_type: String,
+    pub org_type: OrganizationType, // Contains embedded OrganizationType with its RecordId
     pub description: Option<String>,
     pub location: Option<String>,
     pub website: Option<String>,
@@ -42,8 +53,8 @@ pub struct Organization {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrganizationMember {
-    pub id: String,
-    pub person_id: String,
+    pub id: RecordId,
+    pub person_id: RecordId,
     pub person_username: String,
     pub person_name: Option<String>,
     pub role: String,
@@ -55,7 +66,7 @@ pub struct OrganizationMember {
 pub struct CreateOrganizationData {
     pub name: String,
     pub slug: String,
-    pub org_type: String,
+    pub org_type: String, // String ID from form, converted to record reference when creating
     pub description: Option<String>,
     pub location: Option<String>,
     pub website: Option<String>,
@@ -70,7 +81,7 @@ pub struct CreateOrganizationData {
 #[derive(Debug)]
 pub struct UpdateOrganizationData {
     pub name: String,
-    pub org_type: String,
+    pub org_type: String, // String ID from form, converted to record reference when updating
     pub description: Option<String>,
     pub location: Option<String>,
     pub website: Option<String>,
@@ -93,6 +104,16 @@ impl OrganizationModel {
         Self
     }
 
+    /// Validate that an organization type exists in the database
+    async fn validate_organization_type(&self, org_type_id: &RecordId) -> Result<bool, Error> {
+        debug!("Validating organization type: {}", org_type_id);
+
+        // Query using the full RecordId string to check if the record exists
+        let result: Option<OrganizationType> = DB.select(org_type_id).await?;
+
+        Ok(result.is_some())
+    }
+
     /// Create a new organization with the creator as owner
     pub async fn create(
         &self,
@@ -100,6 +121,8 @@ impl OrganizationModel {
         created_by: &str,
     ) -> Result<Organization, Error> {
         debug!("Creating organization with slug: {}", data.slug);
+
+        let org_type_id: RecordId = RecordId::from_str(&data.org_type)?;
 
         // Check if slug is available
         let (available, reason) = self.check_slug_availability(&data.slug).await?;
@@ -114,121 +137,104 @@ impl OrganizationModel {
             data.slug
         );
 
-        // Start transaction
-        DB.query("BEGIN TRANSACTION").await.map_err(|e| {
-            error!("Failed to begin transaction: {}", e);
-            Error::database(format!("Failed to begin transaction: {}", e))
+        // Validate organization type exists
+        let type_exists = self.validate_organization_type(&org_type_id).await?;
+        if !type_exists {
+            error!("Organization type '{}' does not exist", data.org_type);
+            return Err(Error::validation(format!(
+                "Invalid organization type: {}",
+                data.org_type
+            )));
+        }
+        debug!("Organization type '{}' is valid", org_type_id);
+
+        debug!(
+            "Creating organization with data: name={}, slug={}, type={}",
+            data.name, data.slug, org_type_id
+        );
+
+        // Get default owner permissions as strings
+        let owner_permissions = vec![
+            "UpdateOrganization".to_string(),
+            "DeleteOrganization".to_string(),
+            "InviteMembers".to_string(),
+            "RemoveMembers".to_string(),
+            "UpdateMemberRoles".to_string(),
+            "CreateProjects".to_string(),
+            "UpdateProjects".to_string(),
+            "DeleteProjects".to_string(),
+            "ManageContent".to_string(),
+            "PublishContent".to_string(),
+        ];
+
+        // Single SQL transaction that creates the organization and membership
+        let transaction_query = format!(
+            r#"
+            BEGIN TRANSACTION;
+
+            LET $org = (CREATE organization CONTENT {{
+                name: $name,
+                slug: $slug,
+                type: $org_type,
+                description: $description,
+                location: $location,
+                website: $website,
+                social_links: [],
+                contact_email: $contact_email,
+                phone: $phone,
+                services: $services,
+                founded_year: $founded_year,
+                public: $public
+            }});
+
+            RELATE $org->organization_members->{} SET
+                role = 'owner',
+                permissions = $permissions,
+                invitation_status = 'accepted',
+                joined_at = time::now();
+
+            LET $result = (SELECT *, type.* FROM $org.id);
+
+            COMMIT TRANSACTION;
+
+            RETURN $result;
+            "#,
+            created_by
+        );
+
+        debug!("Executing transaction to create organization and owner membership");
+
+        let mut response = DB
+            .query(transaction_query)
+            .bind(("name", data.name))
+            .bind(("slug", data.slug.clone()))
+            .bind(("org_type", org_type_id))
+            .bind(("description", data.description))
+            .bind(("location", data.location))
+            .bind(("website", data.website))
+            .bind(("contact_email", data.contact_email))
+            .bind(("phone", data.phone))
+            .bind(("services", data.services))
+            .bind(("founded_year", data.founded_year))
+            .bind(("public", data.public))
+            .bind(("permissions", owner_permissions))
+            .await?;
+
+        debug!("Create organization response: {:?}", response);
+        let org: Option<Organization> = response.take(3)?;
+
+        let org = org.ok_or_else(|| {
+            error!("Organization creation returned no record");
+            Error::database("Failed to create organization - no record returned")
         })?;
 
-        // Try to create organization and membership in transaction
-        let result = async {
-            // Create the organization
-            let org_query = r#"
-                CREATE organization CONTENT {
-                    name: $name,
-                    slug: $slug,
-                    type: $org_type,
-                    description: $description,
-                    location: $location,
-                    website: $website,
-                    social_links: [],
-                    contact_email: $contact_email,
-                    phone: $phone,
-                    services: $services,
-                    founded_year: $founded_year,
-                    public: $public
-                } RETURN AFTER
-            "#;
+        debug!(
+            "Successfully created organization '{}' with ID: {} and owner membership",
+            data.slug,
+            org.id.to_string()
+        );
 
-            let org: Option<Organization> = DB
-                .query(org_query)
-                .bind(("name", data.name.clone()))
-                .bind(("slug", data.slug.clone()))
-                .bind(("org_type", data.org_type.clone()))
-                .bind(("description", data.description.clone()))
-                .bind(("location", data.location.clone()))
-                .bind(("website", data.website.clone()))
-                .bind(("contact_email", data.contact_email.clone()))
-                .bind(("phone", data.phone.clone()))
-                .bind(("services", data.services.clone()))
-                .bind(("founded_year", data.founded_year))
-                .bind(("public", data.public))
-                .await
-                .map_err(|e| {
-                    error!("Failed to create organization: {}", e);
-                    Error::database(format!("Failed to create organization: {}", e))
-                })?
-                .take("AFTER")?;
-
-            let org = org.ok_or_else(|| {
-                error!("Organization creation returned no record");
-                Error::database("Failed to create organization - no record returned")
-            })?;
-
-            debug!("Organization created with ID: {}", org.id);
-
-            // Get default owner permissions as strings
-            let owner_permissions = vec![
-                "UpdateOrganization".to_string(),
-                "DeleteOrganization".to_string(),
-                "InviteMembers".to_string(),
-                "RemoveMembers".to_string(),
-                "UpdateMemberRoles".to_string(),
-                "CreateProjects".to_string(),
-                "UpdateProjects".to_string(),
-                "DeleteProjects".to_string(),
-                "ManageContent".to_string(),
-                "PublishContent".to_string(),
-            ];
-
-            // Create the membership relation
-            let membership_query = format!(
-                r#"
-                RELATE organization:{} -> organization_members -> person:{} SET
-                    role = 'owner',
-                    permissions = $permissions,
-                    invitation_status = 'accepted',
-                    joined_at = time::now()
-                "#,
-                org.id, created_by
-            );
-
-            DB.query(membership_query)
-                .bind(("permissions", owner_permissions))
-                .await
-                .map_err(|e| {
-                    error!("Failed to create membership relation: {}", e);
-                    Error::database(format!("Failed to create membership: {}", e))
-                })?;
-
-            debug!("Owner membership created for organization: {}", org.id);
-
-            Ok(org)
-        }
-        .await;
-
-        // Handle transaction result
-        match result {
-            Ok(org) => {
-                // Commit transaction
-                DB.query("COMMIT TRANSACTION").await.map_err(|e| {
-                    error!("Failed to commit transaction: {}", e);
-                    Error::database(format!("Failed to commit transaction: {}", e))
-                })?;
-
-                debug!(
-                    "Transaction committed successfully for organization: {}",
-                    org.id
-                );
-                Ok(org)
-            }
-            Err(e) => {
-                // Rollback transaction
-                let _ = DB.query("CANCEL TRANSACTION").await;
-                error!("Transaction rolled back due to error: {}", e);
-                Err(e)
-            }
-        }
+        Ok(org)
     }
 
     /// Get organization by slug
@@ -236,10 +242,22 @@ impl OrganizationModel {
         debug!("Fetching organization by slug: {}", slug);
 
         let result: Option<Organization> = DB
-            .query("SELECT * FROM organization WHERE slug = $slug")
+            .query("SELECT * FROM organization WHERE slug = $slug FETCH type")
             .bind(("slug", slug.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to fetch organization: {}", e)))?
+            .await?
+            .take(0)?;
+
+        result.ok_or(Error::NotFound)
+    }
+
+    /// Get organization by ID
+    pub async fn get_by_id(&self, id: &str) -> Result<Organization, Error> {
+        debug!("Fetching organization by ID: {}", id);
+
+        let result: Option<Organization> = DB
+            .query("SELECT * FROM organization WHERE meta::id(id) = $id FETCH type")
+            .bind(("id", id.to_string()))
+            .await?
             .take(0)?;
 
         result.ok_or(Error::NotFound)
@@ -254,7 +272,7 @@ impl OrganizationModel {
     ) -> Result<Vec<Organization>, Error> {
         debug!("Searching organizations with filters");
 
-        let mut sql = "SELECT * FROM organization".to_string();
+        let mut sql = "SELECT * FROM organization FETCH type".to_string();
         let mut conditions = Vec::new();
 
         if let Some(q) = query {
@@ -262,7 +280,7 @@ impl OrganizationModel {
         }
 
         if let Some(ot) = org_type {
-            conditions.push(format!("`type` = '{}'", ot));
+            conditions.push(format!("type.name = '{}'", ot));
         }
 
         if let Some(loc) = location {
@@ -276,12 +294,7 @@ impl OrganizationModel {
 
         sql.push_str(" ORDER BY created_at DESC LIMIT 50");
 
-        let organizations: Vec<Organization> = DB
-            .query(&sql)
-            .await
-            .map_err(|e| Error::database(format!("Failed to search organizations: {}", e)))?
-            .take(0)
-            .unwrap_or_default();
+        let organizations: Vec<Organization> = DB.query(&sql).await?.take(0).unwrap_or_default();
 
         Ok(organizations)
     }
@@ -317,8 +330,7 @@ impl OrganizationModel {
             .bind(("founded_year", data.founded_year))
             .bind(("employees_count", data.employees_count))
             .bind(("public", data.public))
-            .await
-            .map_err(|e| Error::database(format!("Failed to update organization: {}", e)))?
+            .await?
             .take(0)?;
 
         Ok(())
@@ -332,8 +344,7 @@ impl OrganizationModel {
         let _: Vec<()> = DB
             .query("DELETE organization_members WHERE out = type::thing('organization', $id)")
             .bind(("id", id.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to delete memberships: {}", e)))?
+            .await?
             .take(0)
             .unwrap_or_default();
 
@@ -341,8 +352,7 @@ impl OrganizationModel {
         let _: Vec<()> = DB
             .query("DELETE type::thing('organization', $id)")
             .bind(("id", id.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to delete organization: {}", e)))?
+            .await?
             .take(0)
             .unwrap_or_default();
 
@@ -393,8 +403,7 @@ impl OrganizationModel {
             .bind(("person", person_id.to_string()))
             .bind(("role", role.to_string()))
             .bind(("status", invitation_status))
-            .await
-            .map_err(|e| Error::database(format!("Failed to add member: {}", e)))?
+            .await?
             .take(0)?;
 
         Ok(())
@@ -417,8 +426,8 @@ impl OrganizationModel {
         let result: Vec<OrganizationMember> = DB
             .query(
                 "SELECT
-                    meta::id(id) as id,
-                    meta::id(out) as person_id,
+                    id,
+                    out as person_id,
                     out.username as person_username,
                     out.profile.name as person_name,
                     role,
@@ -435,8 +444,7 @@ impl OrganizationModel {
                     joined_at DESC",
             )
             .bind(("org_id", org_id.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to fetch organization members: {}", e)))?
+            .await?
             .take(0)
             .unwrap_or_default();
 
@@ -502,8 +510,7 @@ impl OrganizationModel {
         let org_check: Vec<(String,)> = DB
             .query("SELECT slug FROM organization WHERE slug = $slug")
             .bind(("slug", slug.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to check slug: {}", e)))?
+            .await?
             .take(0)
             .unwrap_or_default();
 
@@ -515,8 +522,7 @@ impl OrganizationModel {
         let reserved_check: Vec<(String,)> = DB
             .query("SELECT name FROM reserved_names WHERE name = $name")
             .bind(("name", slug.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to check reserved names: {}", e)))?
+            .await?
             .take(0)
             .unwrap_or_default();
 
@@ -531,32 +537,27 @@ impl OrganizationModel {
     pub async fn get_organization_types(&self) -> Result<Vec<(String, String)>, Error> {
         debug!("Fetching organization types from database");
 
+        // Define a struct to match the query result
         #[derive(Debug, Deserialize)]
         struct OrgTypeRecord {
-            id: String,
+            id: RecordId,
             name: String,
         }
 
-        // Use meta::id() to get clean IDs without table prefix
-        let sql = "SELECT meta::id(id) as id, name FROM organization_type ORDER BY name";
+        // Fetch organization types with their IDs
+        let sql = "SELECT id, name FROM organization_type ORDER BY name";
 
-        let mut response = DB.query(sql).await.map_err(|e| {
-            error!("Failed to query organization types: {}", e);
-            Error::database(format!("Failed to fetch organization types: {}", e))
-        })?;
+        let mut response = DB.query(sql).await?;
 
-        // Direct struct extraction
-        let records: Vec<OrgTypeRecord> = response.take(0).map_err(|e| {
-            error!("Failed to extract organization types: {}", e);
-            Error::database(format!("Failed to deserialize organization types: {}", e))
-        })?;
+        // Extract as structured records
+        let records: Vec<OrgTypeRecord> = response.take(0)?;
 
         debug!("Fetched {} organization types", records.len());
 
-        // Convert to tuples
+        // Convert to tuples with full RecordId strings
         let types: Vec<(String, String)> = records
             .into_iter()
-            .map(|record| (record.id, record.name))
+            .map(|record| (record.id.to_string(), record.name))
             .collect();
 
         if types.is_empty() {
@@ -579,8 +580,7 @@ impl OrganizationModel {
                 "SELECT id FROM person WHERE username = $identifier OR email = $identifier LIMIT 1",
             )
             .bind(("identifier", identifier.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to find user: {}", e)))?
+            .await?
             .take(0)
             .unwrap_or_default();
 
@@ -600,7 +600,7 @@ impl OrganizationModel {
         // First get the organization relationships
         let query = "
             SELECT
-                meta::id(in) as org_id,
+                in as org_id,
                 role,
                 joined_at
             FROM organization_members
@@ -608,11 +608,10 @@ impl OrganizationModel {
             AND invitation_status = 'accepted'
             ORDER BY joined_at DESC";
 
-        let relationships: Vec<(String, String, DateTime<Utc>)> = DB
+        let relationships: Vec<(RecordId, String, DateTime<Utc>)> = DB
             .query(query)
             .bind(("user_id", user_id.to_string()))
-            .await
-            .map_err(|e| Error::database(format!("Failed to fetch user organizations: {}", e)))?
+            .await?
             .take(0)
             .unwrap_or_default();
 
@@ -621,12 +620,11 @@ impl OrganizationModel {
         // Now fetch each organization
         let mut result = Vec::new();
         for (org_id, role, joined_at) in relationships {
-            let org_query = "SELECT * FROM organization WHERE meta::id(id) = $id";
+            let org_query = "SELECT * FROM organization WHERE id = $id FETCH type";
             let org: Option<Organization> = DB
                 .query(org_query)
-                .bind(("id", org_id))
-                .await
-                .map_err(|e| Error::database(format!("Failed to fetch organization: {}", e)))?
+                .bind(("id", org_id.to_string()))
+                .await?
                 .take(0)?;
 
             if let Some(org) = org {
