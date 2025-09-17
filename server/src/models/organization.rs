@@ -107,11 +107,10 @@ impl OrganizationModel {
     /// Validate that an organization type exists in the database
     async fn validate_organization_type(&self, org_type_id: &RecordId) -> Result<bool, Error> {
         debug!("Validating organization type: {}", org_type_id);
-
-        // Query using the full RecordId string to check if the record exists
-        let result: Option<OrganizationType> = DB.select(org_type_id).await?;
-
-        Ok(result.is_some())
+        Ok(DB
+            .select::<Option<OrganizationType>>(org_type_id)
+            .await?
+            .is_some())
     }
 
     /// Create a new organization with the creator as owner
