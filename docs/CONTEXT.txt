@@ -266,6 +266,115 @@ let _ = db
 ```
 
 ================================================================================
+ID HANDLING POLICY
+================================================================================
+
+CORE PRINCIPLE:
+**ALWAYS use full record IDs internally. ONLY strip table prefixes for URLs.**
+
+SurrealDB uses record IDs in the format `table:id` (e.g., `person:3t5kimq47s30s2nq0t3g`, `organization:5dfvs3jphb2axku0dpu2`). This policy ensures consistent ID handling throughout the codebase.
+
+THE GOLDEN RULE:
+
+✅ INTERNAL = FULL ID
+- Database queries: Use full IDs directly
+- Session/JWT tokens: Store full IDs
+- Function parameters: Pass full IDs
+- Data structures: Store full IDs
+- API responses: Return full IDs
+- Logging: Log full IDs
+
+🔗 URLS = ID WITHOUT TABLE PREFIX
+- Route paths: `/users/3t5kimq47s30s2nq0t3g` (not `/users/person:3t5kimq47s30s2nq0t3g`)
+- Query parameters: `?user=3t5kimq47s30s2nq0t3g`
+- Path parameters: `/orgs/5dfvs3jphb2axku0dpu2/edit`
+
+IMPLEMENTATION GUIDELINES:
+
+Database Queries - CORRECT:
+```rust
+// When you have a full ID, use it directly
+let query = "SELECT * FROM organization_members WHERE out = $user_id";
+DB.query(query).bind(("user_id", "person:3t5kimq47s30s2nq0t3g"))
+
+// For relationships
+let query = "RELATE $org->organization_members->$person SET role = $role";
+DB.query(query)
+    .bind(("org", "organization:5dfvs3jphb2axku0dpu2"))
+    .bind(("person", "person:3t5kimq47s30s2nq0t3g"))
+```
+
+Database Queries - INCORRECT:
+```rust
+// DON'T do this if you already have a full ID
+let query = "WHERE out = type::thing('person', $user_id)";  // WRONG!
+
+// DON'T strip prefixes for queries
+let clean_id = user_id.strip_prefix("person:");  // WRONG!
+```
+
+Session and Authentication:
+```rust
+// SessionUser should store the full ID
+pub struct SessionUser {
+    pub id: String,  // Full ID like "person:3t5kimq47s30s2nq0t3g"
+    pub username: String,
+    pub email: String,
+}
+```
+
+Route Handlers:
+```rust
+// Route receives slug/username (no prefix in URL)
+async fn user_profile(Path(username): Path<String>) -> Result<Html<String>, Error> {
+    let user = PersonModel::find_by_username(&username).await?;
+    // user.id is "person:3t5kimq47s30s2nq0t3g" - full ID
+
+    // Pass full ID to other functions
+    let organizations = OrgModel::get_user_organizations(&user.id).await?;
+}
+```
+
+URL Generation in Templates:
+```html
+<!-- Use slug for organization URLs -->
+<a href="/orgs/{{ organization.slug }}">View Organization</a>
+
+<!-- For user profiles, use username -->
+<a href="/users/{{ user.username }}">View Profile</a>
+
+<!-- Never include the table prefix in URLs -->
+<!-- WRONG: <a href="/orgs/organization:{{ org.id }}"> -->
+```
+
+File Storage Exception (S3/MinIO):
+```rust
+// Strip prefix for S3 paths to avoid colons in keys
+let sanitized_id = user.id.strip_prefix("person:").unwrap_or(&user.id);
+let key = format!("profiles/{}/avatar.jpg", sanitized_id);
+```
+
+DEBUGGING ID ISSUES:
+
+Common Symptoms:
+- Empty query results when data exists: Check for double-prefixing (e.g., `person:person:xyz`)
+- "Record not found" errors: Verify full ID format matches database records
+- Relationship creation failures: Ensure both sides use full IDs
+
+Debug Logging:
+```rust
+debug!("Fetching organizations for user ID: '{}'", user_id);
+debug!("Creating relationship: {} -> {} with role: {}", org_id, person_id, role);
+```
+
+KEY POINTS:
+- Internal Operations: Always use full IDs (`table:id`)
+- URLs Only: Strip table prefix for cleaner URLs
+- No Ambiguity: Functions should know if they expect full IDs
+- Be Explicit: Document parameter expectations
+- Log Clearly: Always log exact ID format being used
+
+================================================================================
 SEMANTIC HTML STRUCTURE PATTERNS
 ================================================================================
 

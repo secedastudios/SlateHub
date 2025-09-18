@@ -167,8 +167,7 @@ impl OrganizationModel {
         ];
 
         // Single SQL transaction that creates the organization and membership
-        let transaction_query = format!(
-            r#"
+        let transaction_query = r#"
             BEGIN TRANSACTION;
 
             LET $org = (CREATE organization CONTENT {{
@@ -186,7 +185,7 @@ impl OrganizationModel {
                 public: $public
             }});
 
-            RELATE $org->organization_members->{} SET
+            RELATE $org->organization_members->$created_by SET
                 role = 'owner',
                 permissions = $permissions,
                 invitation_status = 'accepted',
@@ -197,9 +196,7 @@ impl OrganizationModel {
             COMMIT TRANSACTION;
 
             RETURN $result;
-            "#,
-            created_by
-        );
+            "#;
 
         debug!("Executing transaction to create organization and owner membership");
 
@@ -217,6 +214,7 @@ impl OrganizationModel {
             .bind(("founded_year", data.founded_year))
             .bind(("public", data.public))
             .bind(("permissions", owner_permissions))
+            .bind(("created_by", created_by.to_string()))
             .await?;
 
         debug!("Create organization response: {:?}", response);
@@ -380,21 +378,19 @@ impl OrganizationModel {
         };
 
         let query = if let Some(inviter) = invited_by {
-            DB
-                .query(
-                    "RELATE type::thing('organization', $org)->organization_members->type::thing('person', $person) SET
+            DB.query(
+                "RELATE $org->organization_members->$person SET
                         role = $role,
                         invitation_status = $status,
-                        invited_by = type::thing('person', $inviter)"
-                )
-                .bind(("inviter", inviter.to_string()))
+                        invited_by = $inviter",
+            )
+            .bind(("inviter", inviter.to_string()))
         } else {
-            DB
-                .query(
-                    "RELATE type::thing('organization', $org)->organization_members->type::thing('person', $person) SET
+            DB.query(
+                "RELATE $org->organization_members->$person SET
                         role = $role,
-                        invitation_status = $status"
-                )
+                        invitation_status = $status",
+            )
         };
 
         let _: Option<()> = query
@@ -595,48 +591,25 @@ impl OrganizationModel {
         user_id: &str,
     ) -> Result<Vec<(Organization, String, String)>, Error> {
         debug!("=== Starting get_user_organizations ===");
-        debug!("Input user_id: '{}'", user_id);
-        debug!(
-            "User ID format: {}",
-            if user_id.starts_with("person:") {
-                "includes 'person:' prefix"
-            } else {
-                "no prefix"
-            }
-        );
-
-        // Extract just the ID part if the user_id includes the "person:" prefix
-        let clean_user_id = if user_id.starts_with("person:") {
-            user_id.strip_prefix("person:").unwrap_or(user_id)
-        } else {
-            user_id
-        };
-
-        debug!("Cleaned user ID: '{}'", clean_user_id);
-        debug!(
-            "Will query for: WHERE out = type::thing('person', '{}')",
-            clean_user_id
-        );
+        debug!("Fetching organizations for user_id: '{}'", user_id);
 
         // First get the organization relationships
+        // user_id should already be a full record ID like "person:xyz"
         let query = "
             SELECT
                 in as org_id,
                 role,
                 joined_at
             FROM organization_members
-            WHERE out = type::thing('person', $user_id)
+            WHERE out = $user_id
             AND invitation_status = 'accepted'
             ORDER BY joined_at DESC";
 
-        debug!(
-            "Executing relationship query with user_id binding: '{}'",
-            clean_user_id
-        );
+        debug!("Executing relationship query with user_id: '{}'", user_id);
 
         let relationships: Vec<(RecordId, String, DateTime<Utc>)> = DB
             .query(query)
-            .bind(("user_id", clean_user_id.to_string()))
+            .bind(("user_id", user_id.to_string()))
             .await
             .map_err(|e| {
                 error!("Failed to query organization_members: {:?}", e);
@@ -655,8 +628,8 @@ impl OrganizationModel {
             debug!("No organization memberships found. Possible causes:");
             debug!("  1. User has no organization memberships");
             debug!(
-                "  2. User ID mismatch (check if 'person:{}' exists in DB)",
-                clean_user_id
+                "  2. User ID mismatch (check if '{}' exists in DB)",
+                user_id
             );
             debug!("  3. invitation_status is not 'accepted'");
         } else {
