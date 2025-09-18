@@ -241,7 +241,7 @@ impl OrganizationModel {
         debug!("Fetching organization by slug: {}", slug);
 
         let result: Option<Organization> = DB
-            .query("SELECT * FROM organization WHERE slug = $slug FETCH type")
+            .query("SELECT *, type.* FROM organization WHERE slug = $slug")
             .bind(("slug", slug.to_string()))
             .await?
             .take(0)?;
@@ -254,7 +254,7 @@ impl OrganizationModel {
         debug!("Fetching organization by ID: {}", id);
 
         let result: Option<Organization> = DB
-            .query("SELECT * FROM organization WHERE meta::id(id) = $id FETCH type")
+            .query("SELECT *, type.* FROM organization WHERE meta::id(id) = $id")
             .bind(("id", id.to_string()))
             .await?
             .take(0)?;
@@ -271,7 +271,7 @@ impl OrganizationModel {
     ) -> Result<Vec<Organization>, Error> {
         debug!("Searching organizations with filters");
 
-        let mut sql = "SELECT * FROM organization FETCH type".to_string();
+        let mut sql = "SELECT *, type.* FROM organization".to_string();
         let mut conditions = Vec::new();
 
         if let Some(q) = query {
@@ -594,7 +594,29 @@ impl OrganizationModel {
         &self,
         user_id: &str,
     ) -> Result<Vec<(Organization, String, String)>, Error> {
-        debug!("Fetching organizations for user: {}", user_id);
+        debug!("=== Starting get_user_organizations ===");
+        debug!("Input user_id: '{}'", user_id);
+        debug!(
+            "User ID format: {}",
+            if user_id.starts_with("person:") {
+                "includes 'person:' prefix"
+            } else {
+                "no prefix"
+            }
+        );
+
+        // Extract just the ID part if the user_id includes the "person:" prefix
+        let clean_user_id = if user_id.starts_with("person:") {
+            user_id.strip_prefix("person:").unwrap_or(user_id)
+        } else {
+            user_id
+        };
+
+        debug!("Cleaned user ID: '{}'", clean_user_id);
+        debug!(
+            "Will query for: WHERE out = type::thing('person', '{}')",
+            clean_user_id
+        );
 
         // First get the organization relationships
         let query = "
@@ -607,30 +629,79 @@ impl OrganizationModel {
             AND invitation_status = 'accepted'
             ORDER BY joined_at DESC";
 
+        debug!(
+            "Executing relationship query with user_id binding: '{}'",
+            clean_user_id
+        );
+
         let relationships: Vec<(RecordId, String, DateTime<Utc>)> = DB
             .query(query)
-            .bind(("user_id", user_id.to_string()))
-            .await?
+            .bind(("user_id", clean_user_id.to_string()))
+            .await
+            .map_err(|e| {
+                error!("Failed to query organization_members: {:?}", e);
+                e
+            })?
             .take(0)
             .unwrap_or_default();
 
-        debug!("Found {} organizations for user", relationships.len());
+        debug!(
+            "Query returned {} organization relationships for user '{}'",
+            relationships.len(),
+            user_id
+        );
 
-        // Now fetch each organization
-        let mut result = Vec::new();
-        for (org_id, role, joined_at) in relationships {
-            let org_query = "SELECT * FROM organization WHERE id = $id FETCH type";
-            let org: Option<Organization> = DB
-                .query(org_query)
-                .bind(("id", org_id.to_string()))
-                .await?
-                .take(0)?;
-
-            if let Some(org) = org {
-                result.push((org, role, joined_at.to_rfc3339()));
+        if relationships.is_empty() {
+            debug!("No organization memberships found. Possible causes:");
+            debug!("  1. User has no organization memberships");
+            debug!(
+                "  2. User ID mismatch (check if 'person:{}' exists in DB)",
+                clean_user_id
+            );
+            debug!("  3. invitation_status is not 'accepted'");
+        } else {
+            debug!("Found relationships:");
+            for (org_id, role, joined_at) in &relationships {
+                debug!("  - Org: {}, Role: {}, Joined: {}", org_id, role, joined_at);
             }
         }
 
+        // Now fetch each organization
+        let mut result = Vec::new();
+        debug!(
+            "Fetching organization details for {} relationships",
+            relationships.len()
+        );
+
+        for (org_id, role, joined_at) in relationships {
+            debug!("Fetching organization: {}", org_id);
+            let org_query = "SELECT *, type.* FROM organization WHERE id = $id";
+
+            let org: Option<Organization> = DB
+                .query(org_query)
+                .bind(("id", org_id.to_string()))
+                .await
+                .map_err(|e| {
+                    error!("Failed to fetch organization {}: {:?}", org_id, e);
+                    e
+                })?
+                .take(0)?;
+
+            if let Some(org) = org {
+                debug!(
+                    "Successfully fetched organization: {} ({})",
+                    org.name, org.slug
+                );
+                result.push((org, role, joined_at.to_rfc3339()));
+            } else {
+                warn!("Organization {} not found in database", org_id);
+            }
+        }
+
+        debug!(
+            "=== Completed get_user_organizations: returning {} organizations ===",
+            result.len()
+        );
         Ok(result)
     }
 }
@@ -748,8 +819,8 @@ mod tests {
     #[test]
     fn test_organization_member_structure() {
         let member = OrganizationMember {
-            id: "member_123".to_string(),
-            person_id: "person_456".to_string(),
+            id: RecordId::from_str("organization_members:member_123").unwrap(),
+            person_id: RecordId::from_str("person:person_456").unwrap(),
             person_username: "johndoe".to_string(),
             person_name: Some("John Doe".to_string()),
             role: "admin".to_string(),
@@ -779,7 +850,6 @@ mod tests {
             founded_year: None,
             employees_count: None,
             public: false,
-            created_by: "user_123".to_string(),
         };
 
         assert!(org_data.description.is_none());

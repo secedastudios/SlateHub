@@ -269,6 +269,11 @@ async fn my_organizations(request: Request) -> Result<Html<String>, Error> {
     // Check if user is authenticated
     let user = request.get_user().ok_or(Error::Unauthorized)?;
 
+    debug!(
+        "Fetching organizations for user: id='{}', username='{}'",
+        user.id, user.username
+    );
+
     let mut base = BaseContext::new().with_page("my-organizations");
     base = base.with_user(User {
         id: user.id.clone(),
@@ -287,6 +292,26 @@ async fn my_organizations(request: Request) -> Result<Html<String>, Error> {
     // Fetch user's organizations
     let model = OrganizationModel::new();
     let user_orgs = model.get_user_organizations(&user.id).await?;
+
+    debug!(
+        "Found {} organizations for user '{}'",
+        user_orgs.len(),
+        user.id
+    );
+
+    if user_orgs.is_empty() {
+        debug!("No organizations found. Check:");
+        debug!("  1. User ID format: '{}'", user.id);
+        debug!("  2. Database has organization_members record for this user");
+        debug!("  3. invitation_status is 'accepted'");
+    } else {
+        for (org, role, _) in &user_orgs {
+            debug!(
+                "  - Organization: {} ({}), Role: {}",
+                org.name, org.slug, role
+            );
+        }
+    }
 
     // Convert to OrganizationMembership format
     let organizations: Vec<OrganizationMembership> = user_orgs
@@ -414,6 +439,7 @@ async fn organization_profile(
     // Use model to get organization
     let model = OrganizationModel::new();
     let organization = model.get_by_slug(&slug).await?;
+    debug!("Found organization: {:?}", organization);
 
     // Check if user is authenticated and their membership
     let user_opt = request.get_user();
@@ -699,6 +725,12 @@ async fn invite_member(
         return Err(Error::Forbidden);
     }
 
+    //
+    //
+    //
+    //
+    //
+    //
     // Find user by username or email
     let invited_user_id = model.find_user_by_username_or_email(&data.username).await?;
 

@@ -41,8 +41,6 @@ pub fn app() -> Router {
         .merge(public_profiles::router())
         // Apply auth middleware to extract user from JWT cookies
         .layer(middleware::from_fn(auth_middleware))
-        // Apply request ID middleware early in the stack
-        .layer(middleware::from_fn(request_id_middleware))
         // Middleware
         .layer(CompressionLayer::new())
         .layer(
@@ -96,4 +94,7 @@ pub fn app() -> Router {
                     },
                 ),
         )
+        // Apply request ID middleware at the bottom of the stack so it runs first
+        // This ensures the request ID is available to all other middleware
+        .layer(middleware::from_fn(request_id_middleware))
 }
