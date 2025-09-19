@@ -5,7 +5,7 @@ use axum::{
     response::Response,
 };
 use tracing::{Instrument, info_span};
-use uuid::Uuid;
+use ulid::Ulid;
 
 /// Extension type for the request ID
 #[derive(Clone, Debug)]
@@ -14,7 +14,7 @@ pub struct RequestId(pub String);
 impl RequestId {
     /// Create a new request ID
     pub fn new() -> Self {
-        Self(Uuid::new_v4().to_string())
+        Self(Ulid::new().to_string())
     }
 
     /// Create a request ID from an existing string
@@ -38,7 +38,7 @@ impl std::fmt::Display for RequestId {
 ///
 /// This middleware will:
 /// 1. Check for existing request IDs from upstream proxies/load balancers
-/// 2. Generate a new UUID if no existing ID is found
+/// 2. Generate a new ULID if no existing ID is found
 /// 3. Add the ID to request extensions for use by handlers
 /// 4. Include the ID in response headers
 /// 5. Add the ID to tracing spans for correlated logging
@@ -112,7 +112,7 @@ fn extract_existing_request_id(request: &Request<Body>) -> Option<RequestId> {
     for header_name in REQUEST_ID_HEADERS {
         if let Some(header_value) = request.headers().get(*header_name) {
             if let Ok(id_str) = header_value.to_str() {
-                // Validate the ID format (should be a valid UUID or alphanumeric string)
+                // Validate the ID format (should be a valid ULID, UUID, or alphanumeric string)
                 if is_valid_request_id(id_str) {
                     tracing::debug!(
                         header = header_name,
@@ -137,6 +137,7 @@ fn extract_existing_request_id(request: &Request<Body>) -> Option<RequestId> {
 /// Validate that a request ID has a reasonable format
 ///
 /// Accepts:
+/// - ULIDs (26 character base32 strings)
 /// - UUIDs (with or without hyphens)
 /// - Alphanumeric strings with hyphens, underscores, and dots
 /// - Length between 8 and 128 characters
@@ -144,6 +145,16 @@ fn is_valid_request_id(id: &str) -> bool {
     // Check length
     if id.len() < 8 || id.len() > 128 {
         return false;
+    }
+
+    // Check if it's a valid ULID (26 character base32 string)
+    if id.len() == 26 {
+        // ULID uses Crockford's Base32 (0-9, A-Z excluding I, L, O)
+        if id.chars().all(|c| {
+            c.is_ascii_digit() || (c.is_ascii_uppercase() && c != 'I' && c != 'L' && c != 'O')
+        }) {
+            return true;
+        }
     }
 
     // Check if it's a valid UUID (with or without hyphens)
@@ -184,6 +195,10 @@ mod tests {
 
     #[test]
     fn test_valid_request_ids() {
+        // Valid ULIDs
+        assert!(is_valid_request_id("01AN4Z07BY79KA1307SR9X4MV3"));
+        assert!(is_valid_request_id("01ARYZ6S41TSV4RRFFQ69G5FAV"));
+
         // Valid UUIDs
         assert!(is_valid_request_id("550e8400-e29b-41d4-a716-446655440000"));
         assert!(is_valid_request_id("550e8400e29b41d4a716446655440000"));
@@ -219,9 +234,13 @@ mod tests {
         // Each new ID should be unique
         assert_ne!(id1.as_str(), id2.as_str());
 
-        // Should be valid UUIDs
+        // Should be valid ULIDs
         assert!(is_valid_request_id(id1.as_str()));
         assert!(is_valid_request_id(id2.as_str()));
+
+        // Should be 26 characters (ULID length)
+        assert_eq!(id1.as_str().len(), 26);
+        assert_eq!(id2.as_str().len(), 26);
     }
 
     #[test]

@@ -9,7 +9,7 @@ use image::{DynamicImage, ImageFormat};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use tracing::{debug, info};
-use uuid::Uuid;
+use ulid::Ulid;
 
 use crate::{db::DB, error::Error, middleware::AuthenticatedUser, services::s3::s3};
 
@@ -111,7 +111,7 @@ async fn upload_profile_image(
     // Generate unique keys for S3
     // Remove "person:" prefix from ID to avoid colon in S3 paths
     let sanitized_user_id = user.id.strip_prefix("person:").unwrap_or(&user.id);
-    let image_id = Uuid::new_v4().to_string();
+    let image_id = Ulid::new().to_string();
     let main_key = format!("profiles/{}/{}.jpg", sanitized_user_id, image_id);
     let thumb_key = format!("profiles/{}/thumb_{}.jpg", sanitized_user_id, image_id);
 

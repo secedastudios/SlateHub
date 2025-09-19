@@ -7,7 +7,7 @@ use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 use surrealdb::RecordId;
 use tracing::{debug, info};
-use uuid::Uuid;
+use ulid::Ulid;
 
 /// Media record structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,7 +65,7 @@ impl Media {
         debug!("Creating media record for file: {}", input.filename);
 
         // Generate our own ID to avoid deserialization issues
-        let id_part = Uuid::new_v4().to_string().replace("-", "");
+        let id_part = Ulid::new().to_string();
         let media_id = format!("media:{}", id_part);
 
         // Ensure uploaded_by is the full record ID like "person:id"
