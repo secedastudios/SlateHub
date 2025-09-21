@@ -1,0 +1,171 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ page_title }} - SlateHub{% endblock %}
+{% block page_name %}equipment-form{% endblock %}
+
+{% block content %}
+<section id="section-equipment-form" data-component="equipment-form" data-type="{% if equipment.is_some() %}edit{% else %}create{% endif %}">
+    <header data-role="form-header">
+        <h1 id="heading-equipment-form">{{ page_title }}</h1>
+        <p data-role="description">
+            {% if equipment.is_some() %}
+            Update equipment information
+            {% else %}
+            Add a new piece of equipment to your inventory
+            {% endif %}
+        </p>
+    </header>
+
+    {% if error_message.is_some() %}
+    <div id="error-message" data-component="alert" data-type="error" role="alert">
+        {{ error_message.as_ref().unwrap() }}
+    </div>
+    {% endif %}
+
+    <form id="form-equipment"
+          method="post"
+          action="{% if equipment.is_some() %}/equipment/{{ equipment.as_ref().unwrap().id }}/edit{% else %}/equipment/new?owner_type={{ owner_type }}&owner_id={{ owner_id }}{% endif %}">
+
+        <fieldset id="fieldset-basic" data-role="form-section">
+            <legend>Basic Information</legend>
+
+            <div data-field="name">
+                <label for="input-name">Equipment Name *</label>
+                <input id="input-name"
+                       name="name"
+                       type="text"
+                       required
+                       value="{% if equipment.is_some() %}{{ equipment.as_ref().unwrap().name }}{% endif %}"
+                       placeholder="Enter equipment name">
+                <span id="help-name" data-role="help-text">A descriptive name for this equipment</span>
+            </div>
+
+            <div data-field="category">
+                <label for="select-category">Category *</label>
+                <select id="select-category" name="category" required>
+                    <option value="">Select a category</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}"
+                            {% if equipment.is_some() && equipment.as_ref().unwrap().category.id == cat.id %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <span id="help-category" data-role="help-text">The type of equipment</span>
+            </div>
+
+            <div data-field="serial_number">
+                <label for="input-serial">Serial Number</label>
+                <input id="input-serial"
+                       name="serial_number"
+                       type="text"
+                       value="{% if equipment.is_some() && equipment.as_ref().unwrap().serial_number.is_some() %}{{ equipment.as_ref().unwrap().serial_number.as_ref().unwrap() }}{% endif %}"
+                       placeholder="e.g., SN123456789">
+                <span id="help-serial" data-role="help-text">Manufacturer's serial number if available</span>
+            </div>
+
+            <div data-field="model">
+                <label for="input-model">Model</label>
+                <input id="input-model"
+                       name="model"
+                       type="text"
+                       value="{% if equipment.is_some() && equipment.as_ref().unwrap().model.is_some() %}{{ equipment.as_ref().unwrap().model.as_ref().unwrap() }}{% endif %}"
+                       placeholder="e.g., Canon R5">
+                <span id="help-model" data-role="help-text">Equipment model name or number</span>
+            </div>
+
+            <div data-field="manufacturer">
+                <label for="input-manufacturer">Manufacturer</label>
+                <input id="input-manufacturer"
+                       name="manufacturer"
+                       type="text"
+                       value="{% if equipment.is_some() && equipment.as_ref().unwrap().manufacturer.is_some() %}{{ equipment.as_ref().unwrap().manufacturer.as_ref().unwrap() }}{% endif %}"
+                       placeholder="e.g., Canon, Sony, Arri">
+                <span id="help-manufacturer" data-role="help-text">Equipment manufacturer or brand</span>
+            </div>
+
+            <div data-field="description">
+                <label for="textarea-description">Description</label>
+                <textarea id="textarea-description"
+                          name="description"
+                          rows="3"
+                          placeholder="Additional details about this equipment">{% if equipment.is_some() && equipment.as_ref().unwrap().description.is_some() %}{{ equipment.as_ref().unwrap().description.as_ref().unwrap() }}{% endif %}</textarea>
+                <span id="help-description" data-role="help-text">Any additional information about this equipment</span>
+            </div>
+        </fieldset>
+
+        <fieldset id="fieldset-purchase" data-role="form-section">
+            <legend>Purchase Information</legend>
+
+            <div data-field="purchase_date">
+                <label for="input-purchase-date">Purchase Date</label>
+                <input id="input-purchase-date"
+                       name="purchase_date"
+                       type="date"
+                       value="{% if equipment.is_some() && equipment.as_ref().unwrap().purchase_date.is_some() %}{{ equipment.as_ref().unwrap().purchase_date.as_ref().unwrap().format("%Y-%m-%d") }}{% endif %}">
+                <span id="help-purchase-date" data-role="help-text">When was this equipment purchased</span>
+            </div>
+
+            <div data-field="purchase_price">
+                <label for="input-purchase-price">Purchase Price</label>
+                <input id="input-purchase-price"
+                       name="purchase_price"
+                       type="number"
+                       step="0.01"
+                       min="0"
+                       value="{% if equipment.is_some() && equipment.as_ref().unwrap().purchase_price.is_some() %}{{ equipment.as_ref().unwrap().purchase_price.as_ref().unwrap() }}{% endif %}"
+                       placeholder="0.00">
+                <span id="help-purchase-price" data-role="help-text">Original purchase price</span>
+            </div>
+        </fieldset>
+
+        <fieldset id="fieldset-condition" data-role="form-section">
+            <legend>Condition & Location</legend>
+
+            <div data-field="condition">
+                <label for="select-condition">Condition *</label>
+                <select id="select-condition" name="condition" required>
+                    <option value="">Select condition</option>
+                    {% for cond in conditions %}
+                    <option value="{{ cond.id }}"
+                            {% if equipment.is_some() && equipment.as_ref().unwrap().condition.id == cond.id %}selected{% endif %}>
+                        {{ cond.name }}{% if cond.description.is_some() %} - {{ cond.description.as_ref().unwrap() }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <span id="help-condition" data-role="help-text">Current condition of the equipment</span>
+            </div>
+
+            <div data-field="current_location">
+                <label for="input-location">Current Location</label>
+                <input id="input-location"
+                       name="current_location"
+                       type="text"
+                       value="{% if equipment.is_some() && equipment.as_ref().unwrap().current_location.is_some() %}{{ equipment.as_ref().unwrap().current_location.as_ref().unwrap() }}{% endif %}"
+                       placeholder="e.g., Main office, Storage room A">
+                <span id="help-location" data-role="help-text">Where is this equipment normally stored</span>
+            </div>
+
+            <div data-field="notes">
+                <label for="textarea-notes">Notes</label>
+                <textarea id="textarea-notes"
+                          name="notes"
+                          rows="3"
+                          placeholder="Any special notes or requirements">{% if equipment.is_some() && equipment.as_ref().unwrap().notes.is_some() %}{{ equipment.as_ref().unwrap().notes.as_ref().unwrap() }}{% endif %}</textarea>
+                <span id="help-notes" data-role="help-text">Internal notes about this equipment</span>
+            </div>
+        </fieldset>
+
+        <div data-role="form-actions">
+            <button type="submit" data-type="primary">
+                {% if equipment.is_some() %}Update Equipment{% else %}Add Equipment{% endif %}
+            </button>
+            <a href="{% if equipment.is_some() %}/equipment/{{ equipment.as_ref().unwrap().id }}{% else %}/equipment?owner_type={{ owner_type }}&owner_id={{ owner_id }}{% endif %}"
+               role="button"
+               data-type="secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,217 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ page_title }} - SlateHub{% endblock %}
+{% block page_name %}kit-detail{% endblock %}
+
+{% block content %}
+<section id="section-kit-detail" data-component="kit-detail">
+    <header data-role="detail-header">
+        <h1 id="heading-kit">{{ kit.name }}</h1>
+        <div data-role="status-indicator">
+            <span data-role="status-badge"
+                  data-status="{% if kit.is_available %}available{% else %}unavailable{% endif %}">
+                {% if kit.is_available %}Available{% else %}In Use{% endif %}
+            </span>
+        </div>
+    </header>
+
+    {% if error_message.is_some() %}
+    <div id="error-message" data-component="alert" data-type="error" role="alert">
+        {{ error_message.as_ref().unwrap() }}
+    </div>
+    {% endif %}
+
+    {% if can_edit %}
+    <nav id="kit-actions" data-component="action-bar">
+        <ul data-role="actions">
+            <li>
+                <a href="/equipment/kit/{{ kit.id }}/edit"
+                   role="button"
+                   data-type="primary">
+                    Edit Kit
+                </a>
+            </li>
+            {% if kit.is_available %}
+            <li>
+                <a href="/equipment/checkout?kit_id={{ kit.id }}"
+                   role="button"
+                   data-type="action">
+                    Check Out Kit
+                </a>
+            </li>
+            {% endif %}
+            <li>
+                <form method="post" action="/equipment/kit/{{ kit.id }}/delete" data-component="delete-form">
+                    <button type="submit"
+                            data-type="danger"
+                            onclick="return confirm('Are you sure you want to delete this kit?');">
+                        Delete
+                    </button>
+                </form>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+
+    <div data-component="detail-grid" data-layout="two-column">
+        <section id="section-kit-info" data-section="info">
+            <h2 id="heading-info">Kit Information</h2>
+
+            <dl data-component="info-list">
+                <dt>Category</dt>
+                <dd data-field="category">{{ kit.category.name }}</dd>
+
+                {% if kit.description.is_some() %}
+                <dt>Description</dt>
+                <dd data-field="description">{{ kit.description.as_ref().unwrap() }}</dd>
+                {% endif %}
+
+                {% if kit.notes.is_some() %}
+                <dt>Notes</dt>
+                <dd data-field="notes">{{ kit.notes.as_ref().unwrap() }}</dd>
+                {% endif %}
+
+                <dt>Created</dt>
+                <dd data-field="created">
+                    <time datetime="{{ kit.created_at.to_rfc3339() }}">
+                        {{ kit.created_at.format("%B %d, %Y at %I:%M %p") }}
+                    </time>
+                </dd>
+
+                <dt>Last Updated</dt>
+                <dd data-field="updated">
+                    <time datetime="{{ kit.updated_at.to_rfc3339() }}">
+                        {{ kit.updated_at.format("%B %d, %Y at %I:%M %p") }}
+                    </time>
+                </dd>
+            </dl>
+        </section>
+
+        <aside id="aside-kit-qr" data-section="sidebar">
+            {% if kit.qr_code.is_some() %}
+            <section data-component="qr-section">
+                <h3 id="heading-qr">QR Code</h3>
+                <div data-component="qr-code" data-code="{{ kit.qr_code.as_ref().unwrap() }}">
+                    <img src="/api/qr/{{ kit.qr_code.as_ref().unwrap() }}"
+                         alt="QR Code for {{ kit.name }}"
+                         data-role="qr-image">
+                    <p data-role="qr-label">{{ kit.qr_code.as_ref().unwrap() }}</p>
+                </div>
+            </section>
+            {% endif %}
+        </aside>
+    </div>
+
+    <section id="section-kit-items" data-section="items">
+        <h2 id="heading-items">Kit Contents</h2>
+
+        {% if kit_items.is_empty() %}
+        <div data-component="empty-state" data-state="empty">
+            <p data-role="empty-message">No items in this kit.</p>
+        </div>
+        {% else %}
+        <table id="table-kit-items" data-component="items-table">
+            <thead>
+                <tr>
+                    <th scope="col">Item Name</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Serial Number</th>
+                    <th scope="col">Condition</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in kit_items %}
+                <tr data-item-id="{{ item.id }}">
+                    <td data-field="name">
+                        <a href="/equipment/{{ item.id }}">{{ item.name }}</a>
+                    </td>
+                    <td data-field="category">{{ item.category.name }}</td>
+                    <td data-field="serial">
+                        {% if item.serial_number.is_some() %}
+                        {{ item.serial_number.as_ref().unwrap() }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td data-field="condition">{{ item.condition.name }}</td>
+                    <td data-field="actions">
+                        <a href="/equipment/{{ item.id }}"
+                           role="button"
+                           data-type="secondary">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </section>
+
+    <section id="section-rental-history" data-section="history">
+        <h2 id="heading-history">Rental History</h2>
+
+        {% if rentals.is_empty() %}
+        <div data-component="empty-state" data-state="empty">
+            <p data-role="empty-message">No rental history for this kit.</p>
+        </div>
+        {% else %}
+        <table id="table-rentals" data-component="rental-table">
+            <thead>
+                <tr>
+                    <th scope="col">Renter</th>
+                    <th scope="col">Checkout Date</th>
+                    <th scope="col">Return Date</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rental in rentals %}
+                <tr data-rental-id="{{ rental.id }}"
+                    data-status="{% if rental.is_active %}active{% else %}completed{% endif %}">
+                    <td data-field="renter">
+                        {% if rental.renter_type == "person" && rental.renter_person.is_some() %}
+                        Person
+                        {% else if rental.renter_type == "organization" && rental.renter_organization.is_some() %}
+                        Organization
+                        {% endif %}
+                    </td>
+                    <td data-field="checkout-date">
+                        <time datetime="{{ rental.checkout_date.to_rfc3339() }}">
+                            {{ rental.checkout_date.format("%m/%d/%Y") }}
+                        </time>
+                    </td>
+                    <td data-field="return-date">
+                        {% if rental.actual_return_date.is_some() %}
+                        <time datetime="{{ rental.actual_return_date.as_ref().unwrap().to_rfc3339() }}">
+                            {{ rental.actual_return_date.as_ref().unwrap().format("%m/%d/%Y") }}
+                        </time>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td data-field="status">
+                        <span data-role="status-badge"
+                              data-status="{% if rental.is_active %}active{% else %}completed{% endif %}">
+                            {% if rental.is_active %}Active{% else %}Returned{% endif %}
+                        </span>
+                    </td>
+                    <td data-field="actions">
+                        {% if rental.is_active && can_edit %}
+                        <a href="/equipment/rental/{{ rental.id }}/checkin"
+                           role="button"
+                           data-type="action">
+                            Check In
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

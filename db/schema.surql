@@ -406,3 +406,112 @@ INSERT INTO reserved_names (name) VALUES
 ("css"), ("js"), ("images"), ("img"), ("docs"), ("documentation"),
 ("www"), ("mail"), ("ftp"), ("ssh"), ("git"),
 ("test"), ("testing"), ("dev"), ("development"), ("staging"), ("prod");
+
+-- ------------------------------
+-- EQUIPMENT TRACKING TABLES
+-- ------------------------------
+
+-- Equipment Categories
+DEFINE TABLE equipment_category SCHEMALESS PERMISSIONS FULL;
+DEFINE FIELD name ON equipment_category TYPE string;
+DEFINE FIELD description ON equipment_category TYPE option<string>;
+DEFINE INDEX idx_equipment_category_name ON equipment_category FIELDS name UNIQUE;
+
+-- Equipment Condition Status
+DEFINE TABLE equipment_condition SCHEMALESS PERMISSIONS FULL;
+DEFINE FIELD name ON equipment_condition TYPE string;
+DEFINE FIELD description ON equipment_condition TYPE option<string>;
+DEFINE INDEX idx_equipment_condition_name ON equipment_condition FIELDS name UNIQUE;
+
+-- Equipment Items (individual pieces of gear)
+DEFINE TABLE equipment SCHEMAFULL PERMISSIONS FULL;
+DEFINE FIELD name ON equipment TYPE string;
+DEFINE FIELD category ON equipment TYPE record<equipment_category>;
+DEFINE FIELD serial_number ON equipment TYPE option<string>;
+DEFINE FIELD model ON equipment TYPE option<string>;
+DEFINE FIELD manufacturer ON equipment TYPE option<string>;
+DEFINE FIELD description ON equipment TYPE option<string>;
+DEFINE FIELD purchase_date ON equipment TYPE option<datetime>;
+DEFINE FIELD purchase_price ON equipment TYPE option<number>;
+DEFINE FIELD condition ON equipment TYPE record<equipment_condition>;
+DEFINE FIELD notes ON equipment TYPE option<string>;
+DEFINE FIELD qr_code ON equipment TYPE option<string>; -- Generated QR code identifier
+DEFINE FIELD owner_type ON equipment TYPE string ASSERT $value IN ["person", "organization"];
+DEFINE FIELD owner_person ON equipment TYPE option<record<person>>;
+DEFINE FIELD owner_organization ON equipment TYPE option<record<organization>>;
+DEFINE FIELD is_kit_item ON equipment TYPE bool DEFAULT false; -- True if this item belongs to a kit
+DEFINE FIELD parent_kit ON equipment TYPE option<record<equipment_kit>>; -- Reference to parent kit if applicable
+DEFINE FIELD is_available ON equipment TYPE bool DEFAULT true;
+DEFINE FIELD current_location ON equipment TYPE option<string>;
+DEFINE FIELD created_at ON equipment TYPE datetime DEFAULT time::now();
+DEFINE FIELD updated_at ON equipment TYPE datetime DEFAULT time::now();
+DEFINE INDEX idx_equipment_serial ON equipment FIELDS serial_number;
+DEFINE INDEX idx_equipment_qr ON equipment FIELDS qr_code UNIQUE;
+DEFINE INDEX idx_equipment_owner_person ON equipment FIELDS owner_person;
+DEFINE INDEX idx_equipment_owner_org ON equipment FIELDS owner_organization;
+
+-- Equipment Kits (collections of equipment that are checked out together)
+DEFINE TABLE equipment_kit SCHEMAFULL PERMISSIONS FULL;
+DEFINE FIELD name ON equipment_kit TYPE string;
+DEFINE FIELD description ON equipment_kit TYPE option<string>;
+DEFINE FIELD category ON equipment_kit TYPE record<equipment_category>;
+DEFINE FIELD qr_code ON equipment_kit TYPE option<string>; -- Generated QR code for the whole kit
+DEFINE FIELD owner_type ON equipment_kit TYPE string ASSERT $value IN ["person", "organization"];
+DEFINE FIELD owner_person ON equipment_kit TYPE option<record<person>>;
+DEFINE FIELD owner_organization ON equipment_kit TYPE option<record<organization>>;
+DEFINE FIELD is_available ON equipment_kit TYPE bool DEFAULT true;
+DEFINE FIELD notes ON equipment_kit TYPE option<string>;
+DEFINE FIELD created_at ON equipment_kit TYPE datetime DEFAULT time::now();
+DEFINE FIELD updated_at ON equipment_kit TYPE datetime DEFAULT time::now();
+DEFINE INDEX idx_kit_qr ON equipment_kit FIELDS qr_code UNIQUE;
+DEFINE INDEX idx_kit_owner_person ON equipment_kit FIELDS owner_person;
+DEFINE INDEX idx_kit_owner_org ON equipment_kit FIELDS owner_organization;
+
+-- Equipment Rentals (checkout/checkin tracking)
+DEFINE TABLE equipment_rental SCHEMAFULL PERMISSIONS FULL;
+DEFINE FIELD equipment_id ON equipment_rental TYPE option<record<equipment>>; -- For individual items
+DEFINE FIELD kit_id ON equipment_rental TYPE option<record<equipment_kit>>; -- For kits
+DEFINE FIELD renter_type ON equipment_rental TYPE string ASSERT $value IN ["person", "organization"];
+DEFINE FIELD renter_person ON equipment_rental TYPE option<record<person>>;
+DEFINE FIELD renter_organization ON equipment_rental TYPE option<record<organization>>;
+DEFINE FIELD checkout_date ON equipment_rental TYPE datetime;
+DEFINE FIELD expected_return_date ON equipment_rental TYPE option<datetime>;
+DEFINE FIELD actual_return_date ON equipment_rental TYPE option<datetime>;
+DEFINE FIELD checkout_condition ON equipment_rental TYPE record<equipment_condition>;
+DEFINE FIELD return_condition ON equipment_rental TYPE option<record<equipment_condition>>;
+DEFINE FIELD checkout_notes ON equipment_rental TYPE option<string>;
+DEFINE FIELD return_notes ON equipment_rental TYPE option<string>;
+DEFINE FIELD checkout_by ON equipment_rental TYPE record<person>; -- Person who processed checkout
+DEFINE FIELD return_by ON equipment_rental TYPE option<record<person>>; -- Person who processed return
+DEFINE FIELD is_active ON equipment_rental TYPE bool DEFAULT true; -- False when returned
+DEFINE FIELD created_at ON equipment_rental TYPE datetime DEFAULT time::now();
+DEFINE FIELD updated_at ON equipment_rental TYPE datetime DEFAULT time::now();
+DEFINE INDEX idx_rental_equipment ON equipment_rental FIELDS equipment_id;
+DEFINE INDEX idx_rental_kit ON equipment_rental FIELDS kit_id;
+DEFINE INDEX idx_rental_renter_person ON equipment_rental FIELDS renter_person;
+DEFINE INDEX idx_rental_renter_org ON equipment_rental FIELDS renter_organization;
+DEFINE INDEX idx_rental_active ON equipment_rental FIELDS is_active;
+
+-- Seed Equipment Categories
+INSERT INTO equipment_category (name, description) VALUES
+("camera", "Cameras and camera bodies"),
+("lens", "Camera lenses"),
+("lighting", "Lighting equipment"),
+("audio", "Audio recording equipment"),
+("grip", "Grip and rigging equipment"),
+("computer", "Computers and tablets"),
+("storage", "Storage devices and media"),
+("wireless", "Wireless transmission equipment"),
+("monitor", "Monitors and displays"),
+("tripod", "Tripods and support equipment"),
+("accessory", "Miscellaneous accessories"),
+("other", "Other equipment");
+
+-- Seed Equipment Conditions
+INSERT INTO equipment_condition (name, description) VALUES
+("new", "Brand new, unused"),
+("excellent", "Like new, minimal wear"),
+("good", "Normal wear, fully functional"),
+("fair", "Some wear, functional but may need maintenance"),
+("poor", "Significant wear, needs repair"),
+("broken", "Not functional, needs repair or replacement");

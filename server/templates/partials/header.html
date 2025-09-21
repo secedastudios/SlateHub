@@ -18,6 +18,9 @@
                 <a href="/people" {% if active_page == "people" %}aria-current="page"{% endif %}>People</a>
             </li>
             <li>
+                <a href="/equipment" {% if active_page == "equipment" %}aria-current="page"{% endif %}>Equipment</a>
+            </li>
+            <li>
                 <a href="/about" {% if active_page == "about" %}aria-current="page"{% endif %}>About</a>
             </li>
         </ul>
@@ -55,6 +58,7 @@
                     <ul data-role="dropdown-menu" dir="rtl">
                         <li><a href="/profile">Profile</a></li>
                         <li><a href="/my-orgs">My Organizations</a></li>
+                        <li><a href="/equipment">My Equipment</a></li>
                         <li><hr /></li>
                         <li>
                             <form

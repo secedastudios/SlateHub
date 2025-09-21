@@ -1,0 +1,143 @@
+{% extends "_layout.html" %} {% block title %}{{ page_title }} - SlateHub{%
+endblock %} {% block page_name %}kit-form{% endblock %} {% block content %}
+<section
+    id="section-kit-form"
+    data-component="kit-form"
+    data-type="{% if kit.is_some() %}edit{% else %}create{% endif %}"
+>
+    <header data-role="form-header">
+        <h1 id="heading-kit-form">{{ page_title }}</h1>
+        <p data-role="description">
+            {% if kit.is_some() %} Update kit information and equipment items {%
+            else %} Create a new equipment kit from your inventory {% endif %}
+        </p>
+    </header>
+
+    {% if error_message.is_some() %}
+    <div
+        id="error-message"
+        data-component="alert"
+        data-type="error"
+        role="alert"
+    >
+        {{ error_message.as_ref().unwrap() }}
+    </div>
+    {% endif %}
+
+    <form
+        id="form-kit"
+        method="post"
+        action="{% if kit.is_some() %}/equipment/kit/{{ kit.as_ref().unwrap().id }}/edit{% else %}/equipment/kit/new?owner_type={{ owner_type }}&owner_id={{ owner_id }}{% endif %}"
+    >
+        <fieldset id="fieldset-kit-info" data-role="form-section">
+            <legend>Kit Information</legend>
+
+            <div data-field="name">
+                <label for="input-name">Kit Name *</label>
+                <input
+                    id="input-name"
+                    name="name"
+                    type="text"
+                    required
+                    value="{% if kit.is_some() %}{{ kit.as_ref().unwrap().name }}{% endif %}"
+                    placeholder="Enter kit name"
+                />
+                <span id="help-name" data-role="help-text"
+                    >A descriptive name for this kit</span
+                >
+            </div>
+
+            <div data-field="category">
+                <label for="select-category">Category *</label>
+                <select id="select-category" name="category" required>
+                    <option value="">Select a category</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+                <span id="help-category" data-role="help-text"
+                    >The primary category for this kit</span
+                >
+            </div>
+
+            <div data-field="description">
+                <label for="textarea-description">Description</label>
+                <textarea
+                    id="textarea-description"
+                    name="description"
+                    rows="3"
+                    placeholder="Describe what this kit contains and its purpose"
+                >
+{% if kit.is_some() && kit.as_ref().unwrap().description.is_some() %}{{ kit.as_ref().unwrap().description.as_ref().unwrap() }}{% endif %}</textarea
+                >
+                <span id="help-description" data-role="help-text"
+                    >Additional information about this kit</span
+                >
+            </div>
+
+            <div data-field="notes">
+                <label for="textarea-notes">Notes</label>
+                <textarea
+                    id="textarea-notes"
+                    name="notes"
+                    rows="3"
+                    placeholder="Any special notes or requirements"
+                >
+{% if kit.is_some() && kit.as_ref().unwrap().notes.is_some() %}{{ kit.as_ref().unwrap().notes.as_ref().unwrap() }}{% endif %}</textarea
+                >
+                <span id="help-notes" data-role="help-text"
+                    >Internal notes about this kit</span
+                >
+            </div>
+        </fieldset>
+
+        <fieldset id="fieldset-equipment-items" data-role="form-section">
+            <legend>Equipment Items</legend>
+            <p data-role="section-help">
+                Select equipment items to include in this kit
+            </p>
+
+            <div data-field="equipment_ids" data-component="equipment-selector">
+                {% for equipment in available_equipment %}
+                <div data-role="equipment-option">
+                    <input
+                        type="checkbox"
+                        id="equipment-{{ equipment.id }}"
+                        name="equipment_ids"
+                        value="{{ equipment.id }}"
+                    />
+                    <label for="equipment-{{ equipment.id }}">
+                        {{ equipment.name }}
+                        <span data-role="equipment-details">
+                            ({{ equipment.category.name }}{% if
+                            equipment.serial_number.is_some() %} - SN: {{
+                            equipment.serial_number.as_ref().unwrap() }}{% endif
+                            %})
+                        </span>
+                    </label>
+                </div>
+                {% endfor %} {% if available_equipment.is_empty() %}
+                <div data-component="empty-state" data-state="empty">
+                    <p data-role="empty-message">
+                        No available equipment to add to this kit.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <div data-role="form-actions">
+            <button type="submit" data-type="primary">
+                {% if kit.is_some() %}Update Kit{% else %}Create Kit{% endif %}
+            </button>
+            <a
+                href="{% if kit.is_some() %}/equipment/kit/{{ kit.as_ref().unwrap().id }}{% else %}/equipment?owner_type={{ owner_type }}&owner_id={{ owner_id }}{% endif %}"
+                role="button"
+                data-type="secondary"
+            >
+                Cancel
+            </a>
+        </div>
+    </form>
+</section>
+{% endblock %}

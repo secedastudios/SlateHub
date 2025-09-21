@@ -1,0 +1,165 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ page_title }} - SlateHub{% endblock %}
+{% block page_name %}rental-history{% endblock %}
+
+{% block content %}
+<section id="section-rental-history" data-component="rental-history">
+    <header data-role="section-header">
+        <h1 id="heading-rental-history">Rental History</h1>
+        <p data-role="description">Complete rental history for all equipment</p>
+    </header>
+
+    {% if error_message.is_some() %}
+    <div id="error-message" data-component="alert" data-type="error" role="alert">
+        {{ error_message.as_ref().unwrap() }}
+    </div>
+    {% endif %}
+
+    <nav id="history-controls" data-component="filter-bar">
+        <form id="form-history-filter" data-component="filter-form" method="get">
+            <fieldset data-role="filter-options">
+                <div data-field="status">
+                    <label for="select-status">Status</label>
+                    <select id="select-status" name="status">
+                        <option value="">All Rentals</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                <div data-field="date-range">
+                    <label for="input-start-date">Start Date</label>
+                    <input id="input-start-date" name="start_date" type="date">
+
+                    <label for="input-end-date">End Date</label>
+                    <input id="input-end-date" name="end_date" type="date">
+                </div>
+                <button type="submit" data-type="filter">Apply Filter</button>
+            </fieldset>
+        </form>
+    </nav>
+
+    {% if rentals.is_empty() %}
+    <div data-component="empty-state" data-state="empty">
+        <p data-role="empty-message">No rental history found.</p>
+    </div>
+    {% else %}
+    <table id="table-rental-history" data-component="rental-table">
+        <thead>
+            <tr>
+                <th scope="col">Rental ID</th>
+                <th scope="col">Item</th>
+                <th scope="col">Type</th>
+                <th scope="col">Renter</th>
+                <th scope="col">Checkout Date</th>
+                <th scope="col">Expected Return</th>
+                <th scope="col">Actual Return</th>
+                <th scope="col">Checkout Condition</th>
+                <th scope="col">Return Condition</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rental in rentals %}
+            <tr data-rental-id="{{ rental.id }}"
+                data-status="{% if rental.is_active %}active{% else %}completed{% endif %}">
+                <td data-field="id">{{ rental.id }}</td>
+                <td data-field="item">
+                    {% if rental.equipment_id.is_some() %}
+                    <a href="/equipment/{{ rental.equipment_id.as_ref().unwrap() }}">
+                        Equipment
+                    </a>
+                    {% else if rental.kit_id.is_some() %}
+                    <a href="/equipment/kit/{{ rental.kit_id.as_ref().unwrap() }}">
+                        Kit
+                    </a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td data-field="type">
+                    {% if rental.equipment_id.is_some() %}
+                    Equipment
+                    {% else if rental.kit_id.is_some() %}
+                    Kit
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td data-field="renter">
+                    {% if rental.renter_type == "person" && rental.renter_person.is_some() %}
+                    <a href="/{{ rental.renter_person.as_ref().unwrap() }}">Person</a>
+                    {% else if rental.renter_type == "organization" && rental.renter_organization.is_some() %}
+                    <a href="/orgs/{{ rental.renter_organization.as_ref().unwrap() }}">Organization</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td data-field="checkout-date">
+                    <time datetime="{{ rental.checkout_date.to_rfc3339() }}">
+                        {{ rental.checkout_date.format("%m/%d/%Y") }}
+                    </time>
+                </td>
+                <td data-field="expected-return">
+                    {% if rental.expected_return_date.is_some() %}
+                    <time datetime="{{ rental.expected_return_date.as_ref().unwrap().to_rfc3339() }}">
+                        {{ rental.expected_return_date.as_ref().unwrap().format("%m/%d/%Y") }}
+                    </time>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td data-field="actual-return">
+                    {% if rental.actual_return_date.is_some() %}
+                    <time datetime="{{ rental.actual_return_date.as_ref().unwrap().to_rfc3339() }}">
+                        {{ rental.actual_return_date.as_ref().unwrap().format("%m/%d/%Y") }}
+                    </time>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td data-field="checkout-condition">{{ rental.checkout_condition.name }}</td>
+                <td data-field="return-condition">
+                    {% if rental.return_condition.is_some() %}
+                    {{ rental.return_condition.as_ref().unwrap().name }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td data-field="status">
+                    <span data-role="status-badge"
+                          data-status="{% if rental.is_active %}active{% else %}completed{% endif %}">
+                        {% if rental.is_active %}Active{% else %}Completed{% endif %}
+                    </span>
+                </td>
+                <td data-field="actions">
+                    {% if rental.is_active %}
+                    <a href="/equipment/rental/{{ rental.id }}/checkin"
+                       role="button"
+                       data-type="action">
+                        Check In
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <nav id="pagination" data-component="pagination" aria-label="Rental history pagination">
+        <ul data-role="pagination-list">
+            <li>
+                <a href="?page=1" aria-label="Previous page">Previous</a>
+            </li>
+            <li aria-current="page">
+                <span>Page 1</span>
+            </li>
+            <li>
+                <a href="?page=2" aria-label="Next page">Next</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

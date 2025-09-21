@@ -1,0 +1,136 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ page_title }} - SlateHub{% endblock %}
+{% block page_name %}equipment-checkout{% endblock %}
+
+{% block content %}
+<section id="section-checkout" data-component="checkout-form">
+    <header data-role="form-header">
+        <h1 id="heading-checkout">Equipment Checkout</h1>
+        <p data-role="description">
+            {% if equipment.is_some() %}
+            Check out equipment: {{ equipment.as_ref().unwrap().name }}
+            {% else if kit.is_some() %}
+            Check out kit: {{ kit.as_ref().unwrap().name }}
+            {% endif %}
+        </p>
+    </header>
+
+    {% if error_message.is_some() %}
+    <div id="error-message" data-component="alert" data-type="error" role="alert">
+        {{ error_message.as_ref().unwrap() }}
+    </div>
+    {% endif %}
+
+    <form id="form-checkout" method="post" action="/equipment/checkout">
+        {% if equipment.is_some() %}
+        <input type="hidden" name="equipment_id" value="{{ equipment.as_ref().unwrap().id }}">
+        {% else if kit.is_some() %}
+        <input type="hidden" name="kit_id" value="{{ kit.as_ref().unwrap().id }}">
+        {% endif %}
+
+        <fieldset id="fieldset-item-info" data-role="form-section">
+            <legend>Item Information</legend>
+
+            <dl data-component="item-summary">
+                {% if equipment.is_some() %}
+                <dt>Equipment</dt>
+                <dd>{{ equipment.as_ref().unwrap().name }}</dd>
+
+                <dt>Category</dt>
+                <dd>{{ equipment.as_ref().unwrap().category.name }}</dd>
+
+                {% if equipment.as_ref().unwrap().serial_number.is_some() %}
+                <dt>Serial Number</dt>
+                <dd>{{ equipment.as_ref().unwrap().serial_number.as_ref().unwrap() }}</dd>
+                {% endif %}
+
+                <dt>Current Condition</dt>
+                <dd>{{ equipment.as_ref().unwrap().condition.name }}</dd>
+
+                {% else if kit.is_some() %}
+                <dt>Kit Name</dt>
+                <dd>{{ kit.as_ref().unwrap().name }}</dd>
+
+                <dt>Category</dt>
+                <dd>{{ kit.as_ref().unwrap().category.name }}</dd>
+
+                {% if kit.as_ref().unwrap().description.is_some() %}
+                <dt>Description</dt>
+                <dd>{{ kit.as_ref().unwrap().description.as_ref().unwrap() }}</dd>
+                {% endif %}
+                {% endif %}
+            </dl>
+        </fieldset>
+
+        <fieldset id="fieldset-renter" data-role="form-section">
+            <legend>Renter Information</legend>
+
+            <div data-field="renter_type">
+                <label for="select-renter-type">Renter Type *</label>
+                <select id="select-renter-type" name="renter_type" required>
+                    <option value="">Select renter type</option>
+                    <option value="person">Individual</option>
+                    <option value="organization">Organization</option>
+                </select>
+                <span id="help-renter-type" data-role="help-text">Who is renting this equipment</span>
+            </div>
+
+            <div data-field="renter_id">
+                <label for="input-renter-id">Renter ID *</label>
+                <input id="input-renter-id"
+                       name="renter_id"
+                       type="text"
+                       required
+                       placeholder="Enter person or organization ID">
+                <span id="help-renter-id" data-role="help-text">The ID of the person or organization renting</span>
+            </div>
+        </fieldset>
+
+        <fieldset id="fieldset-checkout-details" data-role="form-section">
+            <legend>Checkout Details</legend>
+
+            <div data-field="expected_return_date">
+                <label for="input-return-date">Expected Return Date</label>
+                <input id="input-return-date"
+                       name="expected_return_date"
+                       type="date">
+                <span id="help-return-date" data-role="help-text">When is this equipment expected back</span>
+            </div>
+
+            <div data-field="condition">
+                <label for="select-condition">Checkout Condition *</label>
+                <select id="select-condition" name="condition" required>
+                    <option value="">Select condition</option>
+                    {% for cond in conditions %}
+                    <option value="{{ cond.id }}">
+                        {{ cond.name }}{% if cond.description.is_some() %} - {{ cond.description.as_ref().unwrap() }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <span id="help-condition" data-role="help-text">Condition of equipment at checkout</span>
+            </div>
+
+            <div data-field="notes">
+                <label for="textarea-notes">Checkout Notes</label>
+                <textarea id="textarea-notes"
+                          name="notes"
+                          rows="3"
+                          placeholder="Any notes about this checkout"></textarea>
+                <span id="help-notes" data-role="help-text">Optional notes about the checkout</span>
+            </div>
+        </fieldset>
+
+        <div data-role="form-actions">
+            <button type="submit" data-type="primary">
+                Complete Checkout
+            </button>
+            <a href="{% if equipment.is_some() %}/equipment/{{ equipment.as_ref().unwrap().id }}{% else if kit.is_some() %}/equipment/kit/{{ kit.as_ref().unwrap().id }}{% else %}/equipment{% endif %}"
+               role="button"
+               data-type="secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</section>
+{% endblock %}

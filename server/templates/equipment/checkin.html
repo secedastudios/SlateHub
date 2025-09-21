@@ -1,0 +1,118 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ page_title }} - SlateHub{% endblock %}
+{% block page_name %}equipment-checkin{% endblock %}
+
+{% block content %}
+<section id="section-checkin" data-component="checkin-form">
+    <header data-role="form-header">
+        <h1 id="heading-checkin">Equipment Check-In</h1>
+        <p data-role="description">
+            Return equipment to inventory
+        </p>
+    </header>
+
+    {% if error_message.is_some() %}
+    <div id="error-message" data-component="alert" data-type="error" role="alert">
+        {{ error_message.as_ref().unwrap() }}
+    </div>
+    {% endif %}
+
+    <form id="form-checkin" method="post" action="/equipment/rental/{{ rental.id }}/checkin">
+        <fieldset id="fieldset-rental-info" data-role="form-section">
+            <legend>Rental Information</legend>
+
+            <dl data-component="rental-summary">
+                <dt>Rental ID</dt>
+                <dd>{{ rental.id }}</dd>
+
+                {% if rental.equipment_id.is_some() %}
+                <dt>Equipment</dt>
+                <dd>
+                    <a href="/equipment/{{ rental.equipment_id.as_ref().unwrap() }}">
+                        View Equipment
+                    </a>
+                </dd>
+                {% else if rental.kit_id.is_some() %}
+                <dt>Kit</dt>
+                <dd>
+                    <a href="/equipment/kit/{{ rental.kit_id.as_ref().unwrap() }}">
+                        View Kit
+                    </a>
+                </dd>
+                {% endif %}
+
+                <dt>Renter</dt>
+                <dd>
+                    {% if rental.renter_type == "person" && rental.renter_person.is_some() %}
+                    Individual - <a href="/{{ rental.renter_person.as_ref().unwrap() }}">View Profile</a>
+                    {% else if rental.renter_type == "organization" && rental.renter_organization.is_some() %}
+                    Organization - <a href="/orgs/{{ rental.renter_organization.as_ref().unwrap() }}">View Organization</a>
+                    {% endif %}
+                </dd>
+
+                <dt>Checkout Date</dt>
+                <dd>
+                    <time datetime="{{ rental.checkout_date.to_rfc3339() }}">
+                        {{ rental.checkout_date.format("%B %d, %Y at %I:%M %p") }}
+                    </time>
+                </dd>
+
+                {% if rental.expected_return_date.is_some() %}
+                <dt>Expected Return Date</dt>
+                <dd>
+                    <time datetime="{{ rental.expected_return_date.as_ref().unwrap().to_rfc3339() }}">
+                        {{ rental.expected_return_date.as_ref().unwrap().format("%B %d, %Y") }}
+                    </time>
+                </dd>
+                {% endif %}
+
+                <dt>Checkout Condition</dt>
+                <dd>{{ rental.checkout_condition.name }}</dd>
+
+                {% if rental.checkout_notes.is_some() %}
+                <dt>Checkout Notes</dt>
+                <dd>{{ rental.checkout_notes.as_ref().unwrap() }}</dd>
+                {% endif %}
+            </dl>
+        </fieldset>
+
+        <fieldset id="fieldset-return-details" data-role="form-section">
+            <legend>Return Details</legend>
+
+            <div data-field="return_condition">
+                <label for="select-return-condition">Return Condition *</label>
+                <select id="select-return-condition" name="return_condition" required>
+                    <option value="">Select condition</option>
+                    {% for cond in conditions %}
+                    <option value="{{ cond.id }}">
+                        {{ cond.name }}{% if cond.description.is_some() %} - {{ cond.description.as_ref().unwrap() }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <span id="help-return-condition" data-role="help-text">Condition of equipment at return</span>
+            </div>
+
+            <div data-field="return_notes">
+                <label for="textarea-return-notes">Return Notes</label>
+                <textarea id="textarea-return-notes"
+                          name="return_notes"
+                          rows="3"
+                          placeholder="Any notes about the return condition or issues"></textarea>
+                <span id="help-return-notes" data-role="help-text">Optional notes about the return</span>
+            </div>
+        </fieldset>
+
+        <div data-role="form-actions">
+            <button type="submit" data-type="primary">
+                Complete Check-In
+            </button>
+            <a href="/equipment"
+               role="button"
+               data-type="secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -10,6 +10,7 @@ use crate::middleware::{
 
 mod api;
 mod auth;
+mod equipment;
 mod media;
 mod organizations;
 mod pages;
@@ -30,6 +31,8 @@ pub fn app() -> Router {
         .merge(auth::router())
         // Mount organizations routes
         .merge(organizations::router())
+        // Mount equipment routes
+        .merge(equipment::router())
         // Mount profile routes
         .merge(profile::router())
         // Mount API routes under /api

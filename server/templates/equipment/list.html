@@ -1,0 +1,218 @@
+{% extends "_layout.html" %}
+
+{% block title %}{{ page_title }} - SlateHub{% endblock %}
+{% block page_name %}equipment{% endblock %}
+
+{% block content %}
+<section id="section-equipment" data-section="equipment-management">
+    <header data-role="section-header">
+        <h1 id="heading-equipment">Equipment Management</h1>
+        <p data-role="description">Manage and track your equipment inventory</p>
+    </header>
+
+    <nav id="equipment-controls" data-component="action-bar">
+        <ul data-role="actions">
+            <li>
+                <a href="/equipment/new?owner_type={{ owner_type }}&owner_id={{ owner_id }}"
+                   role="button"
+                   data-type="primary">
+                    Add Equipment
+                </a>
+            </li>
+            <li>
+                <a href="/equipment/kit/new?owner_type={{ owner_type }}&owner_id={{ owner_id }}"
+                   role="button"
+                   data-type="secondary">
+                    Create Kit
+                </a>
+            </li>
+        </ul>
+        <form id="form-equipment-filter" data-component="filter-form" method="get">
+            <input type="hidden" name="owner_type" value="{{ owner_type }}">
+            <input type="hidden" name="owner_id" value="{{ owner_id }}">
+            <fieldset data-role="filter-options">
+                <div data-field="category">
+                    <label for="select-category">Category</label>
+                    <select id="select-category" name="category">
+                        <option value="">All Categories</option>
+                        <option value="camera">Camera</option>
+                        <option value="lens">Lens</option>
+                        <option value="lighting">Lighting</option>
+                        <option value="audio">Audio</option>
+                        <option value="grip">Grip</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div data-field="availability">
+                    <input type="checkbox" id="check-available" name="available_only" value="true">
+                    <label for="check-available">Available Only</label>
+                </div>
+                <button type="submit" data-type="filter">Apply Filter</button>
+            </fieldset>
+        </form>
+    </nav>
+
+    {% if error_message.is_some() %}
+    <div id="error-message" data-component="alert" data-type="error" role="alert">
+        {{ error_message.as_ref().unwrap() }}
+    </div>
+    {% endif %}
+
+    <section id="section-equipment-list" data-section="equipment-items">
+        <h2 id="heading-equipment-items">Equipment Items</h2>
+
+        {% if equipment.is_empty() %}
+        <div data-component="empty-state" data-state="empty">
+            <p data-role="empty-message">No equipment items found.</p>
+            <a href="/equipment/new?owner_type={{ owner_type }}&owner_id={{ owner_id }}"
+               role="button"
+               data-type="primary">
+                Add Your First Equipment
+            </a>
+        </div>
+        {% else %}
+        <div data-component="equipment-grid" data-layout="grid">
+            {% for item in equipment %}
+            <article id="equipment-{{ item.id }}"
+                     data-component="equipment-card"
+                     data-status="{% if item.is_available %}available{% else %}unavailable{% endif %}">
+                <header data-role="card-header">
+                    <h3 id="equipment-name-{{ item.id }}">
+                        <a href="/equipment/{{ item.id }}">{{ item.name }}</a>
+                    </h3>
+                    <span data-role="status-badge"
+                          data-status="{% if item.is_available %}available{% else %}unavailable{% endif %}">
+                        {% if item.is_available %}Available{% else %}In Use{% endif %}
+                    </span>
+                </header>
+
+                <div data-role="card-body">
+                    <dl data-component="equipment-details">
+                        <dt>Category</dt>
+                        <dd data-field="category">{{ item.category.name }}</dd>
+
+                        {% if item.serial_number.is_some() %}
+                        <dt>Serial Number</dt>
+                        <dd data-field="serial">{{ item.serial_number.as_ref().unwrap() }}</dd>
+                        {% endif %}
+
+                        <dt>Condition</dt>
+                        <dd data-field="condition">{{ item.condition.name }}</dd>
+
+                        {% if item.current_location.is_some() %}
+                        <dt>Location</dt>
+                        <dd data-field="location">{{ item.current_location.as_ref().unwrap() }}</dd>
+                        {% endif %}
+
+                        {% if item.is_kit_item %}
+                        <dt>Part of Kit</dt>
+                        <dd data-field="kit">
+                            {% if item.parent_kit.is_some() %}
+                            <a href="/equipment/kit/{{ item.parent_kit.as_ref().unwrap() }}">View Kit</a>
+                            {% endif %}
+                        </dd>
+                        {% endif %}
+                    </dl>
+
+                    {% if item.qr_code.is_some() %}
+                    <div data-component="qr-code" data-code="{{ item.qr_code.as_ref().unwrap() }}">
+                        <img src="/api/qr/{{ item.qr_code.as_ref().unwrap() }}"
+                             alt="QR Code for {{ item.name }}"
+                             data-role="qr-image">
+                    </div>
+                    {% endif %}
+                </div>
+
+                <footer data-role="card-footer">
+                    <nav data-role="card-actions">
+                        {% if item.is_available %}
+                        <a href="/equipment/checkout?equipment_id={{ item.id }}"
+                           role="button"
+                           data-type="action">
+                            Check Out
+                        </a>
+                        {% endif %}
+                        <a href="/equipment/{{ item.id }}"
+                           role="button"
+                           data-type="secondary">
+                            View Details
+                        </a>
+                    </nav>
+                </footer>
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+
+    <section id="section-kits" data-section="equipment-kits">
+        <h2 id="heading-equipment-kits">Equipment Kits</h2>
+
+        {% if kits.is_empty() %}
+        <div data-component="empty-state" data-state="empty">
+            <p data-role="empty-message">No equipment kits found.</p>
+            <a href="/equipment/kit/new?owner_type={{ owner_type }}&owner_id={{ owner_id }}"
+               role="button"
+               data-type="primary">
+                Create Your First Kit
+            </a>
+        </div>
+        {% else %}
+        <div data-component="kit-grid" data-layout="grid">
+            {% for kit in kits %}
+            <article id="kit-{{ kit.id }}"
+                     data-component="kit-card"
+                     data-status="{% if kit.is_available %}available{% else %}unavailable{% endif %}">
+                <header data-role="card-header">
+                    <h3 id="kit-name-{{ kit.id }}">
+                        <a href="/equipment/kit/{{ kit.id }}">{{ kit.name }}</a>
+                    </h3>
+                    <span data-role="status-badge"
+                          data-status="{% if kit.is_available %}available{% else %}unavailable{% endif %}">
+                        {% if kit.is_available %}Available{% else %}In Use{% endif %}
+                    </span>
+                </header>
+
+                <div data-role="card-body">
+                    <dl data-component="kit-details">
+                        <dt>Category</dt>
+                        <dd data-field="category">{{ kit.category.name }}</dd>
+
+                        {% if kit.description.is_some() %}
+                        <dt>Description</dt>
+                        <dd data-field="description">{{ kit.description.as_ref().unwrap() }}</dd>
+                        {% endif %}
+                    </dl>
+
+                    {% if kit.qr_code.is_some() %}
+                    <div data-component="qr-code" data-code="{{ kit.qr_code.as_ref().unwrap() }}">
+                        <img src="/api/qr/{{ kit.qr_code.as_ref().unwrap() }}"
+                             alt="QR Code for {{ kit.name }}"
+                             data-role="qr-image">
+                    </div>
+                    {% endif %}
+                </div>
+
+                <footer data-role="card-footer">
+                    <nav data-role="card-actions">
+                        {% if kit.is_available %}
+                        <a href="/equipment/checkout?kit_id={{ kit.id }}"
+                           role="button"
+                           data-type="action">
+                            Check Out Kit
+                        </a>
+                        {% endif %}
+                        <a href="/equipment/kit/{{ kit.id }}"
+                           role="button"
+                           data-type="secondary">
+                            View Details
+                        </a>
+                    </nav>
+                </footer>
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

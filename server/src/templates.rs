@@ -3,6 +3,9 @@ use chrono::Datelike;
 use serde::{Deserialize, Serialize};
 
 use crate::db::DB;
+use crate::models::equipment::{
+    Equipment, EquipmentCategory, EquipmentCondition, EquipmentKit, EquipmentRental,
+};
 use crate::models::person::SessionUser;
 
 /// Represents a user for template rendering
@@ -292,6 +295,158 @@ pub struct AboutTemplate {
     pub version: String,
     pub active_page: String,
     pub user: Option<User>,
+}
+
+// ============================
+// Equipment Templates
+// ============================
+
+pub mod equipment {
+    use crate::models::equipment::{
+        Equipment, EquipmentCategory, EquipmentCondition, EquipmentKit, EquipmentRental,
+    };
+    use crate::models::person::SessionUser;
+    use askama::Template;
+
+    /// Equipment list page template
+    #[derive(Template)]
+    #[template(path = "equipment/list.html")]
+    pub struct EquipmentListTemplate {
+        pub app_name: String,
+        pub year: i32,
+        pub version: String,
+        pub active_page: String,
+        pub user: Option<super::User>,
+        pub current_user: Option<SessionUser>,
+        pub equipment: Vec<Equipment>,
+        pub kits: Vec<EquipmentKit>,
+        pub owner_type: String,
+        pub owner_id: String,
+        pub page_title: String,
+        pub error_message: Option<String>,
+    }
+
+    /// Equipment form template (for create/edit)
+    #[derive(Template)]
+    #[template(path = "equipment/form.html")]
+    pub struct EquipmentFormTemplate {
+        pub app_name: String,
+        pub year: i32,
+        pub version: String,
+        pub active_page: String,
+        pub user: Option<super::User>,
+        pub current_user: Option<SessionUser>,
+        pub equipment: Option<Equipment>,
+        pub categories: Vec<EquipmentCategory>,
+        pub conditions: Vec<EquipmentCondition>,
+        pub owner_type: String,
+        pub owner_id: String,
+        pub page_title: String,
+        pub error_message: Option<String>,
+    }
+
+    /// Equipment detail page template
+    #[derive(Template)]
+    #[template(path = "equipment/detail.html")]
+    pub struct EquipmentDetailTemplate {
+        pub app_name: String,
+        pub year: i32,
+        pub version: String,
+        pub active_page: String,
+        pub user: Option<super::User>,
+        pub current_user: Option<SessionUser>,
+        pub equipment: Equipment,
+        pub rentals: Vec<EquipmentRental>,
+        pub can_edit: bool,
+        pub page_title: String,
+        pub error_message: Option<String>,
+    }
+
+    /// Kit form template (for create/edit)
+    #[derive(Template)]
+    #[template(path = "equipment/kit_form.html")]
+    pub struct KitFormTemplate {
+        pub app_name: String,
+        pub year: i32,
+        pub version: String,
+        pub active_page: String,
+        pub user: Option<super::User>,
+        pub current_user: Option<SessionUser>,
+        pub kit: Option<EquipmentKit>,
+        pub available_equipment: Vec<Equipment>,
+        pub selected_equipment: Vec<Equipment>,
+        pub categories: Vec<EquipmentCategory>,
+        pub owner_type: String,
+        pub owner_id: String,
+        pub page_title: String,
+        pub error_message: Option<String>,
+    }
+
+    /// Kit detail page template
+    #[derive(Template)]
+    #[template(path = "equipment/kit_detail.html")]
+    pub struct KitDetailTemplate {
+        pub app_name: String,
+        pub year: i32,
+        pub version: String,
+        pub active_page: String,
+        pub user: Option<super::User>,
+        pub current_user: Option<SessionUser>,
+        pub kit: EquipmentKit,
+        pub kit_items: Vec<Equipment>,
+        pub rentals: Vec<EquipmentRental>,
+        pub can_edit: bool,
+        pub page_title: String,
+        pub error_message: Option<String>,
+    }
+
+    /// Equipment checkout form template
+    #[derive(Template)]
+    #[template(path = "equipment/checkout.html")]
+    pub struct EquipmentCheckoutTemplate {
+        pub app_name: String,
+        pub year: i32,
+        pub version: String,
+        pub active_page: String,
+        pub user: Option<super::User>,
+        pub current_user: Option<SessionUser>,
+        pub equipment: Option<Equipment>,
+        pub kit: Option<EquipmentKit>,
+        pub conditions: Vec<EquipmentCondition>,
+        pub page_title: String,
+        pub error_message: Option<String>,
+    }
+
+    /// Equipment check-in form template
+    #[derive(Template)]
+    #[template(path = "equipment/checkin.html")]
+    pub struct EquipmentCheckInTemplate {
+        pub app_name: String,
+        pub year: i32,
+        pub version: String,
+        pub active_page: String,
+        pub user: Option<super::User>,
+        pub current_user: Option<SessionUser>,
+        pub rental: EquipmentRental,
+        pub conditions: Vec<EquipmentCondition>,
+        pub page_title: String,
+        pub error_message: Option<String>,
+    }
+
+    /// Rental history template
+    #[derive(Template)]
+    #[template(path = "equipment/rental_history.html")]
+    pub struct RentalHistoryTemplate {
+        pub app_name: String,
+        pub year: i32,
+        pub version: String,
+        pub active_page: String,
+        pub user: Option<super::User>,
+        pub current_user: Option<SessionUser>,
+        pub rentals: Vec<EquipmentRental>,
+        pub page_title: String,
+        pub error_message: Option<String>,
+    }
 }
 
 // Helper struct for backwards compatibility
