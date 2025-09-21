@@ -1,0 +1,389 @@
+/* Error Page Styles
+   ========================================================================== */
+
+/* Base error page container */
+[data-component="error-page"] {
+    min-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-fluid-3, 2rem);
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+/* Error header styling */
+[data-component="error-page"] [data-role="error-header"] {
+    margin-bottom: var(--spacing-fluid-2, 1.5rem);
+}
+
+/* Large error code display */
+[data-component="error-page"] [data-role="error-header"] h1 {
+    font-size: clamp(4rem, 15vw, 10rem);
+    font-weight: 900;
+    line-height: 1;
+    margin: 0 0 0.5rem 0;
+    background: linear-gradient(135deg, var(--primary), var(--secondary, var(--primary)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: pulseGradient 3s ease-in-out infinite;
+}
+
+/* Error message heading */
+[data-component="error-page"] [data-role="error-header"] h2 {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    font-weight: 600;
+    margin: 0;
+    color: var(--h2-color, var(--color));
+}
+
+/* Error body container */
+[data-component="error-page"] [data-role="error-body"] {
+    max-width: 42rem;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Error description text */
+#error-description {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    margin-bottom: var(--spacing-fluid-2, 1.5rem);
+    color: var(--muted-color);
+}
+
+/* Error details section */
+[data-component="error-page"] [data-role="error-details"] {
+    background: var(--card-background-color);
+    border: 1px solid var(--muted-border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-fluid-1, 1rem);
+    margin: var(--spacing-fluid-2, 1.5rem) 0;
+    text-align: left;
+}
+
+[data-component="error-page"] [data-role="error-details"] p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+[data-component="error-page"] [data-role="error-details"] strong {
+    color: var(--h6-color, var(--color));
+    display: inline-block;
+    min-width: 8rem;
+}
+
+[data-component="error-page"] [data-role="error-details"] code {
+    background: var(--code-background-color);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--code-color);
+    word-break: break-all;
+}
+
+/* Error actions navigation */
+[data-component="error-page"] [data-role="error-actions"] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    margin: var(--spacing-fluid-2, 1.5rem) 0;
+}
+
+[data-component="error-page"] [data-role="error-actions"] a[role="button"],
+[data-component="error-page"] [data-role="error-actions"] button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+/* Primary action button */
+[data-component="error-page"] [data-role="error-actions"] [data-type="primary"] {
+    background: var(--primary);
+    color: var(--primary-inverse);
+    border: 2px solid var(--primary);
+}
+
+[data-component="error-page"] [data-role="error-actions"] [data-type="primary"]:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Secondary action button */
+[data-component="error-page"] [data-role="error-actions"] [data-type="secondary"] {
+    background: transparent;
+    color: var(--primary);
+    border: 2px solid var(--muted-border-color);
+}
+
+[data-component="error-page"] [data-role="error-actions"] [data-type="secondary"]:hover {
+    background: var(--secondary-background);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+/* Help details component */
+[data-component="help-details"] {
+    margin: var(--spacing-fluid-2, 1.5rem) 0;
+    text-align: left;
+    max-width: 32rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+[data-component="help-details"] summary {
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    background: var(--card-background-color);
+    border: 1px solid var(--muted-border-color);
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+[data-component="help-details"] summary:hover {
+    background: var(--secondary-background);
+    border-color: var(--primary);
+}
+
+[data-component="help-details"][open] summary {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: none;
+}
+
+[data-component="help-details"] [data-role="details-content"] {
+    background: var(--card-background-color);
+    border: 1px solid var(--muted-border-color);
+    border-top: none;
+    border-bottom-left-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+    padding: 1rem;
+}
+
+[data-component="help-details"] [data-role="details-content"] ul {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+}
+
+[data-component="help-details"] [data-role="details-content"] li {
+    margin: 0.25rem 0;
+}
+
+/* Error footer */
+[data-component="error-page"] [data-role="error-footer"] {
+    margin-top: var(--spacing-fluid-3, 2rem);
+}
+
+[data-component="error-page"] [data-role="help-text"] {
+    color: var(--muted-color);
+    font-size: 0.9rem;
+    max-width: 32rem;
+    margin: 0 auto;
+}
+
+[data-component="error-page"] [data-role="help-text"] p {
+    margin: 0.5rem 0;
+}
+
+/* Validation errors (422) */
+[data-component="error-page"] [data-role="validation-errors"] {
+    background: var(--card-background-color);
+    border: 1px solid var(--error-color, #dc3545);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin: var(--spacing-fluid-2, 1.5rem) auto;
+    max-width: 32rem;
+    text-align: left;
+}
+
+[data-component="error-page"] [data-role="validation-errors"] h3 {
+    color: var(--error-color, #dc3545);
+    font-size: 1.125rem;
+    margin: 0 0 0.75rem 0;
+}
+
+[data-component="error-page"] [data-role="validation-errors"] ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+[data-component="error-page"] [data-role="validation-errors"] li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--muted-border-color);
+    color: var(--error-color, #dc3545);
+}
+
+[data-component="error-page"] [data-role="validation-errors"] li:last-child {
+    border-bottom: none;
+}
+
+/* Retry info for rate limiting */
+[data-component="error-page"] [data-role="retry-info"] {
+    background: var(--warning-background, #fff3cd);
+    border: 1px solid var(--warning-border, #ffeaa7);
+    color: var(--warning-color, #856404);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin: 1rem auto;
+    max-width: 24rem;
+}
+
+/* Specific error type styling */
+[data-component="error-page"][data-type="404"] [data-role="error-header"] h1 {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+[data-component="error-page"][data-type="500"] [data-role="error-header"] h1 {
+    background: linear-gradient(135deg, #f093fb, #f5576c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+[data-component="error-page"][data-type="401"] [data-role="error-header"] h1 {
+    background: linear-gradient(135deg, #fa709a, #fee140);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+[data-component="error-page"][data-type="403"] [data-role="error-header"] h1 {
+    background: linear-gradient(135deg, #ff6b6b, #ffd93d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Additional details for generic errors */
+[data-component="error-page"] [data-role="additional-details"] {
+    margin-top: 1rem;
+}
+
+[data-component="error-page"] [data-role="additional-details"] pre {
+    background: var(--code-background-color);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    overflow-x: auto;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] [data-component="error-page"] [data-role="error-details"] {
+    background: var(--card-background-color, #1a1a1a);
+    border-color: var(--muted-border-color, #333);
+}
+
+[data-theme="dark"] [data-component="error-page"] [data-role="retry-info"] {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: #ffc107;
+}
+
+[data-theme="dark"] [data-component="error-page"] [data-role="validation-errors"] {
+    background: rgba(220, 53, 69, 0.1);
+    border-color: rgba(220, 53, 69, 0.5);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulseGradient {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+    [data-component="error-page"] {
+        padding: var(--spacing-fluid-2, 1rem);
+    }
+
+    [data-component="error-page"] [data-role="error-actions"] {
+        flex-direction: column;
+        width: 100%;
+        max-width: 20rem;
+    }
+
+    [data-component="error-page"] [data-role="error-actions"] a[role="button"],
+    [data-component="error-page"] [data-role="error-actions"] button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    [data-component="error-page"] [data-role="error-details"] {
+        font-size: 0.85rem;
+    }
+
+    [data-component="error-page"] [data-role="error-details"] strong {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    [data-component="error-page"] [data-role="error-actions"] {
+        display: none;
+    }
+
+    [data-component="error-page"] [data-role="error-header"] h1 {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    [data-component="error-page"],
+    [data-component="error-page"] * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    [data-component="error-page"] [data-role="error-header"] h1 {
+        background: none;
+        -webkit-text-fill-color: currentColor;
+        color: var(--primary);
+    }
+
+    [data-component="error-page"] [data-role="error-actions"] [data-type="primary"] {
+        border-width: 3px;
+    }
+
+    [data-component="error-page"] [data-role="error-actions"] [data-type="secondary"] {
+        border-width: 3px;
+    }
+}

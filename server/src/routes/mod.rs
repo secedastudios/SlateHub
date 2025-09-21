@@ -4,7 +4,9 @@ use std::time::Duration;
 use tower_http::{compression::CompressionLayer, services::ServeDir, trace::TraceLayer};
 use tracing::{Span, error, info};
 
-use crate::middleware::{RequestIdExt, auth_middleware, request_id_middleware};
+use crate::middleware::{
+    RequestIdExt, auth_middleware, error_response_middleware, request_id_middleware,
+};
 
 mod api;
 mod auth;
@@ -41,6 +43,8 @@ pub fn app() -> Router {
         .merge(public_profiles::router())
         // Apply auth middleware to extract user from JWT cookies
         .layer(middleware::from_fn(auth_middleware))
+        // Error response middleware - converts errors to HTML/JSON based on Accept header
+        .layer(middleware::from_fn(error_response_middleware))
         // Middleware
         .layer(CompressionLayer::new())
         .layer(

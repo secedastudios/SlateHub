@@ -1,7 +1,7 @@
 use axum::Json;
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use axum::response::Response;
+use axum::http::{HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
+use serde_json::json;
 use thiserror::Error;
 use tracing::error;
 
@@ -40,41 +40,70 @@ pub enum Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        let (status, error_message) = match &self {
+        let (status, error_message, custom_message) = match &self {
             Error::Database(msg) => {
                 error!("Database error: {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error occurred")
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error occurred",
+                    None,
+                )
             }
             Error::Template(msg) => {
                 error!("Template rendering error: {}", msg);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Template rendering failed",
+                    None,
                 )
             }
-            Error::NotFound => (StatusCode::NOT_FOUND, "Resource not found"),
+            Error::NotFound => (StatusCode::NOT_FOUND, "Resource not found", None),
             Error::Internal(msg) => {
                 error!("Internal server error: {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error",
+                    None,
+                )
             }
-            Error::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.as_str()),
-            Error::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized"),
-            Error::Forbidden => (StatusCode::FORBIDDEN, "Forbidden"),
-            Error::Conflict(msg) => (StatusCode::CONFLICT, msg.as_str()),
-            Error::Validation(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg.as_str()),
+            Error::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.as_str(), Some(msg.clone())),
+            Error::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized", None),
+            Error::Forbidden => (StatusCode::FORBIDDEN, "Forbidden", None),
+            Error::Conflict(msg) => (StatusCode::CONFLICT, msg.as_str(), Some(msg.clone())),
+            Error::Validation(msg) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                msg.as_str(),
+                Some(msg.clone()),
+            ),
             Error::ExternalService(msg) => {
                 error!("External service error: {}", msg);
-                (StatusCode::BAD_GATEWAY, "External service error")
+                (StatusCode::BAD_GATEWAY, "External service error", None)
             }
         };
 
         // Create a JSON response with error details
-        let body = serde_json::json!({
+        let body = json!({
             "error": error_message,
             "status": status.as_u16(),
+            "timestamp": chrono::Utc::now().to_rfc3339(),
         });
 
-        (status, Json(body)).into_response()
+        // Add a special header to indicate this is an error that could be converted to HTML
+        // The middleware will check for this header and the Accept header to determine
+        // whether to convert to HTML
+        let mut response = (status, Json(body)).into_response();
+        response.headers_mut().insert(
+            "X-Error-Message",
+            HeaderValue::from_str(error_message)
+                .unwrap_or_else(|_| HeaderValue::from_static("error")),
+        );
+        if let Some(custom_msg) = custom_message {
+            response.headers_mut().insert(
+                "X-Error-Custom-Message",
+                HeaderValue::from_str(&custom_msg).unwrap_or_else(|_| HeaderValue::from_static("")),
+            );
+        }
+        response
     }
 }
 
@@ -137,5 +166,9 @@ impl Error {
 
     pub fn external_service<S: Into<String>>(msg: S) -> Self {
         Self::ExternalService(msg.into())
+    }
+
+    pub fn internal<S: Into<String>>(msg: S) -> Self {
+        Self::Internal(msg.into())
     }
 }

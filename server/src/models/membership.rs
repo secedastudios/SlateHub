@@ -3,13 +3,13 @@
 //! This module handles the graph relationships between people and organizations,
 //! including roles, permissions, and invitation management.
 
+use crate::{db::DB, error::Error};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::str::FromStr;
 use surrealdb::RecordId;
 use tracing::{debug, error};
-
-use crate::{db::DB, error::Error};
 
 // ============================
 // Data Structures
@@ -209,13 +209,16 @@ impl MembershipModel {
             person_id, org_id
         );
 
-        let query = "SELECT * FROM organization_members
-                     WHERE in = organization:$org AND out = person:$person";
+        let person_id: RecordId = RecordId::from_str(person_id)?;
+        let org_id: RecordId = RecordId::from_str(org_id)?;
+
+        let query = "SELECT * FROM member_of
+                     WHERE in = $person AND out = $org";
 
         let result: Option<Membership> = DB
             .query(query)
-            .bind(("org", org_id.to_string()))
-            .bind(("person", person_id.to_string()))
+            .bind(("org", org_id))
+            .bind(("person", person_id))
             .await?
             .take(0)?;
 

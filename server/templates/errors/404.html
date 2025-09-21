@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <meta
+            name="description"
+            content="The page you are looking for could not be found."
+        />
+        <title>404 - Page Not Found | SlateHub</title>
+
+        <!-- Pico CSS -->
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+        />
+
+        <!-- Component CSS -->
+        <link rel="stylesheet" href="/static/css/components/avatar.css" />
+
+        <!-- Error Pages CSS -->
+        <link rel="stylesheet" href="/static/css/pages/errors.css" />
+
+        <!-- Theme Initialization Script -->
+        <script>
+            // Check for saved theme preference or default to dark
+            const savedTheme = localStorage.getItem("theme") || "dark";
+            document.documentElement.setAttribute("data-theme", savedTheme);
+        </script>
+    </head>
+    <body data-page="error-404">
+        <main id="main-content">
+            <section data-component="error-page" data-type="404">
+                <header data-role="error-header">
+                    <h1 id="heading-error-404">404</h1>
+                    <h2 id="heading-error-message">Page Not Found</h2>
+                </header>
+
+                <div data-role="error-body">
+                    <p id="error-description">
+                        The page you're looking for doesn't exist or may have
+                        been moved.
+                    </p>
+
+                    <nav data-role="error-actions">
+                        <a href="/" role="button" data-type="primary">
+                            <span aria-hidden="true">🏠</span> Go to Homepage
+                        </a>
+
+                        <a href="/login" role="button" data-type="secondary">
+                            <span aria-hidden="true">🔑</span> Sign In
+                        </a>
+
+                        <a href="/signup" role="button" data-type="secondary">
+                            <span aria-hidden="true">✨</span> Create Account
+                        </a>
+                    </nav>
+                </div>
+
+                <footer data-role="error-footer">
+                    <div data-role="help-text">
+                        <p>
+                            If you believe this is an error, please contact
+                            support.
+                        </p>
+                    </div>
+                </footer>
+            </section>
+        </main>
+    </body>
+</html>

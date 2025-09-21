@@ -1,0 +1,75 @@
+{% extends "_layout.html" %} {% block title %}Unauthorized - {{ app_name }}{%
+endblock %} {% block description %}You need to be signed in to access this
+page.{% endblock %} {% block page_name %}error-401{% endblock %} {% block
+content %}
+<section data-component="error-page" data-type="401">
+    <header data-role="error-header">
+        <h1 id="heading-error-401">401</h1>
+        <h2 id="heading-error-message">Unauthorized Access</h2>
+    </header>
+
+    <div data-role="error-body">
+        <p id="error-description">
+            {% if message %} {{ message }} {% else %} You need to be signed in
+            to access this page. Please log in with your account to continue. {%
+            endif %}
+        </p>
+
+        <div data-role="error-details">
+            {% if request_path %}
+            <p id="error-path">
+                <strong>Requested path:</strong>
+                <code>{{ request_path }}</code>
+            </p>
+            {% endif %} {% if request_id %}
+            <p id="error-request-id">
+                <strong>Request ID:</strong>
+                <code>{{ request_id }}</code>
+            </p>
+            {% endif %}
+        </div>
+
+        <nav data-role="error-actions">
+            <a
+                href="/login?redirect={{ request_path | default(value='/') }}"
+                role="button"
+                data-type="primary"
+            >
+                <span aria-hidden="true">🔑</span> Sign In
+            </a>
+
+            <a href="/signup" role="button" data-type="secondary">
+                <span aria-hidden="true">✨</span> Create Account
+            </a>
+
+            <a href="/" role="button" data-type="secondary">
+                <span aria-hidden="true">🏠</span> Go to Homepage
+            </a>
+        </nav>
+
+        <div data-role="error-info">
+            <details data-component="help-details">
+                <summary>Why am I seeing this?</summary>
+                <div data-role="details-content">
+                    <p>This error appears when:</p>
+                    <ul>
+                        <li>Your session has expired</li>
+                        <li>You haven't signed in yet</li>
+                        <li>You logged out from another tab or device</li>
+                        <li>Your authentication token is invalid</li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <footer data-role="error-footer">
+        <div data-role="help-text">
+            <p>
+                If you continue to experience issues signing in, please contact
+                support.
+            </p>
+        </div>
+    </footer>
+</section>
+{% endblock %}

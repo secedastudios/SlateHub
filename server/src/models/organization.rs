@@ -122,6 +122,7 @@ impl OrganizationModel {
         debug!("Creating organization with slug: {}", data.slug);
 
         let org_type_id: RecordId = RecordId::from_str(&data.org_type)?;
+        let owner_id: RecordId = RecordId::from_str(created_by)?;
 
         // Check if slug is available
         let (available, reason) = self.check_slug_availability(&data.slug).await?;
@@ -154,16 +155,13 @@ impl OrganizationModel {
 
         // Get default owner permissions as strings
         let owner_permissions = vec![
-            "UpdateOrganization".to_string(),
-            "DeleteOrganization".to_string(),
+            "creeate".to_string(),
+            "Update".to_string(),
+            "Delete".to_string(),
             "InviteMembers".to_string(),
             "RemoveMembers".to_string(),
             "UpdateMemberRoles".to_string(),
-            "CreateProjects".to_string(),
-            "UpdateProjects".to_string(),
-            "DeleteProjects".to_string(),
-            "ManageContent".to_string(),
-            "PublishContent".to_string(),
+            "Publish".to_string(),
         ];
 
         // Single SQL transaction that creates the organization and membership
@@ -185,7 +183,7 @@ impl OrganizationModel {
                 public: $public
             }});
 
-            RELATE $org->organization_members->$created_by SET
+            RELATE $person->member_of->$org SET
                 role = 'owner',
                 permissions = $permissions,
                 invitation_status = 'accepted',
@@ -214,7 +212,7 @@ impl OrganizationModel {
             .bind(("founded_year", data.founded_year))
             .bind(("public", data.public))
             .bind(("permissions", owner_permissions))
-            .bind(("created_by", created_by.to_string()))
+            .bind(("person", owner_id))
             .await?;
 
         debug!("Create organization response: {:?}", response);
@@ -251,9 +249,11 @@ impl OrganizationModel {
     pub async fn get_by_id(&self, id: &str) -> Result<Organization, Error> {
         debug!("Fetching organization by ID: {}", id);
 
+        let id: RecordId = RecordId::from_str(id)?;
+
         let result: Option<Organization> = DB
-            .query("SELECT *, type.* FROM organization WHERE meta::id(id) = $id")
-            .bind(("id", id.to_string()))
+            .query("SELECT *, type.* FROM organization WHERE $id")
+            .bind(("id", id))
             .await?
             .take(0)?;
 
@@ -299,6 +299,7 @@ impl OrganizationModel {
     /// Update an existing organization
     pub async fn update(&self, id: &str, data: UpdateOrganizationData) -> Result<(), Error> {
         debug!("Updating organization: {}", id);
+        let id: RecordId = RecordId::from_str(id)?;
 
         let _: Option<Organization> = DB
             .query(
@@ -315,7 +316,7 @@ impl OrganizationModel {
                     employees_count = $employees_count,
                     public = $public",
             )
-            .bind(("id", id.to_string()))
+            .bind(("id", id))
             .bind(("name", data.name))
             .bind(("org_type", data.org_type))
             .bind(("description", data.description))
@@ -337,10 +338,12 @@ impl OrganizationModel {
     pub async fn delete(&self, id: &str) -> Result<(), Error> {
         debug!("Deleting organization: {}", id);
 
+        let id: RecordId = RecordId::from_str(id)?;
+
         // Delete all memberships first
         let _: Vec<()> = DB
-            .query("DELETE organization_members WHERE out = type::thing('organization', $id)")
-            .bind(("id", id.to_string()))
+            .query("DELETE organization_members WHERE $id")
+            .bind(("id", id.clone()))
             .await?
             .take(0)
             .unwrap_or_default();
@@ -348,7 +351,7 @@ impl OrganizationModel {
         // Delete the organization
         let _: Vec<()> = DB
             .query("DELETE type::thing('organization', $id)")
-            .bind(("id", id.to_string()))
+            .bind(("id", id))
             .await?
             .take(0)
             .unwrap_or_default();
@@ -369,6 +372,9 @@ impl OrganizationModel {
             person_id, org_id, role
         );
 
+        let person_id: RecordId = RecordId::from_str(person_id)?;
+        let org_id: RecordId = RecordId::from_str(org_id)?;
+
         let invitation_status = if role == "owner" {
             "accepted"
         } else if invited_by.is_some() {
@@ -387,15 +393,15 @@ impl OrganizationModel {
             .bind(("inviter", inviter.to_string()))
         } else {
             DB.query(
-                "RELATE $org->organization_members->$person SET
+                "RELATE $person->member_of->$org SET
                         role = $role,
                         invitation_status = $status",
             )
         };
 
         let _: Option<()> = query
-            .bind(("org", org_id.to_string()))
-            .bind(("person", person_id.to_string()))
+            .bind(("org", org_id))
+            .bind(("person", person_id))
             .bind(("role", role.to_string()))
             .bind(("status", invitation_status))
             .await?
@@ -593,15 +599,17 @@ impl OrganizationModel {
         debug!("=== Starting get_user_organizations ===");
         debug!("Fetching organizations for user_id: '{}'", user_id);
 
+        let user_id: RecordId = RecordId::from_str(user_id)?;
+
         // First get the organization relationships
         // user_id should already be a full record ID like "person:xyz"
         let query = "
             SELECT
-                in as org_id,
+                out as org_id,
                 role,
                 joined_at
-            FROM organization_members
-            WHERE out = $user_id
+            FROM member_of
+            WHERE in = $user_id
             AND invitation_status = 'accepted'
             ORDER BY joined_at DESC";
 
@@ -609,7 +617,7 @@ impl OrganizationModel {
 
         let relationships: Vec<(RecordId, String, DateTime<Utc>)> = DB
             .query(query)
-            .bind(("user_id", user_id.to_string()))
+            .bind(("user_id", user_id.clone()))
             .await
             .map_err(|e| {
                 error!("Failed to query organization_members: {:?}", e);

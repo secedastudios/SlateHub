@@ -138,28 +138,17 @@ DEFINE INDEX idx_organization_slug ON organization FIELDS slug UNIQUE;
 -- TABLE: organization_members
 -- ------------------------------
 
-DEFINE TABLE organization_members TYPE RELATION FROM organization TO person SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE member_of TYPE RELATION FROM person|organization TO organization|production SCHEMAFULL PERMISSIONS NONE;
 
-DEFINE FIELD role ON organization_members TYPE string PERMISSIONS FULL;  -- "owner", "admin", "member"
-DEFINE FIELD permissions ON organization_members TYPE array<string> DEFAULT [] PERMISSIONS FULL;  -- Array of permission strings
-DEFINE FIELD joined_at ON organization_members TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
-DEFINE FIELD invitation_status ON organization_members TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined"
-DEFINE FIELD invited_by ON organization_members TYPE option<record<person>> PERMISSIONS FULL;
-DEFINE FIELD invited_at ON organization_members TYPE option<datetime> DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD role ON member_of TYPE string PERMISSIONS FULL;  -- "owner", "admin", "member"
+DEFINE FIELD permissions ON member_of TYPE array<string> DEFAULT [] PERMISSIONS FULL;  -- Array of permission strings
+DEFINE FIELD joined_at ON member_of TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD invitation_status ON member_of TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined"
+DEFINE FIELD invited_by ON member_of TYPE option<record<person>> PERMISSIONS FULL;
+DEFINE FIELD invited_at ON member_of TYPE option<datetime> DEFAULT time::now() PERMISSIONS FULL;
 
-DEFINE INDEX idx_org_members_unique ON organization_members FIELDS in, out UNIQUE;
+DEFINE INDEX idx_member_of_unique ON member_of FIELDS in, out UNIQUE;
 
--- ------------------------------
--- TABLE: owns
--- ------------------------------
-
-DEFINE TABLE owns TYPE RELATION FROM person|organization TO organization|production SCHEMAFULL PERMISSIONS NONE;
-
-DEFINE FIELD ownership_type ON owns TYPE option<string> PERMISSIONS FULL;  -- From ownership_type
-DEFINE FIELD percentage ON owns TYPE option<float> PERMISSIONS FULL;
-DEFINE FIELD start_date ON owns TYPE datetime PERMISSIONS FULL;
-DEFINE FIELD end_date ON owns TYPE option<datetime> PERMISSIONS FULL;
-DEFINE FIELD timestamp ON owns TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
 
 -- ------------------------------
 -- TABLE: person
