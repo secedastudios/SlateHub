@@ -826,12 +826,91 @@ button:disabled,
 - [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
 - [CSS Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties)
 - [Modern CSS Solutions](https://moderncss.dev/)
+- [CSS Variables](/static/css/base/variables.css) - Design system tokens
+- [Form Styles](/static/css/components/forms.css) - Form component patterns
 
 ## Version History
 
 - **v2.0.0** - Complete rewrite with standardized naming conventions
 - **v1.0.0** - Initial guidelines
 
+## Implementation Status
+
+### Templates Standardized
+- ✅ login.html - Standardized auth form structure
+- ✅ signup.html - Consistent with login pattern
+- ✅ index.html - Homepage with semantic sections
+- ✅ partials/footer.html - Standardized footer partial
+- ⬜ partials/header.html
+- ⬜ profile.html
+- ⬜ profile_edit.html
+- ⬜ projects.html
+- ⬜ people.html
+- ⬜ equipment/*.html
+- ⬜ organizations/*.html
+- ⬜ errors/*.html
+- ⬜ about.html
+
+### CSS Files Created/Updated
+- ✅ base/variables.css - Design system tokens
+- ✅ components/forms.css - Form component patterns
+- ⬜ components/cards.css
+- ⬜ components/buttons.css
+- ⬜ components/navigation.css
+- ⬜ layout/header.css
+- ⬜ layout/footer.css
+- ⬜ themes/light.css
+- ⬜ themes/dark.css
+
+## Standardization Examples
+
+### Before (Inconsistent)
+```html
+<div class="card">
+    <h2 class="card-title">Title</h2>
+    <div class="card-body">Content</div>
+</div>
+
+<section data-features="true">
+    <div data-actions="hero">
+```
+
+### After (Standardized)
+```html
+<article id="project-123" data-component="project-card" data-status="active">
+    <header data-role="card-header">
+        <h2 id="project-title-123">Title</h2>
+    </header>
+    <div data-role="card-body">Content</div>
+</article>
+
+<section id="section-features" data-section="features">
+    <nav id="hero-actions" data-role="hero-actions">
+```
+
+## Maintenance Guidelines
+
+### Adding New Components
+1. Use consistent ID naming: `[context]-[element]-[purpose]`
+2. Add appropriate data attributes for styling hooks
+3. Include proper ARIA attributes for accessibility
+4. Document the pattern in this guide
+5. Create corresponding CSS using semantic selectors
+
+### Modifying Existing Components
+1. Never add CSS classes for styling
+2. Maintain existing ID and data-attribute patterns
+3. Update documentation if patterns change
+4. Test all themes after changes
+5. Ensure backward compatibility
+
+### Creating New Pages
+1. Extend the base layout template
+2. Set the `data-page` attribute on body
+3. Use consistent section IDs: `#section-[name]`
+4. Follow established patterns for forms, cards, etc.
+5. Create page-specific CSS in `/pages/` directory
+
 ---
 
-*Last updated: 2024*
+*Last updated: 2024 - Living document, update as patterns evolve*
