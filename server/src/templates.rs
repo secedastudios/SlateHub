@@ -128,7 +128,7 @@ pub struct IndexTemplate {
     pub version: String,
     pub active_page: String,
     pub user: Option<User>,
-    pub project_count: u32,
+    pub production_count: u32,
     pub user_count: u32,
     pub connection_count: u32,
     pub activities: Vec<Activity>,
@@ -235,29 +235,112 @@ pub struct ProfileEditTemplate {
     pub success: Option<String>,
 }
 
-/// Projects page template
+/// Productions page template
 #[derive(Template)]
-#[template(path = "projects.html")]
-pub struct ProjectsTemplate {
+#[template(path = "productions.html")]
+pub struct ProductionsTemplate {
     pub app_name: String,
     pub year: i32,
     pub version: String,
     pub active_page: String,
     pub user: Option<User>,
-    pub projects: Vec<Project>,
+    pub productions: Vec<Production>,
     pub filter: Option<String>,
     pub sort_by: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Project {
+pub struct Production {
     pub id: String,
+    pub slug: String,
     pub title: String,
     pub description: String,
     pub status: String,
+    pub production_type: String,
     pub created_at: String,
     pub owner: String,
     pub tags: Vec<String>,
+}
+
+/// Single production view template
+#[derive(Template)]
+#[template(path = "production.html")]
+pub struct ProductionTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub production: ProductionDetail,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductionDetail {
+    pub id: String,
+    pub slug: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub status: String,
+    pub production_type: String,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub location: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub members: Vec<ProductionMemberView>,
+    pub can_edit: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductionMemberView {
+    pub id: String,
+    pub name: String,
+    pub username: Option<String>,
+    pub slug: Option<String>,
+    pub role: String,
+    pub member_type: String,
+}
+
+/// Production create form template
+#[derive(Template)]
+#[template(path = "production_create.html")]
+pub struct ProductionCreateTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub production_types: Vec<String>,
+    pub production_statuses: Vec<String>,
+    pub errors: Option<Vec<String>>,
+}
+
+/// Production edit form template
+#[derive(Template)]
+#[template(path = "production_edit.html")]
+pub struct ProductionEditTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub production: ProductionEditData,
+    pub production_types: Vec<String>,
+    pub production_statuses: Vec<String>,
+    pub errors: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductionEditData {
+    pub id: String,
+    pub slug: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub status: String,
+    pub production_type: String,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub location: Option<String>,
 }
 
 /// People page template
@@ -495,7 +578,7 @@ impl IndexTemplate {
             version: base.version,
             active_page: base.active_page,
             user: base.user,
-            project_count: 0,
+            production_count: 0,
             user_count: 0,
             connection_count: 0,
             activities: vec![],
@@ -530,7 +613,7 @@ impl SignupTemplate {
     }
 }
 
-impl ProjectsTemplate {
+impl ProductionsTemplate {
     pub fn new(base: BaseContext) -> Self {
         Self {
             app_name: base.app_name,
@@ -538,7 +621,7 @@ impl ProjectsTemplate {
             version: base.version,
             active_page: base.active_page,
             user: base.user,
-            projects: vec![],
+            productions: vec![],
             filter: None,
             sort_by: "recent".to_string(),
         }

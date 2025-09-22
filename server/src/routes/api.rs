@@ -52,7 +52,7 @@ async fn health_check() -> impl IntoResponse {
 
 #[derive(Serialize)]
 struct PlatformStats {
-    projects: usize,
+    productions: usize,
     users: usize,
     connections: usize,
 }
@@ -62,12 +62,12 @@ async fn stats() -> impl IntoResponse {
     debug!("Stats endpoint called");
 
     // Use the System model to get actual counts
-    let projects = System::count_records("production").await.unwrap_or(0);
+    let productions = System::count_records("production").await.unwrap_or(0);
     let users = System::count_records("person").await.unwrap_or(0);
     let connections = System::count_records("involvement").await.unwrap_or(0);
 
     let stats = PlatformStats {
-        projects,
+        productions,
         users,
         connections,
     };

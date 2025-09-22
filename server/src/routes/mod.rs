@@ -14,6 +14,7 @@ mod equipment;
 mod media;
 mod organizations;
 mod pages;
+mod productions;
 mod profile;
 mod public_profiles;
 
@@ -31,6 +32,8 @@ pub fn app() -> Router {
         .merge(auth::router())
         // Mount organizations routes
         .merge(organizations::router())
+        // Mount productions routes
+        .merge(productions::router())
         // Mount equipment routes
         .merge(equipment::router())
         // Mount profile routes

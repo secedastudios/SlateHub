@@ -1,0 +1,242 @@
+{% extends "_layout.html" %}
+{% block title %}Productions - {{ app_name }}{% endblock %}
+{% block page_name %}productions{% endblock %}
+{% block content %}
+<section id="productions-main" data-component="productions-page">
+    <header id="productions-header" data-role="page-header">
+        <h1 id="heading-productions">Productions</h1>
+        <p data-role="subtitle">
+            Discover film and media productions seeking collaborators
+        </p>
+    </header>
+
+    <section id="section-controls" data-section="controls">
+        <div id="productions-search" data-component="search-bar">
+            <form
+                id="form-search-productions"
+                method="get"
+                action="/productions"
+                data-component="form"
+            >
+                <fieldset id="fieldset-search" data-role="search-section">
+                    <legend hidden>Search Productions</legend>
+
+                    <div id="field-search" data-field="search">
+                        <label for="input-search" hidden>Search productions</label>
+                        <input
+                            type="search"
+                            id="input-search"
+                            name="filter"
+                            placeholder="Search productions by title, description, or tags..."
+                            value="{% if filter.is_some() %}{{ filter.as_ref().unwrap() }}{% endif %}"
+                            aria-label="Search productions"
+                            aria-describedby="help-search"
+                        />
+                        <small id="help-search" data-role="help-text" hidden>
+                            Enter keywords to search for productions
+                        </small>
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="button-search"
+                        data-type="primary"
+                    >
+                        <span data-role="button-text">Search</span>
+                    </button>
+                </fieldset>
+            </form>
+        </div>
+
+        <div id="productions-sort" data-component="sort-controls">
+            <div id="field-sort" data-field="sort">
+                <label for="select-sort">Sort by:</label>
+                <select
+                    id="select-sort"
+                    name="sort"
+                    onchange="updateSort(this.value)"
+                    aria-label="Sort productions"
+                    aria-describedby="help-sort"
+                >
+                    <option value="recent" {% if sort_by == "recent" %}selected{% endif %}>
+                        Most Recent
+                    </option>
+                    <option value="title" {% if sort_by == "title" %}selected{% endif %}>
+                        Title
+                    </option>
+                    <option value="status" {% if sort_by == "status" %}selected{% endif %}>
+                        Status
+                    </option>
+                </select>
+                <small id="help-sort" data-role="help-text" hidden>
+                    Choose how to order the production list
+                </small>
+            </div>
+        </div>
+    </section>
+
+    <section
+        id="section-productions-list"
+        data-section="productions-list"
+        data-layout="grid"
+        data-state="{% if productions.is_empty() %}empty{% else %}ready{% endif %}"
+        aria-labelledby="heading-productions"
+    >
+        {% if !productions.is_empty() %}
+        <h2 id="heading-productions-results" hidden>Production Results</h2>
+        <div id="productions-container" data-role="content-container">
+            {% for production in productions %}
+            <article
+                id="production-{{ production.slug }}"
+                data-component="production-card"
+                data-status="{{ production.status }}"
+                data-production-id="{{ production.id }}"
+            >
+                <header data-role="card-header">
+                    <h3 id="production-title-{{ production.slug }}">
+                        <a
+                            href="/productions/{{ production.slug }}"
+                            id="link-production-{{ production.slug }}"
+                        >
+                            {{ production.title }}
+                        </a>
+                    </h3>
+                    <span
+                        id="production-status-{{ production.slug }}"
+                        data-role="status-badge"
+                        data-status="{{ production.status }}"
+                    >
+                        {{ production.status }}
+                    </span>
+                    <span
+                        id="production-type-{{ production.slug }}"
+                        data-role="type-badge"
+                        data-type="{{ production.production_type }}"
+                    >
+                        {{ production.production_type }}
+                    </span>
+                </header>
+
+                <div data-role="card-body">
+                    <p
+                        id="production-description-{{ production.slug }}"
+                        data-role="description"
+                    >
+                        {{ production.description }}
+                    </p>
+
+                    <dl
+                        id="production-metadata-{{ production.slug }}"
+                        data-role="metadata"
+                    >
+                        <dt id="label-owner-{{ production.slug }}">Owner</dt>
+                        <dd
+                            id="production-owner-{{ production.slug }}"
+                            data-field="owner"
+                        >
+                            {{ production.owner }}
+                        </dd>
+
+                        <dt id="label-created-{{ production.slug }}">Created</dt>
+                        <dd
+                            id="production-created-{{ production.slug }}"
+                            data-field="created-date"
+                        >
+                            <time datetime="{{ production.created_at }}">
+                                {{ production.created_at }}
+                            </time>
+                        </dd>
+                    </dl>
+
+                    {% if !production.tags.is_empty() %}
+                    <nav
+                        id="production-tags-{{ production.slug }}"
+                        data-role="tags-list"
+                        aria-label="Production tags"
+                    >
+                        <ul data-role="tag-list">
+                            {% for tag in production.tags %}
+                            <li
+                                id="tag-{{ production.slug }}-{{ loop.index }}"
+                                data-role="tag"
+                                data-tag="{{ tag }}"
+                            >
+                                {{ tag }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+
+                <footer data-role="card-footer">
+                    <nav
+                        id="production-actions-{{ production.slug }}"
+                        data-role="card-actions"
+                        aria-label="Production actions"
+                    >
+                        <a
+                            href="/productions/{{ production.slug }}"
+                            id="button-view-production-{{ production.slug }}"
+                            role="button"
+                            data-type="primary"
+                            aria-label="View details for {{ production.title }}"
+                        >
+                            View Details
+                        </a>
+                    </nav>
+                </footer>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div
+            id="empty-state-productions"
+            data-role="empty-state"
+            data-state="empty"
+        >
+            <h2 id="heading-empty-productions">No productions found</h2>
+            <p id="empty-message-productions" data-role="empty-message">
+                {% if filter.is_some() %}
+                No productions match your search criteria. Try adjusting your filters or search terms.
+                {% else %}
+                Be the first to create a production! Start collaborating with creative professionals today.
+                {% endif %}
+            </p>
+            <nav
+                id="empty-actions-productions"
+                data-role="empty-state-actions"
+                aria-label="Empty state actions"
+            >
+                {% if filter.is_some() %}
+                <a
+                    href="/productions"
+                    id="link-clear-search"
+                    role="button"
+                    data-type="secondary"
+                >
+                    Clear Search
+                </a>
+                {% endif %}
+                <a
+                    href="/productions/new"
+                    id="link-create-production"
+                    role="button"
+                    data-type="primary"
+                >
+                    Create Production
+                </a>
+            </nav>
+        </div>
+        {% endif %}
+    </section>
+</section>
+
+<script>
+    function updateSort(value) {
+        const url = new URL(window.location);
+        url.searchParams.set("sort", value);
+        window.location.href = url.toString();
+    }
+</script>
+{% endblock %}

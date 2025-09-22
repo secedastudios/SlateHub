@@ -115,7 +115,7 @@ DEFINE FIELD uri ON media TYPE string PERMISSIONS FULL;
 DEFINE TABLE organization TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD name ON organization TYPE string PERMISSIONS FULL;
-DEFINE FIELD slug ON organization TYPE string VALUE string::slug($this.name) PERMISSIONS FULL;
+DEFINE FIELD slug ON organization TYPE string PERMISSIONS FULL;
 DEFINE FIELD type ON organization TYPE record<organization_type> PERMISSIONS FULL;
 DEFINE FIELD description ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD location ON organization TYPE option<string> PERMISSIONS FULL;  -- e.g., "Los Angeles, CA" for search
@@ -208,13 +208,15 @@ DEFINE INDEX idx_person_skills ON person FIELDS profile.skills;
 DEFINE TABLE production TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD title ON production TYPE string PERMISSIONS FULL;
-DEFINE FIELD slug ON production TYPE string VALUE string::slug($this.title) PERMISSIONS FULL;
+DEFINE FIELD slug ON production TYPE string PERMISSIONS FULL;
 DEFINE FIELD type ON production TYPE string PERMISSIONS FULL;  -- From production_type
 DEFINE FIELD status ON production TYPE string PERMISSIONS FULL;  -- From production_status
 DEFINE FIELD start_date ON production TYPE option<datetime> PERMISSIONS FULL;
 DEFINE FIELD end_date ON production TYPE option<datetime> PERMISSIONS FULL;
 DEFINE FIELD description ON production TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD location ON production TYPE option<string> PERMISSIONS FULL;  -- For job-related search
+DEFINE FIELD created_at ON production TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON production TYPE datetime VALUE time::now() PERMISSIONS FULL;
 
 -- ------------------------------
 -- RELATION: part_of (for production hierarchy, e.g., episode part_of season, season part_of series)
@@ -276,6 +278,7 @@ DEFINE FIELD applied_at ON application TYPE datetime DEFAULT time::now() PERMISS
 -- ------------------------------
 
 DEFINE INDEX idx_production_type ON production FIELDS type;
+DEFINE INDEX idx_production_slug ON production FIELDS slug UNIQUE;
 DEFINE INDEX idx_organization_type ON organization FIELDS type;
 DEFINE INDEX idx_involvement_role ON involvement FIELDS role;
 DEFINE INDEX idx_involvement_relation_type ON involvement FIELDS relation_type;

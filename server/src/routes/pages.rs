@@ -5,15 +5,12 @@ use tracing::{debug, error};
 use crate::{
     error::Error,
     middleware::UserExtractor,
-    templates::{
-        AboutTemplate, Activity, BaseContext, IndexTemplate, PeopleTemplate, ProjectsTemplate, User,
-    },
+    templates::{AboutTemplate, Activity, BaseContext, IndexTemplate, PeopleTemplate, User},
 };
 
 pub fn router() -> Router {
     Router::new()
         .route("/", get(index))
-        .route("/projects", get(projects))
         .route("/people", get(people))
         .route("/about", get(about))
 }
@@ -32,7 +29,7 @@ async fn index(request: Request) -> Result<Html<String>, Error> {
     let mut template = IndexTemplate::new(base);
 
     // Add static stats data (in production, fetch from database)
-    template.project_count = 1247;
+    template.production_count = 1247;
     template.user_count = 5892;
     template.connection_count = 18453;
 
@@ -40,7 +37,7 @@ async fn index(request: Request) -> Result<Html<String>, Error> {
     template.activities = vec![
         Activity {
             user: "Sarah Johnson".to_string(),
-            action: "created a new project".to_string(),
+            action: "created a new production".to_string(),
             time: "2 minutes ago".to_string(),
         },
         Activity {
@@ -67,29 +64,6 @@ async fn index(request: Request) -> Result<Html<String>, Error> {
 
     let html = template.render().map_err(|e| {
         error!("Failed to render index template: {}", e);
-        Error::template(e.to_string())
-    })?;
-
-    Ok(Html(html))
-}
-
-async fn projects(request: Request) -> Result<Html<String>, Error> {
-    debug!("Rendering projects page");
-
-    let mut base = BaseContext::new().with_page("projects");
-
-    // Add user to context if authenticated
-    if let Some(user) = request.get_user() {
-        base = base.with_user(User::from_session_user(&user).await);
-    }
-
-    let template = ProjectsTemplate::new(base);
-
-    // In production, you would fetch projects from the database here
-    // and populate template.projects
-
-    let html = template.render().map_err(|e| {
-        error!("Failed to render projects template: {}", e);
         Error::template(e.to_string())
     })?;
 

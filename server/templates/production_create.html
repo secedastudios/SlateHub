@@ -1,0 +1,228 @@
+{% extends "_layout.html" %}
+{% block title %}Create Production - {{ app_name }}{% endblock %}
+{% block page_name %}productions{% endblock %}
+{% block content %}
+<section id="section-production-create" data-component="production-form" data-type="create">
+    <header id="production-create-header" data-role="page-header">
+        <h1 id="heading-create-production">Create New Production</h1>
+        <p data-role="subtitle">
+            Start a new film or media production and build your team
+        </p>
+    </header>
+
+    {% if errors.is_some() %}
+    <div id="form-errors" role="alert" data-component="error-list" data-state="error">
+        <h2 id="heading-errors">Please correct the following errors:</h2>
+        <ul id="error-list" data-role="error-messages">
+            {% for error in errors.as_ref().unwrap() %}
+            <li id="error-{{ loop.index }}" data-role="error-item">{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form id="form-create-production" method="post" action="/productions/new" data-component="form">
+        <fieldset id="fieldset-basic-info" data-role="form-section">
+            <legend>Basic Information</legend>
+
+            <div id="field-title" data-field="title" data-required="true">
+                <label for="input-title">
+                    Production Title
+                    <span data-role="required-indicator" aria-label="required">*</span>
+                </label>
+                <input
+                    type="text"
+                    id="input-title"
+                    name="title"
+                    required
+                    aria-required="true"
+                    aria-describedby="help-title"
+                    placeholder="Enter the production title"
+                />
+                <small id="help-title" data-role="help-text">
+                    Choose a clear, descriptive title for your production
+                </small>
+            </div>
+
+            <div id="field-production-type" data-field="production-type" data-required="true">
+                <label for="select-production-type">
+                    Production Type
+                    <span data-role="required-indicator" aria-label="required">*</span>
+                </label>
+                <select
+                    id="select-production-type"
+                    name="production_type"
+                    required
+                    aria-required="true"
+                    aria-describedby="help-production-type"
+                >
+                    <option value="">-- Select Type --</option>
+                    {% for prod_type in production_types %}
+                    <option value="{{ prod_type }}">{{ prod_type }}</option>
+                    {% endfor %}
+                </select>
+                <small id="help-production-type" data-role="help-text">
+                    Select the type that best describes your production
+                </small>
+            </div>
+
+            <div id="field-status" data-field="status" data-required="true">
+                <label for="select-status">
+                    Production Status
+                    <span data-role="required-indicator" aria-label="required">*</span>
+                </label>
+                <select
+                    id="select-status"
+                    name="status"
+                    required
+                    aria-required="true"
+                    aria-describedby="help-status"
+                >
+                    <option value="">-- Select Status --</option>
+                    {% for status in production_statuses %}
+                    <option value="{{ status }}">{{ status }}</option>
+                    {% endfor %}
+                </select>
+                <small id="help-status" data-role="help-text">
+                    Current phase of the production
+                </small>
+            </div>
+        </fieldset>
+
+        <fieldset id="fieldset-details" data-role="form-section">
+            <legend>Production Details</legend>
+
+            <div id="field-description" data-field="description">
+                <label for="textarea-description">
+                    Description
+                </label>
+                <textarea
+                    id="textarea-description"
+                    name="description"
+                    rows="6"
+                    aria-describedby="help-description"
+                    placeholder="Describe your production, its goals, and what makes it unique..."
+                ></textarea>
+                <small id="help-description" data-role="help-text">
+                    Provide details about the production to attract the right collaborators
+                </small>
+            </div>
+
+            <div id="field-location" data-field="location">
+                <label for="input-location">
+                    Location
+                </label>
+                <input
+                    type="text"
+                    id="input-location"
+                    name="location"
+                    aria-describedby="help-location"
+                    placeholder="e.g., Los Angeles, CA"
+                />
+                <small id="help-location" data-role="help-text">
+                    Primary filming or production location
+                </small>
+            </div>
+        </fieldset>
+
+        <fieldset id="fieldset-schedule" data-role="form-section">
+            <legend>Schedule</legend>
+
+            <div id="field-start-date" data-field="start-date">
+                <label for="input-start-date">
+                    Start Date
+                </label>
+                <input
+                    type="date"
+                    id="input-start-date"
+                    name="start_date"
+                    aria-describedby="help-start-date"
+                />
+                <small id="help-start-date" data-role="help-text">
+                    When production is expected to begin
+                </small>
+            </div>
+
+            <div id="field-end-date" data-field="end-date">
+                <label for="input-end-date">
+                    End Date
+                </label>
+                <input
+                    type="date"
+                    id="input-end-date"
+                    name="end_date"
+                    aria-describedby="help-end-date"
+                />
+                <small id="help-end-date" data-role="help-text">
+                    Expected completion date
+                </small>
+            </div>
+        </fieldset>
+
+        <fieldset id="fieldset-ownership" data-role="form-section">
+            <legend>Ownership</legend>
+
+            <div id="field-create-as" data-field="create-as">
+                <label for="select-create-as">
+                    Create As
+                </label>
+                <select
+                    id="select-create-as"
+                    name="organization_id"
+                    aria-describedby="help-create-as"
+                >
+                    <option value="">Myself</option>
+                    <!-- TODO: Populate with user's organizations -->
+                </select>
+                <small id="help-create-as" data-role="help-text">
+                    Choose whether to create this production as yourself or on behalf of an organization
+                </small>
+            </div>
+        </fieldset>
+
+        <div id="form-actions" data-role="form-actions">
+            <a
+                href="/productions"
+                id="button-cancel"
+                role="button"
+                data-type="secondary"
+            >
+                Cancel
+            </a>
+            <button
+                type="submit"
+                id="button-submit-production"
+                data-type="primary"
+            >
+                Create Production
+            </button>
+        </div>
+    </form>
+</section>
+
+<script>
+    // Auto-validate dates
+    document.getElementById('input-end-date').addEventListener('change', function() {
+        const startDate = document.getElementById('input-start-date').value;
+        const endDate = this.value;
+
+        if (startDate && endDate && endDate < startDate) {
+            this.setCustomValidity('End date must be after start date');
+            this.reportValidity();
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+
+    document.getElementById('input-start-date').addEventListener('change', function() {
+        const endDate = document.getElementById('input-end-date').value;
+        const startDate = this.value;
+
+        if (startDate && endDate && endDate < startDate) {
+            document.getElementById('input-end-date').setCustomValidity('End date must be after start date');
+        } else {
+            document.getElementById('input-end-date').setCustomValidity('');
+        }
+    });
+</script>
+{% endblock %}
