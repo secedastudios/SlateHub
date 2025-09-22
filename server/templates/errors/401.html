@@ -2,74 +2,109 @@
 endblock %} {% block description %}You need to be signed in to access this
 page.{% endblock %} {% block page_name %}error-401{% endblock %} {% block
 content %}
-<section data-component="error-page" data-type="401">
-    <header data-role="error-header">
-        <h1 id="heading-error-401">401</h1>
-        <h2 id="heading-error-message">Unauthorized Access</h2>
+<article
+    id="error-401-main"
+    data-component="error-page"
+    data-error-code="401"
+    data-error-type="unauthorized"
+>
+    <header id="error-header" data-role="error-header">
+        <h1 id="heading-error-code">401</h1>
+        <h2 id="heading-error-title">Unauthorized Access</h2>
     </header>
 
-    <div data-role="error-body">
-        <p id="error-description">
+    <section id="section-error-details" data-section="error-details">
+        <p id="error-description" data-role="error-description">
             {% if message %} {{ message }} {% else %} You need to be signed in
             to access this page. Please log in with your account to continue. {%
             endif %}
         </p>
 
-        <div data-role="error-details">
+        {% if request_path or request_id %}
+        <dl id="error-metadata" data-role="error-metadata">
             {% if request_path %}
-            <p id="error-path">
-                <strong>Requested path:</strong>
+            <dt id="label-request-path">Requested path</dt>
+            <dd id="detail-request-path" data-field="request-path">
                 <code>{{ request_path }}</code>
-            </p>
+            </dd>
             {% endif %} {% if request_id %}
-            <p id="error-request-id">
-                <strong>Request ID:</strong>
+            <dt id="label-request-id">Request ID</dt>
+            <dd id="detail-request-id" data-field="request-id">
                 <code>{{ request_id }}</code>
-            </p>
+            </dd>
             {% endif %}
-        </div>
+        </dl>
+        {% endif %}
 
-        <nav data-role="error-actions">
+        <nav
+            id="error-actions"
+            data-role="error-actions"
+            aria-label="Error recovery actions"
+        >
             <a
                 href="/login?redirect={{ request_path | default(value='/') }}"
+                id="link-error-login"
                 role="button"
                 data-type="primary"
+                aria-label="Sign in to your account"
             >
-                <span aria-hidden="true">🔑</span> Sign In
+                <span aria-hidden="true" data-role="icon">🔑</span>
+                <span data-role="button-text">Sign In</span>
             </a>
 
-            <a href="/signup" role="button" data-type="secondary">
-                <span aria-hidden="true">✨</span> Create Account
+            <a
+                href="/signup"
+                id="link-error-signup"
+                role="button"
+                data-type="secondary"
+                aria-label="Create a new account"
+            >
+                <span aria-hidden="true" data-role="icon">✨</span>
+                <span data-role="button-text">Create Account</span>
             </a>
 
-            <a href="/" role="button" data-type="secondary">
-                <span aria-hidden="true">🏠</span> Go to Homepage
+            <a
+                href="/"
+                id="link-error-home"
+                role="button"
+                data-type="secondary"
+                aria-label="Go to homepage"
+            >
+                <span aria-hidden="true" data-role="icon">🏠</span>
+                <span data-role="button-text">Go to Homepage</span>
             </a>
         </nav>
 
-        <div data-role="error-info">
-            <details data-component="help-details">
-                <summary>Why am I seeing this?</summary>
-                <div data-role="details-content">
-                    <p>This error appears when:</p>
-                    <ul>
-                        <li>Your session has expired</li>
-                        <li>You haven't signed in yet</li>
-                        <li>You logged out from another tab or device</li>
-                        <li>Your authentication token is invalid</li>
-                    </ul>
-                </div>
-            </details>
-        </div>
-    </div>
+        <details
+            id="error-help-details"
+            data-component="collapsible"
+            data-type="help"
+        >
+            <summary id="button-show-help" role="button">
+                Why am I seeing this?
+            </summary>
+            <div id="help-content" data-role="details-content">
+                <p id="help-explanation" data-role="help-text">
+                    This error appears when:
+                </p>
+                <ul id="help-reasons" data-role="reason-list">
+                    <li>Your session has expired</li>
+                    <li>You haven't signed in yet</li>
+                    <li>You logged out from another tab or device</li>
+                    <li>Your authentication token is invalid</li>
+                </ul>
+            </div>
+        </details>
+    </section>
 
-    <footer data-role="error-footer">
-        <div data-role="help-text">
-            <p>
-                If you continue to experience issues signing in, please contact
-                support.
+    <footer id="error-footer" data-role="error-footer">
+        <div id="error-help" data-role="help-section">
+            <p id="help-contact" data-role="help-text">
+                If you continue to experience issues signing in, please
+                <a href="/contact" id="link-contact-support">contact support</a
+                >.
             </p>
         </div>
     </footer>
-</section>
+</article>
 {% endblock %}

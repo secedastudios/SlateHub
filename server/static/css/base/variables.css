@@ -1,0 +1,335 @@
+/* =============================================================================
+   CSS Custom Properties - Design System Variables
+   ============================================================================= */
+
+/* Default theme (light) */
+:root {
+    /* ==========================================================================
+       Colors - Primary Palette
+       ========================================================================== */
+    --color-primary: #0172ad;
+    --color-primary-dark: #015a8a;
+    --color-primary-light: #39a1d0;
+    --color-primary-bg: #e6f4fa;
+
+    --color-secondary: #667eea;
+    --color-secondary-dark: #5469d4;
+    --color-secondary-light: #818cf8;
+    --color-secondary-bg: #eef2ff;
+
+    /* ==========================================================================
+       Colors - Semantic
+       ========================================================================== */
+    --color-success: #22c55e;
+    --color-success-dark: #16a34a;
+    --color-success-light: #4ade80;
+    --color-success-bg: #dcfce7;
+    --color-success-text: #14532d;
+
+    --color-warning: #f59e0b;
+    --color-warning-dark: #d97706;
+    --color-warning-light: #fbbf24;
+    --color-warning-bg: #fef3c7;
+    --color-warning-text: #78350f;
+
+    --color-danger: #ef4444;
+    --color-danger-dark: #dc2626;
+    --color-danger-light: #f87171;
+    --color-danger-bg: #fee2e2;
+    --color-danger-text: #7f1d1d;
+
+    --color-info: #3b82f6;
+    --color-info-dark: #2563eb;
+    --color-info-light: #60a5fa;
+    --color-info-bg: #dbeafe;
+    --color-info-text: #1e3a8a;
+
+    /* ==========================================================================
+       Colors - Neutrals
+       ========================================================================== */
+    --color-text: #1f2937;
+    --color-text-secondary: #4b5563;
+    --color-text-muted: #6b7280;
+    --color-text-disabled: #9ca3af;
+    --color-text-inverse: #ffffff;
+
+    --color-bg: #ffffff;
+    --color-bg-secondary: #f9fafb;
+    --color-bg-tertiary: #f3f4f6;
+    --color-bg-hover: #e5e7eb;
+    --color-bg-active: #d1d5db;
+
+    --color-border: #e5e7eb;
+    --color-border-secondary: #d1d5db;
+    --color-border-focus: var(--color-primary);
+
+    /* ==========================================================================
+       Typography
+       ========================================================================== */
+    --font-family-base: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-family-heading: var(--font-family-base);
+    --font-family-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+
+    --font-size-xs: 0.75rem;    /* 12px */
+    --font-size-sm: 0.875rem;   /* 14px */
+    --font-size-base: 1rem;     /* 16px */
+    --font-size-md: 1.125rem;   /* 18px */
+    --font-size-lg: 1.25rem;    /* 20px */
+    --font-size-xl: 1.5rem;     /* 24px */
+    --font-size-2xl: 1.875rem;  /* 30px */
+    --font-size-3xl: 2.25rem;   /* 36px */
+    --font-size-4xl: 3rem;      /* 48px */
+
+    --font-weight-light: 300;
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --line-height-tight: 1.25;
+    --line-height-base: 1.5;
+    --line-height-relaxed: 1.75;
+    --line-height-loose: 2;
+
+    /* ==========================================================================
+       Spacing
+       ========================================================================== */
+    --spacing-xs: 0.25rem;   /* 4px */
+    --spacing-sm: 0.5rem;    /* 8px */
+    --spacing-md: 1rem;      /* 16px */
+    --spacing-lg: 1.5rem;    /* 24px */
+    --spacing-xl: 2rem;      /* 32px */
+    --spacing-2xl: 3rem;     /* 48px */
+    --spacing-3xl: 4rem;     /* 64px */
+    --spacing-4xl: 6rem;     /* 96px */
+
+    /* ==========================================================================
+       Layout
+       ========================================================================== */
+    --container-xs: 20rem;    /* 320px */
+    --container-sm: 24rem;    /* 384px */
+    --container-md: 28rem;    /* 448px */
+    --container-lg: 32rem;    /* 512px */
+    --container-xl: 36rem;    /* 576px */
+    --container-2xl: 42rem;   /* 672px */
+    --container-3xl: 48rem;   /* 768px */
+    --container-4xl: 56rem;   /* 896px */
+    --container-5xl: 64rem;   /* 1024px */
+    --container-6xl: 72rem;   /* 1152px */
+    --container-7xl: 80rem;   /* 1280px */
+
+    /* ==========================================================================
+       Borders
+       ========================================================================== */
+    --border-width: 1px;
+    --border-width-medium: 2px;
+    --border-width-thick: 3px;
+
+    --border-radius-none: 0;
+    --border-radius-sm: 0.125rem;   /* 2px */
+    --border-radius: 0.375rem;      /* 6px */
+    --border-radius-md: 0.5rem;     /* 8px */
+    --border-radius-lg: 0.75rem;    /* 12px */
+    --border-radius-xl: 1rem;       /* 16px */
+    --border-radius-2xl: 1.5rem;    /* 24px */
+    --border-radius-full: 9999px;
+
+    /* ==========================================================================
+       Shadows
+       ========================================================================== */
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-2xl: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+    --shadow-none: 0 0 #0000;
+
+    /* Focus shadow */
+    --shadow-focus: 0 0 0 3px rgba(1, 114, 173, 0.2);
+
+    /* ==========================================================================
+       Z-Index Scale
+       ========================================================================== */
+    --z-index-dropdown: 1000;
+    --z-index-sticky: 1020;
+    --z-index-fixed: 1030;
+    --z-index-modal-backdrop: 1040;
+    --z-index-modal: 1050;
+    --z-index-popover: 1060;
+    --z-index-tooltip: 1070;
+    --z-index-toast: 1080;
+
+    /* ==========================================================================
+       Transitions
+       ========================================================================== */
+    --transition-none: none;
+    --transition-all: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-colors: background-color, border-color, color, fill, stroke 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-opacity: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-shadow: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-transform: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    --duration-fast: 150ms;
+    --duration-base: 250ms;
+    --duration-slow: 350ms;
+    --duration-slower: 500ms;
+
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ==========================================================================
+       Component-specific Variables
+       ========================================================================== */
+
+    /* Forms */
+    --form-input-height: 2.75rem;
+    --form-input-padding-x: var(--spacing-md);
+    --form-input-padding-y: var(--spacing-sm);
+    --form-input-border-color: var(--color-border);
+    --form-input-bg: var(--color-bg);
+    --form-input-focus-border-color: var(--color-primary);
+    --form-input-focus-shadow: var(--shadow-focus);
+    --form-label-margin-bottom: var(--spacing-sm);
+    --form-help-text-color: var(--color-text-muted);
+    --form-error-color: var(--color-danger);
+
+    /* Buttons */
+    --button-padding-x: var(--spacing-lg);
+    --button-padding-y: var(--spacing-sm);
+    --button-font-weight: var(--font-weight-medium);
+    --button-border-radius: var(--border-radius);
+    --button-transition: var(--transition-all);
+
+    /* Cards */
+    --card-padding: var(--spacing-lg);
+    --card-bg: var(--color-bg);
+    --card-border-color: var(--color-border);
+    --card-border-radius: var(--border-radius-lg);
+    --card-shadow: var(--shadow-sm);
+    --card-shadow-hover: var(--shadow-md);
+
+    /* Navigation */
+    --nav-height: 4rem;
+    --nav-bg: var(--color-bg);
+    --nav-border-color: var(--color-border);
+    --nav-item-padding: var(--spacing-md);
+    --nav-link-color: var(--color-text-secondary);
+    --nav-link-hover-color: var(--color-primary);
+    --nav-link-active-color: var(--color-primary);
+
+    /* Modals */
+    --modal-bg: var(--color-bg);
+    --modal-padding: var(--spacing-xl);
+    --modal-border-radius: var(--border-radius-lg);
+    --modal-shadow: var(--shadow-2xl);
+    --modal-backdrop-bg: rgba(0, 0, 0, 0.5);
+
+    /* Tables */
+    --table-border-color: var(--color-border);
+    --table-row-hover-bg: var(--color-bg-secondary);
+    --table-cell-padding: var(--spacing-md);
+}
+
+/* =============================================================================
+   Dark Theme
+   ============================================================================= */
+[data-theme="dark"] {
+    /* Colors - Adjusted for dark theme */
+    --color-primary: #39a1c4;
+    --color-primary-dark: #2980a0;
+    --color-primary-light: #5ab8db;
+    --color-primary-bg: #0a2e42;
+
+    --color-secondary: #818cf8;
+    --color-secondary-dark: #667eea;
+    --color-secondary-light: #a5b4fc;
+    --color-secondary-bg: #1e1b4b;
+
+    /* Semantic colors for dark theme */
+    --color-success: #4ade80;
+    --color-success-dark: #22c55e;
+    --color-success-light: #86efac;
+    --color-success-bg: #052e16;
+    --color-success-text: #bbf7d0;
+
+    --color-warning: #fbbf24;
+    --color-warning-dark: #f59e0b;
+    --color-warning-light: #fcd34d;
+    --color-warning-bg: #451a03;
+    --color-warning-text: #fef3c7;
+
+    --color-danger: #f87171;
+    --color-danger-dark: #ef4444;
+    --color-danger-light: #fca5a5;
+    --color-danger-bg: #450a0a;
+    --color-danger-text: #fecaca;
+
+    --color-info: #60a5fa;
+    --color-info-dark: #3b82f6;
+    --color-info-light: #93c5fd;
+    --color-info-bg: #0c1e3d;
+    --color-info-text: #dbeafe;
+
+    /* Neutrals for dark theme */
+    --color-text: #f3f4f6;
+    --color-text-secondary: #d1d5db;
+    --color-text-muted: #9ca3af;
+    --color-text-disabled: #6b7280;
+    --color-text-inverse: #1f2937;
+
+    --color-bg: #111827;
+    --color-bg-secondary: #1f2937;
+    --color-bg-tertiary: #374151;
+    --color-bg-hover: #4b5563;
+    --color-bg-active: #6b7280;
+
+    --color-border: #374151;
+    --color-border-secondary: #4b5563;
+
+    /* Shadows for dark theme */
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    --shadow-2xl: 0 35px 60px -15px rgba(0, 0, 0, 0.7);
+    --shadow-focus: 0 0 0 3px rgba(57, 161, 196, 0.3);
+
+    /* Component adjustments for dark theme */
+    --form-input-bg: var(--color-bg-secondary);
+    --card-bg: var(--color-bg-secondary);
+    --nav-bg: var(--color-bg-secondary);
+    --modal-bg: var(--color-bg-secondary);
+    --modal-backdrop-bg: rgba(0, 0, 0, 0.8);
+    --table-row-hover-bg: var(--color-bg-tertiary);
+}
+
+/* =============================================================================
+   Media Query Variables
+   ============================================================================= */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --duration-fast: 0.01ms;
+        --duration-base: 0.01ms;
+        --duration-slow: 0.01ms;
+        --duration-slower: 0.01ms;
+    }
+}
+
+/* =============================================================================
+   Print Variables
+   ============================================================================= */
+@media print {
+    :root {
+        --color-primary: #000000;
+        --color-text: #000000;
+        --color-bg: #ffffff;
+        --color-border: #000000;
+        --shadow-none: none;
+    }
+}

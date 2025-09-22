@@ -2,14 +2,15 @@
 app_name }}{% endblock %} {% block description %}An error occurred while
 processing your request.{% endblock %} {% block page_name %}error-generic{%
 endblock %} {% block content %}
-<section
+<article
+    id="error-generic-main"
     data-component="error-page"
-    data-type="generic"
-    data-status="{{ status_code }}"
+    data-error-code="{{ status_code }}"
+    data-error-type="generic"
 >
-    <header data-role="error-header">
+    <header id="error-header" data-role="error-header">
         <h1 id="heading-error-code">{{ status_code }}</h1>
-        <h2 id="heading-error-message">
+        <h2 id="heading-error-title">
             {% if status_text %} {{ status_text }} {% elif status_code == 400 %}
             Bad Request {% elif status_code == 402 %} Payment Required {% elif
             status_code == 405 %} Method Not Allowed {% elif status_code == 408
@@ -24,8 +25,8 @@ endblock %} {% block content %}
         </h2>
     </header>
 
-    <div data-role="error-body">
-        <p id="error-description">
+    <section id="section-error-details" data-section="error-details">
+        <p id="error-description" data-role="error-description">
             {% if message %} {{ message }} {% elif status_code == 400 %} The
             request could not be understood or was missing required parameters.
             {% elif status_code == 402 %} This feature requires payment or an
@@ -50,108 +51,160 @@ endblock %} {% block content %}
             unexpected error occurred while processing your request. {% endif %}
         </p>
 
-        <div data-role="error-details">
+        <dl id="error-metadata" data-role="error-metadata">
             {% if request_path %}
-            <p id="error-path">
-                <strong>Requested path:</strong>
+            <dt id="label-request-path">Requested path</dt>
+            <dd id="detail-request-path" data-field="request-path">
                 <code>{{ request_path }}</code>
-            </p>
+            </dd>
             {% endif %} {% if request_id %}
-            <p id="error-request-id">
-                <strong>Request ID:</strong>
+            <dt id="label-request-id">Request ID</dt>
+            <dd id="detail-request-id" data-field="request-id">
                 <code>{{ request_id }}</code>
-            </p>
+            </dd>
             {% endif %} {% if timestamp %}
-            <p id="error-timestamp">
-                <strong>Timestamp:</strong>
+            <dt id="label-timestamp">Timestamp</dt>
+            <dd id="detail-timestamp" data-field="timestamp">
                 <time datetime="{{ timestamp }}">{{ timestamp }}</time>
-            </p>
-            {% endif %} {% if details %}
-            <div data-role="additional-details">
-                <details data-component="error-details">
-                    <summary>Additional Details</summary>
-                    <div data-role="details-content">
-                        <pre><code>{{ details }}</code></pre>
-                    </div>
-                </details>
-            </div>
+            </dd>
             {% endif %}
-        </div>
+        </dl>
 
-        <nav data-role="error-actions">
+        {% if details %}
+        <details id="error-additional-details" data-component="collapsible">
+            <summary id="button-show-details" role="button">
+                Additional Details
+            </summary>
+            <div id="details-content" data-role="details-content">
+                <pre id="error-details-text"><code>{{ details }}</code></pre>
+            </div>
+        </details>
+        {% endif %}
+
+        <nav
+            id="error-actions"
+            data-role="error-actions"
+            aria-label="Error recovery actions"
+        >
             {% if status_code == 429 %}
             <button
+                id="button-retry"
                 onclick="setTimeout(() => window.location.reload(), 3000)"
                 data-type="primary"
+                aria-label="Retry request in 3 seconds"
             >
-                <span aria-hidden="true">⏱️</span> Retry in 3 seconds...
+                <span aria-hidden="true" data-role="icon">⏱️</span>
+                <span data-role="button-text">Retry in 3 seconds...</span>
             </button>
             {% elif status_code >= 500 %}
-            <button onclick="window.location.reload()" data-type="primary">
-                <span aria-hidden="true">🔄</span> Try Again
+            <button
+                id="button-reload"
+                onclick="window.location.reload()"
+                data-type="primary"
+                aria-label="Reload the page"
+            >
+                <span aria-hidden="true" data-role="icon">🔄</span>
+                <span data-role="button-text">Try Again</span>
             </button>
             {% else %}
-            <button onclick="window.history.back()" data-type="primary">
-                <span aria-hidden="true">⬅️</span> Go Back
+            <button
+                id="button-back"
+                onclick="window.history.back()"
+                data-type="primary"
+                aria-label="Go back to previous page"
+            >
+                <span aria-hidden="true" data-role="icon">⬅️</span>
+                <span data-role="button-text">Go Back</span>
             </button>
             {% endif %}
 
-            <a href="/" role="button" data-type="secondary">
-                <span aria-hidden="true">🏠</span> Go to Homepage
+            <a
+                href="/"
+                id="link-error-home"
+                role="button"
+                data-type="secondary"
+                aria-label="Go to homepage"
+            >
+                <span aria-hidden="true" data-role="icon">🏠</span>
+                <span data-role="button-text">Go to Homepage</span>
             </a>
 
             {% if user.is_some() %}
-            <a href="/projects" role="button" data-type="secondary">
-                <span aria-hidden="true">📁</span> View Your Projects
+            <a
+                href="/projects"
+                id="link-error-projects"
+                role="button"
+                data-type="secondary"
+                aria-label="View your projects"
+            >
+                <span aria-hidden="true" data-role="icon">📁</span>
+                <span data-role="button-text">View Your Projects</span>
             </a>
             {% else %}
-            <a href="/login" role="button" data-type="secondary">
-                <span aria-hidden="true">🔑</span> Sign In
+            <a
+                href="/login"
+                id="link-error-login"
+                role="button"
+                data-type="secondary"
+                aria-label="Sign in to your account"
+            >
+                <span aria-hidden="true" data-role="icon">🔑</span>
+                <span data-role="button-text">Sign In</span>
             </a>
             {% endif %}
         </nav>
 
         {% if status_code == 422 and validation_errors %}
-        <div data-role="validation-errors">
-            <h3 id="heading-validation-errors">Validation Errors:</h3>
-            <ul data-role="error-list">
+        <section
+            id="section-validation-errors"
+            data-section="validation-errors"
+            aria-labelledby="heading-validation-errors"
+        >
+            <h3 id="heading-validation-errors">Validation Errors</h3>
+            <ul id="validation-errors-list" data-role="error-list" role="list">
                 {% for error in validation_errors %}
                 <li
+                    id="validation-error-{{ loop.index }}"
                     data-field="{% if error.field %}{{ error.field }}{% endif %}"
+                    data-role="error-item"
                 >
                     {% if error.field %}
-                    <strong>{{ error.field }}:</strong>
-                    {% endif %} {{ error.message }}
+                    <strong data-role="field-name">{{ error.field }}:</strong>
+                    {% endif %}
+                    <span data-role="error-message">{{ error.message }}</span>
                 </li>
                 {% endfor %}
             </ul>
-        </div>
+        </section>
         {% endif %} {% if retry_after %}
-        <div data-role="retry-info">
-            <p id="retry-message">
-                Please wait <strong>{{ retry_after }}</strong> seconds before
-                retrying.
+        <div id="retry-info" data-role="retry-info">
+            <p id="retry-message" data-role="retry-message">
+                Please wait
+                <strong id="retry-duration">{{ retry_after }}</strong> seconds
+                before retrying.
             </p>
         </div>
         {% endif %}
-    </div>
+    </section>
 
-    <footer data-role="error-footer">
-        <div data-role="help-text">
+    <footer id="error-footer" data-role="error-footer">
+        <div id="error-help" data-role="help-section">
             {% if status_code >= 500 %}
-            <p>
+            <p id="help-apology" data-role="help-text">
                 We apologize for the inconvenience. Our team has been notified
                 and is working to resolve the issue.
             </p>
             {% endif %}
-            <p>
-                If you continue to experience problems, please contact support
-                with the request ID above.
+            <p id="help-contact" data-role="help-text">
+                If you continue to experience problems, please
+                <a href="/contact" id="link-contact-support">contact support</a>
+                {% if request_id %}with request ID
+                <code>{{ request_id }}</code>{% endif %}.
             </p>
         </div>
     </footer>
-</section>
-{% endblock %} {% block scripts %}
+</article>
+
 <script>
     // Auto-reload for rate limiting
     {% if status_code == 429 and retry_after %}

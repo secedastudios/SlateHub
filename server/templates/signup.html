@@ -1,10 +1,10 @@
 {% extends "_layout.html" %} {% block title %}Sign Up - {{ app_name }}{%
 endblock %} {% block page_name %}signup{% endblock %} {% block content %}
-<section data-component="auth-form" data-type="signup">
-    <header data-role="form-header">
+<section id="section-signup" data-component="auth-form" data-type="signup">
+    <header id="signup-header" data-role="form-header">
         <hgroup>
             <h1 id="heading-signup">Join {{ app_name }}</h1>
-            <p>
+            <p data-role="subtitle">
                 Create your account and start connecting with the entertainment
                 industry
             </p>
@@ -13,18 +13,27 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
 
     {% match error %} {% when Some with (err) %}
     <div
-        id="error-signup"
+        id="alert-signup-error"
         role="alert"
         aria-live="polite"
-        data-role="error-message"
+        data-component="alert"
+        data-type="error"
     >
         {{ err }}
     </div>
     {% when None %} {% endmatch %}
 
-    <form id="form-signup" data-component="form" method="post" action="/signup">
-        <fieldset data-role="form-section">
-            <div data-field="username">
+    <form
+        id="form-signup"
+        method="post"
+        action="/signup"
+        data-component="form"
+        data-state="ready"
+    >
+        <fieldset id="fieldset-account" data-role="form-section">
+            <legend hidden>Account Information</legend>
+
+            <div id="field-username" data-field="username">
                 <label for="input-username">Username</label>
                 <input
                     type="text"
@@ -46,21 +55,23 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
                     (_)
                     %}
                     aria-invalid="true"
+                    aria-describedby="alert-signup-error help-username"
                     {%
                     when
                     None
                     %}
                     aria-invalid="false"
+                    aria-describedby="help-username"
                     {%
                     endmatch
                     %}
                 />
-                <small id="help-username" data-role="help-text" hidden>
+                <small id="help-username" data-role="help-text">
                     Your unique username for SlateHub
                 </small>
             </div>
 
-            <div data-field="email">
+            <div id="field-email" data-field="email">
                 <label for="input-email">Email Address</label>
                 <input
                     type="email"
@@ -81,21 +92,23 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
                     (_)
                     %}
                     aria-invalid="true"
+                    aria-describedby="alert-signup-error help-email"
                     {%
                     when
                     None
                     %}
                     aria-invalid="false"
+                    aria-describedby="help-email"
                     {%
                     endmatch
                     %}
                 />
-                <small id="help-email" data-role="help-text" hidden>
+                <small id="help-email" data-role="help-text">
                     We'll use this for account notifications
                 </small>
             </div>
 
-            <div data-field="password">
+            <div id="field-password" data-field="password">
                 <label for="input-password">Password</label>
                 <input
                     type="password"
@@ -117,21 +130,23 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
                     (_)
                     %}
                     aria-invalid="true"
+                    aria-describedby="alert-signup-error help-password"
                     {%
                     when
                     None
                     %}
                     aria-invalid="false"
+                    aria-describedby="help-password"
                     {%
                     endmatch
                     %}
                 />
-                <small id="help-password" data-role="help-text" hidden>
+                <small id="help-password" data-role="help-text">
                     Must be at least 8 characters long
                 </small>
             </div>
 
-            <div data-field="confirm-password">
+            <div id="field-confirm-password" data-field="confirm-password">
                 <label for="input-confirm-password">Confirm Password</label>
                 <input
                     type="password"
@@ -153,21 +168,23 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
                     (_)
                     %}
                     aria-invalid="true"
+                    aria-describedby="alert-signup-error help-confirm-password"
                     {%
                     when
                     None
                     %}
                     aria-invalid="false"
+                    aria-describedby="help-confirm-password"
                     {%
                     endmatch
                     %}
                 />
-                <small id="help-confirm-password" data-role="help-text" hidden>
+                <small id="help-confirm-password" data-role="help-text">
                     Enter the same password again
                 </small>
             </div>
 
-            <div data-field="terms">
+            <div id="field-terms" data-field="terms">
                 <label for="input-terms">
                     <input
                         type="checkbox"
@@ -175,21 +192,37 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
                         name="terms"
                         required
                         aria-required="true"
+                        aria-describedby="help-terms"
                     />
                     I agree to the
-                    <a href="/terms" target="_blank" rel="noopener"
-                        >Terms of Service</a
+                    <a
+                        href="/terms"
+                        id="link-terms"
+                        target="_blank"
+                        rel="noopener"
                     >
+                        Terms of Service
+                    </a>
                     and
-                    <a href="/privacy" target="_blank" rel="noopener"
-                        >Privacy Policy</a
+                    <a
+                        href="/privacy"
+                        id="link-privacy"
+                        target="_blank"
+                        rel="noopener"
                     >
+                        Privacy Policy
+                    </a>
                 </label>
+                <small id="help-terms" data-role="help-text" hidden>
+                    You must agree to the terms to create an account
+                </small>
             </div>
         </fieldset>
 
-        <div data-role="form-actions">
-            <button type="submit" data-type="primary">Create Account</button>
+        <div id="signup-actions" data-role="form-actions">
+            <button type="submit" id="button-submit-signup" data-type="primary">
+                Create Account
+            </button>
         </div>
 
         <nav
@@ -197,9 +230,9 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
             aria-label="Signup alternatives"
             data-role="form-footer"
         >
-            <p>
+            <p data-role="text">
                 Already have an account?
-                <a href="/login">Log in</a>
+                <a href="/login" id="link-login">Log in</a>
             </p>
         </nav>
     </form>

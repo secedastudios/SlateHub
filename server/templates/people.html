@@ -3,44 +3,74 @@
 <section id="people-main" data-component="people-page">
     <header id="people-header" data-role="page-header">
         <h1 id="heading-people">People</h1>
-        <p>Connect with talented professionals in the film industry</p>
+        <p data-role="subtitle">
+            Connect with talented professionals in the film industry
+        </p>
     </header>
 
     <section id="section-controls" data-section="controls">
-        <div data-component="search-bar">
-            <form id="form-search-people" method="get" action="/people">
-                <div data-field="search">
-                    <label for="input-search" hidden>Search people</label>
-                    <input
-                        type="search"
-                        id="input-search"
-                        name="filter"
-                        placeholder="Search by name, skill, or location..."
-                        value="{% if filter.is_some() %}{{ filter.as_ref().unwrap() }}{% endif %}"
-                        aria-label="Search people"
-                    />
-                    <button type="submit" data-type="primary">
-                        <span>Search</span>
+        <div id="people-search" data-component="search-bar">
+            <form
+                id="form-search-people"
+                method="get"
+                action="/people"
+                data-component="form"
+            >
+                <fieldset id="fieldset-search" data-role="search-section">
+                    <legend hidden>Search People</legend>
+
+                    <div id="field-search" data-field="search">
+                        <label for="input-search" hidden>Search people</label>
+                        <input
+                            type="search"
+                            id="input-search"
+                            name="filter"
+                            placeholder="Search by name, skill, or location..."
+                            value="{% if filter.is_some() %}{{ filter.as_ref().unwrap() }}{% endif %}"
+                            aria-label="Search people"
+                            aria-describedby="help-search"
+                        />
+                        <small id="help-search" data-role="help-text" hidden>
+                            Enter keywords to search for people
+                        </small>
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="button-search"
+                        data-type="primary"
+                    >
+                        <span data-role="button-text">Search</span>
                     </button>
-                </div>
+                </fieldset>
             </form>
         </div>
 
         {% if !specialties.is_empty() %}
         <div id="specialty-filters" data-component="filter-tags">
-            <label id="label-specialties">Filter by specialty:</label>
-            <div data-role="tag-list" aria-labelledby="label-specialties">
-                {% for specialty in specialties %}
-                <button
-                    type="button"
-                    data-role="filter-tag"
-                    data-filter="{{ specialty }}"
-                    onclick="filterBySpecialty('{{ specialty }}')"
-                >
-                    {{ specialty }}
-                </button>
-                {% endfor %}
-            </div>
+            <h2 id="heading-specialties">Filter by specialty</h2>
+            <nav
+                id="nav-specialty-filters"
+                data-role="filter-navigation"
+                aria-labelledby="heading-specialties"
+            >
+                <ul id="specialty-list" data-role="tag-list">
+                    {% for specialty in specialties %}
+                    <li>
+                        <button
+                            type="button"
+                            id="filter-{{ loop.index }}"
+                            data-role="filter-tag"
+                            data-filter="{{ specialty }}"
+                            onclick="filterBySpecialty('{{ specialty }}')"
+                            aria-label="Filter by {{ specialty }}"
+                        >
+                            {{ specialty }}
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
         </div>
         {% endif %}
     </section>
@@ -50,37 +80,60 @@
         data-section="people-list"
         data-layout="grid"
         data-state="{% if people.is_empty() %}empty{% else %}ready{% endif %}"
+        aria-labelledby="heading-people"
     >
         {% if !people.is_empty() %}
-        <div data-role="content-container">
+        <h2 id="heading-people-results" hidden>People Results</h2>
+        <div id="people-container" data-role="content-container">
             {% for person in people %}
             <article
+                id="person-{{ person.id }}"
                 data-component="person-card"
                 data-person-id="{{ person.id }}"
                 data-username="{{ person.username }}"
             >
                 <header data-role="card-header">
-                    <img
-                        src="{{ person.avatar }}"
-                        alt="{{ person.name }}"
-                        data-role="avatar"
-                        width="80"
-                        height="80"
-                    />
-                    <div data-role="person-info">
-                        <h2 id="person-name-{{ person.id }}">
-                            <a href="/profile/{{ person.username }}">
+                    <div
+                        id="person-avatar-{{ person.id }}"
+                        data-role="avatar-container"
+                    >
+                        <img
+                            src="{{ person.avatar }}"
+                            alt="{{ person.name }}'s avatar"
+                            data-role="avatar"
+                            width="80"
+                            height="80"
+                        />
+                    </div>
+                    <div
+                        id="person-info-{{ person.id }}"
+                        data-role="person-info"
+                    >
+                        <h3 id="person-name-{{ person.id }}">
+                            <a
+                                href="/profile/{{ person.username }}"
+                                id="link-person-{{ person.id }}"
+                                aria-label="View {{ person.name }}'s profile"
+                            >
                                 {{ person.name }}
                             </a>
-                        </h2>
+                        </h3>
                         {% if person.headline.is_some() %}
-                        <p data-role="headline">
+                        <p
+                            id="person-headline-{{ person.id }}"
+                            data-role="headline"
+                        >
                             {{ person.headline.as_ref().unwrap() }}
                         </p>
                         {% endif %} {% if person.location.is_some() %}
-                        <p data-role="location">
-                            <span aria-hidden="true">📍</span>
-                            <span>{{ person.location.as_ref().unwrap() }}</span>
+                        <p
+                            id="person-location-{{ person.id }}"
+                            data-role="location"
+                        >
+                            <span aria-hidden="true" data-role="icon">📍</span>
+                            <span data-role="location-text">
+                                {{ person.location.as_ref().unwrap() }}
+                            </span>
                         </p>
                         {% endif %}
                     </div>
@@ -88,35 +141,53 @@
 
                 <div data-role="card-body">
                     {% if person.bio.is_some() %}
-                    <div data-role="bio">
+                    <div id="person-bio-{{ person.id }}" data-role="bio">
                         <p>{{ person.bio.as_ref().unwrap() }}</p>
                     </div>
                     {% endif %} {% if !person.skills.is_empty() %}
-                    <div data-role="skills-list">
-                        {% for skill in person.skills %}
-                        <span data-role="skill-tag" data-skill="{{ skill }}">
-                            {{ skill }}
-                        </span>
-                        {% endfor %}
-                    </div>
+                    <nav
+                        id="person-skills-{{ person.id }}"
+                        data-role="skills-list"
+                        aria-label="{{ person.name }}'s skills"
+                    >
+                        <ul data-role="skill-list">
+                            {% for skill in person.skills %}
+                            <li
+                                id="skill-{{ person.id }}-{{ loop.index }}"
+                                data-role="skill-tag"
+                                data-skill="{{ skill }}"
+                            >
+                                {{ skill }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </nav>
                     {% endif %}
                 </div>
 
                 <footer data-role="card-footer">
-                    <nav data-role="card-actions">
+                    <nav
+                        id="person-actions-{{ person.id }}"
+                        data-role="card-actions"
+                        aria-label="Actions for {{ person.name }}"
+                    >
                         <a
                             href="/profile/{{ person.username }}"
+                            id="button-view-person-{{ person.id }}"
                             role="button"
                             data-type="primary"
+                            aria-label="View {{ person.name }}'s full profile"
                         >
                             View Profile
                         </a>
                         <button
                             type="button"
+                            id="button-message-{{ person.id }}"
                             data-type="secondary"
                             data-action="message"
                             data-person-id="{{ person.id }}"
                             onclick="sendMessage('{{ person.id }}')"
+                            aria-label="Send message to {{ person.name }}"
                         >
                             Message
                         </button>
@@ -126,18 +197,35 @@
             {% endfor %}
         </div>
         {% else %}
-        <div id="empty-state-people" data-role="empty-state">
-            <h2 id="heading-empty">No people found</h2>
-            {% if filter.is_some() %}
-            <p>
-                No people match your search criteria. Try adjusting your
-                filters.
+        <div id="empty-state-people" data-role="empty-state" data-state="empty">
+            <h2 id="heading-empty-people">No people found</h2>
+            <p id="empty-message-people" data-role="empty-message">
+                {% if filter.is_some() %} No people match your search criteria.
+                Try adjusting your filters or search terms. {% else %} Be the
+                first to join our community! Connect with other creative
+                professionals. {% endif %}
             </p>
-            {% else %}
-            <p>Be the first to join our community!</p>
-            {% endif %}
-            <nav data-role="empty-state-actions">
-                <a href="/signup" role="button" data-type="primary">
+            <nav
+                id="empty-actions-people"
+                data-role="empty-state-actions"
+                aria-label="Empty state actions"
+            >
+                {% if filter.is_some() %}
+                <a
+                    href="/people"
+                    id="link-clear-search"
+                    role="button"
+                    data-type="secondary"
+                >
+                    Clear Search
+                </a>
+                {% endif %}
+                <a
+                    href="/signup"
+                    id="link-join-now"
+                    role="button"
+                    data-type="primary"
+                >
                     Join Now
                 </a>
             </nav>

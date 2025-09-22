@@ -7,22 +7,27 @@
     data-component="profile"
     data-user-id="{{ profile.id }}"
     data-username="{{ profile.username }}"
+    data-profile-type="{% if profile.is_own_profile %}own{% else %}public{% endif %}"
 >
     <header id="profile-header" data-role="profile-header">
-        <div data-component="profile-header-main">
-            <div data-role="avatar-container">
+        <div id="profile-header-main" data-role="header-content">
+            <div id="profile-avatar-container" data-role="avatar-container">
                 {% if profile.avatar.is_some() %}
                 <img
                     src="{{ profile.avatar.as_ref().unwrap() }}"
                     alt="{{ profile.name }}'s avatar"
+                    id="profile-avatar"
                     data-role="avatar"
                 />
                 {% else %}
-                <div data-role="avatar-initials">{{ profile.initials }}</div>
+                <div id="profile-avatar-initials" data-role="avatar-initials">
+                    {{ profile.initials }}
+                </div>
                 {% endif %}
             </div>
-            <div data-role="profile-info">
-                <h1 id="profile-name">{{ profile.name }}</h1>
+
+            <div id="profile-info" data-role="profile-info">
+                <h1 id="heading-profile-name">{{ profile.name }}</h1>
 
                 {% if profile.headline.is_some() %}
                 <p id="profile-headline" data-role="headline">
@@ -31,23 +36,29 @@
                 {% endif %}
             </div>
         </div>
+
         {% if profile.is_own_profile %}
         <nav
             id="profile-actions"
-            aria-label="Profile actions"
             data-role="profile-actions"
+            aria-label="Profile actions"
         >
-            <a href="/profile/edit" role="button" data-type="primary"
-                >Edit Profile</a
+            <a
+                href="/profile/edit"
+                id="link-edit-profile"
+                role="button"
+                data-type="primary"
             >
+                Edit Profile
+            </a>
         </nav>
         {% endif %}
     </header>
 
     <section
         id="section-about"
-        aria-labelledby="heading-about"
         data-section="about"
+        aria-labelledby="heading-about"
     >
         <h2 id="heading-about">About</h2>
 
@@ -59,141 +70,173 @@
 
         <dl id="profile-details" data-role="details-list">
             {% if profile.location.is_some() %}
-            <dt>Location</dt>
-            <dd id="profile-location" data-field="location">
+            <dt id="label-location">Location</dt>
+            <dd id="detail-location" data-field="location">
                 {{ profile.location.as_ref().unwrap() }}
             </dd>
             {% endif %} {% if profile.website.is_some() %}
-            <dt>Website</dt>
-            <dd id="profile-website" data-field="website">
+            <dt id="label-website">Website</dt>
+            <dd id="detail-website" data-field="website">
                 <a
                     href="{{ profile.website.as_ref().unwrap() }}"
+                    id="link-profile-website"
                     target="_blank"
-                    rel="noopener"
+                    rel="noopener noreferrer"
+                    aria-label="Visit {{ profile.name }}'s website"
                 >
                     {{ profile.website.as_ref().unwrap() }}
                 </a>
             </dd>
             {% endif %} {% if profile.is_own_profile %}
-            <dt>Email</dt>
-            <dd id="profile-email" data-field="email" data-private="true">
+            <dt id="label-email">Email</dt>
+            <dd id="detail-email" data-field="email" data-private="true">
                 {{ profile.email }}
             </dd>
             {% endif %}
         </dl>
     </section>
 
-    {% if !profile.skills.is_empty() || !profile.languages.is_empty() %}
+    {% if !profile.skills.is_empty() || !profile.languages.is_empty() ||
+    profile.availability.is_some() %}
     <section
         id="section-professional"
-        aria-labelledby="heading-professional"
         data-section="professional"
+        aria-labelledby="heading-professional"
     >
         <h2 id="heading-professional">Professional Details</h2>
 
         {% if !profile.skills.is_empty() %}
-        <section
-            id="section-skills"
-            aria-labelledby="heading-skills"
+        <div
+            id="subsection-skills"
             data-subsection="skills"
+            aria-labelledby="heading-skills"
         >
             <h3 id="heading-skills">Skills</h3>
-            <ul id="profile-skills-list" data-role="skills-list">
+            <ul id="skills-list" data-role="skills-list" role="list">
                 {% for skill in profile.skills %}
-                <li data-skill="{{ skill }}">{{ skill }}</li>
+                <li
+                    id="skill-{{ loop.index }}"
+                    data-skill="{{ skill }}"
+                    data-role="skill-tag"
+                >
+                    {{ skill }}
+                </li>
                 {% endfor %}
             </ul>
-        </section>
+        </div>
         {% endif %} {% if !profile.languages.is_empty() %}
-        <section
-            id="section-languages"
-            aria-labelledby="heading-languages"
+        <div
+            id="subsection-languages"
             data-subsection="languages"
+            aria-labelledby="heading-languages"
         >
             <h3 id="heading-languages">Languages</h3>
-            <ul id="profile-languages-list" data-role="languages-list">
+            <ul id="languages-list" data-role="languages-list" role="list">
                 {% for language in profile.languages %}
-                <li data-language="{{ language }}">{{ language }}</li>
+                <li
+                    id="language-{{ loop.index }}"
+                    data-language="{{ language }}"
+                    data-role="language-tag"
+                >
+                    {{ language }}
+                </li>
                 {% endfor %}
             </ul>
-        </section>
+        </div>
         {% endif %} {% if profile.availability.is_some() %}
-        <section
-            id="section-availability"
-            aria-labelledby="heading-availability"
+        <div
+            id="subsection-availability"
             data-subsection="availability"
+            aria-labelledby="heading-availability"
         >
             <h3 id="heading-availability">Availability</h3>
             <p id="profile-availability" data-role="availability-status">
                 {{ profile.availability.as_ref().unwrap() }}
             </p>
-        </section>
+        </div>
         {% endif %}
     </section>
     {% endif %} {% if !profile.experience.is_empty() %}
     <section
         id="section-experience"
-        aria-labelledby="heading-experience"
         data-section="experience"
+        aria-labelledby="heading-experience"
     >
         <h2 id="heading-experience">Experience</h2>
-        <div data-role="experience-list">
+        <div id="experience-list" data-role="experience-list">
             {% for exp in profile.experience %}
-            <div
+            <article
+                id="experience-{{ loop.index }}"
                 data-component="experience-item"
                 data-experience-id="{{ loop.index }}"
             >
                 <header data-role="experience-header">
-                    <h3 id="experience-role-{{ loop.index }}">
+                    <h3 id="experience-title-{{ loop.index }}">
                         {{ exp.role }}
                     </h3>
+
                     {% if exp.production.is_some() %}
-                    <p data-role="production-name">
+                    <p
+                        id="experience-production-{{ loop.index }}"
+                        data-role="production-name"
+                    >
                         {{ exp.production.as_ref().unwrap() }}
                     </p>
                     {% endif %} {% if exp.dates.is_some() %} {% let dates =
                     exp.dates.as_ref().unwrap() %}
-                    <div data-role="date-range">
+                    <div
+                        id="experience-dates-{{ loop.index }}"
+                        data-role="date-range"
+                    >
                         {% if dates.start.is_some() %}
                         <time
                             datetime="{{ dates.start.as_ref().unwrap() }}"
                             data-role="start-date"
-                            >{{ dates.start.as_ref().unwrap() }}</time
+                        >
+                            {{ dates.start.as_ref().unwrap() }}
+                        </time>
+                        {% endif %} {% if dates.start.is_some() &&
+                        (dates.end.is_some() || !dates.end.is_some()) %}
+                        <span aria-hidden="true" data-role="date-separator"
+                            >–</span
                         >
                         {% endif %} {% if dates.end.is_some() %}
-                        <span aria-hidden="true">-</span>
                         <time
                             datetime="{{ dates.end.as_ref().unwrap() }}"
                             data-role="end-date"
-                            >{{ dates.end.as_ref().unwrap() }}</time
                         >
-                        {% else %}
-                        <span aria-hidden="true">-</span>
+                            {{ dates.end.as_ref().unwrap() }}
+                        </time>
+                        {% else %} {% if dates.start.is_some() %}
                         <span data-role="current-position">Present</span>
-                        {% endif %}
+                        {% endif %} {% endif %}
                     </div>
                     {% endif %}
                 </header>
 
                 {% if exp.description.is_some() %}
-                <div data-role="experience-description">
+                <div
+                    id="experience-description-{{ loop.index }}"
+                    data-role="experience-description"
+                >
                     <p>{{ exp.description.as_ref().unwrap() }}</p>
                 </div>
                 {% endif %}
-            </div>
+            </article>
             {% endfor %}
         </div>
     </section>
     {% endif %} {% if !profile.education.is_empty() %}
     <section
         id="section-education"
-        aria-labelledby="heading-education"
         data-section="education"
+        aria-labelledby="heading-education"
     >
         <h2 id="heading-education">Education</h2>
-        <div data-role="education-list">
+        <div id="education-list" data-role="education-list">
             {% for edu in profile.education %}
-            <div
+            <article
+                id="education-{{ loop.index }}"
                 data-component="education-item"
                 data-education-id="{{ loop.index }}"
             >
@@ -201,59 +244,93 @@
                     <h3 id="education-institution-{{ loop.index }}">
                         {{ edu.institution }}
                     </h3>
+
                     {% if edu.degree.is_some() %}
-                    <p data-role="degree">{{ edu.degree.as_ref().unwrap() }}</p>
+                    <p
+                        id="education-degree-{{ loop.index }}"
+                        data-role="degree"
+                    >
+                        {{ edu.degree.as_ref().unwrap() }}
+                    </p>
                     {% endif %} {% if edu.field.is_some() %}
-                    <p data-role="field-of-study">
+                    <p
+                        id="education-field-{{ loop.index }}"
+                        data-role="field-of-study"
+                    >
                         {{ edu.field.as_ref().unwrap() }}
                     </p>
                     {% endif %} {% if edu.dates.is_some() %} {% let dates =
                     edu.dates.as_ref().unwrap() %}
-                    <div data-role="date-range">
+                    <div
+                        id="education-dates-{{ loop.index }}"
+                        data-role="date-range"
+                    >
                         {% if dates.start.is_some() %}
                         <time
                             datetime="{{ dates.start.as_ref().unwrap() }}"
                             data-role="start-date"
-                            >{{ dates.start.as_ref().unwrap() }}</time
+                        >
+                            {{ dates.start.as_ref().unwrap() }}
+                        </time>
+                        {% endif %} {% if dates.start.is_some() &&
+                        dates.end.is_some() %}
+                        <span aria-hidden="true" data-role="date-separator"
+                            >–</span
                         >
                         {% endif %} {% if dates.end.is_some() %}
-                        <span aria-hidden="true">-</span>
                         <time
                             datetime="{{ dates.end.as_ref().unwrap() }}"
                             data-role="end-date"
-                            >{{ dates.end.as_ref().unwrap() }}</time
                         >
+                            {{ dates.end.as_ref().unwrap() }}
+                        </time>
                         {% endif %}
                     </div>
                     {% endif %}
                 </header>
-            </div>
+            </article>
             {% endfor %}
         </div>
     </section>
     {% endif %} {% if profile.bio.is_none() && profile.headline.is_none() &&
-    profile.skills.is_empty() %}
+    profile.skills.is_empty() && profile.experience.is_empty() &&
+    profile.education.is_empty() %}
     <section
         id="section-empty-state"
-        data-state="empty"
         data-role="empty-state"
+        data-state="empty"
     >
-        <p>This user hasn't set up their profile yet.</p>
+        <h2 id="heading-empty-profile">Profile Not Set Up</h2>
+        <p data-role="empty-message">
+            {% if profile.is_own_profile %} Your profile hasn't been set up yet.
+            Add some information about yourself to get started. {% else %} This
+            user hasn't set up their profile yet. {% endif %}
+        </p>
+
         {% if profile.is_own_profile %}
-        <nav aria-label="Profile actions" data-role="empty-state-actions">
-            <a href="/profile/edit" role="button" data-type="primary"
-                >Create Your Profile</a
+        <nav
+            id="empty-state-actions"
+            data-role="empty-state-actions"
+            aria-label="Profile setup actions"
+        >
+            <a
+                href="/profile/edit"
+                id="link-setup-profile"
+                role="button"
+                data-type="primary"
             >
+                Set Up Your Profile
+            </a>
         </nav>
         {% endif %}
     </section>
     {% endif %} {% if !profile.is_own_profile && !profile.is_public %}
     <footer id="profile-footer" data-role="profile-footer">
         <p data-role="privacy-notice">
-            <small
-                >This is a limited view of the profile. Some information may be
-                hidden.</small
-            >
+            <small id="privacy-text">
+                This is a limited view of the profile. Some information may be
+                hidden for privacy.
+            </small>
         </p>
     </footer>
     {% endif %}

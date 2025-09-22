@@ -1,53 +1,63 @@
 <footer id="site-footer">
-    <section data-role="footer-main">
-        <div data-role="footer-brand">
+    <section id="footer-main" data-role="footer-content">
+        <div id="footer-brand" data-role="brand-section">
             <hgroup>
-                <h3 id="footer-brand-title">{{ app_name }}</h3>
-                <p>
-                    A free, open-source SaaS platform for the TV, film,
-                    and content industries.
+                <h3 id="heading-footer-brand">{{ app_name }}</h3>
+                <p data-role="tagline">
+                    A free, open-source SaaS platform for the TV, film, and
+                    content industries.
                 </p>
             </hgroup>
         </div>
 
-        <div data-role="footer-links">
-            <h4 id="footer-links-title">Quick Links</h4>
-            <nav aria-labelledby="footer-links-title">
-                <ul>
-                    <li><a href="/docs">Documentation</a></li>
-                    <li><a href="/api">API</a></li>
-                    <li><a href="/privacy">Privacy Policy</a></li>
-                    <li><a href="/terms">Terms of Service</a></li>
+        <div id="footer-links" data-role="links-section">
+            <h4 id="heading-footer-links">Quick Links</h4>
+            <nav id="nav-footer-links" aria-labelledby="heading-footer-links">
+                <ul data-role="link-list">
+                    <li><a href="/docs" id="link-docs">Documentation</a></li>
+                    <li><a href="/api" id="link-api">API</a></li>
+                    <li>
+                        <a href="/privacy" id="link-privacy">Privacy Policy</a>
+                    </li>
+                    <li>
+                        <a href="/terms" id="link-terms">Terms of Service</a>
+                    </li>
                 </ul>
             </nav>
         </div>
 
-        <div data-role="footer-connect">
-            <h4 id="footer-connect-title">Connect</h4>
-            <nav aria-labelledby="footer-connect-title">
-                <ul>
+        <div id="footer-connect" data-role="connect-section">
+            <h4 id="heading-footer-connect">Connect</h4>
+            <nav
+                id="nav-footer-connect"
+                aria-labelledby="heading-footer-connect"
+            >
+                <ul data-role="link-list">
                     <li>
                         <a
                             href="https://github.com/slatehub"
+                            id="link-github"
                             rel="noopener noreferrer"
                             target="_blank"
-                        >GitHub</a>
+                            aria-label="SlateHub on GitHub"
+                            >GitHub</a
+                        >
                     </li>
-                    <li><a href="/contact">Contact</a></li>
-                    <li><a href="/blog">Blog</a></li>
+                    <li><a href="/contact" id="link-contact">Contact</a></li>
+                    <li><a href="/blog" id="link-blog">Blog</a></li>
                 </ul>
             </nav>
         </div>
     </section>
 
-    <hr />
+    <hr data-role="divider" />
 
-    <section data-role="footer-copyright">
-        <p>
+    <section id="footer-copyright" data-role="copyright-section">
+        <p data-role="copyright-text">
             <small>© {{ year }} {{ app_name }}. All rights reserved.</small>
         </p>
-        <p>
-            <small data-role="version">v{{ version }}</small>
+        <p data-role="version-info">
+            <small data-value="{{ version }}">v{{ version }}</small>
         </p>
     </section>
 </footer>

@@ -1,31 +1,40 @@
 {% extends "_layout.html" %} {% block title %}Login - {{ app_name }}{% endblock
 %} {% block page_name %}login{% endblock %} {% block content %}
-<section data-component="auth-form" data-type="login">
-    <header data-role="form-header">
+<section id="section-login" data-component="auth-form" data-type="login">
+    <header id="login-header" data-role="form-header">
         <hgroup>
             <h1 id="heading-login">Welcome Back</h1>
-            <p>Log in to your SlateHub account</p>
+            <p data-role="subtitle">Log in to your SlateHub account</p>
         </hgroup>
     </header>
 
     {% match error %} {% when Some with (err) %}
     <div
-        id="error-login"
+        id="alert-login-error"
         role="alert"
         aria-live="polite"
-        data-role="error-message"
+        data-component="alert"
+        data-type="error"
     >
         {{ err }}
     </div>
     {% when None %} {% endmatch %}
 
-    <form id="form-login" data-component="form" method="post" action="/login">
+    <form
+        id="form-login"
+        method="post"
+        action="/login"
+        data-component="form"
+        data-state="ready"
+    >
         {% match redirect_to %} {% when Some with (redirect) %}
         <input type="hidden" name="redirect_to" value="{{ redirect }}" />
         {% when None %} {% endmatch %}
 
-        <fieldset data-role="form-section">
-            <div data-field="email">
+        <fieldset id="fieldset-credentials" data-role="form-section">
+            <legend hidden>Login Credentials</legend>
+
+            <div id="field-email" data-field="email">
                 <label for="input-email">Email or Username</label>
                 <input
                     type="text"
@@ -46,7 +55,7 @@
                     (_)
                     %}
                     aria-invalid="true"
-                    aria-describedby="error-login"
+                    aria-describedby="alert-login-error"
                     {%
                     when
                     None
@@ -58,7 +67,7 @@
                 />
             </div>
 
-            <div data-field="password">
+            <div id="field-password" data-field="password">
                 <label for="input-password">Password</label>
                 <input
                     type="password"
@@ -78,7 +87,7 @@
                     (_)
                     %}
                     aria-invalid="true"
-                    aria-describedby="error-login"
+                    aria-describedby="alert-login-error"
                     {%
                     when
                     None
@@ -90,7 +99,7 @@
                 />
             </div>
 
-            <div data-field="remember">
+            <div id="field-remember" data-field="remember">
                 <label for="input-remember">
                     <input
                         type="checkbox"
@@ -103,8 +112,10 @@
             </div>
         </fieldset>
 
-        <div data-role="form-actions">
-            <button type="submit" data-type="primary">Log In</button>
+        <div id="login-actions" data-role="form-actions">
+            <button type="submit" id="button-submit-login" data-type="primary">
+                Log In
+            </button>
         </div>
 
         <nav
@@ -112,15 +123,15 @@
             aria-label="Login alternatives"
             data-role="form-footer"
         >
-            <ul>
+            <ul data-role="link-list">
                 <li>
-                    <a href="/forgot-password">Forgot your password?</a>
+                    <a href="/forgot-password" id="link-forgot-password">
+                        Forgot your password?
+                    </a>
                 </li>
                 <li>
-                    <span
-                        >Don't have an account?
-                        <a href="/signup">Sign up</a></span
-                    >
+                    <span data-role="text">Don't have an account?</span>
+                    <a href="/signup" id="link-signup"> Sign up </a>
                 </li>
             </ul>
         </nav>

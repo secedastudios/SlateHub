@@ -1,44 +1,73 @@
 {% extends "_layout.html" %} {% block title %}Home - {{ app_name }}{% endblock
-%} {% block page_name %}home{% endblock %} {% block page_styles %} {% endblock
-%} {% block content %}
-<article id="homepage">
-    <section data-hero="true">
-        <h1>Welcome to {{ app_name }}</h1>
-        <p>
-            A free, open-source platform connecting filmmakers, creatives,
-            brands, crew, and agencies.
-        </p>
-        <div data-actions="hero">
-            <a href="/signup" role="button">Get Started</a>
-            <a href="/about" role="button" data-secondary="true">Learn More</a>
-        </div>
+%} {% block page_name %}home{% endblock %} {% block content %}
+<section id="home-main" data-component="homepage">
+    <section id="section-hero" data-section="hero">
+        <header id="hero-header" data-role="section-header">
+            <h1 id="heading-hero">Welcome to {{ app_name }}</h1>
+            <p data-role="subtitle">
+                A free, open-source platform connecting filmmakers, creatives,
+                brands, crew, and agencies.
+            </p>
+        </header>
+        <nav
+            id="hero-actions"
+            data-role="hero-actions"
+            aria-label="Get started"
+        >
+            <a
+                href="/signup"
+                id="link-hero-signup"
+                role="button"
+                data-type="primary"
+            >
+                Get Started
+            </a>
+            <a
+                href="/about"
+                id="link-hero-about"
+                role="button"
+                data-type="secondary"
+            >
+                Learn More
+            </a>
+        </nav>
     </section>
 
-    <section data-features="true">
-        <h2>Platform Features</h2>
-        <div data-tabs="features">
-            <nav role="tablist">
+    <section id="section-features" data-section="features">
+        <header id="features-header" data-role="section-header">
+            <h2 id="heading-features">Platform Features</h2>
+        </header>
+
+        <div id="features-tabs" data-component="tabs">
+            <nav
+                id="nav-features-tabs"
+                role="tablist"
+                aria-label="Feature categories"
+            >
                 <button
                     role="tab"
+                    id="tab-networking"
                     aria-selected="true"
                     aria-controls="panel-networking"
-                    id="tab-networking"
+                    data-tab="networking"
                 >
                     Networking
                 </button>
                 <button
                     role="tab"
+                    id="tab-projects"
                     aria-selected="false"
                     aria-controls="panel-projects"
-                    id="tab-projects"
+                    data-tab="projects"
                 >
                     Project Management
                 </button>
                 <button
                     role="tab"
+                    id="tab-search"
                     aria-selected="false"
                     aria-controls="panel-search"
-                    id="tab-search"
+                    data-tab="search"
                 >
                     Semantic Search
                 </button>
@@ -48,14 +77,15 @@
                 role="tabpanel"
                 id="panel-networking"
                 aria-labelledby="tab-networking"
+                data-panel="networking"
             >
-                <h3>Professional Networking</h3>
-                <p>
+                <h3 id="heading-networking">Professional Networking</h3>
+                <p data-role="description">
                     Connect with industry professionals, build your network, and
                     discover opportunities in the TV, film, and content
                     industries.
                 </p>
-                <ul>
+                <ul data-role="feature-list">
                     <li>Professional profiles with portfolio showcases</li>
                     <li>Industry-specific networking tools</li>
                     <li>Collaboration requests and messaging</li>
@@ -66,14 +96,15 @@
                 role="tabpanel"
                 id="panel-projects"
                 aria-labelledby="tab-projects"
+                data-panel="projects"
                 hidden
             >
-                <h3>Project Management</h3>
-                <p>
+                <h3 id="heading-projects-feature">Project Management</h3>
+                <p data-role="description">
                     Manage your creative projects with tools designed
                     specifically for film and TV production.
                 </p>
-                <ul>
+                <ul data-role="feature-list">
                     <li>Production planning and scheduling</li>
                     <li>Crew and resource management</li>
                     <li>Budget tracking and reporting</li>
@@ -84,14 +115,15 @@
                 role="tabpanel"
                 id="panel-search"
                 aria-labelledby="tab-search"
+                data-panel="search"
                 hidden
             >
-                <h3>AI-Powered Search</h3>
-                <p>
+                <h3 id="heading-search-feature">AI-Powered Search</h3>
+                <p data-role="description">
                     Find the perfect collaborators with semantic search and
                     AI-assisted matching.
                 </p>
-                <ul>
+                <ul data-role="feature-list">
                     <li>Semantic search across profiles and projects</li>
                     <li>AI-powered skill matching</li>
                     <li>Smart recommendations based on your needs</li>
@@ -100,54 +132,112 @@
         </div>
     </section>
 
-    <section data-stats="true">
-        <h2>Platform Statistics</h2>
-        <div data-grid="stats">
-            <article data-stat="projects">
-                <data value="{{ project_count }}">{{ project_count }}</data>
-                <label>Active Projects</label>
+    <section id="section-stats" data-section="statistics">
+        <header id="stats-header" data-role="section-header">
+            <h2 id="heading-stats">Platform Statistics</h2>
+        </header>
+
+        <div id="stats-grid" data-layout="grid" data-role="stats-container">
+            <article
+                id="stat-projects"
+                data-component="stat-card"
+                data-stat="projects"
+            >
+                <data value="{{ project_count }}" data-role="stat-value">
+                    {{ project_count }}
+                </data>
+                <label id="label-stat-projects" data-role="stat-label">
+                    Active Projects
+                </label>
             </article>
-            <article data-stat="users">
-                <data value="{{ user_count }}">{{ user_count }}</data>
-                <label>Creative Professionals</label>
+
+            <article
+                id="stat-users"
+                data-component="stat-card"
+                data-stat="users"
+            >
+                <data value="{{ user_count }}" data-role="stat-value">
+                    {{ user_count }}
+                </data>
+                <label id="label-stat-users" data-role="stat-label">
+                    Creative Professionals
+                </label>
             </article>
-            <article data-stat="connections">
-                <data value="{{ connection_count }}"
-                    >{{ connection_count }}</data
-                >
-                <label>Connections Made</label>
+
+            <article
+                id="stat-connections"
+                data-component="stat-card"
+                data-stat="connections"
+            >
+                <data value="{{ connection_count }}" data-role="stat-value">
+                    {{ connection_count }}
+                </data>
+                <label id="label-stat-connections" data-role="stat-label">
+                    Connections Made
+                </label>
             </article>
         </div>
     </section>
 
     {% if !activities.is_empty() %}
-    <section data-activity="true">
-        <h2>Recent Activity</h2>
-        <ul role="feed" aria-label="Recent platform activity">
+    <section id="section-activity" data-section="recent-activity">
+        <header id="activity-header" data-role="section-header">
+            <h2 id="heading-activity">Recent Activity</h2>
+        </header>
+
+        <ul
+            id="activity-feed"
+            role="feed"
+            aria-label="Recent platform activity"
+            data-component="activity-feed"
+        >
             {% for activity in activities %}
-            <li>
-                <strong>{{ activity.user }}</strong>
-                <span>{{ activity.action }}</span>
-                <time>{{ activity.time }}</time>
+            <li id="activity-{{ loop.index }}" data-role="activity-item">
+                <strong data-role="activity-user">{{ activity.user }}</strong>
+                <span data-role="activity-action">{{ activity.action }}</span>
+                <time datetime="{{ activity.time }}" data-role="activity-time">
+                    {{ activity.time }}
+                </time>
             </li>
             {% endfor %}
         </ul>
     </section>
     {% endif %}
 
-    <section data-cta="true">
-        <h2>Ready to Join the Community?</h2>
-        <p>
-            Start connecting with creative professionals and bring your projects
-            to life.
-        </p>
-        <div data-actions="cta">
-            <a href="/signup" role="button">Create Free Account</a>
-            <a href="/demo" role="button" data-secondary="true">Watch Demo</a>
-        </div>
+    <section id="section-cta" data-section="call-to-action">
+        <header id="cta-header" data-role="section-header">
+            <h2 id="heading-cta">Ready to Join the Community?</h2>
+            <p data-role="subtitle">
+                Start connecting with creative professionals and bring your
+                projects to life.
+            </p>
+        </header>
+
+        <nav
+            id="cta-actions"
+            data-role="cta-actions"
+            aria-label="Sign up options"
+        >
+            <a
+                href="/signup"
+                id="link-cta-signup"
+                role="button"
+                data-type="primary"
+            >
+                Create Free Account
+            </a>
+            <a
+                href="/demo"
+                id="link-cta-demo"
+                role="button"
+                data-type="secondary"
+            >
+                Watch Demo
+            </a>
+        </nav>
     </section>
-</article>
-{% endblock %} {% block page_scripts %}
+</section>
+
 <script>
     // Tab functionality
     document.addEventListener("DOMContentLoaded", function () {

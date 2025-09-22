@@ -29,44 +29,79 @@
             document.documentElement.setAttribute("data-theme", savedTheme);
         </script>
     </head>
-    <body data-page="error-404">
+    <body data-page="error-404" data-user="anonymous">
         <main id="main-content">
-            <section data-component="error-page" data-type="404">
-                <header data-role="error-header">
-                    <h1 id="heading-error-404">404</h1>
-                    <h2 id="heading-error-message">Page Not Found</h2>
+            <article
+                id="error-404-main"
+                data-component="error-page"
+                data-error-code="404"
+                data-error-type="not-found"
+            >
+                <header id="error-header" data-role="error-header">
+                    <h1 id="heading-error-code">404</h1>
+                    <h2 id="heading-error-title">Page Not Found</h2>
                 </header>
 
-                <div data-role="error-body">
-                    <p id="error-description">
+                <section
+                    id="section-error-details"
+                    data-section="error-details"
+                >
+                    <p id="error-description" data-role="error-description">
                         The page you're looking for doesn't exist or may have
                         been moved.
                     </p>
 
-                    <nav data-role="error-actions">
-                        <a href="/" role="button" data-type="primary">
-                            <span aria-hidden="true">🏠</span> Go to Homepage
+                    <nav
+                        id="error-actions"
+                        data-role="error-actions"
+                        aria-label="Error recovery actions"
+                    >
+                        <a
+                            href="/"
+                            id="link-error-home"
+                            role="button"
+                            data-type="primary"
+                            aria-label="Go to homepage"
+                        >
+                            <span aria-hidden="true" data-role="icon">🏠</span>
+                            <span data-role="button-text">Go to Homepage</span>
                         </a>
 
-                        <a href="/login" role="button" data-type="secondary">
-                            <span aria-hidden="true">🔑</span> Sign In
+                        <a
+                            href="/login"
+                            id="link-error-login"
+                            role="button"
+                            data-type="secondary"
+                            aria-label="Sign in to your account"
+                        >
+                            <span aria-hidden="true" data-role="icon">🔑</span>
+                            <span data-role="button-text">Sign In</span>
                         </a>
 
-                        <a href="/signup" role="button" data-type="secondary">
-                            <span aria-hidden="true">✨</span> Create Account
+                        <a
+                            href="/signup"
+                            id="link-error-signup"
+                            role="button"
+                            data-type="secondary"
+                            aria-label="Create a new account"
+                        >
+                            <span aria-hidden="true" data-role="icon">✨</span>
+                            <span data-role="button-text">Create Account</span>
                         </a>
                     </nav>
-                </div>
+                </section>
 
-                <footer data-role="error-footer">
-                    <div data-role="help-text">
-                        <p>
-                            If you believe this is an error, please contact
-                            support.
+                <footer id="error-footer" data-role="error-footer">
+                    <div id="error-help" data-role="help-section">
+                        <p id="help-text" data-role="help-text">
+                            If you believe this is an error, please
+                            <a href="/contact" id="link-contact-support"
+                                >contact support</a
+                            >.
                         </p>
                     </div>
                 </footer>
-            </section>
+            </article>
         </main>
     </body>
 </html>

@@ -1,0 +1,531 @@
+/* =============================================================================
+   Forms - Semantic Styling
+   ============================================================================= */
+
+/* =============================================================================
+   Form Containers
+   ============================================================================= */
+
+/* Base form styling */
+form[data-component="form"] {
+    width: 100%;
+    max-width: var(--container-md);
+}
+
+/* Auth forms (login/signup) */
+[data-component="auth-form"] {
+    max-width: var(--container-md);
+    margin: var(--spacing-3xl) auto;
+    padding: var(--spacing-xl);
+    background: var(--card-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--card-border-radius);
+    box-shadow: var(--card-shadow);
+}
+
+[data-component="auth-form"] [data-role="form-header"] {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+[data-component="auth-form"] [data-role="form-header"] h1,
+[data-component="auth-form"] [data-role="form-header"] h2 {
+    color: var(--color-text);
+    margin-bottom: var(--spacing-sm);
+}
+
+[data-component="auth-form"] [data-role="form-header"] [data-role="subtitle"] {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-md);
+}
+
+/* Filter forms */
+[data-component="filter-form"] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    align-items: flex-end;
+    padding: var(--spacing-md);
+    background: var(--color-bg-secondary);
+    border-radius: var(--border-radius);
+}
+
+/* =============================================================================
+   Fieldsets and Sections
+   ============================================================================= */
+
+fieldset {
+    border: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-lg) 0;
+}
+
+fieldset[data-role="form-section"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+fieldset legend {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    margin-bottom: var(--spacing-md);
+    padding: 0;
+}
+
+fieldset[data-role="filter-options"] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+/* =============================================================================
+   Form Fields
+   ============================================================================= */
+
+/* Field containers */
+div[data-field] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+/* Labels */
+label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    margin-bottom: var(--form-label-margin-bottom);
+}
+
+label[hidden] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Required field indicator */
+label:has(+ [aria-required="true"])::after,
+label:has(input[required])::after {
+    content: " *";
+    color: var(--color-danger);
+}
+
+/* =============================================================================
+   Input Fields
+   ============================================================================= */
+
+/* Base input styling */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+select,
+textarea {
+    width: 100%;
+    padding: var(--form-input-padding-y) var(--form-input-padding-x);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family-base);
+    color: var(--color-text);
+    background: var(--form-input-bg);
+    border: var(--border-width) solid var(--form-input-border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition-colors), var(--transition-shadow);
+}
+
+/* Placeholder styling */
+input::placeholder,
+textarea::placeholder {
+    color: var(--color-text-disabled);
+}
+
+/* Focus states */
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--form-input-focus-border-color);
+    box-shadow: var(--form-input-focus-shadow);
+}
+
+/* Disabled states */
+input:disabled,
+select:disabled,
+textarea:disabled {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-disabled);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Readonly states */
+input:read-only,
+textarea:read-only {
+    background: var(--color-bg-secondary);
+    border-style: dashed;
+}
+
+/* =============================================================================
+   Textareas
+   ============================================================================= */
+
+textarea {
+    min-height: calc(var(--form-input-height) * 2);
+    resize: vertical;
+    line-height: var(--line-height-base);
+}
+
+textarea[data-auto-resize] {
+    resize: none;
+    overflow-y: hidden;
+}
+
+/* =============================================================================
+   Select Dropdowns
+   ============================================================================= */
+
+select {
+    cursor: pointer;
+    padding-right: var(--spacing-2xl);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-md) center;
+    background-size: 12px;
+}
+
+select:focus {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%230172ad' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
+/* Multiple select */
+select[multiple] {
+    padding-right: var(--form-input-padding-x);
+    background-image: none;
+    min-height: calc(var(--form-input-height) * 2);
+}
+
+/* =============================================================================
+   Checkboxes and Radio Buttons
+   ============================================================================= */
+
+input[type="checkbox"],
+input[type="radio"] {
+    width: auto;
+    margin-right: var(--spacing-sm);
+    cursor: pointer;
+}
+
+/* Checkbox/Radio label containers */
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]) {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+label:has(input[type="checkbox"]):hover,
+label:has(input[type="radio"]):hover {
+    color: var(--color-primary);
+}
+
+/* Switch style for role="switch" */
+input[type="checkbox"][role="switch"] {
+    appearance: none;
+    width: 3rem;
+    height: 1.5rem;
+    background: var(--color-border);
+    border-radius: var(--border-radius-full);
+    position: relative;
+    cursor: pointer;
+    transition: var(--transition-colors);
+}
+
+input[type="checkbox"][role="switch"]::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    background: var(--color-bg);
+    border-radius: var(--border-radius-full);
+    transition: var(--transition-transform);
+}
+
+input[type="checkbox"][role="switch"]:checked {
+    background: var(--color-primary);
+}
+
+input[type="checkbox"][role="switch"]:checked::before {
+    transform: translateX(1.5rem);
+}
+
+/* =============================================================================
+   Validation States
+   ============================================================================= */
+
+/* Invalid fields */
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+    border-color: var(--color-danger);
+    background-color: var(--color-danger-bg);
+}
+
+input[aria-invalid="true"]:focus,
+select[aria-invalid="true"]:focus,
+textarea[aria-invalid="true"]:focus {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* Valid fields */
+input[aria-invalid="false"]:valid,
+select[aria-invalid="false"]:valid,
+textarea[aria-invalid="false"]:valid {
+    border-color: var(--color-success);
+}
+
+input[aria-invalid="false"]:valid:focus,
+select[aria-invalid="false"]:valid:focus,
+textarea[aria-invalid="false"]:valid:focus {
+    border-color: var(--color-success);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+/* =============================================================================
+   Help Text and Error Messages
+   ============================================================================= */
+
+/* Help text */
+small[data-role="help-text"] {
+    color: var(--form-help-text-color);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-xs);
+}
+
+/* Error messages */
+div[role="alert"][data-role="error-message"],
+div[id^="error-"] {
+    color: var(--form-error-color);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-xs);
+}
+
+/* Alert components */
+[data-component="alert"] {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-lg);
+    border-left: 4px solid;
+}
+
+[data-component="alert"][data-type="error"] {
+    background: var(--color-danger-bg);
+    color: var(--color-danger-text);
+    border-left-color: var(--color-danger);
+}
+
+[data-component="alert"][data-type="success"] {
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
+    border-left-color: var(--color-success);
+}
+
+[data-component="alert"][data-type="warning"] {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-text);
+    border-left-color: var(--color-warning);
+}
+
+[data-component="alert"][data-type="info"] {
+    background: var(--color-info-bg);
+    color: var(--color-info-text);
+    border-left-color: var(--color-info);
+}
+
+/* =============================================================================
+   Form Actions
+   ============================================================================= */
+
+div[data-role="form-actions"] {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-lg);
+    border-top: var(--border-width) solid var(--color-border);
+}
+
+/* Center actions in auth forms */
+[data-component="auth-form"] div[data-role="form-actions"] {
+    justify-content: center;
+}
+
+/* Form footer navigation */
+nav[data-role="form-footer"] {
+    margin-top: var(--spacing-lg);
+    text-align: center;
+}
+
+nav[data-role="form-footer"] ul[data-role="link-list"] {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+nav[data-role="form-footer"] a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+nav[data-role="form-footer"] a:hover {
+    text-decoration: underline;
+}
+
+nav[data-role="form-footer"] [data-role="text"] {
+    color: var(--color-text-muted);
+}
+
+/* =============================================================================
+   Form States
+   ============================================================================= */
+
+/* Submitting state */
+form[data-state="submitting"] {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+form[data-state="submitting"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Loading state */
+form[data-state="loading"] fieldset {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Success state */
+form[data-state="success"] {
+    position: relative;
+}
+
+form[data-state="success"]::before {
+    content: "✓";
+    position: absolute;
+    top: -2rem;
+    right: 0;
+    color: var(--color-success);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+}
+
+/* =============================================================================
+   Responsive Design
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    [data-component="auth-form"] {
+        margin: var(--spacing-xl) var(--spacing-md);
+        padding: var(--spacing-lg);
+    }
+
+    [data-component="filter-form"] {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    div[data-role="form-actions"] {
+        flex-direction: column;
+    }
+
+    div[data-role="form-actions"] button,
+    div[data-role="form-actions"] [role="button"] {
+        width: 100%;
+    }
+}
+
+/* =============================================================================
+   Accessibility
+   ============================================================================= */
+
+/* Focus visible for keyboard navigation */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Skip to form navigation */
+form:target {
+    scroll-margin-top: var(--nav-height);
+}
+
+/* =============================================================================
+   Animations
+   ============================================================================= */
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    form[data-state="submitting"]::after {
+        animation: none;
+    }
+}
+
+/* =============================================================================
+   Print Styles
+   ============================================================================= */
+
+@media print {
+    form {
+        page-break-inside: avoid;
+    }
+
+    div[data-role="form-actions"],
+    nav[data-role="form-footer"] {
+        display: none;
+    }
+
+    input,
+    select,
+    textarea {
+        border: 1px solid black;
+        background: white;
+    }
+}

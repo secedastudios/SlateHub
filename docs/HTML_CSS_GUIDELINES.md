@@ -2,121 +2,194 @@
 
 ## Overview
 
-SlateHub uses a **CSS-only design system** where HTML structure is fixed and semantic, while all visual design is controlled through CSS. This allows designers to create any visual design without modifying HTML templates.
+SlateHub uses a **strict separation of concerns** architecture where HTML defines semantic structure, CSS controls all visual presentation, and JavaScript handles behavior. This document provides comprehensive guidelines for maintaining this separation and creating maintainable, accessible, and designer-friendly code.
 
 ## Core Principles
 
 ### 1. Complete Separation of Concerns
-- **HTML**: Defines structure and semantics only
-- **CSS**: Controls all visual presentation
-- **JavaScript**: Handles behavior and interactions
-- **No CSS classes** for styling purposes
+- **HTML**: Semantic structure and content only
+- **CSS**: All visual presentation and layout
+- **JavaScript**: Behavior and interactivity only
+- **NO CSS classes for styling** - Use semantic selectors instead
 
 ### 2. Semantic HTML First
-- Use proper HTML5 semantic elements
+- Use proper HTML5 semantic elements (`article`, `section`, `nav`, `header`, `footer`, `aside`, `main`)
 - Choose elements based on meaning, not appearance
 - Maintain proper document outline and hierarchy
 
-### 3. Predictable Selectors
-- Every styleable element has a predictable selector
-- Use IDs for unique elements
-- Use data attributes for components and variations
-- Use ARIA attributes for states
-
-## HTML Structure Guidelines
-
-### Semantic Element Usage
-
-#### ✅ Use `<article>` for:
-- Blog posts
-- News items
-- Project cards
-- User comments
-- Any self-contained, redistributable content
-
-#### ✅ Use `<section>` for:
-- Thematic groupings of content
-- Page regions with headings
-- Form wrappers
-- Content groups
-
-#### ✅ Use `<div>` for:
-- Generic containers
-- Layout wrappers
-- When no semantic element is appropriate
-
-#### ❌ Never use `<article>` for:
-- Forms
-- Navigation
-- Footers
-- UI components
-- Page sections
+### 3. Predictable and Consistent Selectors
+- Every element has a predictable selector pattern
+- IDs for unique page elements
+- Data attributes for components and states
+- ARIA attributes for accessibility and state
 
 ## Naming Conventions
 
-### ID Naming Pattern
-```
-[context]-[element]-[purpose]
+### ID Naming Pattern: `[context]-[element]-[purpose]`
+
+#### Page Landmarks
+```html
+#site-header        <!-- Main site header -->
+#main-nav          <!-- Main navigation -->
+#main-content      <!-- Main content area -->
+#site-footer       <!-- Main site footer -->
 ```
 
-Examples:
-- `#main-nav` - Main navigation
-- `#form-login` - Login form
-- `#input-email` - Email input field
-- `#section-projects` - Projects section
-- `#heading-about` - About section heading
+#### Section Headers
+```html
+#section-[name]    <!-- Section container -->
+#heading-[name]    <!-- Section heading -->
+
+<!-- Examples: -->
+#section-projects
+#heading-projects
+#section-about
+#heading-about
+```
+
+#### Form Elements
+```html
+#form-[name]              <!-- Form container -->
+#fieldset-[name]          <!-- Fieldset grouping -->
+#field-[name]             <!-- Field container -->
+#input-[name]             <!-- Input element -->
+#select-[name]            <!-- Select element -->
+#textarea-[name]          <!-- Textarea element -->
+#button-[action]-[context] <!-- Button element -->
+#error-[field]            <!-- Field error message -->
+#help-[field]             <!-- Field help text -->
+#alert-[context]-[type]   <!-- Alert messages -->
+
+<!-- Examples: -->
+#form-login
+#fieldset-credentials
+#field-email
+#input-email
+#error-email
+#help-email
+#button-submit-login
+#alert-login-error
+```
+
+#### Navigation Elements
+```html
+#nav-[context]           <!-- Navigation container -->
+#link-[destination]      <!-- Important links -->
+
+<!-- Examples: -->
+#nav-footer-links
+#link-privacy
+#link-terms
+```
 
 ### Data Attributes
 
-#### `data-component` - Identifies reusable components
+#### `data-component` - Major Reusable Components
 ```html
 <article data-component="project-card">
 <section data-component="auth-form">
 <nav data-component="breadcrumb">
+<div data-component="search-bar">
+<form data-component="filter-form">
 ```
 
-#### `data-page` - Page context (on body element)
+#### `data-page` - Page Context (on body)
 ```html
 <body data-page="profile">
 <body data-page="projects">
+<body data-page="login">
+<body data-page="signup">
 ```
 
-#### `data-section` - Section context
+#### `data-section` - Page Sections
 ```html
 <section data-section="controls">
-<div data-section="user-content">
+<section data-section="user-content">
+<section data-section="overview">
+<div data-section="filters">
 ```
 
-#### `data-state` - Element states
+#### `data-role` - Semantic Roles Within Components
+```html
+<!-- Common roles -->
+<header data-role="page-header">
+<div data-role="card-header">
+<div data-role="card-body">
+<footer data-role="card-footer">
+<nav data-role="card-actions">
+<div data-role="empty-state">
+<div data-role="form-actions">
+<ul data-role="link-list">
+<p data-role="subtitle">
+<small data-role="help-text">
+```
+
+#### `data-field` - Form Field Identifiers
+```html
+<div data-field="email">
+<div data-field="password">
+<dt data-field="location">
+```
+
+#### `data-state` - Element States
 ```html
 <form data-state="submitting">
-<div data-state="loading">
-<section data-state="empty">
+<section data-state="loading">
+<div data-state="empty">
+<article data-state="expanded">
+<button data-state="active">
 ```
 
 #### `data-type` - Variations
 ```html
 <button data-type="primary">
+<button data-type="secondary">
+<button data-type="danger">
 <article data-type="featured">
-<section data-type="login">
+<div data-type="warning">
 ```
 
-#### `data-role` - Semantic purposes
+#### `data-status` - Status Indicators
 ```html
-<div data-role="card-header">
-<nav data-role="pagination">
-<div data-role="empty-state">
+<article data-status="published">
+<span data-status="active">
+<div data-status="pending">
 ```
 
-## HTML Templates
+#### `data-layout` - Layout Types
+```html
+<section data-layout="grid">
+<div data-layout="flex">
+<article data-layout="card">
+```
+
+#### `data-user` - Authentication State (on body)
+```html
+<body data-user="authenticated">
+<body data-user="anonymous">
+```
+
+## HTML Structure Templates
 
 ### Page Structure
 ```html
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+    <!-- meta tags -->
+</head>
 <body data-page="[page-name]" data-user="[authenticated|anonymous]">
     <header id="site-header">
         <nav id="main-nav" aria-label="Main navigation">
-            <ul data-role="nav-primary">...</ul>
-            <ul data-role="nav-user">...</ul>
+            <ul data-role="nav-brand">
+                <li><a href="/" id="site-logo">SlateHub</a></li>
+            </ul>
+            <ul data-role="nav-primary">
+                <!-- Primary navigation items -->
+            </ul>
+            <ul data-role="nav-user">
+                <!-- User menu items -->
+            </ul>
         </nav>
     </header>
 
@@ -125,50 +198,80 @@ Examples:
     </main>
 
     <footer id="site-footer">
-        <section data-role="footer-main">
-            <div data-role="footer-brand">...</div>
-            <div data-role="footer-links">...</div>
-        </section>
+        <!-- Footer content -->
     </footer>
 </body>
+</html>
 ```
 
 ### Form Structure
 ```html
-<section data-component="auth-form" data-type="login">
-    <header data-role="form-header">
-        <h2 id="heading-login">Title</h2>
+<section id="section-[name]" data-component="auth-form" data-type="[login|signup]">
+    <header id="[name]-header" data-role="form-header">
+        <hgroup>
+            <h1 id="heading-[name]">Title</h1>
+            <p data-role="subtitle">Subtitle text</p>
+        </hgroup>
     </header>
 
-    <form id="form-login" method="post">
-        <fieldset data-role="form-section">
-            <div data-field="email">
-                <label for="input-email">Email</label>
-                <input id="input-email" name="email">
-                <div id="error-email" role="alert">Error</div>
+    <form id="form-[name]" method="post" action="/[action]" data-state="ready">
+        <fieldset id="fieldset-[group]" data-role="form-section">
+            <legend>Group Title</legend>
+            
+            <div id="field-[name]" data-field="[name]">
+                <label for="input-[name]">Label</label>
+                <input 
+                    id="input-[name]" 
+                    name="[name]"
+                    type="[type]"
+                    aria-required="true"
+                    aria-describedby="help-[name] error-[name]"
+                    aria-invalid="false"
+                />
+                <small id="help-[name]" data-role="help-text">
+                    Help text
+                </small>
+                <div id="error-[name]" role="alert" data-role="error-message" hidden>
+                    Error message
+                </div>
             </div>
         </fieldset>
 
-        <div data-role="form-actions">
-            <button type="submit" data-type="primary">Submit</button>
+        <div id="[name]-actions" data-role="form-actions">
+            <button type="submit" id="button-submit-[name]" data-type="primary">
+                Submit
+            </button>
         </div>
     </form>
 </section>
 ```
 
-### Content Card
+### Content Card Structure
 ```html
-<article data-component="project-card" data-status="active">
+<article 
+    id="[type]-[id]"
+    data-component="[type]-card" 
+    data-status="[status]"
+    data-[type]-id="[id]"
+>
     <header data-role="card-header">
-        <h2 id="project-title-123">Title</h2>
-        <span data-role="status-badge">Active</span>
+        <h2 id="[type]-title-[id]">Title</h2>
+        <span data-role="status-badge" data-status="[status]">
+            Status
+        </span>
     </header>
 
     <div data-role="card-body">
         <p data-role="description">Description</p>
-        <div data-role="metadata">
-            <time datetime="2024-01-01">Date</time>
-        </div>
+        
+        <dl data-role="metadata">
+            <dt>Label</dt>
+            <dd data-field="[field]">Value</dd>
+        </dl>
+
+        <ul data-role="tag-list">
+            <li data-tag="[value]">Tag</li>
+        </ul>
     </div>
 
     <footer data-role="card-footer">
@@ -177,6 +280,30 @@ Examples:
         </nav>
     </footer>
 </article>
+```
+
+### List/Grid Container
+```html
+<section id="section-[name]" data-section="[name]" data-layout="grid">
+    <header id="[name]-header" data-role="section-header">
+        <h2 id="heading-[name]">Section Title</h2>
+        <p data-role="description">Description</p>
+    </header>
+
+    <!-- When content exists -->
+    <div data-role="content-container" data-state="ready">
+        <!-- Cards or list items -->
+    </div>
+
+    <!-- When empty -->
+    <div id="empty-state-[name]" data-role="empty-state" data-state="empty">
+        <h3 id="heading-empty-[name]">No items found</h3>
+        <p data-role="empty-message">Helpful message</p>
+        <nav data-role="empty-state-actions">
+            <a href="#" role="button" data-type="primary">Call to Action</a>
+        </nav>
+    </div>
+</section>
 ```
 
 ## CSS Selector Patterns
@@ -189,253 +316,522 @@ Examples:
 /* Component targeting */
 [data-component="project-card"] { }
 
+/* ID targeting for unique elements */
+#site-header { }
+#main-nav { }
+#heading-projects { }
+
 /* State-based styling */
 [data-state="loading"] { }
+[data-state="empty"] { }
 [aria-expanded="true"] { }
 [aria-current="page"] { }
+[aria-invalid="true"] { }
 
 /* Type variations */
 [data-type="primary"] { }
+[data-type="danger"] { }
+
+/* Status indicators */
 [data-status="active"] { }
+[data-status="pending"] { }
 
-/* Nested selectors */
-[data-component="project-card"] [data-role="card-header"] { }
+/* Layout variations */
+[data-layout="grid"] { }
+[data-layout="flex"] { }
 ```
 
-
-### Theme Support
+### Nested Selectors
 ```css
-/* Light/Dark theme */
-[data-theme="dark"] [data-component="card"] {
-    background: var(--dark-bg);
-}
+/* Component parts */
+[data-component="project-card"] [data-role="card-header"] { }
+[data-component="project-card"] [data-role="card-body"] { }
+[data-component="project-card"] [data-role="card-footer"] { }
 
-/* User preference */
-[data-user="authenticated"] [data-role="nav-user"] {
-    display: flex;
-}
+/* Form fields */
+[data-component="auth-form"] [data-field="email"] { }
+[data-component="auth-form"] #input-email { }
+[data-component="auth-form"] #error-email { }
+
+/* Page-specific component styling */
+[data-page="profile"] [data-component="project-card"] { }
 ```
 
-## Benefits for Designers
+### Contextual Selectors
+```css
+/* User state variations */
+[data-user="authenticated"] [data-role="nav-user"] { }
+[data-user="anonymous"] [data-role="nav-user"] { }
 
-### 1. Complete Visual Control
-- Style any element without touching HTML
-- Create multiple themes/skins
-- Implement any design system
+/* Theme variations */
+[data-theme="dark"] [data-component="card"] { }
+[data-theme="light"] [data-component="card"] { }
 
-### 2. Predictable Structure
-- Consistent naming patterns
-- Stable selectors that won't change
-- Clear component boundaries
-
-### 3. Flexibility
-- Override Pico CSS defaults
-- Add custom animations
-- Create responsive designs
-- Support multiple themes
-
-### 4. No Build Process
-- Edit CSS files directly
-- See changes immediately
-- No compilation needed
+/* Responsive states */
+@media (max-width: 768px) {
+    [data-layout="grid"] { }
+}
+```
 
 ## CSS File Organization
 
 ```
 /static/css/
 ├── base/
-│   ├── reset.css         # CSS reset
-│   ├── variables.css     # CSS custom properties
-│   └── typography.css    # Base typography
+│   ├── reset.css           # Normalize/reset styles
+│   ├── variables.css       # CSS custom properties
+│   ├── typography.css      # Base typography
+│   └── utilities.css       # Utility styles
 ├── layout/
-│   ├── header.css       # Site header
-│   ├── footer.css       # Site footer
-│   └── navigation.css   # Navigation components
+│   ├── grid.css           # Grid layouts
+│   ├── header.css         # Site header
+│   ├── footer.css         # Site footer
+│   └── navigation.css     # Navigation components
 ├── components/
-│   ├── cards.css        # Content cards
-│   ├── forms.css        # Form styling
-│   ├── buttons.css      # Button variations
-│   └── modals.css       # Modal dialogs
+│   ├── alerts.css         # Alert messages
+│   ├── buttons.css        # Button styles
+│   ├── cards.css          # Card components
+│   ├── forms.css          # Form styling
+│   ├── modals.css         # Modal dialogs
+│   └── tables.css         # Table styling
 ├── pages/
-│   ├── profile.css      # Profile page
-│   ├── projects.css     # Projects page
-│   └── people.css       # People page
-└── themes/
-    ├── light.css        # Light theme
-    └── dark.css         # Dark theme
+│   ├── profile.css        # Profile page specific
+│   ├── projects.css       # Projects page specific
+│   ├── people.css         # People page specific
+│   └── equipment.css      # Equipment page specific
+├── themes/
+│   ├── light.css          # Light theme
+│   └── dark.css           # Dark theme
+└── main.css               # Main import file
 ```
 
-## CSS-Only Interactions
+## Component Examples
 
-### Available Without JavaScript
-- `:hover` - Hover effects
-- `:focus` / `:focus-visible` - Focus styles
-- `:active` - Active states
-- `:checked` - Checkbox/radio states
-- `:empty` - Empty containers
-- `:target` - Anchor targeting
-- `:valid` / `:invalid` - Form validation
-- `[open]` - Details/summary state
+### Status Badge
+```html
+<span 
+    id="status-[context]-[id]"
+    data-role="status-badge" 
+    data-status="active"
+>
+    Active
+</span>
+```
 
-### Example: Interactive Card
 ```css
-[data-component="project-card"] {
-    transition: transform 0.2s, box-shadow 0.2s;
+[data-role="status-badge"] {
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
 }
 
-[data-component="project-card"]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+[data-role="status-badge"][data-status="active"] {
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
 }
 
-[data-component="project-card"]:active {
-    transform: translateY(0);
-}
-```
-
-## Accessibility Considerations
-
-### Required Patterns
-- Use `aria-label` for navigation regions
-- Use `aria-current="page"` for active navigation
-- Use `aria-invalid="true"` for form errors
-- Use `role="alert"` for error messages
-- Use `aria-describedby` for form help text
-
-### Focus Management
-```css
-/* Visible focus indicators */
-:focus-visible {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
+[data-role="status-badge"][data-status="pending"] {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-text);
 }
 
-/* Skip to main content */
-#skip-to-main:focus {
-    position: absolute;
-    top: 0;
-    left: 0;
+[data-role="status-badge"][data-status="inactive"] {
+    background: var(--color-muted-bg);
+    color: var(--color-muted-text);
 }
 ```
 
-## Testing Your CSS
-
-### Checklist
-- [ ] Works in light and dark themes
-- [ ] Responsive on mobile devices
-- [ ] Keyboard navigation visible
-- [ ] High contrast mode compatible
-- [ ] Print styles included
-- [ ] Reduced motion respected
-
-### Browser Testing
-```css
-/* Progressive enhancement */
-@supports (display: grid) {
-    [data-layout="grid"] {
-        display: grid;
-    }
-}
-
-/* Fallbacks */
-[data-layout="grid"] {
-    display: flex;
-    flex-wrap: wrap;
-}
+### Loading State
+```html
+<section data-state="loading">
+    <!-- Content -->
+</section>
 ```
 
-## Common Patterns
-
-### Status Indicators
-```css
-[data-status="active"] { color: green; }
-[data-status="pending"] { color: orange; }
-[data-status="inactive"] { color: gray; }
-```
-
-### Loading States
 ```css
 [data-state="loading"] {
+    position: relative;
     opacity: 0.6;
     pointer-events: none;
-    position: relative;
 }
 
 [data-state="loading"]::after {
     content: "";
     position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     /* Spinner styles */
 }
 ```
 
-### Empty States
+### Empty State
+```html
+<div id="empty-state-projects" data-role="empty-state" data-state="empty">
+    <h3 id="heading-empty">No projects found</h3>
+    <p data-role="empty-message">Start by creating your first project</p>
+    <nav data-role="empty-state-actions">
+        <a href="/projects/new" role="button" data-type="primary">
+            Create Project
+        </a>
+    </nav>
+</div>
+```
+
 ```css
-[data-state="empty"] {
+[data-role="empty-state"] {
     text-align: center;
     padding: 4rem 2rem;
+}
+
+[data-role="empty-state"] h3 {
+    color: var(--color-muted);
+    margin-bottom: 1rem;
+}
+
+[data-role="empty-state"] [data-role="empty-message"] {
+    color: var(--color-muted-text);
+    margin-bottom: 2rem;
+}
+```
+
+## Accessibility Patterns
+
+### Required ARIA Attributes
+```html
+<!-- Navigation -->
+<nav aria-label="Main navigation">
+<nav aria-labelledby="heading-section">
+
+<!-- Current page indicator -->
+<a href="/page" aria-current="page">Current</a>
+
+<!-- Form validation -->
+<input aria-invalid="true" aria-describedby="error-field help-field">
+<div id="error-field" role="alert">Error message</div>
+
+<!-- Live regions -->
+<div role="alert" aria-live="polite">Updated content</div>
+
+<!-- Expandable content -->
+<button aria-expanded="false" aria-controls="content-id">Toggle</button>
+<div id="content-id">Content</div>
+
+<!-- Loading states -->
+<div aria-busy="true" aria-label="Loading content">...</div>
+```
+
+### Focus Management
+```css
+/* Visible focus indicators */
+:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Skip navigation */
+#skip-to-main {
+    position: absolute;
+    top: -40px;
+    left: 0;
+}
+
+#skip-to-main:focus {
+    top: 0;
+}
+```
+
+## CSS Custom Properties
+
+### Define in :root or [data-theme]
+```css
+:root {
+    /* Colors */
+    --color-primary: #0172ad;
+    --color-secondary: #667eea;
+    --color-success: #22c55e;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    
+    /* Text colors */
+    --color-text: #1f2937;
+    --color-text-muted: #6b7280;
+    
+    /* Backgrounds */
+    --color-bg: #ffffff;
+    --color-bg-secondary: #f9fafb;
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 2rem;
+    --spacing-xl: 4rem;
+    
+    /* Typography */
+    --font-family: system-ui, -apple-system, sans-serif;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    
+    /* Borders */
+    --border-radius: 0.375rem;
+    --border-color: #e5e7eb;
+}
+
+[data-theme="dark"] {
+    --color-text: #f3f4f6;
+    --color-text-muted: #9ca3af;
+    --color-bg: #1f2937;
+    --color-bg-secondary: #111827;
+    --border-color: #374151;
+}
+```
+
+## Responsive Design Patterns
+
+### Mobile-First Approach
+```css
+/* Base mobile styles */
+[data-layout="grid"] {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Tablet and up */
+@media (min-width: 768px) {
+    [data-layout="grid"] {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+    }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+    [data-layout="grid"] {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+```
+
+### Container Queries (when supported)
+```css
+@container (min-width: 400px) {
+    [data-component="card"] {
+        flex-direction: row;
+    }
+}
+```
+
+## Print Styles
+
+```css
+@media print {
+    /* Hide interactive elements */
+    [data-role="form-actions"],
+    [data-role="nav-user"],
+    #site-footer {
+        display: none;
+    }
+    
+    /* Ensure content doesn't break across pages */
+    [data-component="card"],
+    section[data-section] {
+        page-break-inside: avoid;
+    }
+    
+    /* Show link URLs */
+    a[href^="http"]:after {
+        content: " (" attr(href) ")";
+    }
+}
+```
+
+## Animation Patterns
+
+### Respect Motion Preferences
+```css
+/* Default animations */
+[data-component="card"] {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+[data-component="card"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }
 ```
 
 ## Migration Guide
 
-### From Class-Based CSS
+### Converting Class-Based CSS
+
+#### Old (Class-Based)
 ```css
-/* Old (class-based) */
 .card { }
 .card-header { }
 .btn-primary { }
+.form-control { }
+.alert-error { }
+```
 
-/* New (semantic) */
+#### New (Semantic)
+```css
 [data-component="card"] { }
 [data-component="card"] [data-role="card-header"] { }
 button[data-type="primary"] { }
+[data-component="form"] input { }
+[data-component="alert"][data-type="error"] { }
 ```
 
-### Finding Elements
-```css
-/* Instead of guessing classes, use predictable patterns */
+### Finding Elements Without Classes
 
-/* Components are always data-component */
-[data-component="..."] { }
+Instead of guessing class names, use predictable patterns:
 
-/* Page sections use IDs */
-#section-projects { }
+1. **Components**: Look for `data-component`
+2. **Unique elements**: Look for IDs following the naming pattern
+3. **Form fields**: Use `#input-[fieldname]` pattern
+4. **Sections**: Use `#section-[name]` pattern
+5. **States**: Look for `data-state` attributes
+6. **Types/Variations**: Look for `data-type` attributes
 
-/* Form fields follow pattern */
-#input-[fieldname] { }
-#error-[fieldname] { }
-```
+## Testing Your CSS
+
+### Checklist
+- [ ] Works with both light and dark themes
+- [ ] Responsive on all device sizes
+- [ ] Keyboard navigation is clearly visible
+- [ ] Works with high contrast mode
+- [ ] Print styles are included
+- [ ] Respects prefers-reduced-motion
+- [ ] No reliance on JavaScript for core styling
+- [ ] Passes WCAG 2.1 AA accessibility standards
+
+### Browser Testing Priority
+1. Modern evergreen browsers (Chrome, Firefox, Safari, Edge)
+2. Mobile browsers (iOS Safari, Chrome Mobile)
+3. Progressive enhancement for older browsers
 
 ## Best Practices
 
 ### Do's ✅
-- Use CSS custom properties for theming
-- Leverage CSS Grid and Flexbox for layouts
-- Use semantic selectors
-- Include print styles
+- Use CSS custom properties for all colors and spacing
+- Write mobile-first responsive styles
+- Include focus states for all interactive elements
+- Use semantic HTML elements
 - Test with keyboard navigation
-- Support reduced motion preferences
+- Include print styles
+- Document complex selectors with comments
+- Group related styles together
+- Use consistent naming patterns
 
 ### Don'ts ❌
-- Don't modify HTML templates
-- Don't add CSS classes to HTML
+- Don't use CSS classes for styling
 - Don't use inline styles
-- Don't rely on element order
-- Don't use overly specific selectors
-- Don't forget accessibility
+- Don't modify HTML structure for styling purposes
+- Don't use overly specific selectors (avoid > 3 levels)
+- Don't forget accessibility attributes
+- Don't rely on element order for styling
+- Don't use `!important` except for utilities
+- Don't forget to test responsive breakpoints
+
+## Common Patterns Reference
+
+### Form Validation States
+```css
+/* Valid field */
+[aria-invalid="false"] {
+    border-color: var(--color-success);
+}
+
+/* Invalid field */
+[aria-invalid="true"] {
+    border-color: var(--color-danger);
+}
+
+/* Error message */
+[role="alert"][data-role="error-message"] {
+    color: var(--color-danger);
+    font-size: var(--font-size-sm);
+    margin-top: 0.25rem;
+}
+```
+
+### Navigation States
+```css
+/* Current page */
+[aria-current="page"] {
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+/* Hover state */
+nav a:hover {
+    text-decoration: underline;
+}
+
+/* Focus state */
+nav a:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+```
+
+### Button Variations
+```css
+button[data-type="primary"],
+[role="button"][data-type="primary"] {
+    background: var(--color-primary);
+    color: white;
+}
+
+button[data-type="secondary"],
+[role="button"][data-type="secondary"] {
+    background: transparent;
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+}
+
+button[data-type="danger"],
+[role="button"][data-type="danger"] {
+    background: var(--color-danger);
+    color: white;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+```
 
 ## Resources
 
+- [MDN Web Docs - HTML](https://developer.mozilla.org/en-US/docs/Web/HTML)
 - [MDN Web Docs - CSS](https://developer.mozilla.org/en-US/docs/Web/CSS)
 - [MDN Web Docs - ARIA](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA)
-- [Pico CSS Documentation](https://picocss.com/docs/)
+- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
 - [CSS Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties)
+- [Modern CSS Solutions](https://moderncss.dev/)
 
-## Examples
+## Version History
 
-See the following files for reference implementations:
-- `/static/css/pages/projects.css` - Projects page styling
-- `/static/css/pages/people.css` - People page styling
-- `/static/css/pages/profile.css` - Profile page styling
+- **v2.0.0** - Complete rewrite with standardized naming conventions
+- **v1.0.0** - Initial guidelines
 
-Each demonstrates how to create sophisticated designs using only semantic selectors and data attributes.
+---
+
+*Last updated: 2024*
