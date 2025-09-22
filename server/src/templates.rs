@@ -343,6 +343,128 @@ pub struct ProductionEditData {
     pub location: Option<String>,
 }
 
+/// Locations page template
+#[derive(Template)]
+#[template(path = "locations.html")]
+pub struct LocationsTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub locations: Vec<LocationView>,
+    pub filter: Option<String>,
+    pub show_private: bool,
+    pub sort_by: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocationView {
+    pub id: String,
+    pub slug: String,
+    pub name: String,
+    pub address: String,
+    pub city: String,
+    pub state: String,
+    pub country: String,
+    pub description: Option<String>,
+    pub is_public: bool,
+    pub created_at: String,
+}
+
+/// Single location view template
+#[derive(Template)]
+#[template(path = "location.html")]
+pub struct LocationTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub location: LocationDetail,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocationDetail {
+    pub id: String,
+    pub slug: String,
+    pub name: String,
+    pub address: String,
+    pub city: String,
+    pub state: String,
+    pub country: String,
+    pub postal_code: Option<String>,
+    pub description: Option<String>,
+    pub contact_name: String,
+    pub contact_email: String,
+    pub contact_phone: Option<String>,
+    pub is_public: bool,
+    pub amenities: Option<Vec<String>>,
+    pub restrictions: Option<Vec<String>>,
+    pub parking_info: Option<String>,
+    pub max_capacity: Option<i32>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub rates: Vec<RateView>,
+    pub can_edit: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RateView {
+    pub id: String,
+    pub rate_type: String,
+    pub amount: f64,
+    pub currency: String,
+    pub minimum_duration: Option<i32>,
+    pub description: Option<String>,
+}
+
+/// Location create form template
+#[derive(Template)]
+#[template(path = "location_create.html")]
+pub struct LocationCreateTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub errors: Option<Vec<String>>,
+}
+
+/// Location edit form template
+#[derive(Template)]
+#[template(path = "location_edit.html")]
+pub struct LocationEditTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub location: LocationEditData,
+    pub errors: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocationEditData {
+    pub id: String,
+    pub slug: String,
+    pub name: String,
+    pub address: String,
+    pub city: String,
+    pub state: String,
+    pub country: String,
+    pub postal_code: Option<String>,
+    pub description: Option<String>,
+    pub contact_name: String,
+    pub contact_email: String,
+    pub contact_phone: Option<String>,
+    pub is_public: bool,
+    pub amenities: Option<String>, // Comma-separated string for editing
+    pub restrictions: Option<String>, // Comma-separated string for editing
+    pub parking_info: Option<String>,
+    pub max_capacity: Option<i32>,
+}
+
 /// People page template
 #[derive(Template)]
 #[template(path = "people.html")]

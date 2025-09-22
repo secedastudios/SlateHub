@@ -219,6 +219,46 @@ DEFINE FIELD created_at ON production TYPE datetime DEFAULT time::now() PERMISSI
 DEFINE FIELD updated_at ON production TYPE datetime VALUE time::now() PERMISSIONS FULL;
 
 -- ------------------------------
+-- TABLE: location (filming locations)
+-- ------------------------------
+
+DEFINE TABLE location TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD name ON location TYPE string PERMISSIONS FULL;
+DEFINE FIELD slug ON location TYPE string PERMISSIONS FULL;
+DEFINE FIELD address ON location TYPE string PERMISSIONS FULL;  -- Required
+DEFINE FIELD city ON location TYPE string PERMISSIONS FULL;
+DEFINE FIELD state ON location TYPE string PERMISSIONS FULL;
+DEFINE FIELD country ON location TYPE string PERMISSIONS FULL;
+DEFINE FIELD postal_code ON location TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD description ON location TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD contact_name ON location TYPE string PERMISSIONS FULL;  -- Required
+DEFINE FIELD contact_email ON location TYPE string PERMISSIONS FULL;  -- Required
+DEFINE FIELD contact_phone ON location TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD is_public ON location TYPE bool DEFAULT false PERMISSIONS FULL;
+DEFINE FIELD amenities ON location TYPE option<array<string>> PERMISSIONS FULL;
+DEFINE FIELD restrictions ON location TYPE option<array<string>> PERMISSIONS FULL;
+DEFINE FIELD parking_info ON location TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD max_capacity ON location TYPE option<int> PERMISSIONS FULL;
+DEFINE FIELD created_at ON location TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON location TYPE datetime VALUE time::now() PERMISSIONS FULL;
+DEFINE FIELD created_by ON location TYPE record<person|organization> PERMISSIONS FULL;  -- Owner
+
+-- ------------------------------
+-- TABLE: location_rate (rates for locations)
+-- ------------------------------
+
+DEFINE TABLE location_rate TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD location ON location_rate TYPE record<location> PERMISSIONS FULL;
+DEFINE FIELD rate_type ON location_rate TYPE string ASSERT $value INSIDE ["hourly", "daily", "weekly", "monthly", "custom"] PERMISSIONS FULL;
+DEFINE FIELD amount ON location_rate TYPE decimal ASSERT $value >= 0 PERMISSIONS FULL;
+DEFINE FIELD currency ON location_rate TYPE string DEFAULT "USD" PERMISSIONS FULL;
+DEFINE FIELD minimum_duration ON location_rate TYPE option<int> PERMISSIONS FULL;  -- Minimum hours/days/weeks/months
+DEFINE FIELD description ON location_rate TYPE option<string> PERMISSIONS FULL;  -- e.g., "Includes lighting equipment"
+DEFINE FIELD created_at ON location_rate TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+
+-- ------------------------------
 -- RELATION: part_of (for production hierarchy, e.g., episode part_of season, season part_of series)
 -- ------------------------------
 
@@ -279,6 +319,11 @@ DEFINE FIELD applied_at ON application TYPE datetime DEFAULT time::now() PERMISS
 
 DEFINE INDEX idx_production_type ON production FIELDS type;
 DEFINE INDEX idx_production_slug ON production FIELDS slug UNIQUE;
+DEFINE INDEX idx_location_slug ON location FIELDS slug UNIQUE;
+DEFINE INDEX idx_location_public ON location FIELDS is_public;
+DEFINE INDEX idx_location_city ON location FIELDS city;
+DEFINE INDEX idx_location_created_by ON location FIELDS created_by;
+DEFINE INDEX idx_location_rate_location ON location_rate FIELDS location;
 DEFINE INDEX idx_organization_type ON organization FIELDS type;
 DEFINE INDEX idx_involvement_role ON involvement FIELDS role;
 DEFINE INDEX idx_involvement_relation_type ON involvement FIELDS relation_type;

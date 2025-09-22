@@ -1,0 +1,253 @@
+{% extends "_layout.html" %}
+{% block title %}Locations - {{ app_name }}{% endblock %}
+{% block page_name %}locations{% endblock %}
+{% block content %}
+<section id="locations-main" data-component="locations-page">
+    <header id="locations-header" data-role="page-header">
+        <h1 id="heading-locations">Filming Locations</h1>
+        <p data-role="subtitle">
+            Discover and list filming locations for productions
+        </p>
+    </header>
+
+    <section id="section-controls" data-section="controls">
+        <div id="locations-search" data-component="search-bar">
+            <form
+                id="form-search-locations"
+                method="get"
+                action="/locations"
+                data-component="form"
+            >
+                <fieldset id="fieldset-search" data-role="search-section">
+                    <legend hidden>Search Locations</legend>
+
+                    <div id="field-search" data-field="search">
+                        <label for="input-search" hidden>Search locations</label>
+                        <input
+                            type="search"
+                            id="input-search"
+                            name="filter"
+                            placeholder="Search locations by name, city, or description..."
+                            value="{% if filter.is_some() %}{{ filter.as_ref().unwrap() }}{% endif %}"
+                            aria-label="Search locations"
+                            aria-describedby="help-search"
+                        />
+                        <small id="help-search" data-role="help-text" hidden>
+                            Enter keywords to search for locations
+                        </small>
+                    </div>
+
+                    <div id="field-city-filter" data-field="city">
+                        <label for="input-city">City</label>
+                        <input
+                            type="text"
+                            id="input-city"
+                            name="city"
+                            placeholder="Filter by city"
+                            aria-label="Filter by city"
+                        />
+                    </div>
+
+                    <div id="field-public-only" data-field="public-only">
+                        <label for="checkbox-public-only">
+                            <input
+                                type="checkbox"
+                                id="checkbox-public-only"
+                                name="public_only"
+                                value="true"
+                                {% if !show_private %}checked{% endif %}
+                            />
+                            Show public locations only
+                        </label>
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="button-search"
+                        data-type="primary"
+                    >
+                        <span data-role="button-text">Search</span>
+                    </button>
+                </fieldset>
+            </form>
+        </div>
+
+        <div id="locations-sort" data-component="sort-controls">
+            <div id="field-sort" data-field="sort">
+                <label for="select-sort">Sort by:</label>
+                <select
+                    id="select-sort"
+                    name="sort"
+                    onchange="updateSort(this.value)"
+                    aria-label="Sort locations"
+                    aria-describedby="help-sort"
+                >
+                    <option value="recent" {% if sort_by == "recent" %}selected{% endif %}>
+                        Most Recent
+                    </option>
+                    <option value="name" {% if sort_by == "name" %}selected{% endif %}>
+                        Name
+                    </option>
+                    <option value="city" {% if sort_by == "city" %}selected{% endif %}>
+                        City
+                    </option>
+                </select>
+                <small id="help-sort" data-role="help-text" hidden>
+                    Choose how to order the location list
+                </small>
+            </div>
+        </div>
+    </section>
+
+    <section
+        id="section-locations-list"
+        data-section="locations-list"
+        data-layout="grid"
+        data-state="{% if locations.is_empty() %}empty{% else %}ready{% endif %}"
+        aria-labelledby="heading-locations"
+    >
+        {% if !locations.is_empty() %}
+        <h2 id="heading-locations-results" hidden>Location Results</h2>
+        <div id="locations-container" data-role="content-container">
+            {% for location in locations %}
+            <article
+                id="location-{{ location.slug }}"
+                data-component="location-card"
+                data-public="{% if location.is_public %}true{% else %}false{% endif %}"
+                data-location-id="{{ location.id }}"
+            >
+                <header data-role="card-header">
+                    <h3 id="location-title-{{ location.slug }}">
+                        <a
+                            href="/locations/{{ location.slug }}"
+                            id="link-location-{{ location.slug }}"
+                        >
+                            {{ location.name }}
+                        </a>
+                    </h3>
+                    {% if location.is_public %}
+                    <span
+                        id="location-public-{{ location.slug }}"
+                        data-role="visibility-badge"
+                        data-visibility="public"
+                    >
+                        Public
+                    </span>
+                    {% else %}
+                    <span
+                        id="location-private-{{ location.slug }}"
+                        data-role="visibility-badge"
+                        data-visibility="private"
+                    >
+                        Private
+                    </span>
+                    {% endif %}
+                </header>
+
+                <div data-role="card-body">
+                    <address
+                        id="location-address-{{ location.slug }}"
+                        data-role="address"
+                    >
+                        {{ location.address }}<br />
+                        {{ location.city }}, {{ location.state }} {{ location.country }}
+                    </address>
+
+                    {% if location.description.is_some() %}
+                    <p
+                        id="location-description-{{ location.slug }}"
+                        data-role="description"
+                    >
+                        {{ location.description.as_ref().unwrap() }}
+                    </p>
+                    {% endif %}
+
+                    <dl
+                        id="location-metadata-{{ location.slug }}"
+                        data-role="metadata"
+                    >
+                        <dt id="label-created-{{ location.slug }}">Added</dt>
+                        <dd
+                            id="location-created-{{ location.slug }}"
+                            data-field="created-date"
+                        >
+                            <time datetime="{{ location.created_at }}">
+                                {{ location.created_at }}
+                            </time>
+                        </dd>
+                    </dl>
+                </div>
+
+                <footer data-role="card-footer">
+                    <nav
+                        id="location-actions-{{ location.slug }}"
+                        data-role="card-actions"
+                        aria-label="Location actions"
+                    >
+                        <a
+                            href="/locations/{{ location.slug }}"
+                            id="button-view-location-{{ location.slug }}"
+                            role="button"
+                            data-type="primary"
+                            aria-label="View details for {{ location.name }}"
+                        >
+                            View Details
+                        </a>
+                    </nav>
+                </footer>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div
+            id="empty-state-locations"
+            data-role="empty-state"
+            data-state="empty"
+        >
+            <h2 id="heading-empty-locations">No locations found</h2>
+            <p id="empty-message-locations" data-role="empty-message">
+                {% if filter.is_some() %}
+                No locations match your search criteria. Try adjusting your filters or search terms.
+                {% else %}
+                Be the first to add a filming location! Share your space with production teams.
+                {% endif %}
+            </p>
+            <nav
+                id="empty-actions-locations"
+                data-role="empty-state-actions"
+                aria-label="Empty state actions"
+            >
+                {% if filter.is_some() %}
+                <a
+                    href="/locations"
+                    id="link-clear-search"
+                    role="button"
+                    data-type="secondary"
+                >
+                    Clear Search
+                </a>
+                {% endif %}
+                {% if user.is_some() %}
+                <a
+                    href="/locations/new"
+                    id="link-add-location"
+                    role="button"
+                    data-type="primary"
+                >
+                    Add Location
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+        {% endif %}
+    </section>
+</section>
+
+<script>
+    function updateSort(value) {
+        const url = new URL(window.location);
+        url.searchParams.set("sort", value);
+        window.location.href = url.toString();
+    }
+</script>
+{% endblock %}

@@ -29,6 +29,15 @@
             </li>
             <li>
                 <a
+                    href="/locations"
+                    id="link-nav-locations"
+                    {% if active_page == "locations" %}aria-current="page"{% endif %}
+                >
+                    Locations
+                </a>
+            </li>
+            <li>
+                <a
                     href="/people"
                     id="link-nav-people"
                     {% if active_page == "people" %}aria-current="page"{% endif %}
