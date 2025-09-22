@@ -783,25 +783,25 @@ pub fn router() -> Router {
             "/equipment/new",
             get(show_create_equipment_form).post(create_equipment),
         )
-        .route("/equipment/:id", get(show_equipment_detail))
+        .route("/equipment/{id}", get(show_equipment_detail))
         .route(
-            "/equipment/:id/edit",
+            "/equipment/{id}/edit",
             get(show_edit_equipment_form).post(update_equipment),
         )
-        .route("/equipment/:id/delete", post(delete_equipment))
+        .route("/equipment/{id}/delete", post(delete_equipment))
         // Kit management
         .route(
             "/equipment/kit/new",
             get(show_create_kit_form).post(create_kit),
         )
-        .route("/equipment/kit/:id", get(show_kit_detail))
+        .route("/equipment/kit/{id}", get(show_kit_detail))
         // Checkout/Checkin
         .route(
             "/equipment/checkout",
             get(show_checkout_form).post(checkout_equipment_post),
         )
         .route(
-            "/equipment/rental/:id/checkin",
+            "/equipment/rental/{id}/checkin",
             get(show_checkin_form).post(checkin_equipment_post),
         )
 }
