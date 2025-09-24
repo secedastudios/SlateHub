@@ -7,64 +7,43 @@
                 </a>
             </li>
         </ul>
-
         <ul id="nav-primary" data-role="nav-primary">
             <li>
                 <a
-                    href="/"
-                    id="link-nav-home"
-                    {% if active_page == "home" %}aria-current="page"{% endif %}
-                >
-                    Home
-                </a>
+                    href="/people"
+                    id="link-nav-people"
+                    {% if active_page == "people" %}aria-current="page"{% endif %}
+                >People</a>
             </li>
             <li>
                 <a
-                    href="/productions"
-                    id="link-nav-productions"
-                    {% if active_page == "productions" %}aria-current="page"{% endif %}
-                >
-                    Productions
-                </a>
+                    href="/orgs"
+                    id="link-nav-organizations"
+                    {% if active_page == "orgs" %}aria-current="page"{% endif %}
+                >Orgs</a>
             </li>
             <li>
                 <a
                     href="/locations"
                     id="link-nav-locations"
                     {% if active_page == "locations" %}aria-current="page"{% endif %}
-                >
-                    Locations
-                </a>
+                >Locations</a>
             </li>
             <li>
                 <a
-                    href="/people"
-                    id="link-nav-people"
-                    {% if active_page == "people" %}aria-current="page"{% endif %}
-                >
-                    People
-                </a>
-            </li>
-            <li>
-                <a
-                    href="/equipment"
-                    id="link-nav-equipment"
-                    {% if active_page == "equipment" %}aria-current="page"{% endif %}
-                >
-                    Equipment
-                </a>
+                    href="/productions"
+                    id="link-nav-productions"
+                    {% if active_page == "productions" %}aria-current="page"{% endif %}
+                >Productions</a>
             </li>
             <li>
                 <a
                     href="/about"
                     id="link-nav-about"
                     {% if active_page == "about" %}aria-current="page"{% endif %}
-                >
-                    About
-                </a>
+                >About</a>
             </li>
         </ul>
-
         <ul id="nav-user" data-role="nav-user">
             <li data-component="theme-toggle">
                 <button
@@ -86,21 +65,20 @@
                     >🌙</span>
                 </button>
             </li>
-
             {% match user %}
-            {% when Some with (user) %}
-            <li data-component="user-menu">
-                <details id="user-menu-dropdown">
-                    <summary
+                {% when Some with (user) %}
+                <li data-component="user-menu">
+                    <details id="user-menu-dropdown">
+                        <summary
                         id="button-user-menu"
                         role="button"
                         aria-label="User menu for {{ user.name }}"
                         aria-haspopup="true"
                         aria-expanded="false"
                     >
-                        {% match user.avatar_url %}
-                        {% when Some with (url) %}
-                        <img
+                            {% match user.avatar_url %}
+                                {% when Some with (url) %}
+                                <img
                             src="{{ url }}"
                             alt="{{ user.name }}'s avatar"
                             id="nav-user-avatar"
@@ -108,90 +86,75 @@
                             width="32"
                             height="32"
                         />
-                        {% when None %}
-                        <div id="nav-user-initials" data-role="avatar-initials">
-                            {{ user.initials }}
-                        </div>
-                        {% endmatch %}
-                    </summary>
-
-                    <ul
+                                {% when None %}
+                                <div id="nav-user-initials" data-role="avatar-initials">{{ user.initials }}</div>
+                            {% endmatch %}
+                        </summary>
+                        <ul
                         id="user-menu-list"
                         data-role="dropdown-menu"
                         dir="rtl"
                         role="menu"
                         aria-labelledby="button-user-menu"
                     >
-                        <li role="none">
-                            <a
+                            <li role="none">
+                                <a
                                 href="/profile"
                                 id="link-menu-profile"
                                 role="menuitem"
-                            >
-                                Profile
-                            </a>
-                        </li>
-                        <li role="none">
-                            <a
+                            >Profile</a>
+                            </li>
+                            <li role="none">
+                                <a
                                 href="/my-orgs"
                                 id="link-menu-organizations"
                                 role="menuitem"
-                            >
-                                My Organizations
-                            </a>
-                        </li>
-                        <li role="none">
-                            <a
+                            >My Organizations</a>
+                            </li>
+                            <li role="none">
+                                <a
                                 href="/equipment"
                                 id="link-menu-equipment"
                                 role="menuitem"
-                            >
-                                My Equipment
-                            </a>
-                        </li>
-                        <li role="none">
-                            <hr data-role="divider" aria-hidden="true" />
-                        </li>
-                        <li role="none">
-                            <form
+                            >My Equipment</a>
+                            </li>
+                            <li role="none">
+                                <hr data-role="divider" aria-hidden="true" />
+                            </li>
+                            <li role="none">
+                                <form
                                 id="form-logout"
                                 action="/logout"
                                 method="post"
                                 data-component="form"
                             >
-                                <button
+                                    <button
                                     type="submit"
                                     id="button-logout"
                                     role="menuitem"
-                                >
-                                    Logout
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </details>
-            </li>
-            {% when None %}
-            <li>
-                <a
+                                >Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </details>
+                </li>
+                {% when None %}
+                <li>
+                    <a
                     href="/login"
                     id="button-nav-login"
                     role="button"
                     data-type="primary"
-                >
-                    Login
-                </a>
-            </li>
-            <li>
-                <a
+                >Login</a>
+                </li>
+                <li>
+                    <a
                     href="/signup"
                     id="button-nav-signup"
                     role="button"
                     data-type="secondary"
-                >
-                    Sign Up
-                </a>
-            </li>
+                >Sign Up</a>
+                </li>
             {% endmatch %}
         </ul>
     </nav>

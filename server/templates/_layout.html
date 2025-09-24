@@ -8,17 +8,18 @@
             name="description"
             content="{% block description %}SlateHub - A collaborative hub for the TV, film, and content industries{% endblock %}"
         />
-        <title>{% block title %}{{ app_name }}{% endblock %}</title>
-
+        <title>
+            {% block title %}
+                {{ app_name }}
+            {% endblock %}
+        </title>
         {% include "partials/styles.html" %}
-
         <!-- Theme Initialization Script -->
         <script>
             // Check for saved theme preference or default to dark
             const savedTheme = localStorage.getItem("theme") || "dark";
             document.documentElement.setAttribute("data-theme", savedTheme);
         </script>
-
         {% block head %}{% endblock %}
     </head>
     <body
@@ -26,13 +27,11 @@
         data-user="{% if user.is_some() %}authenticated{% else %}anonymous{% endif %}"
     >
         {% include "partials/header.html" %}
-
-        <main id="main-content">{% block content %}{% endblock %}</main>
-
+        <main id="main-content">
+            {% block content %}{% endblock %}
+        </main>
         {% include "partials/footer.html" %}
-
         {% include "partials/scripts.html" %}
-
         {% block scripts %}{% endblock %}
     </body>
 </html>
