@@ -588,44 +588,246 @@ ul[data-role="dropdown-menu"] a {
    ======================================== */
 
 #site-footer {
-    background: var(--color-bg-white);
-    border-top: 1px solid var(--color-border-light);
+    background: var(--color-text-primary);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     margin-top: auto;
-    padding: var(--space-xl) 0;
+    padding: 0;
+    color: var(--color-text-light);
+    position: relative;
 }
 
-#site-footer > div {
+/* Add subtle gradient accent to footer */
+#site-footer::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+        90deg,
+        var(--color-accent) 0%,
+        var(--color-accent-light) 50%,
+        var(--color-accent) 100%
+    );
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0%,
+    100% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Main footer content with columns */
+#footer-main {
     max-width: var(--container-max);
     margin: 0 auto;
-    padding: 0 var(--space-lg);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-lg);
+    padding: var(--space-3xl) var(--space-lg) var(--space-2xl);
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: var(--space-3xl);
+    align-items: start;
 }
 
-#site-footer p {
-    margin: 0;
+/* Footer brand section */
+#footer-brand {
+    position: relative;
+}
+
+#footer-brand h3 {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-light);
+    margin-bottom: var(--space-md);
+    position: relative;
+    display: inline-block;
+}
+
+/* Add accent underline to brand */
+#footer-brand h3::after {
+    content: "";
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 40px;
+    height: 2px;
+    background-color: var(--color-accent);
+}
+
+#footer-brand p {
+    color: rgba(255, 255, 255, 0.7);
     font-size: var(--text-sm);
-    color: var(--color-text-secondary);
+    line-height: 1.6;
+    max-width: 400px;
+    margin: 0;
 }
 
+/* Footer section headings */
+#footer-links h4,
+#footer-connect h4 {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-light);
+    margin-bottom: var(--space-lg);
+    position: relative;
+    padding-bottom: var(--space-sm);
+}
+
+/* Add subtle accent dots to section headings */
+#footer-links h4::before,
+#footer-connect h4::before {
+    content: "";
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    background-color: var(--color-accent);
+    border-radius: var(--radius-full);
+    margin-right: var(--space-sm);
+    vertical-align: middle;
+}
+
+/* Footer navigation lists */
 #site-footer nav ul {
     list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
-    gap: var(--space-lg);
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+#site-footer nav li {
     margin: 0;
 }
 
 #site-footer nav a {
-    color: var(--color-text-secondary);
+    color: rgba(255, 255, 255, 0.7);
     font-size: var(--text-sm);
-    transition: color var(--transition-fast);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    display: inline-block;
+    padding: var(--space-xs) 0;
+    position: relative;
+}
+
+#site-footer nav a::before {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background-color: var(--color-accent);
+    transition: width var(--transition-fast);
 }
 
 #site-footer nav a:hover {
-    color: var(--color-accent);
+    color: var(--color-text-light);
+    transform: translateX(4px);
+}
+
+#site-footer nav a:hover::before {
+    width: 100%;
+}
+
+#site-footer nav a:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+/* Footer divider */
+#site-footer hr[data-role="divider"] {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 0;
+}
+
+/* Copyright section */
+#footer-copyright {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: var(--space-lg) var(--space-lg) var(--space-xl);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#footer-copyright p {
+    margin: 0;
+}
+
+#footer-copyright small {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: var(--text-xs);
+    letter-spacing: 0.03em;
+}
+
+/* Version badge styling */
+#footer-copyright [data-role="version-info"] small {
+    background: rgba(235, 84, 55, 0.2);
+    color: var(--color-accent-light);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(235, 84, 55, 0.3);
+}
+
+/* Responsive footer */
+@media (max-width: 768px) {
+    #footer-main {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+        padding: var(--space-2xl) var(--space-lg);
+    }
+
+    #footer-brand {
+        text-align: center;
+    }
+
+    #footer-brand p {
+        margin: 0 auto;
+    }
+
+    #footer-links,
+    #footer-connect {
+        text-align: center;
+    }
+
+    #site-footer nav ul {
+        align-items: center;
+    }
+
+    #footer-copyright {
+        flex-direction: column;
+        gap: var(--space-sm);
+        text-align: center;
+    }
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+    #footer-main {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+
+    #footer-main > div {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-xl);
+    }
+
+    #footer-brand {
+        grid-column: span 2;
+    }
 }
 
 /* ========================================
@@ -1233,10 +1435,7 @@ dd {
         text-align: center;
     }
 
-    #site-footer nav ul {
-        flex-direction: column;
-        gap: var(--space-sm);
-    }
+    /* Footer already handled in main footer section */
 
     /* Forms */
     [data-role="button-group"] {
