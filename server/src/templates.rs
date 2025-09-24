@@ -502,6 +502,26 @@ pub struct AboutTemplate {
     pub user: Option<User>,
 }
 
+#[derive(Template)]
+#[template(path = "terms.html")]
+pub struct TermsTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+}
+
+#[derive(Template)]
+#[template(path = "privacy.html")]
+pub struct PrivacyTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+}
+
 // ============================
 // Equipment Templates
 // ============================
@@ -777,7 +797,30 @@ impl AboutTemplate {
     }
 }
 
-// Helper function for backwards compatibility
+impl TermsTemplate {
+    pub fn new(base: BaseContext) -> Self {
+        Self {
+            app_name: base.app_name,
+            year: base.year,
+            version: base.version,
+            active_page: base.active_page,
+            user: base.user,
+        }
+    }
+}
+
+impl PrivacyTemplate {
+    pub fn new(base: BaseContext) -> Self {
+        Self {
+            app_name: base.app_name,
+            year: base.year,
+            version: base.version,
+            active_page: base.active_page,
+            user: base.user,
+        }
+    }
+}
+
 pub fn base_context() -> BaseContext {
     BaseContext::new()
 }

@@ -5,7 +5,10 @@ use tracing::{debug, error};
 use crate::{
     error::Error,
     middleware::UserExtractor,
-    templates::{AboutTemplate, Activity, BaseContext, IndexTemplate, PeopleTemplate, User},
+    templates::{
+        AboutTemplate, Activity, BaseContext, IndexTemplate, PeopleTemplate, PrivacyTemplate,
+        TermsTemplate, User,
+    },
 };
 
 pub fn router() -> Router {
@@ -13,6 +16,8 @@ pub fn router() -> Router {
         .route("/", get(index))
         .route("/people", get(people))
         .route("/about", get(about))
+        .route("/terms", get(terms))
+        .route("/privacy", get(privacy))
 }
 
 async fn index(request: Request) -> Result<Html<String>, Error> {
@@ -99,6 +104,46 @@ async fn people(request: Request) -> Result<Html<String>, Error> {
 
     let html = template.render().map_err(|e| {
         error!("Failed to render people template: {}", e);
+        Error::template(e.to_string())
+    })?;
+
+    Ok(Html(html))
+}
+
+async fn terms(request: Request) -> Result<Html<String>, Error> {
+    debug!("Rendering terms of service page");
+
+    let mut base = BaseContext::new().with_page("terms");
+
+    // Add user to context if authenticated
+    if let Some(user) = request.get_user() {
+        base = base.with_user(User::from_session_user(&user).await);
+    }
+
+    let template = TermsTemplate::new(base);
+
+    let html = template.render().map_err(|e| {
+        error!("Failed to render terms template: {}", e);
+        Error::template(e.to_string())
+    })?;
+
+    Ok(Html(html))
+}
+
+async fn privacy(request: Request) -> Result<Html<String>, Error> {
+    debug!("Rendering privacy policy page");
+
+    let mut base = BaseContext::new().with_page("privacy");
+
+    // Add user to context if authenticated
+    if let Some(user) = request.get_user() {
+        base = base.with_user(User::from_session_user(&user).await);
+    }
+
+    let template = PrivacyTemplate::new(base);
+
+    let html = template.render().map_err(|e| {
+        error!("Failed to render privacy template: {}", e);
         Error::template(e.to_string())
     })?;
 

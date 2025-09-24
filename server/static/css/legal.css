@@ -1,0 +1,263 @@
+/* ========================================
+   Legal Document Styles
+   Terms of Service & Privacy Policy
+   ======================================== */
+
+/* Legal Document Container */
+[data-component="legal-document"] {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: var(--color-white, #ffffff);
+    border-radius: var(--radius-lg, 8px);
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.1));
+}
+
+/* Document Header */
+[data-component="legal-document"] [data-role="document-header"] {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 2px solid var(--color-border, #e0e0e0);
+}
+
+[data-component="legal-document"] [data-role="document-header"] h1 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a1a);
+    margin-bottom: 0.5rem;
+}
+
+[data-component="legal-document"] [data-role="last-updated"] {
+    color: var(--color-text-secondary, #666666);
+    font-size: 0.95rem;
+    font-style: italic;
+}
+
+/* Section Styling */
+[data-component="legal-document"] section[data-section] {
+    margin-bottom: 2.5rem;
+}
+
+[data-component="legal-document"] section[data-section] h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a1a);
+    margin-bottom: 1rem;
+    margin-top: 2rem;
+}
+
+[data-component="legal-document"] section[data-section]:first-of-type h2 {
+    margin-top: 0;
+}
+
+[data-component="legal-document"] p {
+    line-height: 1.7;
+    color: var(--color-text-primary, #333333);
+    margin-bottom: 1rem;
+}
+
+[data-component="legal-document"] strong {
+    font-weight: 600;
+    color: var(--color-text-emphasis, #000000);
+}
+
+/* Lists */
+[data-component="legal-document"] ul[data-role],
+[data-component="legal-document"] ol[data-role] {
+    margin: 1rem 0 1.5rem 1.5rem;
+    line-height: 1.8;
+}
+
+[data-component="legal-document"] ul[data-role] li,
+[data-component="legal-document"] ol[data-role] li {
+    margin-bottom: 0.5rem;
+    color: var(--color-text-primary, #333333);
+}
+
+/* Definition Lists */
+[data-component="legal-document"] dl[data-role] {
+    margin: 1rem 0 1.5rem 0;
+}
+
+[data-component="legal-document"] dl[data-role] dt {
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a1a);
+    margin-bottom: 0.25rem;
+    margin-top: 1rem;
+}
+
+[data-component="legal-document"] dl[data-role] dt:first-child {
+    margin-top: 0;
+}
+
+[data-component="legal-document"] dl[data-role] dd {
+    margin-left: 1.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.7;
+    color: var(--color-text-primary, #333333);
+}
+
+/* Links */
+[data-component="legal-document"] a {
+    color: var(--color-primary, #0066cc);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
+}
+
+[data-component="legal-document"] a:hover {
+    border-bottom-color: var(--color-primary, #0066cc);
+}
+
+[data-component="legal-document"] a:focus-visible {
+    outline: 2px solid var(--color-primary, #0066cc);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* Address Elements */
+[data-component="legal-document"] address[data-role] {
+    font-style: normal;
+    line-height: 1.8;
+    margin: 1rem 0;
+    padding: 1rem 1.5rem;
+    background: var(--color-bg-secondary, #f8f9fa);
+    border-left: 4px solid var(--color-primary, #0066cc);
+    border-radius: var(--radius-sm, 4px);
+}
+
+[data-component="legal-document"] address[data-role] strong {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* Specific Page Variations */
+[data-page="terms"] [data-section="introduction"] {
+    font-size: 1.05rem;
+}
+
+[data-page="privacy"] [data-section="introduction"] {
+    font-size: 1.05rem;
+}
+
+/* Important Sections Highlighting */
+[data-section="data-sharing"] strong,
+[data-section="data-deletion"] strong,
+[data-section="your-rights"] strong {
+    background: linear-gradient(to bottom, transparent 60%, rgba(255, 235, 59, 0.3) 60%);
+    padding: 0 2px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    [data-component="legal-document"] {
+        margin: 1rem;
+        padding: 1.5rem;
+    }
+
+    [data-component="legal-document"] [data-role="document-header"] h1 {
+        font-size: 2rem;
+    }
+
+    [data-component="legal-document"] section[data-section] h2 {
+        font-size: 1.25rem;
+    }
+
+    [data-component="legal-document"] ul[data-role],
+    [data-component="legal-document"] ol[data-role] {
+        margin-left: 1rem;
+    }
+
+    [data-component="legal-document"] dl[data-role] dd {
+        margin-left: 1rem;
+    }
+}
+
+/* Print Styles */
+@media print {
+    [data-component="legal-document"] {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    [data-component="legal-document"] section[data-section] {
+        page-break-inside: avoid;
+    }
+
+    [data-component="legal-document"] a {
+        color: inherit;
+        text-decoration: underline;
+    }
+
+    [data-component="legal-document"] a[href^="http"]:after {
+        content: " (" attr(href) ")";
+        font-size: 0.8em;
+        color: var(--color-text-secondary, #666666);
+    }
+
+    [data-component="legal-document"] a[href^="mailto"]:after {
+        content: none;
+    }
+}
+
+/* Dark Mode Support */
+[data-theme="dark"] [data-component="legal-document"] {
+    background: var(--color-bg-dark, #1e1e1e);
+}
+
+[data-theme="dark"] [data-component="legal-document"] [data-role="document-header"] {
+    border-bottom-color: var(--color-border-dark, #404040);
+}
+
+[data-theme="dark"] [data-component="legal-document"] h1,
+[data-theme="dark"] [data-component="legal-document"] h2 {
+    color: var(--color-text-primary-dark, #ffffff);
+}
+
+[data-theme="dark"] [data-component="legal-document"] p,
+[data-theme="dark"] [data-component="legal-document"] li,
+[data-theme="dark"] [data-component="legal-document"] dd {
+    color: var(--color-text-primary-dark, #e0e0e0);
+}
+
+[data-theme="dark"] [data-component="legal-document"] dt,
+[data-theme="dark"] [data-component="legal-document"] strong {
+    color: var(--color-text-emphasis-dark, #ffffff);
+}
+
+[data-theme="dark"] [data-component="legal-document"] [data-role="last-updated"] {
+    color: var(--color-text-secondary-dark, #a0a0a0);
+}
+
+[data-theme="dark"] [data-component="legal-document"] address[data-role] {
+    background: var(--color-bg-secondary-dark, #2a2a2a);
+    border-left-color: var(--color-primary-dark, #4da6ff);
+}
+
+[data-theme="dark"] [data-component="legal-document"] a {
+    color: var(--color-primary-dark, #4da6ff);
+}
+
+/* Accessibility: High Contrast Mode */
+@media (prefers-contrast: high) {
+    [data-component="legal-document"] {
+        border: 2px solid currentColor;
+    }
+
+    [data-component="legal-document"] [data-role="document-header"] {
+        border-bottom-width: 3px;
+    }
+
+    [data-component="legal-document"] a {
+        text-decoration: underline;
+    }
+}
+
+/* Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+    [data-component="legal-document"] a {
+        transition: none;
+    }
+}
