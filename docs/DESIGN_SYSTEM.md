@@ -134,6 +134,27 @@ SlateHub uses a clean, minimalist design system focused on clarity, professional
 - Active state: Accent color underline
 - Mobile: Collapsible menu
 
+### User Dropdown Menu
+- **CSS-only implementation** using native `<details>` element
+- **Avatar trigger**: 32px circular avatar with hover state
+- **Dropdown indicator**: Small caret that rotates when open
+- **Menu styling**:
+  - Positioned absolutely below avatar
+  - White background with subtle shadow
+  - 200px minimum width
+  - Smooth slide-down animation (200ms)
+  - Rounded corners matching design system
+- **Menu items**:
+  - Clean list with hover states
+  - Divider line for visual separation
+  - Logout button styled in error color
+- **Interaction**:
+  - Opens/closes on click
+  - Invisible backdrop closes menu when clicking outside
+  - Keyboard accessible
+  - Focus states for all interactive elements
+- **Responsive**: Maintains position on mobile devices
+
 ### Footer
 - Minimal design with essential links
 - Small, elegant typography
@@ -265,6 +286,19 @@ SlateHub uses a clean, minimalist design system focused on clarity, professional
     <input type="email" id="input-email" required>
     <small data-role="help-text">We'll never share your email</small>
 </div>
+
+<!-- User Dropdown Menu (CSS-only) -->
+<details id="user-menu-dropdown">
+    <summary>
+        <img src="avatar.jpg" alt="User" />
+    </summary>
+    <ul data-role="dropdown-menu">
+        <li><a href="/profile">Profile</a></li>
+        <li><a href="/settings">Settings</a></li>
+        <li><hr data-role="divider" /></li>
+        <li><button id="button-logout">Logout</button></li>
+    </ul>
+</details>
 ```
 
 ## Maintenance
