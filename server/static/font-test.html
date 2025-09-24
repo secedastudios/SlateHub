@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Font Test - SlateHub</title>
+        <style>
+        /* Font Face Declarations */
+        @font-face {
+            font-family: 'Denton XCondensed Test';
+            font-weight: 100;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Thin.otf') format('opentype');
+        }
+        @font-face {
+            font-family: 'Denton XCondensed Test';
+            font-weight: 300;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Light.otf') format('opentype');
+        }
+        @font-face {
+            font-family: 'Denton XCondensed Test';
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Regular.otf') format('opentype');
+        }
+        @font-face {
+            font-family: 'Denton XCondensed Test';
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Medium.otf') format('opentype');
+        }
+        @font-face {
+            font-family: 'Denton XCondensed Test';
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Bold.otf') format('opentype');
+        }
+        @font-face {
+            font-family: 'Denton XCondensed Test';
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-ExtraBold.otf') format('opentype');
+        }
+        @font-face {
+            font-family: 'Denton XCondensed Test';
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Black.otf') format('opentype');
+        }
+
+        /* Helvetica Now Display */
+        @font-face {
+            font-family: 'Helvetica Now Display';
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/helveticanowtext-bold-demo.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Helvetica Now Display';
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/helveticanowtext-bold-demo.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Helvetica Now Display';
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+            src: url('/static/fonts/helveticanowtext-black-demo.ttf') format('truetype');
+        }
+
+        /* Test Styles */
+        body {
+            background-color: #D6D8CA;
+            color: #171717;
+            padding: 40px;
+            font-family: 'Helvetica Now Display', Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+        }
+
+        h1 {
+            font-family: 'Denton XCondensed Test', Arial, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 48px;
+            margin-bottom: 40px;
+            color: #171717;
+        }
+
+        h2 {
+            font-family: 'Denton XCondensed Test', Arial, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 32px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            color: #EB5437;
+        }
+
+        .font-test {
+            margin: 20px 0;
+            padding: 20px;
+            background: #F2F3ED;
+            border-radius: 4px;
+        }
+
+        .denton-thin {
+            font-family: 'Denton XCondensed Test', Arial, sans-serif;
+            font-weight: 100;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .denton-light {
+            font-family: 'Denton XCondensed Test', Arial, sans-serif;
+            font-weight: 300;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .denton-regular {
+            font-family: 'Denton XCondensed Test', Arial, sans-serif;
+            font-weight: 400;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .denton-medium {
+            font-family: 'Denton XCondensed Test', Arial, sans-serif;
+            font-weight: 500;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .denton-bold {
+            font-family: 'Denton XCondensed Test', Arial, sans-serif;
+            font-weight: 700;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .denton-extrabold {
+            font-family: 'Denton XCondensed Test', Arial, sans-serif;
+            font-weight: 800;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .denton-black {
+            font-family: 'Denton XCondensed Test', Arial, sans-serif;
+            font-weight: 900;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .helvetica-regular {
+            font-family: 'Helvetica Now Display', Arial, sans-serif;
+            font-weight: 400;
+            font-size: 18px;
+        }
+
+        .helvetica-bold {
+            font-family: 'Helvetica Now Display', Arial, sans-serif;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .helvetica-black {
+            font-family: 'Helvetica Now Display', Arial, sans-serif;
+            font-weight: 900;
+            font-size: 18px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .status.loaded {
+            background: #E8F3EC;
+            color: #4A7C59;
+        }
+
+        .status.error {
+            background: #FCEBE9;
+            color: #C44536;
+        }
+
+        code {
+            background: #F2F3ED;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+        }
+    </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>SlateHub Font Test Page</h1>
+            <p>
+                This page tests the embedded fonts for the SlateHub design
+                system. All fonts should load from local files without any
+                external dependencies.
+            </p>
+            <h2>Denton XCondensed Test Fonts</h2>
+            <div class="font-test">
+                <p class="denton-thin">
+                    Thin (100): The quick brown fox jumps over the lazy dog
+                </p>
+                <code>font-weight: 100</code>
+            </div>
+            <div class="font-test">
+                <p class="denton-light">
+                    Light (300): The quick brown fox jumps over the lazy dog
+                </p>
+                <code>font-weight: 300</code>
+            </div>
+            <div class="font-test">
+                <p class="denton-regular">
+                    Regular (400): The quick brown fox jumps over the lazy dog
+                </p>
+                <code>font-weight: 400</code>
+            </div>
+            <div class="font-test">
+                <p class="denton-medium">
+                    Medium (500): The quick brown fox jumps over the lazy dog
+                </p>
+                <code>font-weight: 500</code>
+            </div>
+            <div class="font-test">
+                <p class="denton-bold">
+                    Bold (700): The quick brown fox jumps over the lazy dog
+                </p>
+                <code>font-weight: 700</code>
+            </div>
+            <div class="font-test">
+                <p class="denton-extrabold">
+                    Extra Bold (800): The quick brown fox jumps over the lazy dog
+                </p>
+                <code>font-weight: 800</code>
+            </div>
+            <div class="font-test">
+                <p class="denton-black">
+                    Black (900): The quick brown fox jumps over the lazy dog
+                </p>
+                <code>font-weight: 900</code>
+            </div>
+            <h2>Helvetica Now Display Fonts</h2>
+            <div class="font-test">
+                <p class="helvetica-regular">
+                    Regular (400): The quick brown fox jumps over the lazy dog.
+                    This is the body font used throughout the application for
+                    all paragraph text, form inputs, and general UI elements.
+                </p>
+                <code>font-weight: 400</code>
+            </div>
+            <div class="font-test">
+                <p class="helvetica-bold">
+                    Bold (700): The quick brown fox jumps over the lazy dog.
+                    This weight is used for emphasis and important UI elements.
+                </p>
+                <code>font-weight: 700</code>
+            </div>
+            <div class="font-test">
+                <p class="helvetica-black">
+                    Black (900): The quick brown fox jumps over the lazy dog.
+                    This is the heaviest weight available for maximum emphasis.
+                </p>
+                <code>font-weight: 900</code>
+            </div>
+            <h2>Logo Example</h2>
+            <div class="font-test" style="text-align: center;">
+                <p style="font-family: 'Denton XCondensed Test'; font-weight: 400; font-size: 36px; text-transform: uppercase; letter-spacing: 0.08em; color: #171717; margin: 0;">SlateHub</p>
+            </div>
+            <h2>Font Load Status</h2>
+            <div class="font-test">
+                <p>
+                    Check the Network tab in Developer Tools to verify fonts are loading from:
+                </p>
+                <ul>
+                    <li>
+                        <code>
+                            /static/fonts/Denton XCondensed Test/*.otf
+                        </code>
+                    </li>
+                    <li>
+                        <code>/static/fonts/helveticanowtext-*.ttf</code>
+                    </li>
+                </ul>
+                <p>
+                    All fonts should load with status 200 and be served locally.
+                </p>
+            </div>
+            <script>
+            // Check if fonts are loaded
+            document.fonts.ready.then(() => {
+                console.log('All fonts loaded successfully');
+
+                // Log loaded fonts
+                document.fonts.forEach(font => {
+                    console.log(`Loaded: ${font.family} - Weight: ${font.weight} - Style: ${font.style}`);
+                });
+            });
+        </script>
+        </div>
+    </body>
+</html>

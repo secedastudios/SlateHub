@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,19 +13,89 @@
                 {{ app_name }}
             {% endblock %}
         </title>
+        <!-- Embedded Fonts -->
+        <style>
+            /* Denton XCondensed Test Fonts */
+            @font-face {
+                font-family: 'Denton XCondensed Test';
+                font-weight: 100;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Thin.otf') format('opentype');
+            }
+            @font-face {
+                font-family: 'Denton XCondensed Test';
+                font-weight: 300;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Light.otf') format('opentype');
+            }
+            @font-face {
+                font-family: 'Denton XCondensed Test';
+                font-weight: 400;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Regular.otf') format('opentype');
+            }
+            @font-face {
+                font-family: 'Denton XCondensed Test';
+                font-weight: 500;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Medium.otf') format('opentype');
+            }
+            @font-face {
+                font-family: 'Denton XCondensed Test';
+                font-weight: 700;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Bold.otf') format('opentype');
+            }
+            @font-face {
+                font-family: 'Denton XCondensed Test';
+                font-weight: 800;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-ExtraBold.otf') format('opentype');
+            }
+            @font-face {
+                font-family: 'Denton XCondensed Test';
+                font-weight: 900;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Black.otf') format('opentype');
+            }
+
+            /* Helvetica Now Text Fonts */
+            @font-face {
+                font-family: 'Helvetica Now Display';
+                font-weight: 400;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/helveticanowtext-bold-demo.ttf') format('truetype');
+            }
+            @font-face {
+                font-family: 'Helvetica Now Display';
+                font-weight: 700;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/helveticanowtext-bold-demo.ttf') format('truetype');
+            }
+            @font-face {
+                font-family: 'Helvetica Now Display';
+                font-weight: 900;
+                font-style: normal;
+                font-display: swap;
+                src: url('/static/fonts/helveticanowtext-black-demo.ttf') format('truetype');
+            }
+        </style>
         {% include "partials/styles.html" %}
-        <!-- Theme Initialization Script -->
-        <script>
-            // Check for saved theme preference or default to dark
-            const savedTheme = localStorage.getItem("theme") || "dark";
-            document.documentElement.setAttribute("data-theme", savedTheme);
-        </script>
         {% block head %}{% endblock %}
     </head>
     <body
-        data-page="{% block page_name %}default{% endblock %}"
-        data-user="{% if user.is_some() %}authenticated{% else %}anonymous{% endif %}"
-    >
+    data-page="{% block page_name %}default{% endblock %}"
+    data-user="{% if user.is_some() %}authenticated{% else %}anonymous{% endif %}"
+>
         {% include "partials/header.html" %}
         <main id="main-content">
             {% block content %}{% endblock %}

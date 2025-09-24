@@ -45,26 +45,6 @@
             </li>
         </ul>
         <ul id="nav-user" data-role="nav-user">
-            <li data-component="theme-toggle">
-                <button
-                    id="button-theme-toggle"
-                    type="button"
-                    aria-label="Toggle theme"
-                    data-tooltip="Toggle theme"
-                    data-placement="bottom"
-                >
-                    <span
-                        id="icon-theme-light"
-                        data-theme-icon="light"
-                        aria-hidden="true"
-                    >☀️</span>
-                    <span
-                        id="icon-theme-dark"
-                        data-theme-icon="dark"
-                        aria-hidden="true"
-                    >🌙</span>
-                </button>
-            </li>
             {% match user %}
                 {% when Some with (user) %}
                 <li data-component="user-menu">
