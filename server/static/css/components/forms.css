@@ -358,6 +358,78 @@ div[id^="error-"] {
     border-left-color: var(--color-info);
 }
 
+/* Success Panel for Password Reset */
+[data-component="success-panel"] {
+    padding: var(--spacing-xl);
+    background: var(--color-bg-secondary);
+    border-radius: var(--border-radius);
+    margin-top: var(--spacing-lg);
+}
+
+[data-component="success-panel"] [data-component="alert"] {
+    margin-bottom: var(--spacing-xl);
+}
+
+[data-component="success-panel"] [data-role="instructions"] {
+    margin: var(--spacing-xl) 0;
+}
+
+[data-component="success-panel"] [data-role="instructions"] h2 {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-md);
+    color: var(--color-text-primary);
+}
+
+[data-component="success-panel"] [data-role="steps"] {
+    list-style-type: decimal;
+    padding-left: var(--spacing-xl);
+    margin: var(--spacing-md) 0;
+    line-height: 1.8;
+    color: var(--color-text-secondary);
+}
+
+[data-component="success-panel"] [data-role="steps"] li {
+    margin-bottom: var(--spacing-sm);
+}
+
+[data-component="success-panel"] [data-role="action-panel"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: center;
+    margin-top: var(--spacing-xl);
+}
+
+[data-component="success-panel"] [role="button"][data-type="primary"] {
+    display: inline-block;
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: var(--color-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+}
+
+[data-component="success-panel"] [role="button"][data-type="primary"]:hover {
+    background: var(--color-primary-dark);
+}
+
+[data-component="success-panel"] [data-role="alternative-action"] {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+[data-component="success-panel"] [data-role="alternative-action"] a {
+    color: var(--color-primary);
+    text-decoration: none;
+    margin-left: var(--spacing-xs);
+}
+
+[data-component="success-panel"] [data-role="alternative-action"] a:hover {
+    text-decoration: underline;
+}
+
 /* =============================================================================
    Form Actions
    ============================================================================= */

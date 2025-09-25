@@ -191,6 +191,7 @@ pub struct ForgotPasswordTemplate {
     pub user: Option<User>,
     pub error: Option<String>,
     pub success: Option<String>,
+    pub email: Option<String>,
 }
 
 /// Reset password page template
@@ -819,6 +820,7 @@ impl ForgotPasswordTemplate {
             user: base.user,
             error: None,
             success: None,
+            email: None,
         }
     }
 }

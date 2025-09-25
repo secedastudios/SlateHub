@@ -213,15 +213,20 @@ impl EmailService {
         let subject = "Reset your SlateHub password";
 
         let text_body = format!(
-            "Hello,\n\n\
+            "Hello {},\n\n\
             We received a request to reset your SlateHub password.\n\n\
             Your password reset code is: {}\n\n\
-            Please enter this code on the password reset page to create a new password.\n\n\
+            To reset your password:\n\
+            1. Go to: https://slatehub.com/reset-password?email={}\n\
+            2. Enter the code above\n\
+            3. Create your new password\n\n\
             This code will expire in 1 hour.\n\n\
             If you didn't request a password reset, please ignore this email. Your password will remain unchanged.\n\n\
             Best regards,\n\
             The SlateHub Team",
-            reset_code
+            to_name.unwrap_or("there"),
+            reset_code,
+            urlencoding::encode(to_email)
         );
 
         let html_body = format!(
@@ -244,8 +249,12 @@ impl EmailService {
             <code style="font-size: 32px; font-weight: bold; color: #dc3545; letter-spacing: 4px;">{}</code>
         </div>
 
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="https://slatehub.com/reset-password?email={}" style="display: inline-block; background-color: #dc3545; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Reset Your Password</a>
+        </div>
+
         <p style="font-size: 14px; color: #666; margin-top: 20px;">
-            Please enter this code on the password reset page to create a new password.
+            Click the button above or enter the code on the password reset page to create a new password.
         </p>
 
         <p style="font-size: 14px; color: #dc3545; font-weight: bold; margin-top: 20px;">
@@ -262,7 +271,8 @@ impl EmailService {
     </div>
 </body>
 </html>"#,
-            reset_code
+            reset_code,
+            urlencoding::encode(to_email)
         );
 
         self.send_email(

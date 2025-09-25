@@ -355,6 +355,7 @@ async fn forgot_password(Form(form): Form<ForgotPasswordForm>) -> Result<Respons
         "If an account exists for {}, a password reset code has been sent.",
         form.email
     ));
+    template.email = Some(form.email.clone());
 
     let html = template.render().map_err(|e| {
         error!(
