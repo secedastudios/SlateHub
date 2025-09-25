@@ -4,7 +4,7 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use tracing::info;
 
 use crate::{
@@ -45,6 +45,28 @@ pub struct EquipmentQuery {
 // ============================
 
 #[derive(Debug, Deserialize)]
+pub struct ErrorQuery {
+    pub error: Option<String>,
+}
+
+/// Deserialize an optional float from a string that might be empty
+fn deserialize_optional_float<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: Option<String> = Option::deserialize(deserializer)?;
+    match s {
+        Some(s) if s.trim().is_empty() => Ok(None),
+        Some(s) => s
+            .trim()
+            .parse::<f64>()
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+        None => Ok(None),
+    }
+}
+
+#[derive(Debug, Deserialize)]
 pub struct EquipmentFormData {
     pub name: String,
     pub category: String,
@@ -53,6 +75,7 @@ pub struct EquipmentFormData {
     pub manufacturer: Option<String>,
     pub description: Option<String>,
     pub purchase_date: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_float")]
     pub purchase_price: Option<f64>,
     pub condition: String,
     pub notes: Option<String>,
@@ -202,8 +225,44 @@ pub async fn show_create_equipment_form(
 pub async fn create_equipment(
     AuthenticatedUser(current_user): AuthenticatedUser,
     Query(query): Query<EquipmentQuery>,
-    Form(form): Form<EquipmentFormData>,
+    form_result: Result<Form<EquipmentFormData>, axum::extract::rejection::FormRejection>,
 ) -> Result<Response, Error> {
+    // Handle form validation errors
+    let form = match form_result {
+        Ok(Form(form)) => form,
+        Err(err) => {
+            // Return the form with error message
+            let categories = EquipmentModel::get_all_categories().await?;
+            let conditions = EquipmentModel::get_all_conditions().await?;
+            let owner_type = query.owner_type.unwrap_or("person".to_string());
+            let owner_id = query.owner_id.unwrap_or(current_user.id.clone());
+
+            let base = BaseContext::new().with_page("equipment");
+            let user = User::from_session_user(&current_user).await;
+
+            let template = EquipmentFormTemplate {
+                app_name: base.app_name,
+                year: base.year,
+                version: base.version,
+                active_page: base.active_page,
+                user: Some(user),
+                current_user: Some((*current_user).clone()),
+                equipment: None,
+                categories,
+                conditions,
+                owner_type,
+                owner_id,
+                page_title: "Add Equipment".to_string(),
+                error_message: Some(format!(
+                    "Invalid form data: {}. Please check numeric fields are valid numbers.",
+                    err
+                )),
+            };
+
+            return Ok(Html(template.to_string()).into_response());
+        }
+    };
+
     let owner_type = query.owner_type.unwrap_or("person".to_string());
     let owner_id = query.owner_id.unwrap_or(current_user.id.clone());
 
@@ -322,6 +381,7 @@ pub async fn show_equipment_detail(
 pub async fn show_edit_equipment_form(
     AuthenticatedUser(current_user): AuthenticatedUser,
     Path(id): Path<String>,
+    Query(error_query): Query<ErrorQuery>,
 ) -> Result<Response, Error> {
     let equipment = EquipmentModel::get_equipment(&id).await?;
 
@@ -371,7 +431,7 @@ pub async fn show_edit_equipment_form(
             .map(|r| r.to_string())
             .unwrap_or_default(),
         page_title: "Edit Equipment".to_string(),
-        error_message: None,
+        error_message: error_query.error,
     };
 
     Ok(Html(template.to_string()).into_response())
@@ -380,8 +440,25 @@ pub async fn show_edit_equipment_form(
 pub async fn update_equipment(
     AuthenticatedUser(current_user): AuthenticatedUser,
     Path(id): Path<String>,
-    Form(form): Form<EquipmentFormData>,
+    form_result: Result<Form<EquipmentFormData>, axum::extract::rejection::FormRejection>,
 ) -> Result<Response, Error> {
+    // Handle form validation errors
+    let form = match form_result {
+        Ok(Form(form)) => form,
+        Err(err) => {
+            // Redirect back to edit form with error
+            return Ok(Redirect::to(&format!(
+                "/equipment/{}/edit?error={}",
+                id,
+                urlencoding::encode(&format!(
+                    "Invalid form data: {}. Please check numeric fields are valid numbers.",
+                    err
+                ))
+            ))
+            .into_response());
+        }
+    };
+
     let equipment = EquipmentModel::get_equipment(&id).await?;
 
     // Verify authorization
