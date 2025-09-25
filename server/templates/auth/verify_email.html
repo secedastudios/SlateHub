@@ -1,0 +1,101 @@
+{% extends "_layout.html" %}
+{% block title %}
+    Email Verification -
+    {{ app_name }}
+{% endblock %}
+{% block page_name %}
+    verify-email
+{% endblock %}
+{% block content %}
+    <section id="section-verify-email" data-component="auth-form" data-type="verification">
+        <header id="verify-email-header" data-role="form-header">
+            <hgroup>
+                <h1 id="heading-verify-email">Verify Your Email</h1>
+                <p data-role="subtitle">
+                    Enter the verification code sent to your email address
+                </p>
+            </hgroup>
+        </header>
+        {% match error %}
+            {% when Some with (err) %}
+            <div
+        id="alert-verification-error"
+        role="alert"
+        aria-live="polite"
+        data-component="alert"
+        data-type="error"
+    >{{ err }}</div>
+            {% when None %}
+        {% endmatch %}
+        {% match success %}
+            {% when Some with (msg) %}
+            <div
+        id="alert-verification-success"
+        role="alert"
+        aria-live="polite"
+        data-component="alert"
+        data-type="success"
+    >{{ msg }}</div>
+            {% when None %}
+        {% endmatch %}
+        <form
+        id="form-verify-email"
+        method="post"
+        action="/verify-email"
+        data-component="form"
+        data-state="ready"
+    >
+            <fieldset id="fieldset-verification" data-role="form-section">
+                <legend hidden>Email Verification</legend>
+                <div id="field-email" data-field="email">
+                    <label for="input-email">Email Address</label>
+                    <input
+                    type="email"
+                    id="input-email"
+                    name="email"
+                    placeholder="Enter your email address"
+                    value="{% match email %}{% when Some with (e) %}{{ e }}{% when None %}{% endmatch %}"
+                    required
+                    aria-required="true"
+                    aria-describedby="help-email"
+                />
+                    <small id="help-email" data-role="help-text">
+                        The email address where you received the verification code
+                    </small>
+                </div>
+                <div id="field-verification-code" data-field="code">
+                    <label for="input-code">Verification Code</label>
+                    <input
+                    type="text"
+                    id="input-code"
+                    name="code"
+                    placeholder="Enter 6-digit code"
+                    maxlength="6"
+                    pattern="[0-9]{6}"
+                    required
+                    aria-required="true"
+                    aria-describedby="help-code"
+                    autofocus
+                />
+                    <small id="help-code" data-role="help-text">Enter the 6-digit code from your email</small>
+                </div>
+            </fieldset>
+            <div id="form-actions" data-role="form-actions">
+                <button
+                type="submit"
+                id="button-verify"
+                data-type="primary"
+            >Verify Email</button>
+            </div>
+        </form>
+        <nav id="nav-verification-links" data-role="auth-links" aria-label="Verification navigation">
+            <p data-role="link-group">
+                <span>Didn't receive the code?</span>
+                <a href="/resend-verification" id="link-resend">Resend verification email</a>
+            </p>
+            <p data-role="link-group">
+                <a href="/login" id="link-login">Back to login</a>
+            </p>
+        </nav>
+    </section>
+{% endblock %}

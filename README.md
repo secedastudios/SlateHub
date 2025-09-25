@@ -24,6 +24,10 @@ cp .env.example .env
 | `DATABASE_URL` | (Optional) Full database connection URL | Constructed from host and port |
 | `RUST_LOG` | Log level configuration | `info,slatehub=debug,tower_http=debug` |
 | `LOG_FORMAT` | Log output format (`json`, `pretty`, `compact`) | `pretty` |
+| `MAILJET_API_KEY` | Mailjet API key for sending emails | Required for email features |
+| `MAILJET_API_SECRET` | Mailjet API secret | Required for email features |
+| `MAILJET_FROM_EMAIL` | Default sender email address | `noreply@slatehub.com` |
+| `MAILJET_FROM_NAME` | Default sender name | `SlateHub` |
 
 ### Example .env file
 
@@ -47,6 +51,13 @@ SERVER_PORT=3000
 # Logging Configuration
 RUST_LOG=info,slatehub=debug,tower_http=debug
 LOG_FORMAT=pretty
+
+# Email Configuration (Mailjet)
+# Sign up for a free Mailjet account at https://www.mailjet.com/
+MAILJET_API_KEY=your_mailjet_api_key_here
+MAILJET_API_SECRET=your_mailjet_api_secret_here
+MAILJET_FROM_EMAIL=noreply@yourdomain.com
+MAILJET_FROM_NAME=SlateHub
 ```
 
 ## Getting Started

@@ -10,7 +10,7 @@ use crate::error::{Error, Result};
 use crate::{db_span, log_error};
 use serde::{Deserialize, Serialize};
 use surrealdb::RecordId;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 // -----------------------------------------------------------------------------
 // Core Person Model
@@ -27,9 +27,16 @@ pub struct Person {
     pub email: String,
     /// The person's optional display name.
     pub name: Option<String>,
+    /// The verification status of the person (unverified, email, sms, identity).
+    #[serde(default = "default_verification_status")]
+    pub verification_status: String,
     /// The detailed profile information for the person.
     #[serde(default)]
     pub profile: Option<Profile>,
+}
+
+fn default_verification_status() -> String {
+    "unverified".to_string()
 }
 
 /// Represents the detailed profile of a person.
@@ -638,14 +645,15 @@ impl Person {
             return Err(Error::Conflict("Email already exists".to_string()));
         }
 
-        // Create the person record
-        let sql = "CREATE person SET username = $username, email = $email, password = $password, name = $name";
+        // Create the person record with unverified status
+        let sql = "CREATE person SET username = $username, email = $email, password = $password, name = $name, verification_status = $verification_status";
         let mut response = DB
             .query(sql)
             .bind(("username", username.clone()))
             .bind(("email", email.clone()))
             .bind(("password", password_hash))
             .bind(("name", None::<String>))
+            .bind(("verification_status", "unverified"))
             .await?;
 
         // Get the created person
@@ -656,6 +664,46 @@ impl Person {
             .ok_or_else(|| Error::Internal("Failed to create user".to_string()))?;
 
         debug!("Created new user: {} with id: {}", username, person.id);
+
+        // Generate verification code and send email
+        use crate::services::email::EmailService;
+        use crate::services::verification::{CodeType, VerificationService};
+
+        // Extract just the ID part from the RecordId
+        let person_id = person
+            .id
+            .to_string()
+            .strip_prefix("person:")
+            .unwrap_or(&person.id.to_string())
+            .to_string();
+
+        // Generate verification code
+        let verification_code =
+            VerificationService::create_verification_code(&person_id, CodeType::EmailVerification)
+                .await
+                .map_err(|e| {
+                    Error::Internal(format!("Failed to create verification code: {}", e))
+                })?;
+
+        // Send verification email (non-blocking, log error if it fails)
+        if let Ok(email_service) = EmailService::from_env() {
+            let email_clone = email.clone();
+            tokio::spawn(async move {
+                if let Err(e) = email_service
+                    .send_verification_email(&email_clone, None, &verification_code)
+                    .await
+                {
+                    error!(
+                        "Failed to send verification email to {}: {}",
+                        email_clone, e
+                    );
+                } else {
+                    info!("Verification email sent to {}", email_clone);
+                }
+            });
+        } else {
+            error!("Email service not configured - skipping verification email");
+        }
 
         // Generate JWT token
         let token = auth::create_jwt(&person.id.to_string(), &username, &email)?;
@@ -687,6 +735,7 @@ impl Person {
             username: String,
             email: String,
             password: String,
+            verification_status: String,
         }
 
         let persons: Vec<PersonWithPassword> = response.take(0)?;
@@ -699,6 +748,14 @@ impl Person {
         if !auth::verify_password(&password, &person_with_password.password)? {
             debug!("Invalid password for user: {}", identifier);
             return Err(Error::Unauthorized);
+        }
+
+        // Check email verification status
+        if person_with_password.verification_status == "unverified" {
+            debug!("User email not verified: {}", identifier);
+            return Err(Error::Validation(
+                "Your email address has not been verified. Please check your email for the verification code.".to_string()
+            ));
         }
 
         debug!(

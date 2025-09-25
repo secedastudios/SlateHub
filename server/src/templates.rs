@@ -166,6 +166,48 @@ pub struct SignupTemplate {
     pub error: Option<String>,
 }
 
+/// Email verification page template
+#[derive(Template)]
+#[template(path = "auth/verify_email.html")]
+pub struct EmailVerificationTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub error: Option<String>,
+    pub success: Option<String>,
+    pub email: Option<String>,
+}
+
+/// Forgot password page template
+#[derive(Template)]
+#[template(path = "auth/forgot_password.html")]
+pub struct ForgotPasswordTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub error: Option<String>,
+    pub success: Option<String>,
+}
+
+/// Reset password page template
+#[derive(Template)]
+#[template(path = "auth/reset_password.html")]
+pub struct ResetPasswordTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub error: Option<String>,
+    pub success: Option<String>,
+    pub email: Option<String>,
+    pub code: Option<String>,
+}
+
 /// Profile page template
 #[derive(Template)]
 #[template(path = "persons/profile.html")]
@@ -748,6 +790,51 @@ impl SignupTemplate {
             active_page: base.active_page,
             user: base.user,
             error: None,
+        }
+    }
+}
+
+impl EmailVerificationTemplate {
+    pub fn new(base: BaseContext) -> Self {
+        Self {
+            app_name: base.app_name,
+            year: base.year,
+            version: base.version,
+            active_page: base.active_page,
+            user: base.user,
+            error: None,
+            success: None,
+            email: None,
+        }
+    }
+}
+
+impl ForgotPasswordTemplate {
+    pub fn new(base: BaseContext) -> Self {
+        Self {
+            app_name: base.app_name,
+            year: base.year,
+            version: base.version,
+            active_page: base.active_page,
+            user: base.user,
+            error: None,
+            success: None,
+        }
+    }
+}
+
+impl ResetPasswordTemplate {
+    pub fn new(base: BaseContext) -> Self {
+        Self {
+            app_name: base.app_name,
+            year: base.year,
+            version: base.version,
+            active_page: base.active_page,
+            user: base.user,
+            error: None,
+            success: None,
+            email: None,
+            code: None,
         }
     }
 }

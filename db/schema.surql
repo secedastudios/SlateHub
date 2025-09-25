@@ -151,6 +151,22 @@ DEFINE INDEX idx_member_of_unique ON member_of FIELDS in, out UNIQUE;
 
 
 -- ------------------------------
+-- TABLE: verification_codes
+-- ------------------------------
+
+DEFINE TABLE verification_codes TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
+
+DEFINE FIELD person_id ON verification_codes TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD code ON verification_codes TYPE string PERMISSIONS FULL;
+DEFINE FIELD code_type ON verification_codes TYPE string ASSERT $value IN ['email_verification', 'password_reset'] PERMISSIONS FULL;
+DEFINE FIELD expires_at ON verification_codes TYPE datetime PERMISSIONS FULL;
+DEFINE FIELD used ON verification_codes TYPE bool DEFAULT false PERMISSIONS FULL;
+DEFINE FIELD created_at ON verification_codes TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_verification_codes_person ON verification_codes FIELDS person_id;
+DEFINE INDEX idx_verification_codes_code ON verification_codes FIELDS code;
+
+-- ------------------------------
 -- TABLE: person
 -- ------------------------------
 
@@ -158,6 +174,7 @@ DEFINE TABLE person TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
 
 DEFINE FIELD email ON person TYPE string ASSERT string::is::email($value) PERMISSIONS FULL;
 DEFINE FIELD password ON person TYPE string PERMISSIONS FULL;
+DEFINE FIELD verification_status ON person TYPE string DEFAULT 'unverified' ASSERT $value IN ['unverified', 'email', 'sms', 'identity'] PERMISSIONS FULL;
 DEFINE FIELD profile ON person FLEXIBLE TYPE option<object> PERMISSIONS FULL;
 DEFINE FIELD profile.avatar ON person TYPE option<string> PERMISSIONS FULL;  -- Profile image URL
 DEFINE FIELD profile.headline ON person TYPE option<string> PERMISSIONS FULL;
