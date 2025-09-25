@@ -212,7 +212,7 @@ impl MembershipModel {
         let person_id: RecordId = RecordId::from_str(person_id)?;
         let org_id: RecordId = RecordId::from_str(org_id)?;
 
-        let query = "SELECT * FROM member_of
+        let query = "SELECT *, in as person_id, out as organi_id FROM member_of
                      WHERE in = $person AND out = $org";
 
         let result: Option<Membership> = DB

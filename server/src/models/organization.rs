@@ -440,12 +440,8 @@ impl OrganizationModel {
                 FROM organization_members
                 WHERE in = type::thing('organization', $org_id)
                 ORDER BY
-                    CASE role
-                        WHEN 'owner' THEN 1
-                        WHEN 'admin' THEN 2
-                        ELSE 3
-                    END,
-                    joined_at DESC",
+                    role DESC,
+                    person_name ASC",
             )
             .bind(("org_id", org_id.to_string()))
             .await?
