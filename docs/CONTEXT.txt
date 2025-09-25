@@ -37,6 +37,16 @@ slatehub/
 │   ├── src/
 │   │   ├── models/        # Database models (ONLY place for DB access)
 │   │   ├── routes/        # HTTP route handlers (controllers)
+│   │   │   ├── api.rs             # API endpoints
+│   │   │   ├── auth.rs            # Authentication routes (login, signup, logout)
+│   │   │   ├── equipment.rs       # Equipment management routes
+│   │   │   ├── locations.rs       # Location management routes
+│   │   │   ├── media.rs           # Media upload/management routes
+│   │   │   ├── organizations.rs   # Organization management routes
+│   │   │   ├── pages.rs           # Static pages (/, /about, /terms, /privacy)
+│   │   │   ├── productions.rs     # Production management routes
+│   │   │   ├── profile.rs         # User profile management routes
+│   │   │   └── public_profiles.rs # Public profile views (/people, /{username})
 │   │   ├── services/      # Business logic and external services
 │   │   ├── middleware/    # Request/response middleware
 │   │   ├── templates/     # Askama HTML templates (views)
@@ -213,16 +223,16 @@ SCHEMA MANAGEMENT:
 EXAMPLE SCHEMA (db/schema.surql):
 ```sql
 -- Define schemaful table
-DEFINE TABLE user SCHEMAFULL;
-DEFINE FIELD username ON TABLE user TYPE string ASSERT $value != NONE;
-DEFINE FIELD email ON TABLE user TYPE string ASSERT string::is::email($value);
-DEFINE FIELD created_at ON TABLE user TYPE datetime DEFAULT time::now();
-DEFINE INDEX user_email ON TABLE user COLUMNS email UNIQUE;
+DEFINE TABLE person SCHEMAFULL;
+DEFINE FIELD username ON TABLE person TYPE string ASSERT $value != NONE;
+DEFINE FIELD email ON TABLE person TYPE string ASSERT string::is::email($value);
+DEFINE FIELD created_at ON TABLE person TYPE datetime DEFAULT time::now();
+DEFINE INDEX person_email ON TABLE person COLUMNS email UNIQUE;
 
 -- Define relationship tables
 DEFINE TABLE follows SCHEMAFULL;
-DEFINE FIELD in ON TABLE follows TYPE record<user>;
-DEFINE FIELD out ON TABLE follows TYPE record<user>;
+DEFINE FIELD in ON TABLE follows TYPE record<person>;
+DEFINE FIELD out ON TABLE follows TYPE record<person>;
 DEFINE FIELD created_at ON TABLE follows TYPE datetime DEFAULT time::now();
 
 -- Insert reference data directly
@@ -241,26 +251,26 @@ INSERT INTO role [
 EXAMPLE MODEL:
 ```rust
 // Always use SurrealDB's typed queries
-let user: Option<User> = db
-    .select(("user", user_id))
+let person: Option<Person> = db
+    .select(("person", person_id))
     .await?;
 
 // For complex queries
 let results = db
-    .query("SELECT * FROM user WHERE email = $email")
+    .query("SELECT * FROM person WHERE email = $email")
     .bind(("email", email))
     .await?;
 
 // PREFER GRAPH RELATIONS for connected data
 let connections = db
-    .query("SELECT ->follows->user FROM user:$user_id")
-    .bind(("user_id", user_id))
+    .query("SELECT ->follows->person FROM person:$person_id")
+    .bind(("person_id", person_id))
     .await?;
 
 // Create relationships
 let _ = db
-    .query("RELATE $user->follows->$target")
-    .bind(("user", user_id))
+    .query("RELATE $person->follows->$target")
+    .bind(("person", person_id))
     .bind(("target", target_id))
     .await?;
 ```
@@ -285,9 +295,10 @@ THE GOLDEN RULE:
 - Logging: Log full IDs
 
 🔗 URLS = ID WITHOUT TABLE PREFIX
-- Route paths: `/users/3t5kimq47s30s2nq0t3g` (not `/users/person:3t5kimq47s30s2nq0t3g`)
-- Query parameters: `?user=3t5kimq47s30s2nq0t3g`
+- Route paths: `/productions/3t5kimq47s30s2nq0t3g` (not `/productions/production:3t5kimq47s30s2nq0t3g`)
+- Query parameters: `?id=3t5kimq47s30s2nq0t3g`
 - Path parameters: `/orgs/5dfvs3jphb2axku0dpu2/edit`
+- Profile paths: `/{username}` (usernames are used for public profiles, not IDs)
 
 IMPLEMENTATION GUIDELINES:
 
@@ -340,8 +351,8 @@ URL Generation in Templates:
 <!-- Use slug for organization URLs -->
 <a href="/orgs/{{ organization.slug }}">View Organization</a>
 
-<!-- For user profiles, use username -->
-<a href="/users/{{ user.username }}">View Profile</a>
+<!-- For user profiles, use username directly -->
+<a href="/{{ user.username }}">View Profile</a>
 
 <!-- Never include the table prefix in URLs -->
 <!-- WRONG: <a href="/orgs/organization:{{ org.id }}"> -->
@@ -624,29 +635,14 @@ input:required:valid { }
 CSS ORGANIZATION:
 ```
 /static/css/
-├── base/
-│   ├── reset.css         # CSS reset/normalize
-│   ├── variables.css     # CSS custom properties
-│   └── typography.css    # Base typography
-├── layout/
-│   ├── grid.css         # Grid system
-│   ├── header.css       # Site header
-│   ├── footer.css       # Site footer
-│   └── navigation.css   # Navigation components
-├── components/
-│   ├── cards.css        # Content cards
-│   ├── forms.css        # Form styling
-│   ├── buttons.css      # Button variations
-│   ├── modals.css       # Modal dialogs
-│   └── tables.css       # Data tables
-├── pages/
-│   ├── profile.css      # Profile page specific
-│   ├── projects.css     # Projects page specific
-│   └── dashboard.css    # Dashboard specific
-└── themes/
-    ├── light.css        # Light theme overrides
-    └── dark.css         # Dark theme overrides
+├── base/              # Base styles (currently empty, styles in main.css)
+├── components/        # Component-specific styles (currently empty)
+├── pages/            # Page-specific styles (currently empty)
+├── main.css          # Complete design system and all styles
+└── legal.css         # Legal pages extension for terms/privacy
 ```
+
+Note: The project uses a consolidated approach with most styles in main.css rather than split files. The directory structure exists for future expansion if needed.
 
 ================================================================================
 CODING STANDARDS & CONVENTIONS
@@ -660,14 +656,35 @@ RUST CONVENTIONS:
 
 MODEL STRUCTURE:
 ```rust
-// models ONLY interact with database
-pub struct UserModel {
-    db: Arc<Surreal<Client>>,
+// Models are data structs with static methods for database operations
+use surrealdb::RecordId;
+use crate::db::DB;  // Global database instance
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Person {
+    pub id: RecordId,
+    pub username: String,
+    pub email: String,
+    pub profile: Option<Profile>,
 }
 
-impl UserModel {
-    pub async fn find_by_id(&self, id: &str) -> Result<User> {
-        // Database query here
+impl Person {
+    // Static methods that use the global DB instance
+    pub async fn get(id: &RecordId) -> Result<Option<Self>> {
+        match DB.select(id).await {
+            Ok(person) => Ok(person),
+            Err(e) => Err(e.into())
+        }
+    }
+
+    pub async fn find_by_username(username: &str) -> Result<Option<Self>> {
+        let mut result = DB
+            .query("SELECT * FROM person WHERE username = $username")
+            .bind(("username", username))
+            .await?;
+
+        let person: Option<Person> = result.take(0)?;
+        Ok(person)
     }
 }
 ```
@@ -675,22 +692,42 @@ impl UserModel {
 ROUTE STRUCTURE:
 ```rust
 // routes orchestrate between models and templates
-pub async fn show_profile(
+use crate::models::person::Person;
+use crate::templates::PublicProfileTemplate;
+
+pub async fn user_profile(
     Path(username): Path<String>,
-    State(app_state): State<AppState>,
-) -> Result<ProfileTemplate> {
-    let user = app_state.models.user.find_by_username(&username).await?;
-    Ok(ProfileTemplate { user })
+    request: Request,
+) -> Result<Html<String>, Error> {
+    // Use static model methods directly
+    let person = Person::find_by_username(&username).await?
+        .ok_or(Error::NotFound)?;
+
+    // Build and render template
+    let template = PublicProfileTemplate {
+        person,
+        // ... other fields
+    };
+
+    let html = template.render()?;
+    Ok(Html(html))
 }
 ```
 
 TEMPLATE STRUCTURE:
 ```html
-{# Askama template syntax #}
-{% extends "layouts/base.html" %}
+{% extends "_layout.html" %}
+
+{% block title %}
+    Profile - {{ app_name }}
+{% endblock %}
+
+{% block page_name %}
+    profile
+{% endblock %}
 
 {% block content %}
-    <h1>{{ user.name }}</h1>
+    <h1>{{ person.name }}</h1>
 {% endblock %}
 ```
 
@@ -698,12 +735,44 @@ TEMPLATE STRUCTURE:
 API DESIGN PATTERNS
 ================================================================================
 
-RESTFUL ROUTES:
-- GET /users - List
-- GET /users/:id - Show
-- POST /users - Create
-- PUT /users/:id - Update
-- DELETE /users/:id - Delete
+KEY ROUTES:
+
+PUBLIC PAGES:
+- GET / - Homepage
+- GET /people - Browse all profiles
+- GET /{username} - View user's public profile
+- GET /about - About page
+- GET /terms - Terms of service
+- GET /privacy - Privacy policy
+
+AUTHENTICATION:
+- GET /login - Login page
+- POST /login - Process login
+- GET /signup - Signup page
+- POST /signup - Process signup
+- POST /logout - Logout user
+
+PROFILE MANAGEMENT (authenticated):
+- GET /profile - View own profile
+- GET /profile/edit - Edit profile form
+- POST /profile - Update profile
+
+PRODUCTIONS:
+- GET /productions - List productions
+- GET /productions/:id - View production
+- GET /productions/new - Create form
+- POST /productions - Create production
+- GET /productions/:id/edit - Edit form
+- POST /productions/:id - Update production
+- DELETE /productions/:id - Delete production
+
+ORGANIZATIONS:
+- GET /orgs - List organizations
+- GET /org/:slug - View organization
+- GET /orgs/new - Create form
+- POST /orgs - Create organization
+- GET /org/:slug/edit - Edit form
+- POST /org/:slug - Update organization
 
 RESPONSE FORMATS:
 - HTML for browser requests (via templates)
