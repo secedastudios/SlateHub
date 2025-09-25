@@ -1,13 +1,13 @@
 use crate::db::DB;
 use crate::error::Error;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
+use surrealdb::{RecordId, sql::Thing};
 use tracing::debug;
 
 /// Production entity from the database
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Production {
-    pub id: String,
+    pub id: RecordId,
     pub title: String,
     pub slug: String,
     #[serde(rename = "type")]
@@ -143,20 +143,12 @@ impl ProductionModel {
     }
 
     /// Get a production by ID
-    pub async fn get(production_id: &str) -> Result<Production, Error> {
+    pub async fn get(production_id: &RecordId) -> Result<Production, Error> {
         debug!("Fetching production: {}", production_id);
 
         let mut result = DB
             .query("SELECT * FROM $production_id")
-            .bind((
-                "production_id",
-                Thing::from((
-                    "production",
-                    production_id
-                        .strip_prefix("production:")
-                        .unwrap_or(production_id),
-                )),
-            ))
+            .bind(("production_id", production_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to fetch production: {}", e)))?;
 
@@ -229,7 +221,7 @@ impl ProductionModel {
 
     /// Update a production
     pub async fn update(
-        production_id: &str,
+        production_id: &RecordId,
         data: UpdateProductionData,
     ) -> Result<Production, Error> {
         debug!("Updating production: {}", production_id);
@@ -265,15 +257,9 @@ impl ProductionModel {
             update_fields.join(", ")
         );
 
-        let mut db_query = DB.query(&query).bind((
-            "production_id",
-            Thing::from((
-                "production",
-                production_id
-                    .strip_prefix("production:")
-                    .unwrap_or(production_id),
-            )),
-        ));
+        let mut db_query = DB
+            .query(&query)
+            .bind(("production_id", production_id.to_string()));
 
         if let Some(title) = data.title {
             db_query = db_query.bind(("title", title));
@@ -306,7 +292,7 @@ impl ProductionModel {
     }
 
     /// Delete a production
-    pub async fn delete(production_id: &str) -> Result<(), Error> {
+    pub async fn delete(production_id: &RecordId) -> Result<(), Error> {
         debug!("Deleting production: {}", production_id);
 
         // Start transaction
@@ -316,29 +302,13 @@ impl ProductionModel {
 
         // Delete all member_of relations to this production
         DB.query("DELETE member_of WHERE out = $production_id")
-            .bind((
-                "production_id",
-                Thing::from((
-                    "production",
-                    production_id
-                        .strip_prefix("production:")
-                        .unwrap_or(production_id),
-                )),
-            ))
+            .bind(("production_id", production_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to delete member relations: {}", e)))?;
 
         // Delete all involvement relations to this production
         DB.query("DELETE involvement WHERE out = $production_id")
-            .bind((
-                "production_id",
-                Thing::from((
-                    "production",
-                    production_id
-                        .strip_prefix("production:")
-                        .unwrap_or(production_id),
-                )),
-            ))
+            .bind(("production_id", production_id.to_string()))
             .await
             .map_err(|e| {
                 Error::Database(format!("Failed to delete involvement relations: {}", e))
@@ -346,15 +316,7 @@ impl ProductionModel {
 
         // Delete the production
         DB.query("DELETE $production_id")
-            .bind((
-                "production_id",
-                Thing::from((
-                    "production",
-                    production_id
-                        .strip_prefix("production:")
-                        .unwrap_or(production_id),
-                )),
-            ))
+            .bind(("production_id", production_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to delete production: {}", e)))?;
 
@@ -388,7 +350,7 @@ impl ProductionModel {
     }
 
     /// Get members of a production
-    pub async fn get_members(production_id: &str) -> Result<Vec<ProductionMember>, Error> {
+    pub async fn get_members(production_id: &RecordId) -> Result<Vec<ProductionMember>, Error> {
         debug!("Fetching members for production: {}", production_id);
 
         let query = r#"
@@ -406,15 +368,7 @@ impl ProductionModel {
 
         let mut result = DB
             .query(query)
-            .bind((
-                "production_id",
-                Thing::from((
-                    "production",
-                    production_id
-                        .strip_prefix("production:")
-                        .unwrap_or(production_id),
-                )),
-            ))
+            .bind(("production_id", production_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to fetch production members: {}", e)))?;
 
@@ -423,7 +377,7 @@ impl ProductionModel {
     }
 
     /// Check if a user or organization is a member of a production
-    pub async fn is_member(production_id: &str, member_id: &str) -> Result<bool, Error> {
+    pub async fn is_member(production_id: &RecordId, member_id: &str) -> Result<bool, Error> {
         debug!(
             "Checking membership for {} in production {}",
             member_id, production_id
@@ -437,15 +391,7 @@ impl ProductionModel {
         let mut result = DB
             .query(query)
             .bind(("member_id", member_id.to_string()))
-            .bind((
-                "production_id",
-                Thing::from((
-                    "production",
-                    production_id
-                        .strip_prefix("production:")
-                        .unwrap_or(production_id),
-                )),
-            ))
+            .bind(("production_id", production_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to check membership: {}", e)))?;
 
@@ -459,7 +405,7 @@ impl ProductionModel {
     }
 
     /// Check if a user or organization can edit a production (owner or admin)
-    pub async fn can_edit(production_id: &str, member_id: &str) -> Result<bool, Error> {
+    pub async fn can_edit(production_id: &RecordId, member_id: &str) -> Result<bool, Error> {
         debug!(
             "Checking edit permission for {} in production {}",
             member_id, production_id
@@ -473,17 +419,9 @@ impl ProductionModel {
         let mut result = DB
             .query(query)
             .bind(("member_id", member_id.to_string()))
-            .bind((
-                "production_id",
-                Thing::from((
-                    "production",
-                    production_id
-                        .strip_prefix("production:")
-                        .unwrap_or(production_id),
-                )),
-            ))
+            .bind(("production_id", production_id.to_string()))
             .await
-            .map_err(|e| Error::Database(format!("Failed to check permissions: {}", e)))?;
+            .map_err(|e| Error::Database(format!("Failed to check edit permission: {}", e)))?;
 
         let member: Option<serde_json::Value> = result.take(0)?;
         if let Some(member_obj) = member {
@@ -495,7 +433,11 @@ impl ProductionModel {
     }
 
     /// Add a member to a production
-    pub async fn add_member(production_id: &str, member_id: &str, role: &str) -> Result<(), Error> {
+    pub async fn add_member(
+        production_id: &RecordId,
+        member_id: &str,
+        role: &str,
+    ) -> Result<(), Error> {
         debug!(
             "Adding member {} to production {} with role {}",
             member_id, production_id, role
@@ -507,15 +449,7 @@ impl ProductionModel {
 
         DB.query(query)
             .bind(("member", member_id.to_string()))
-            .bind((
-                "production",
-                Thing::from((
-                    "production",
-                    production_id
-                        .strip_prefix("production:")
-                        .unwrap_or(production_id),
-                )),
-            ))
+            .bind(("production", production_id.to_string()))
             .bind(("role", role.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to add member: {}", e)))?;
@@ -524,27 +458,19 @@ impl ProductionModel {
     }
 
     /// Remove a member from a production
-    pub async fn remove_member(production_id: &str, member_id: &str) -> Result<(), Error> {
+    pub async fn remove_member(production_id: &RecordId, member_id: &str) -> Result<(), Error> {
         debug!(
             "Removing member {} from production {}",
             member_id, production_id
         );
 
         let query = r#"
-            DELETE member_of WHERE in = $member AND out = $production
+            DELETE FROM member_of WHERE in = $member AND out = $production
         "#;
 
         DB.query(query)
             .bind(("member", member_id.to_string()))
-            .bind((
-                "production",
-                Thing::from((
-                    "production",
-                    production_id
-                        .strip_prefix("production:")
-                        .unwrap_or(production_id),
-                )),
-            ))
+            .bind(("production", production_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to remove member: {}", e)))?;
 

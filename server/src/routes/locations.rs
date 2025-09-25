@@ -3,6 +3,7 @@ use crate::middleware::{AuthenticatedUser, UserExtractor};
 use crate::models::location::{
     CreateLocationData, CreateRateData, Location, LocationModel, LocationRate, UpdateLocationData,
 };
+use crate::serde_utils::deserialize_optional_i32;
 use crate::templates::{
     BaseContext, LocationCreateTemplate, LocationEditTemplate, LocationTemplate, LocationsTemplate,
     User,
@@ -15,6 +16,7 @@ use axum::{
     routing::{get, post},
 };
 use serde::Deserialize;
+use surrealdb::RecordId;
 use tracing::{debug, error, info};
 
 /// Location routes
@@ -25,18 +27,15 @@ pub fn router() -> Router {
             "/locations/new",
             get(new_location_form).post(create_location),
         )
-        .route("/locations/{slug}", get(view_location))
+        .route("/locations/{id}", get(view_location))
         .route(
-            "/locations/{slug}/edit",
+            "/locations/{id}/edit",
             get(edit_location_form).post(update_location),
         )
-        .route("/locations/{slug}/delete", post(delete_location))
-        .route("/locations/{slug}/rates", get(get_rates))
-        .route("/locations/{slug}/rates/add", post(add_rate))
-        .route(
-            "/locations/{slug}/rates/{rate_id}/delete",
-            post(delete_rate),
-        )
+        .route("/locations/{id}/delete", post(delete_location))
+        .route("/locations/{id}/rates", get(get_rates))
+        .route("/locations/{id}/rates/add", post(add_rate))
+        .route("/locations/{id}/rates/{rate_id}/delete", post(delete_rate))
 }
 
 /// Query parameters for filtering locations
@@ -99,8 +98,7 @@ async fn list_locations(
     let locations: Vec<crate::templates::LocationView> = locations
         .into_iter()
         .map(|l| crate::templates::LocationView {
-            id: l.id.strip_prefix("location:").unwrap_or(&l.id).to_string(),
-            slug: l.slug,
+            id: l.id.key().to_string(),
             name: l.name,
             address: l.address,
             city: l.city,
@@ -133,10 +131,11 @@ async fn list_locations(
 }
 
 /// View a single location
-async fn view_location(Path(slug): Path<String>, request: Request) -> Result<Html<String>, Error> {
-    debug!("Viewing location: {}", slug);
+async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<String>, Error> {
+    debug!("Viewing location: {}", id);
 
-    let location = LocationModel::get_by_slug(&slug).await?;
+    let location_id = RecordId::from(("location", id.as_str()));
+    let location = LocationModel::get(&location_id).await?;
 
     let mut base = BaseContext::new().with_page("locations");
 
@@ -163,12 +162,7 @@ async fn view_location(Path(slug): Path<String>, request: Request) -> Result<Htm
         active_page: base.active_page,
         user: base.user,
         location: crate::templates::LocationDetail {
-            id: location
-                .id
-                .strip_prefix("location:")
-                .unwrap_or(&location.id)
-                .to_string(),
-            slug: location.slug,
+            id: location.id.key().to_string(),
             name: location.name,
             address: location.address,
             city: location.city,
@@ -291,18 +285,19 @@ async fn create_location(
     info!("Created location: {} ({})", location.name, location.id);
 
     // Redirect to the new location page
-    Ok(Redirect::to(&format!("/locations/{}", location.slug)).into_response())
+    Ok(Redirect::to(&format!("/locations/{}", location.id.key())).into_response())
 }
 
 /// Show form to edit a location
 #[axum::debug_handler]
 async fn edit_location_form(
-    Path(slug): Path<String>,
+    Path(id): Path<String>,
     AuthenticatedUser(user): AuthenticatedUser,
 ) -> Result<Html<String>, Error> {
-    debug!("Showing edit form for location: {}", slug);
+    debug!("Showing edit form for location: {}", id);
 
-    let location = LocationModel::get_by_slug(&slug).await?;
+    let location_id = RecordId::from(("location", id.as_str()));
+    let location = LocationModel::get(&location_id).await?;
 
     // Check if user can edit
     if !LocationModel::can_edit(&location.id, &user.id).await? {
@@ -319,12 +314,7 @@ async fn edit_location_form(
         active_page: base.active_page,
         user: base.user,
         location: crate::templates::LocationEditData {
-            id: location
-                .id
-                .strip_prefix("location:")
-                .unwrap_or(&location.id)
-                .to_string(),
-            slug: location.slug,
+            id: location.id.key().to_string(),
             name: location.name,
             address: location.address,
             city: location.city,
@@ -355,13 +345,14 @@ async fn edit_location_form(
 /// Update a location
 #[axum::debug_handler]
 async fn update_location(
-    Path(slug): Path<String>,
     AuthenticatedUser(user): AuthenticatedUser,
+    Path(id): Path<String>,
     Form(data): Form<UpdateLocationForm>,
 ) -> Result<Response, Error> {
-    debug!("Updating location: {}", slug);
+    debug!("Updating location: {}", id);
 
-    let location = LocationModel::get_by_slug(&slug).await?;
+    let location_id = RecordId::from(("location", id.as_str()));
+    let location = LocationModel::get(&location_id).await?;
 
     // Check if user can edit
     if !LocationModel::can_edit(&location.id, &user.id).await? {
@@ -397,18 +388,19 @@ async fn update_location(
     info!("Updated location: {} ({})", updated.name, updated.id);
 
     // Redirect to the location page
-    Ok(Redirect::to(&format!("/locations/{}", updated.slug)).into_response())
+    Ok(Redirect::to(&format!("/locations/{}", updated.id.key())).into_response())
 }
 
 /// Delete a location
 #[axum::debug_handler]
 async fn delete_location(
-    Path(slug): Path<String>,
     AuthenticatedUser(user): AuthenticatedUser,
+    Path(id): Path<String>,
 ) -> Result<Response, Error> {
-    debug!("Deleting location: {}", slug);
+    debug!("Deleting location: {}", id);
 
-    let location = LocationModel::get_by_slug(&slug).await?;
+    let location_id = RecordId::from(("location", id.as_str()));
+    let location = LocationModel::get(&location_id).await?;
 
     // Check if user can edit (owner can delete)
     if !LocationModel::can_edit(&location.id, &user.id).await? {
@@ -424,11 +416,12 @@ async fn delete_location(
     Ok(Redirect::to("/locations").into_response())
 }
 
-/// Get rates for a location (JSON response)
-async fn get_rates(Path(slug): Path<String>) -> Result<Json<Vec<LocationRate>>, Error> {
-    debug!("Getting rates for location: {}", slug);
+/// Get rates for a location (JSON API)
+async fn get_rates(Path(id): Path<String>) -> Result<Json<Vec<LocationRate>>, Error> {
+    debug!("Getting rates for location: {}", id);
 
-    let location = LocationModel::get_by_slug(&slug).await?;
+    let location_id = RecordId::from(("location", id.as_str()));
+    let location = LocationModel::get(&location_id).await?;
     let rates = LocationModel::get_rates(&location.id).await?;
 
     Ok(Json(rates))
@@ -437,13 +430,14 @@ async fn get_rates(Path(slug): Path<String>) -> Result<Json<Vec<LocationRate>>, 
 /// Add a rate to a location
 #[axum::debug_handler]
 async fn add_rate(
-    Path(slug): Path<String>,
     AuthenticatedUser(user): AuthenticatedUser,
-    Form(data): Form<AddRateForm>,
+    Path(id): Path<String>,
+    Form(data): Form<CreateRateForm>,
 ) -> Result<Response, Error> {
-    debug!("Adding rate to location: {}", slug);
+    debug!("Adding rate to location: {}", id);
 
-    let location = LocationModel::get_by_slug(&slug).await?;
+    let location_id = RecordId::from(("location", id.as_str()));
+    let location = LocationModel::get(&location_id).await?;
 
     // Check if user can edit
     if !LocationModel::can_edit(&location.id, &user.id).await? {
@@ -471,12 +465,13 @@ async fn add_rate(
 /// Delete a rate from a location
 #[axum::debug_handler]
 async fn delete_rate(
-    Path((slug, rate_id)): Path<(String, String)>,
     AuthenticatedUser(user): AuthenticatedUser,
+    Path((id, rate_id)): Path<(String, String)>,
 ) -> Result<Response, Error> {
-    debug!("Deleting rate {} from location: {}", rate_id, slug);
+    debug!("Deleting rate {} from location: {}", rate_id, id);
 
-    let location = LocationModel::get_by_slug(&slug).await?;
+    let location_id = RecordId::from(("location", id.as_str()));
+    let location = LocationModel::get(&location_id).await?;
 
     // Check if user can edit
     if !LocationModel::can_edit(&location.id, &user.id).await? {
@@ -490,7 +485,7 @@ async fn delete_rate(
     info!("Deleted rate {} from location: {}", rate_id, location.id);
 
     // Redirect back to location page
-    Ok(Redirect::to(&format!("/locations/{}", slug)).into_response())
+    Ok(Redirect::to(&format!("/locations/{}", location.id.key())).into_response())
 }
 
 // Form structures
@@ -511,6 +506,7 @@ struct CreateLocationForm {
     amenities: Option<String>,
     restrictions: Option<String>,
     parking_info: Option<String>,
+    #[serde(deserialize_with = "deserialize_optional_i32")]
     max_capacity: Option<i32>,
 }
 
@@ -530,11 +526,12 @@ struct UpdateLocationForm {
     amenities: Option<String>,
     restrictions: Option<String>,
     parking_info: Option<String>,
+    #[serde(deserialize_with = "deserialize_optional_i32")]
     max_capacity: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
-struct AddRateForm {
+struct CreateRateForm {
     rate_type: String,
     amount: f64,
     currency: Option<String>,

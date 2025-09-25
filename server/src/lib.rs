@@ -7,5 +7,6 @@ pub mod middleware;
 pub mod models;
 pub mod response;
 pub mod routes;
+pub mod serde_utils;
 pub mod services;
 pub mod templates;

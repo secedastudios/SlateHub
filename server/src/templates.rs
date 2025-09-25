@@ -361,7 +361,6 @@ pub struct LocationsTemplate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocationView {
     pub id: String,
-    pub slug: String,
     pub name: String,
     pub address: String,
     pub city: String,
@@ -387,7 +386,6 @@ pub struct LocationTemplate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocationDetail {
     pub id: String,
-    pub slug: String,
     pub name: String,
     pub address: String,
     pub city: String,
@@ -447,7 +445,6 @@ pub struct LocationEditTemplate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocationEditData {
     pub id: String,
-    pub slug: String,
     pub name: String,
     pub address: String,
     pub city: String,

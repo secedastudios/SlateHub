@@ -725,14 +725,8 @@ async fn invite_member(
         return Err(Error::Forbidden);
     }
 
-    //
-    //
-    //
-    //
-    //
-    //
     // Find user by username or email
-    let invited_user_id = model.find_user_by_username_or_email(&data.username).await?;
+    let invited_user_id: String = model.find_user_by_username_or_email(&data.username).await?;
 
     // Add member with pending status
     model

@@ -225,7 +225,6 @@ DEFINE FIELD updated_at ON production TYPE datetime VALUE time::now() PERMISSION
 DEFINE TABLE location TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD name ON location TYPE string PERMISSIONS FULL;
-DEFINE FIELD slug ON location TYPE string PERMISSIONS FULL;
 DEFINE FIELD address ON location TYPE string PERMISSIONS FULL;  -- Required
 DEFINE FIELD city ON location TYPE string PERMISSIONS FULL;
 DEFINE FIELD state ON location TYPE string PERMISSIONS FULL;
@@ -319,7 +318,6 @@ DEFINE FIELD applied_at ON application TYPE datetime DEFAULT time::now() PERMISS
 
 DEFINE INDEX idx_production_type ON production FIELDS type;
 DEFINE INDEX idx_production_slug ON production FIELDS slug UNIQUE;
-DEFINE INDEX idx_location_slug ON location FIELDS slug UNIQUE;
 DEFINE INDEX idx_location_public ON location FIELDS is_public;
 DEFINE INDEX idx_location_city ON location FIELDS city;
 DEFINE INDEX idx_location_created_by ON location FIELDS created_by;

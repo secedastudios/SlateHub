@@ -1,35 +1,38 @@
 {% extends "_layout.html" %}
-{% block title %}Edit {{ location.name }} - {{ app_name }}{% endblock %}
-{% block page_name %}locations{% endblock %}
+{% block title %}
+    Edit
+    {{ location.name }}
+    -
+    {{ app_name }}
+{% endblock %}
+{% block page_name %}
+    locations
+{% endblock %}
 {% block content %}
-<section id="section-location-edit" data-component="location-form" data-type="edit">
-    <header id="location-edit-header" data-role="page-header">
-        <h1 id="heading-edit-location">Edit Location</h1>
-        <p data-role="subtitle">
-            Update details for {{ location.name }}
-        </p>
-    </header>
-
-    {% if errors.is_some() %}
-    <div id="form-errors" role="alert" data-component="error-list" data-state="error">
-        <h2 id="heading-errors">Please correct the following errors:</h2>
-        <ul id="error-list" data-role="error-messages">
-            {% for error in errors.as_ref().unwrap() %}
-            <li id="error-{{ loop.index }}" data-role="error-item">{{ error }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-
-    <form id="form-edit-location" method="post" action="/locations/{{ location.slug }}/edit" data-component="form">
-        <fieldset id="fieldset-basic-info" data-role="form-section">
-            <legend>Basic Information</legend>
-
-            <div id="field-name" data-field="name">
-                <label for="input-name">
-                    Location Name
-                </label>
-                <input
+    <section id="section-location-edit" data-component="location-form" data-type="edit">
+        <header id="location-edit-header" data-role="page-header">
+            <h1 id="heading-edit-location">Edit Location</h1>
+            <p data-role="subtitle">
+                Update details for
+                {{ location.name }}
+            </p>
+        </header>
+        {% if errors.is_some() %}
+            <div id="form-errors" role="alert" data-component="error-list" data-state="error">
+                <h2 id="heading-errors">Please correct the following errors:</h2>
+                <ul id="error-list" data-role="error-messages">
+                    {% for error in errors.as_ref().unwrap() %}
+                        <li id="error-{{ loop.index }}" data-role="error-item">{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+        <form id="form-edit-location" method="post" action="/locations/{{ location.id }}/edit" data-component="form">
+            <fieldset id="fieldset-basic-info" data-role="form-section">
+                <legend>Basic Information</legend>
+                <div id="field-name" data-field="name">
+                    <label for="input-name">Location Name</label>
+                    <input
                     type="text"
                     id="input-name"
                     name="name"
@@ -37,36 +40,33 @@
                     aria-describedby="help-name"
                     placeholder="e.g., Downtown Warehouse Studio"
                 />
-                <small id="help-name" data-role="help-text">
-                    Choose a descriptive name for your location
-                </small>
-            </div>
-
-            <div id="field-description" data-field="description">
-                <label for="textarea-description">
-                    Description
-                </label>
-                <textarea
+                    <small id="help-name" data-role="help-text">
+                        Choose a descriptive name for your location
+                    </small>
+                </div>
+                <div id="field-description" data-field="description">
+                    <label for="textarea-description">Description</label>
+                    <textarea
                     id="textarea-description"
                     name="description"
                     rows="4"
                     aria-describedby="help-description"
                     placeholder="Describe the location, its features, and what makes it suitable for filming..."
-                >{% if location.description.is_some() %}{{ location.description.as_ref().unwrap() }}{% endif %}</textarea>
-                <small id="help-description" data-role="help-text">
-                    Highlight unique features and filming advantages
-                </small>
-            </div>
-        </fieldset>
-
-        <fieldset id="fieldset-address" data-role="form-section">
-            <legend>Location Address</legend>
-
-            <div id="field-address" data-field="address">
-                <label for="input-address">
-                    Street Address
-                </label>
-                <input
+                >
+                        {% if location.description.is_some() %}
+                            {{ location.description.as_ref().unwrap() }}
+                        {% endif %}
+                    </textarea>
+                    <small id="help-description" data-role="help-text">
+                        Highlight unique features and filming advantages
+                    </small>
+                </div>
+            </fieldset>
+            <fieldset id="fieldset-address" data-role="form-section">
+                <legend>Location Address</legend>
+                <div id="field-address" data-field="address">
+                    <label for="input-address">Street Address</label>
+                    <input
                     type="text"
                     id="input-address"
                     name="address"
@@ -74,16 +74,11 @@
                     aria-describedby="help-address"
                     placeholder="123 Main Street"
                 />
-                <small id="help-address" data-role="help-text">
-                    Full street address of the location
-                </small>
-            </div>
-
-            <div id="field-city" data-field="city">
-                <label for="input-city">
-                    City
-                </label>
-                <input
+                    <small id="help-address" data-role="help-text">Full street address of the location</small>
+                </div>
+                <div id="field-city" data-field="city">
+                    <label for="input-city">City</label>
+                    <input
                     type="text"
                     id="input-city"
                     name="city"
@@ -91,16 +86,11 @@
                     aria-describedby="help-city"
                     placeholder="Los Angeles"
                 />
-                <small id="help-city" data-role="help-text">
-                    City where the location is situated
-                </small>
-            </div>
-
-            <div id="field-state" data-field="state">
-                <label for="input-state">
-                    State/Province
-                </label>
-                <input
+                    <small id="help-city" data-role="help-text">City where the location is situated</small>
+                </div>
+                <div id="field-state" data-field="state">
+                    <label for="input-state">State/Province</label>
+                    <input
                     type="text"
                     id="input-state"
                     name="state"
@@ -108,16 +98,11 @@
                     aria-describedby="help-state"
                     placeholder="CA"
                 />
-                <small id="help-state" data-role="help-text">
-                    State or province code
-                </small>
-            </div>
-
-            <div id="field-country" data-field="country">
-                <label for="input-country">
-                    Country
-                </label>
-                <input
+                    <small id="help-state" data-role="help-text">State or province code</small>
+                </div>
+                <div id="field-country" data-field="country">
+                    <label for="input-country">Country</label>
+                    <input
                     type="text"
                     id="input-country"
                     name="country"
@@ -125,16 +110,11 @@
                     aria-describedby="help-country"
                     placeholder="USA"
                 />
-                <small id="help-country" data-role="help-text">
-                    Country code or full name
-                </small>
-            </div>
-
-            <div id="field-postal-code" data-field="postal-code">
-                <label for="input-postal-code">
-                    Postal/ZIP Code
-                </label>
-                <input
+                    <small id="help-country" data-role="help-text">Country code or full name</small>
+                </div>
+                <div id="field-postal-code" data-field="postal-code">
+                    <label for="input-postal-code">Postal/ZIP Code</label>
+                    <input
                     type="text"
                     id="input-postal-code"
                     name="postal_code"
@@ -142,20 +122,14 @@
                     aria-describedby="help-postal-code"
                     placeholder="90001"
                 />
-                <small id="help-postal-code" data-role="help-text">
-                    Postal or ZIP code
-                </small>
-            </div>
-        </fieldset>
-
-        <fieldset id="fieldset-contact" data-role="form-section">
-            <legend>Contact Information</legend>
-
-            <div id="field-contact-name" data-field="contact-name">
-                <label for="input-contact-name">
-                    Contact Name
-                </label>
-                <input
+                    <small id="help-postal-code" data-role="help-text">Postal or ZIP code</small>
+                </div>
+            </fieldset>
+            <fieldset id="fieldset-contact" data-role="form-section">
+                <legend>Contact Information</legend>
+                <div id="field-contact-name" data-field="contact-name">
+                    <label for="input-contact-name">Contact Name</label>
+                    <input
                     type="text"
                     id="input-contact-name"
                     name="contact_name"
@@ -163,16 +137,13 @@
                     aria-describedby="help-contact-name"
                     placeholder="John Smith"
                 />
-                <small id="help-contact-name" data-role="help-text">
-                    Name of the person to contact about this location
-                </small>
-            </div>
-
-            <div id="field-contact-email" data-field="contact-email">
-                <label for="input-contact-email">
-                    Contact Email
-                </label>
-                <input
+                    <small id="help-contact-name" data-role="help-text">
+                        Name of the person to contact about this location
+                    </small>
+                </div>
+                <div id="field-contact-email" data-field="contact-email">
+                    <label for="input-contact-email">Contact Email</label>
+                    <input
                     type="email"
                     id="input-contact-email"
                     name="contact_email"
@@ -180,16 +151,11 @@
                     aria-describedby="help-contact-email"
                     placeholder="contact@example.com"
                 />
-                <small id="help-contact-email" data-role="help-text">
-                    Email address for location inquiries
-                </small>
-            </div>
-
-            <div id="field-contact-phone" data-field="contact-phone">
-                <label for="input-contact-phone">
-                    Contact Phone
-                </label>
-                <input
+                    <small id="help-contact-email" data-role="help-text">Email address for location inquiries</small>
+                </div>
+                <div id="field-contact-phone" data-field="contact-phone">
+                    <label for="input-contact-phone">Contact Phone</label>
+                    <input
                     type="tel"
                     id="input-contact-phone"
                     name="contact_phone"
@@ -197,20 +163,16 @@
                     aria-describedby="help-contact-phone"
                     placeholder="+1 (555) 123-4567"
                 />
-                <small id="help-contact-phone" data-role="help-text">
-                    Phone number for location inquiries (optional)
-                </small>
-            </div>
-        </fieldset>
-
-        <fieldset id="fieldset-details" data-role="form-section">
-            <legend>Location Details</legend>
-
-            <div id="field-amenities" data-field="amenities">
-                <label for="input-amenities">
-                    Amenities
-                </label>
-                <input
+                    <small id="help-contact-phone" data-role="help-text">
+                        Phone number for location inquiries (optional)
+                    </small>
+                </div>
+            </fieldset>
+            <fieldset id="fieldset-details" data-role="form-section">
+                <legend>Location Details</legend>
+                <div id="field-amenities" data-field="amenities">
+                    <label for="input-amenities">Amenities</label>
+                    <input
                     type="text"
                     id="input-amenities"
                     name="amenities"
@@ -218,16 +180,13 @@
                     aria-describedby="help-amenities"
                     placeholder="Parking, Power outlets, Wi-Fi, Green room"
                 />
-                <small id="help-amenities" data-role="help-text">
-                    Comma-separated list of available amenities
-                </small>
-            </div>
-
-            <div id="field-restrictions" data-field="restrictions">
-                <label for="input-restrictions">
-                    Restrictions
-                </label>
-                <input
+                    <small id="help-amenities" data-role="help-text">
+                        Comma-separated list of available amenities
+                    </small>
+                </div>
+                <div id="field-restrictions" data-field="restrictions">
+                    <label for="input-restrictions">Restrictions</label>
+                    <input
                     type="text"
                     id="input-restrictions"
                     name="restrictions"
@@ -235,32 +194,30 @@
                     aria-describedby="help-restrictions"
                     placeholder="No smoking, Limited hours, Noise restrictions"
                 />
-                <small id="help-restrictions" data-role="help-text">
-                    Comma-separated list of any restrictions
-                </small>
-            </div>
-
-            <div id="field-parking-info" data-field="parking-info">
-                <label for="textarea-parking-info">
-                    Parking Information
-                </label>
-                <textarea
+                    <small id="help-restrictions" data-role="help-text">
+                        Comma-separated list of any restrictions
+                    </small>
+                </div>
+                <div id="field-parking-info" data-field="parking-info">
+                    <label for="textarea-parking-info">Parking Information</label>
+                    <textarea
                     id="textarea-parking-info"
                     name="parking_info"
                     rows="3"
                     aria-describedby="help-parking-info"
                     placeholder="Describe parking availability and any restrictions..."
-                >{% if location.parking_info.is_some() %}{{ location.parking_info.as_ref().unwrap() }}{% endif %}</textarea>
-                <small id="help-parking-info" data-role="help-text">
-                    Details about parking for crew and equipment vehicles
-                </small>
-            </div>
-
-            <div id="field-max-capacity" data-field="max-capacity">
-                <label for="input-max-capacity">
-                    Maximum Capacity
-                </label>
-                <input
+                >
+                        {% if location.parking_info.is_some() %}
+                            {{ location.parking_info.as_ref().unwrap() }}
+                        {% endif %}
+                    </textarea>
+                    <small id="help-parking-info" data-role="help-text">
+                        Details about parking for crew and equipment vehicles
+                    </small>
+                </div>
+                <div id="field-max-capacity" data-field="max-capacity">
+                    <label for="input-max-capacity">Maximum Capacity</label>
+                    <input
                     type="number"
                     id="input-max-capacity"
                     name="max_capacity"
@@ -269,18 +226,16 @@
                     aria-describedby="help-max-capacity"
                     placeholder="50"
                 />
-                <small id="help-max-capacity" data-role="help-text">
-                    Maximum number of people the location can accommodate
-                </small>
-            </div>
-        </fieldset>
-
-        <fieldset id="fieldset-visibility" data-role="form-section">
-            <legend>Visibility Settings</legend>
-
-            <div id="field-public" data-field="public">
-                <label for="checkbox-public">
-                    <input
+                    <small id="help-max-capacity" data-role="help-text">
+                        Maximum number of people the location can accommodate
+                    </small>
+                </div>
+            </fieldset>
+            <fieldset id="fieldset-visibility" data-role="form-section">
+                <legend>Visibility Settings</legend>
+                <div id="field-public" data-field="public">
+                    <label for="checkbox-public">
+                        <input
                         type="checkbox"
                         id="checkbox-public"
                         name="is_public"
@@ -288,66 +243,58 @@
                         {% if location.is_public %}checked{% endif %}
                         aria-describedby="help-public"
                     />
-                    Make this location publicly visible
-                </label>
-                <small id="help-public" data-role="help-text">
-                    Public locations can be discovered by all users. Private locations are only visible to you.
-                </small>
-            </div>
-        </fieldset>
-
-        <div id="form-actions" data-role="form-actions">
-            <a
-                href="/locations/{{ location.slug }}"
+                        Make this location publicly visible
+                    </label>
+                    <small id="help-public" data-role="help-text">
+                        Public locations can be discovered by all users. Private
+                        locations are only visible to you.
+                    </small>
+                </div>
+            </fieldset>
+            <div id="form-actions" data-role="form-actions">
+                <a
+                href="/locations/{{ location.id }}"
                 id="button-cancel"
                 role="button"
                 data-type="secondary"
-            >
-                Cancel
-            </a>
-            <button
+            >Cancel</a>
+                <button
                 type="submit"
                 id="button-submit-changes"
                 data-type="primary"
-            >
-                Save Changes
-            </button>
-        </div>
-    </form>
-
-    <section id="section-danger-zone" data-section="danger-zone" data-state="danger">
-        <header id="danger-zone-header" data-role="section-header">
-            <h2 id="heading-danger-zone">Danger Zone</h2>
-        </header>
-
-        <div id="delete-location-container" data-component="danger-action">
-            <div id="delete-warning" data-role="warning-text">
-                <h3 id="heading-delete-location">Delete Location</h3>
-                <p id="delete-description" data-role="warning-description">
-                    Once you delete a location, there is no going back. This will permanently delete the location
-                    and all its associated rates.
-                </p>
+            >Save Changes</button>
             </div>
-            <form
+        </form>
+        <section id="section-danger-zone" data-section="danger-zone" data-state="danger">
+            <header id="danger-zone-header" data-role="section-header">
+                <h2 id="heading-danger-zone">Danger Zone</h2>
+            </header>
+            <div id="delete-location-container" data-component="danger-action">
+                <div id="delete-warning" data-role="warning-text">
+                    <h3 id="heading-delete-location">Delete Location</h3>
+                    <p id="delete-description" data-role="warning-description">
+                        Once you delete a location, there is no going back. This
+                        will permanently delete the location
+                                            and all its associated rates.
+                    </p>
+                </div>
+                <form
                 id="form-delete-location"
-                action="/locations/{{ location.slug }}/delete"
+                action="/locations/{{ location.id }}/delete"
                 method="post"
                 data-component="form"
                 onsubmit="return confirmDelete();"
             >
-                <button
+                    <button
                     type="submit"
                     id="button-delete-location"
                     data-type="danger"
-                >
-                    Delete This Location
-                </button>
-            </form>
-        </div>
+                >Delete This Location</button>
+                </form>
+            </div>
+        </section>
     </section>
-</section>
-
-<script>
+    <script>
     // Auto-format phone number
     document.getElementById('input-contact-phone').addEventListener('input', function(e) {
         let value = e.target.value.replace(/\D/g, '');

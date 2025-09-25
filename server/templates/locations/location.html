@@ -22,8 +22,8 @@
             </hgroup>
             {% if location.can_edit %}
                 <nav id="location-admin-actions" data-role="admin-actions" aria-label="Location administration">
-                    <a href="/locations/{{ location.slug }}/edit" id="button-edit-location" role="button" data-type="secondary">Edit Location</a>
-                    <form id="form-delete-location" action="/locations/{{ location.slug }}/delete" method="post" data-component="form" onsubmit="return confirm('Are you sure you want to delete this location?');">
+                    <a href="/locations/{{ location.id }}/edit" id="button-edit-location" role="button" data-type="secondary">Edit Location</a>
+                    <form id="form-delete-location" action="/locations/{{ location.id }}/delete" method="post" data-component="form" onsubmit="return confirm('Are you sure you want to delete this location?');">
                         <button type="submit" id="button-delete-location" data-type="danger">Delete Location</button>
                     </form>
                 </nav>
@@ -127,7 +127,7 @@
             </header>
             {% if location.can_edit %}
                 <div id="add-rate-form-container" data-component="add-rate-form" data-state="hidden" hidden>
-                    <form id="form-add-rate" action="/locations/{{ location.slug }}/rates/add" method="post" data-component="form">
+                    <form id="form-add-rate" action="/locations/{{ location.id }}/rates/add" method="post" data-component="form">
                         <fieldset id="fieldset-add-rate" data-role="form-section">
                             <legend>Add Rental Rate</legend>
                             <div id="field-rate-type" data-field="rate-type">
@@ -220,7 +220,7 @@
                                     {% if location.can_edit %}
                                         <td data-field="actions">
                                             <form id="form-delete-rate-{{ rate.id }}"
-                                  action="/locations/{{ location.slug }}/rates/{{ rate.id }}/delete"
+                                  action="/locations/{{ location.id }}/rates/{{ rate.id }}/delete"
                                   method="post"
                                   data-component="form"
                                   data-role="delete-rate-form">

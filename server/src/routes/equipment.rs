@@ -283,7 +283,7 @@ pub async fn show_equipment_detail(
                 .owner_person
                 .as_ref()
                 .map_or(false, |p| p.to_string() == user.id)
-        } else if let Some(ref org_id) = equipment.owner_organization {
+        } else if let Some(org_id) = equipment.owner_organization.as_ref() {
             let org_model = OrganizationModel::new();
             let members = org_model
                 .get_members(&org_id.to_string())
@@ -336,7 +336,7 @@ pub async fn show_edit_equipment_form(
         {
             return Err(Error::Unauthorized);
         }
-    } else if let Some(ref org_id) = equipment.owner_organization {
+    } else if let Some(org_id) = equipment.owner_organization.as_ref() {
         let org_model = OrganizationModel::new();
         let members = org_model.get_members(&org_id.to_string()).await?;
         if !members
@@ -395,7 +395,7 @@ pub async fn update_equipment(
         {
             return Err(Error::Unauthorized);
         }
-    } else if let Some(ref org_id) = equipment.owner_organization {
+    } else if let Some(org_id) = equipment.owner_organization.as_ref() {
         let org_model = OrganizationModel::new();
         let members = org_model.get_members(&org_id.to_string()).await?;
         if !members
@@ -452,7 +452,7 @@ pub async fn delete_equipment(
         {
             return Err(Error::Unauthorized);
         }
-    } else if let Some(ref org_id) = equipment.owner_organization {
+    } else if let Some(org_id) = equipment.owner_organization.as_ref() {
         let org_model = OrganizationModel::new();
         let members = org_model.get_members(&org_id.to_string()).await?;
         if !members
@@ -590,7 +590,7 @@ pub async fn show_kit_detail(Path(id): Path<String>, request: Request) -> Result
             kit.owner_person
                 .as_ref()
                 .map_or(false, |p| p.to_string() == user.id)
-        } else if let Some(ref org_id) = kit.owner_organization {
+        } else if let Some(org_id) = kit.owner_organization.as_ref() {
             let org_model = OrganizationModel::new();
             let members = org_model
                 .get_members(&org_id.to_string())

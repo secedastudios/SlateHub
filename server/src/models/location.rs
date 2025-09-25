@@ -1,15 +1,14 @@
 use crate::db::DB;
 use crate::error::Error;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
+use surrealdb::{RecordId, sql::Thing};
 use tracing::debug;
 
 /// Location entity from the database
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Location {
-    pub id: String,
+    pub id: RecordId,
     pub name: String,
-    pub slug: String,
     pub address: String,
     pub city: String,
     pub state: String,
@@ -100,23 +99,10 @@ impl LocationModel {
     pub async fn create(data: CreateLocationData, creator_id: &str) -> Result<Location, Error> {
         debug!("Creating location: {} by {}", data.name, creator_id);
 
-        // Generate slug from name
-        let slug = data
-            .name
-            .to_lowercase()
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '-' })
-            .collect::<String>()
-            .split('-')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-            .join("-");
-
         // Create the location
         let query = r#"
             CREATE location CONTENT {
                 name: $name,
-                slug: $slug,
                 address: $address,
                 city: $city,
                 state: $state,
@@ -138,7 +124,6 @@ impl LocationModel {
         let mut result = DB
             .query(query)
             .bind(("name", data.name))
-            .bind(("slug", slug))
             .bind(("address", data.address))
             .bind(("city", data.city))
             .bind(("state", data.state))
@@ -167,38 +152,17 @@ impl LocationModel {
     }
 
     /// Get a location by ID
-    pub async fn get(location_id: &str) -> Result<Location, Error> {
+    pub async fn get(location_id: &RecordId) -> Result<Location, Error> {
         debug!("Fetching location: {}", location_id);
 
         let mut result = DB
             .query("SELECT * FROM $location_id")
-            .bind((
-                "location_id",
-                Thing::from((
-                    "location",
-                    location_id.strip_prefix("location:").unwrap_or(location_id),
-                )),
-            ))
+            .bind(("location_id", location_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to fetch location: {}", e)))?;
 
         let location: Option<Location> = result.take(0)?;
         location.ok_or_else(|| Error::NotFound)
-    }
-
-    /// Get a location by slug
-    pub async fn get_by_slug(slug: &str) -> Result<Location, Error> {
-        debug!("Fetching location by slug: {}", slug);
-
-        let query = "SELECT * FROM location WHERE slug = $slug";
-        let mut result = DB
-            .query(query)
-            .bind(("slug", slug.to_string()))
-            .await
-            .map_err(|e| Error::Database(format!("Failed to fetch location: {}", e)))?;
-
-        let locations: Vec<Location> = result.take(0)?;
-        locations.into_iter().next().ok_or_else(|| Error::NotFound)
     }
 
     /// List locations with optional filters
@@ -252,7 +216,10 @@ impl LocationModel {
     }
 
     /// Update a location
-    pub async fn update(location_id: &str, data: UpdateLocationData) -> Result<Location, Error> {
+    pub async fn update(
+        location_id: &RecordId,
+        data: UpdateLocationData,
+    ) -> Result<Location, Error> {
         debug!("Updating location: {}", location_id);
 
         let mut update_fields = Vec::new();
@@ -312,13 +279,9 @@ impl LocationModel {
             update_fields.join(", ")
         );
 
-        let mut db_query = DB.query(&query).bind((
-            "location_id",
-            Thing::from((
-                "location",
-                location_id.strip_prefix("location:").unwrap_or(location_id),
-            )),
-        ));
+        let mut db_query = DB
+            .query(&query)
+            .bind(("location_id", location_id.to_string()));
 
         if let Some(name) = data.name {
             // Also update slug if name changes
@@ -388,7 +351,8 @@ impl LocationModel {
     }
 
     /// Delete a location and all its rates
-    pub async fn delete(location_id: &str) -> Result<(), Error> {
+    /// Delete a location
+    pub async fn delete(location_id: &RecordId) -> Result<(), Error> {
         debug!("Deleting location: {}", location_id);
 
         // Start transaction
@@ -396,27 +360,15 @@ impl LocationModel {
             .await
             .map_err(|e| Error::Database(format!("Failed to start transaction: {}", e)))?;
 
-        // Delete all rates for this location
-        DB.query("DELETE location_rate WHERE location = $location_id")
-            .bind((
-                "location_id",
-                Thing::from((
-                    "location",
-                    location_id.strip_prefix("location:").unwrap_or(location_id),
-                )),
-            ))
+        // Delete all rates associated with this location
+        DB.query("DELETE rate WHERE location = $location_id")
+            .bind(("location_id", location_id.to_string()))
             .await
-            .map_err(|e| Error::Database(format!("Failed to delete location rates: {}", e)))?;
+            .map_err(|e| Error::Database(format!("Failed to delete rates: {}", e)))?;
 
         // Delete the location
         DB.query("DELETE $location_id")
-            .bind((
-                "location_id",
-                Thing::from((
-                    "location",
-                    location_id.strip_prefix("location:").unwrap_or(location_id),
-                )),
-            ))
+            .bind(("location_id", location_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to delete location: {}", e)))?;
 
@@ -429,7 +381,7 @@ impl LocationModel {
     }
 
     /// Check if a user can edit a location
-    pub async fn can_edit(location_id: &str, user_id: &str) -> Result<bool, Error> {
+    pub async fn can_edit(location_id: &RecordId, user_id: &str) -> Result<bool, Error> {
         debug!(
             "Checking edit permission for {} on location {}",
             user_id, location_id
@@ -441,13 +393,7 @@ impl LocationModel {
 
         let mut result = DB
             .query(query)
-            .bind((
-                "location_id",
-                Thing::from((
-                    "location",
-                    location_id.strip_prefix("location:").unwrap_or(location_id),
-                )),
-            ))
+            .bind(("location_id", location_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to check permissions: {}", e)))?;
 
@@ -481,7 +427,10 @@ impl LocationModel {
     }
 
     /// Add a rate to a location
-    pub async fn add_rate(location_id: &str, data: CreateRateData) -> Result<LocationRate, Error> {
+    pub async fn add_rate(
+        location_id: &RecordId,
+        data: CreateRateData,
+    ) -> Result<LocationRate, Error> {
         debug!("Adding rate to location: {}", location_id);
 
         let query = r#"
@@ -497,13 +446,7 @@ impl LocationModel {
 
         let mut result = DB
             .query(query)
-            .bind((
-                "location",
-                Thing::from((
-                    "location",
-                    location_id.strip_prefix("location:").unwrap_or(location_id),
-                )),
-            ))
+            .bind(("location_id", location_id.to_string()))
             .bind(("rate_type", data.rate_type))
             .bind(("amount", data.amount))
             .bind((
@@ -520,7 +463,7 @@ impl LocationModel {
     }
 
     /// Get rates for a location
-    pub async fn get_rates(location_id: &str) -> Result<Vec<LocationRate>, Error> {
+    pub async fn get_rates(location_id: &RecordId) -> Result<Vec<LocationRate>, Error> {
         debug!("Fetching rates for location: {}", location_id);
 
         let query = r#"
@@ -531,13 +474,7 @@ impl LocationModel {
 
         let mut result = DB
             .query(query)
-            .bind((
-                "location",
-                Thing::from((
-                    "location",
-                    location_id.strip_prefix("location:").unwrap_or(location_id),
-                )),
-            ))
+            .bind(("location_id", location_id.to_string()))
             .await
             .map_err(|e| Error::Database(format!("Failed to fetch rates: {}", e)))?;
 

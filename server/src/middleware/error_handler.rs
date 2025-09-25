@@ -113,6 +113,16 @@ fn render_html_error(
             "500".to_string(),
             custom_message.unwrap_or_else(|| "Something went wrong on our end. We've been notified and are working to fix the issue.".to_string()),
         ),
+        StatusCode::UNPROCESSABLE_ENTITY => (
+            "Invalid Input",
+            "422".to_string(),
+            custom_message.unwrap_or_else(|| "The information you provided couldn't be processed. Please check your input and try again.".to_string()),
+        ),
+        StatusCode::BAD_REQUEST => (
+            "Bad Request",
+            "400".to_string(),
+            custom_message.unwrap_or_else(|| "Your request couldn't be understood. Please check your input and try again.".to_string()),
+        ),
         _ => (
             status_text,
             status_code.to_string(),
@@ -237,6 +247,12 @@ pub async fn error_response_middleware(req: Request, next: Next) -> Response {
             }
             StatusCode::FORBIDDEN => {
                 warn!("403 Forbidden: {}", path);
+            }
+            StatusCode::UNPROCESSABLE_ENTITY => {
+                warn!("422 Unprocessable Entity: {}", path);
+            }
+            StatusCode::BAD_REQUEST => {
+                warn!("400 Bad Request: {}", path);
             }
             _ if status.is_server_error() => {
                 error!("{} Server Error: {}", status.as_u16(), path);

@@ -173,4 +173,97 @@ impl Error {
     pub fn internal<S: Into<String>>(msg: S) -> Self {
         Self::Internal(msg.into())
     }
+
+    /// Parse form validation errors and return a user-friendly message
+    pub fn parse_form_validation_error<S: AsRef<str>>(error_msg: S) -> Self {
+        let msg = error_msg.as_ref();
+
+        // Common form validation error patterns and their user-friendly messages
+        let friendly_message = if msg.contains("cannot parse integer from empty string") {
+            if let Some(field) = extract_field_name(msg) {
+                format!(
+                    "Please enter a valid number for {}",
+                    format_field_name(&field)
+                )
+            } else {
+                "Please enter a valid number in all numeric fields".to_string()
+            }
+        } else if msg.contains("cannot parse") && msg.contains("from empty string") {
+            "Please fill in all required fields".to_string()
+        } else if msg.contains("invalid digit found") {
+            "Please enter only numbers in numeric fields".to_string()
+        } else if msg.contains("number too large") {
+            "The number entered is too large".to_string()
+        } else if msg.contains("number too small") || msg.contains("negative") {
+            "Please enter a positive number".to_string()
+        } else if msg.contains("Failed to deserialize form") {
+            // Try to extract the specific field from the error
+            if let Some(field) = extract_field_name(msg) {
+                format!("Invalid value for field: {}", format_field_name(&field))
+            } else {
+                "Please check your form input and try again".to_string()
+            }
+        } else {
+            // Default to the original message, but try to make it cleaner
+            msg.replace("Failed to deserialize form body: ", "")
+                .replace("Failed to deserialize query string: ", "")
+        };
+
+        Self::Validation(friendly_message)
+    }
+}
+
+/// Extract field name from error messages like "field_name: error details"
+fn extract_field_name(msg: &str) -> Option<String> {
+    // Look for pattern like "field_name: " in the error message
+    if let Some(colon_pos) = msg.find(':') {
+        let potential_field = &msg[..colon_pos];
+        // Check if it looks like a field name (contains underscores or is a single word)
+        if potential_field.split_whitespace().count() == 1
+            || potential_field.contains('_')
+            || potential_field.contains("Failed to deserialize form body")
+        {
+            // Extract just the field name part
+            let field = potential_field
+                .replace("Failed to deserialize form body", "")
+                .replace("Failed to deserialize query string", "")
+                .trim()
+                .to_string();
+            if !field.is_empty() {
+                return Some(field);
+            }
+        }
+    }
+    None
+}
+
+/// Format field names to be more user-friendly
+fn format_field_name(field: &str) -> String {
+    field
+        .replace('_', " ")
+        .split_whitespace()
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+// Implement From for axum's rejection types to provide better error messages
+impl From<axum::extract::rejection::FormRejection> for Error {
+    fn from(rejection: axum::extract::rejection::FormRejection) -> Self {
+        let message = rejection.body_text();
+        Error::parse_form_validation_error(message)
+    }
+}
+
+impl From<axum::extract::rejection::QueryRejection> for Error {
+    fn from(rejection: axum::extract::rejection::QueryRejection) -> Self {
+        let message = rejection.body_text();
+        Error::parse_form_validation_error(message)
+    }
 }

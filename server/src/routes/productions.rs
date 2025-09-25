@@ -76,11 +76,7 @@ async fn list_productions(
     let productions: Vec<crate::templates::Production> = productions
         .into_iter()
         .map(|p| crate::templates::Production {
-            id: p
-                .id
-                .strip_prefix("production:")
-                .unwrap_or(&p.id)
-                .to_string(),
+            id: p.id.key().to_string(),
             slug: p.slug,
             title: p.title,
             description: p.description.unwrap_or_default(),
@@ -145,11 +141,7 @@ async fn view_production(
         active_page: base.active_page,
         user: base.user,
         production: crate::templates::ProductionDetail {
-            id: production
-                .id
-                .strip_prefix("production:")
-                .unwrap_or(&production.id)
-                .to_string(),
+            id: production.id.key().to_string(),
             slug: production.slug,
             title: production.title,
             description: production.description,
@@ -302,11 +294,7 @@ async fn edit_production_form(
         active_page: base.active_page,
         user: base.user,
         production: crate::templates::ProductionEditData {
-            id: production
-                .id
-                .strip_prefix("production:")
-                .unwrap_or(&production.id)
-                .to_string(),
+            id: production.id.key().to_string(),
             slug: production.slug,
             title: production.title,
             description: production.description,
