@@ -153,15 +153,18 @@ impl OrganizationModel {
             data.name, data.slug, org_type_id
         );
 
-        // Get default owner permissions as strings
+        // Get default owner permissions as strings (must match snake_case serialization)
         let owner_permissions = vec![
-            "creeate".to_string(),
-            "Update".to_string(),
-            "Delete".to_string(),
-            "InviteMembers".to_string(),
-            "RemoveMembers".to_string(),
-            "UpdateMemberRoles".to_string(),
-            "Publish".to_string(),
+            "update_organization".to_string(),
+            "delete_organization".to_string(),
+            "invite_members".to_string(),
+            "remove_members".to_string(),
+            "update_member_roles".to_string(),
+            "create_projects".to_string(),
+            "update_projects".to_string(),
+            "delete_projects".to_string(),
+            "manage_content".to_string(),
+            "publish_content".to_string(),
         ];
 
         // Single SQL transaction that creates the organization and membership

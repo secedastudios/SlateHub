@@ -108,9 +108,9 @@ impl S3Service {
         }
     }
 
-    /// Set bucket policy to allow public read for profile images
+    /// Set bucket policy to allow public read for profile images and organization logos
     async fn set_bucket_policy(&self) -> Result<()> {
-        debug!("Setting bucket policy for public profile images");
+        debug!("Setting bucket policy for public profile images and organization logos");
 
         let policy = format!(
             r#"{{
@@ -121,10 +121,16 @@ impl S3Service {
                         "Principal": {{"AWS": ["*"]}},
                         "Action": ["s3:GetObject"],
                         "Resource": ["arn:aws:s3:::{}/profiles/*"]
+                    }},
+                    {{
+                        "Effect": "Allow",
+                        "Principal": {{"AWS": ["*"]}},
+                        "Action": ["s3:GetObject"],
+                        "Resource": ["arn:aws:s3:::{}/organizations/*"]
                     }}
                 ]
             }}"#,
-            self.config.bucket_name
+            self.config.bucket_name, self.config.bucket_name
         );
 
         self.client
@@ -163,8 +169,8 @@ impl S3Service {
             .body(body)
             .content_type(content_type);
 
-        // Make profile images publicly accessible
-        if key.starts_with("profiles/") {
+        // Make profile images and organization logos publicly accessible
+        if key.starts_with("profiles/") || key.starts_with("organizations/") {
             request = request.acl(aws_sdk_s3::types::ObjectCannedAcl::PublicRead);
         }
 

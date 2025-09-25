@@ -122,7 +122,7 @@ DEFINE FIELD location ON organization TYPE option<string> PERMISSIONS FULL;  -- 
 DEFINE FIELD website ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD social_links ON organization TYPE array<object> PERMISSIONS FULL;
 
-DEFINE FIELD logo ON organization TYPE option<record<media>> PERMISSIONS FULL;
+DEFINE FIELD logo ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD contact_email ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD phone ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD services ON organization TYPE array<string> PERMISSIONS FULL;  -- e.g., ["vfx", "casting"]

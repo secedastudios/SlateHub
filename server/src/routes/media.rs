@@ -17,6 +17,15 @@ pub fn router() -> Router {
     Router::new()
         .route("/upload/profile-image", post(upload_profile_image))
         .route("/profile-image/{person_id}", get(get_profile_image_url))
+        .route("/upload/organization-logo", post(upload_organization_logo))
+        .route(
+            "/upload/organization-logo/{org_slug}",
+            post(upload_organization_logo_with_slug),
+        )
+        .route(
+            "/organization-logo/{org_slug}",
+            get(get_organization_logo_url),
+        )
         .route("/debug/list-uploads", get(debug_list_uploads))
 }
 
@@ -43,11 +52,15 @@ struct ImageProcessParams {
 const MAX_FILE_SIZE: usize = 10 * 1024 * 1024;
 
 /// Allowed image formats
-const ALLOWED_FORMATS: &[&str] = &["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_FORMATS: &[&str] = &["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
 
 /// Profile image dimensions
 const PROFILE_IMAGE_SIZE: u32 = 400;
 const THUMBNAIL_SIZE: u32 = 100;
+
+/// Organization logo dimensions
+const LOGO_SIZE: u32 = 400;
+const LOGO_THUMBNAIL_SIZE: u32 = 100;
 
 /// Upload and process a profile image
 async fn upload_profile_image(
@@ -291,7 +304,380 @@ async fn get_profile_image_url(
     }
 }
 
-/// Debug endpoint to list uploaded files in MinIO
+/// Upload and process an organization logo
+async fn upload_organization_logo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Query(params): Query<ImageProcessParams>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadResponse>, Error> {
+    debug!("User {} uploading organization logo", user.username);
+
+    // Extract organization slug from query params
+    let mut org_slug: Option<String> = None;
+    let mut image_data: Option<(String, String, Bytes)> = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))?
+    {
+        let name = field.name().unwrap_or_default().to_string();
+
+        if name == "org_slug" {
+            org_slug = Some(
+                field
+                    .text()
+                    .await
+                    .map_err(|e| Error::bad_request(format!("Failed to read org_slug: {}", e)))?,
+            );
+        } else if name == "image" || name == "file" {
+            let content_type = field
+                .content_type()
+                .unwrap_or("application/octet-stream")
+                .to_string();
+
+            // Validate content type
+            if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
+                return Err(Error::bad_request(format!(
+                    "Invalid file format. Allowed: JPEG, PNG, WebP. Got: {}",
+                    content_type
+                )));
+            }
+
+            let filename = field.file_name().unwrap_or("upload").to_string();
+            let data = field
+                .bytes()
+                .await
+                .map_err(|e| Error::bad_request(format!("Failed to read file data: {}", e)))?;
+
+            // Check file size
+            if data.len() > MAX_FILE_SIZE {
+                return Err(Error::bad_request(format!(
+                    "File too large. Maximum size is 10MB"
+                )));
+            }
+
+            image_data = Some((filename, content_type, data));
+        }
+    }
+
+    let org_slug = org_slug.ok_or_else(|| Error::bad_request("Organization slug is required"))?;
+    let (filename, content_type, data) =
+        image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
+
+    debug!(
+        "Processing organization logo: {} ({}, {} bytes)",
+        filename,
+        content_type,
+        data.len()
+    );
+
+    // Check if user has permission to upload logo for this organization
+    let check_sql = format!(
+        "SELECT * FROM membership WHERE person = person:{} AND organization.slug = '{}' AND role IN ['owner', 'admin'] LIMIT 1",
+        user.id.strip_prefix("person:").unwrap_or(&user.id),
+        org_slug
+    );
+
+    let mut check_response = DB
+        .query(&check_sql)
+        .await
+        .map_err(|e| Error::Internal(format!("Permission check failed: {}", e)))?;
+
+    let membership: Vec<serde_json::Value> = check_response.take(0).unwrap_or_default();
+    if membership.is_empty() {
+        return Err(Error::Forbidden);
+    }
+
+    // Process the logo image (with optional SVG support)
+    let (processed_image, thumbnail) = if content_type.contains("svg") {
+        // For SVG, we'll store as-is and create a rasterized thumbnail
+        let thumbnail = create_svg_thumbnail(&data)?;
+        (data.clone(), thumbnail)
+    } else {
+        // For raster images, process normally
+        process_logo_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?
+    };
+
+    // Generate unique keys for S3
+    let image_id = Ulid::new().to_string();
+    let file_extension = if content_type.contains("svg") {
+        "svg"
+    } else {
+        "jpg"
+    };
+
+    let main_key = format!(
+        "organizations/{}/logo_{}.{}",
+        org_slug, image_id, file_extension
+    );
+    let thumb_key = format!("organizations/{}/thumb_{}.jpg", org_slug, image_id);
+
+    // Upload to S3
+    let s3_service = s3()?;
+
+    let main_url = s3_service
+        .upload_file(&main_key, processed_image.clone(), &content_type)
+        .await?;
+
+    let thumb_url = s3_service
+        .upload_file(&thumb_key, thumbnail, "image/jpeg")
+        .await?;
+
+    // Update the organization's logo field
+    let update_sql = format!(
+        "UPDATE organization SET logo = $logo WHERE slug = '{}'",
+        org_slug
+    );
+
+    DB.query(&update_sql)
+        .bind(("logo", main_url.clone()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to update organization logo: {}", e)))?;
+
+    info!("Organization logo uploaded successfully for {}", org_slug);
+
+    Ok(Json(UploadResponse {
+        media_id: image_id,
+        url: main_url.clone(),
+        thumbnail_url: Some(thumb_url),
+    }))
+}
+
+/// Process and crop the logo image
+fn process_logo_image(
+    image_data: &[u8],
+    crop_x: Option<f32>,
+    crop_y: Option<f32>,
+    crop_zoom: Option<f32>,
+) -> Result<(Bytes, Bytes), Error> {
+    // Load the image
+    let img = image::load_from_memory(image_data)
+        .map_err(|e| Error::bad_request(format!("Invalid image file: {}", e)))?;
+
+    // Apply crop if parameters provided
+    let cropped = if let (Some(x), Some(y), Some(zoom)) = (crop_x, crop_y, crop_zoom) {
+        apply_circular_crop(img, x, y, zoom)?
+    } else {
+        // Center crop to square
+        center_crop_square(img)
+    };
+
+    // Resize for logo
+    let logo_img =
+        cropped.resize_exact(LOGO_SIZE, LOGO_SIZE, image::imageops::FilterType::Lanczos3);
+
+    // Create thumbnail
+    let thumbnail = logo_img.resize_exact(
+        LOGO_THUMBNAIL_SIZE,
+        LOGO_THUMBNAIL_SIZE,
+        image::imageops::FilterType::Lanczos3,
+    );
+
+    // Convert to JPEG bytes
+    let mut logo_bytes = Cursor::new(Vec::new());
+    logo_img
+        .write_to(&mut logo_bytes, ImageFormat::Jpeg)
+        .map_err(|e| Error::Internal(format!("Failed to encode image: {}", e)))?;
+
+    let mut thumb_bytes = Cursor::new(Vec::new());
+    thumbnail
+        .write_to(&mut thumb_bytes, ImageFormat::Jpeg)
+        .map_err(|e| Error::Internal(format!("Failed to encode thumbnail: {}", e)))?;
+
+    Ok((
+        Bytes::from(logo_bytes.into_inner()),
+        Bytes::from(thumb_bytes.into_inner()),
+    ))
+}
+
+/// Create a thumbnail from SVG data
+fn create_svg_thumbnail(_svg_data: &[u8]) -> Result<Bytes, Error> {
+    // For now, we'll just create a simple placeholder thumbnail
+    // In production, you'd want to use a library like resvg to rasterize SVG
+    // TODO: Implement proper SVG rasterization
+
+    // Create a simple placeholder image
+    let img = DynamicImage::new_rgb8(LOGO_THUMBNAIL_SIZE, LOGO_THUMBNAIL_SIZE);
+
+    let mut thumb_bytes = Cursor::new(Vec::new());
+    img.write_to(&mut thumb_bytes, ImageFormat::Jpeg)
+        .map_err(|e| Error::Internal(format!("Failed to create thumbnail: {}", e)))?;
+
+    Ok(Bytes::from(thumb_bytes.into_inner()))
+}
+
+/// Get the logo URL for an organization
+async fn get_organization_logo_url(
+    Path(org_slug): Path<String>,
+) -> Result<Json<serde_json::Value>, Error> {
+    debug!("Getting logo for organization: {}", org_slug);
+
+    // Query for the organization's logo URL
+    let sql = format!(
+        "SELECT logo FROM organization WHERE slug = '{}' LIMIT 1",
+        org_slug
+    );
+
+    let mut response = DB
+        .query(&sql)
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to query organization: {}", e)))?;
+
+    let results: Vec<serde_json::Value> = response.take(0).unwrap_or_default();
+
+    if let Some(org) = results.first() {
+        if let Some(logo_url) = org.get("logo").and_then(|l| l.as_str()) {
+            return Ok(Json(serde_json::json!({
+                "url": logo_url,
+                "has_logo": true
+            })));
+        }
+    }
+
+    Ok(Json(serde_json::json!({
+        "url": null,
+        "has_logo": false
+    })))
+}
+
+/// Upload organization logo with slug in path
+async fn upload_organization_logo_with_slug(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(org_slug): Path<String>,
+    Query(params): Query<ImageProcessParams>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadResponse>, Error> {
+    debug!(
+        "User {} uploading organization logo for {}",
+        user.username, org_slug
+    );
+
+    // Extract image data from multipart
+    let mut image_data: Option<(String, String, Bytes)> = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))?
+    {
+        let name = field.name().unwrap_or_default().to_string();
+
+        if name == "image" || name == "file" {
+            let content_type = field
+                .content_type()
+                .unwrap_or("application/octet-stream")
+                .to_string();
+
+            // Validate content type
+            if !ALLOWED_FORMATS.contains(&content_type.as_str()) && !content_type.contains("svg") {
+                return Err(Error::bad_request(format!(
+                    "Invalid file format. Allowed: JPEG, PNG, WebP, SVG. Got: {}",
+                    content_type
+                )));
+            }
+
+            let filename = field.file_name().unwrap_or("upload").to_string();
+            let data = field
+                .bytes()
+                .await
+                .map_err(|e| Error::bad_request(format!("Failed to read file data: {}", e)))?;
+
+            // Check file size
+            if data.len() > MAX_FILE_SIZE {
+                return Err(Error::bad_request(format!(
+                    "File too large. Maximum size is 10MB"
+                )));
+            }
+
+            image_data = Some((filename, content_type, data));
+            break;
+        }
+    }
+
+    let (filename, content_type, data) =
+        image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
+
+    debug!(
+        "Processing organization logo: {} ({}, {} bytes)",
+        filename,
+        content_type,
+        data.len()
+    );
+
+    // Check if user has permission to upload logo for this organization
+    let check_sql = format!(
+        "SELECT * FROM membership WHERE person = person:{} AND organization.slug = '{}' AND role IN ['owner', 'admin'] LIMIT 1",
+        user.id.strip_prefix("person:").unwrap_or(&user.id),
+        org_slug
+    );
+
+    let mut check_response = DB
+        .query(&check_sql)
+        .await
+        .map_err(|e| Error::Internal(format!("Permission check failed: {}", e)))?;
+
+    let membership: Vec<serde_json::Value> = check_response.take(0).unwrap_or_default();
+    if membership.is_empty() {
+        return Err(Error::Forbidden);
+    }
+
+    // Process the logo image (with optional SVG support)
+    let (processed_image, thumbnail) = if content_type.contains("svg") {
+        // For SVG, we'll store as-is and create a rasterized thumbnail
+        let thumbnail = create_svg_thumbnail(&data)?;
+        (data.clone(), thumbnail)
+    } else {
+        // For raster images, process normally
+        process_logo_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?
+    };
+
+    // Generate unique keys for S3
+    let image_id = Ulid::new().to_string();
+    let file_extension = if content_type.contains("svg") {
+        "svg"
+    } else {
+        "jpg"
+    };
+
+    let main_key = format!(
+        "organizations/{}/logo_{}.{}",
+        org_slug, image_id, file_extension
+    );
+    let thumb_key = format!("organizations/{}/thumb_{}.jpg", org_slug, image_id);
+
+    // Upload to S3
+    let s3_service = s3()?;
+
+    let main_url = s3_service
+        .upload_file(&main_key, processed_image.clone(), &content_type)
+        .await?;
+
+    let thumb_url = s3_service
+        .upload_file(&thumb_key, thumbnail, "image/jpeg")
+        .await?;
+
+    // Update the organization's logo field
+    let update_sql = format!(
+        "UPDATE organization SET logo = $logo WHERE slug = '{}'",
+        org_slug
+    );
+
+    DB.query(&update_sql)
+        .bind(("logo", main_url.clone()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to update organization logo: {}", e)))?;
+
+    info!("Organization logo uploaded successfully for {}", org_slug);
+
+    Ok(Json(UploadResponse {
+        media_id: image_id,
+        url: main_url.clone(),
+        thumbnail_url: Some(thumb_url),
+    }))
+}
+
+/// Debug endpoint to list uploaded files
 async fn debug_list_uploads() -> Result<Json<serde_json::Value>, Error> {
     debug!("Listing uploaded files in MinIO");
 
