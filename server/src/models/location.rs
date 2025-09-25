@@ -1,6 +1,7 @@
 use crate::db::DB;
 use crate::error::Error;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use surrealdb::{RecordId, sql::Thing};
 use tracing::debug;
 
@@ -25,7 +26,7 @@ pub struct Location {
     pub max_capacity: Option<i32>,
     pub created_at: String,
     pub updated_at: String,
-    pub created_by: String,
+    pub created_by: RecordId,
 }
 
 /// Data required to create a new location
@@ -99,6 +100,8 @@ impl LocationModel {
     pub async fn create(data: CreateLocationData, creator_id: &str) -> Result<Location, Error> {
         debug!("Creating location: {} by {}", data.name, creator_id);
 
+        let creator_id = RecordId::from_str(creator_id)?;
+
         // Create the location
         let query = r#"
             CREATE location CONTENT {
@@ -138,7 +141,7 @@ impl LocationModel {
             .bind(("restrictions", data.restrictions))
             .bind(("parking_info", data.parking_info))
             .bind(("max_capacity", data.max_capacity))
-            .bind(("created_by", creator_id.to_string()))
+            .bind(("created_by", creator_id))
             .await
             .map_err(|e| Error::Database(format!("Failed to create location: {}", e)))?;
 

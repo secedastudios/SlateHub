@@ -459,7 +459,7 @@ async fn add_rate(
     info!("Added rate to location: {}", location.id);
 
     // Redirect back to location page
-    Ok(Redirect::to(&format!("/locations/{}", slug)).into_response())
+    Ok(Redirect::to(&format!("/locations/{}", location.id.key())).into_response())
 }
 
 /// Delete a rate from a location
