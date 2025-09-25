@@ -238,21 +238,13 @@ async fn verify_email(
         .await?
         .ok_or_else(|| Error::NotFound)?;
 
-    // Extract the person ID
-    let person_id = person
-        .id
-        .to_string()
-        .strip_prefix("person:")
-        .unwrap_or(&person.id.to_string())
-        .to_string();
-
     // Verify the code
-    match VerificationService::verify_code(&person_id, &form.code, CodeType::EmailVerification)
+    match VerificationService::verify_code(&person.id, &form.code, CodeType::EmailVerification)
         .await
     {
         Ok(_) => {
             // Mark email as verified
-            VerificationService::mark_email_verified(&person_id)
+            VerificationService::mark_email_verified(&person.id)
                 .await
                 .map_err(|e| Error::Internal(format!("Failed to mark email as verified: {}", e)))?;
 
@@ -329,17 +321,9 @@ async fn forgot_password(Form(form): Form<ForgotPasswordForm>) -> Result<Respons
 
     // Find the person by email
     if let Some(person) = Person::find_by_email(&form.email).await? {
-        // Extract the person ID
-        let person_id = person
-            .id
-            .to_string()
-            .strip_prefix("person:")
-            .unwrap_or(&person.id.to_string())
-            .to_string();
-
         // Generate password reset code
         let reset_code =
-            VerificationService::create_verification_code(&person_id, CodeType::PasswordReset)
+            VerificationService::create_verification_code(&person.id, CodeType::PasswordReset)
                 .await
                 .map_err(|e| Error::Internal(format!("Failed to create reset code: {}", e)))?;
 
@@ -449,16 +433,8 @@ async fn reset_password(Form(form): Form<ResetPasswordForm>) -> Result<Response,
         .await?
         .ok_or_else(|| Error::NotFound)?;
 
-    // Extract the person ID
-    let person_id = person
-        .id
-        .to_string()
-        .strip_prefix("person:")
-        .unwrap_or(&person.id.to_string())
-        .to_string();
-
     // Verify the reset code
-    match VerificationService::verify_code(&person_id, &form.code, CodeType::PasswordReset).await {
+    match VerificationService::verify_code(&person.id, &form.code, CodeType::PasswordReset).await {
         Ok(_) => {
             // Update the password
             use crate::auth;
@@ -514,20 +490,12 @@ async fn resend_verification(Form(form): Form<ResendVerificationForm>) -> Result
 
     // Find the person by email
     if let Some(person) = Person::find_by_email(&form.email).await? {
-        // Check if already verified
-        let person_id = person
-            .id
-            .to_string()
-            .strip_prefix("person:")
-            .unwrap_or(&person.id.to_string())
-            .to_string();
-
         if person.verification_status != "unverified" {
             debug!("User {} already verified, skipping resend", form.email);
         } else {
             // Generate new verification code
             let verification_code = VerificationService::create_verification_code(
-                &person_id,
+                &person.id,
                 CodeType::EmailVerification,
             )
             .await

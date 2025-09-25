@@ -192,7 +192,7 @@ impl EquipmentModel {
                 model: $model,
                 manufacturer: $manufacturer,
                 description: $description,
-                purchase_date: $purchase_date,
+                purchase_date: IF $purchase_date THEN <datetime>$purchase_date ELSE NONE END,
                 purchase_price: $purchase_price,
                 condition: type::thing('equipment_condition', $condition),
                 notes: $notes,
@@ -217,7 +217,10 @@ impl EquipmentModel {
             .bind(("model", data.model.clone()))
             .bind(("manufacturer", data.manufacturer.clone()))
             .bind(("description", data.description.clone()))
-            .bind(("purchase_date", data.purchase_date.clone()))
+            .bind((
+                "purchase_date",
+                data.purchase_date.map(|dt| dt.to_rfc3339()),
+            ))
             .bind(("purchase_price", data.purchase_price))
             .bind(("condition", data.condition.clone()))
             .bind(("notes", data.notes.clone()))
@@ -277,7 +280,7 @@ impl EquipmentModel {
                 model = $model,
                 manufacturer = $manufacturer,
                 description = $description,
-                purchase_date = $purchase_date,
+                purchase_date = IF $purchase_date THEN <datetime>$purchase_date ELSE NONE END,
                 purchase_price = $purchase_price,
                 condition = type::thing('equipment_condition', $condition),
                 notes = $notes,
@@ -295,7 +298,10 @@ impl EquipmentModel {
             .bind(("model", data.model.clone()))
             .bind(("manufacturer", data.manufacturer.clone()))
             .bind(("description", data.description.clone()))
-            .bind(("purchase_date", data.purchase_date.clone()))
+            .bind((
+                "purchase_date",
+                data.purchase_date.map(|dt| dt.to_rfc3339()),
+            ))
             .bind(("purchase_price", data.purchase_price))
             .bind(("condition", data.condition.clone()))
             .bind(("notes", data.notes.clone()))
@@ -660,7 +666,7 @@ impl EquipmentModel {
                 renter_person: IF $renter_person THEN type::thing('person', $renter_person) ELSE NONE END,
                 renter_organization: IF $renter_organization THEN type::thing('organization', $renter_organization) ELSE NONE END,
                 checkout_date: time::now(),
-                expected_return_date: $expected_return_date,
+                expected_return_date: IF $expected_return_date THEN <datetime>$expected_return_date ELSE NONE END,
                 actual_return_date: NONE,
                 checkout_condition: type::thing('equipment_condition', $condition),
                 return_condition: NONE,
@@ -704,7 +710,10 @@ impl EquipmentModel {
             .bind(("renter_type", data.renter_type.clone()))
             .bind(("renter_person", data.renter_person.clone()))
             .bind(("renter_organization", data.renter_organization.clone()))
-            .bind(("expected_return_date", data.expected_return_date.clone()))
+            .bind((
+                "expected_return_date",
+                data.expected_return_date.map(|dt| dt.to_rfc3339()),
+            ))
             .bind(("condition", data.condition.clone()))
             .bind(("notes", data.notes.clone()))
             .bind(("checkout_by", data.checkout_by.clone()))

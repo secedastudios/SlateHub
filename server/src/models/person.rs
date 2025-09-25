@@ -669,17 +669,9 @@ impl Person {
         use crate::services::email::EmailService;
         use crate::services::verification::{CodeType, VerificationService};
 
-        // Extract just the ID part from the RecordId
-        let person_id = person
-            .id
-            .to_string()
-            .strip_prefix("person:")
-            .unwrap_or(&person.id.to_string())
-            .to_string();
-
         // Generate verification code
         let verification_code =
-            VerificationService::create_verification_code(&person_id, CodeType::EmailVerification)
+            VerificationService::create_verification_code(&person.id, CodeType::EmailVerification)
                 .await
                 .map_err(|e| {
                     Error::Internal(format!("Failed to create verification code: {}", e))

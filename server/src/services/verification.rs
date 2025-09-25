@@ -1,6 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use surrealdb::RecordId;
 use thiserror::Error;
 use tracing::{debug, error, info};
 
@@ -34,8 +35,8 @@ type Result<T> = std::result::Result<T, VerificationError>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerificationCode {
-    pub id: String,
-    pub person_id: String,
+    pub id: RecordId,
+    pub person_id: RecordId,
     pub code: String,
     pub code_type: CodeType,
     pub expires_at: DateTime<Utc>,
@@ -70,7 +71,10 @@ impl VerificationService {
     }
 
     /// Create a new verification code for a user
-    pub async fn create_verification_code(person_id: &str, code_type: CodeType) -> Result<String> {
+    pub async fn create_verification_code(
+        person_id: &RecordId,
+        code_type: CodeType,
+    ) -> Result<String> {
         let code = Self::generate_code();
 
         // Set expiration based on code type
@@ -82,7 +86,7 @@ impl VerificationService {
         // Delete any existing unused codes of the same type for this user
         let delete_sql = "DELETE verification_codes WHERE person_id = $person_id AND code_type = $code_type AND used = false";
         DB.query(delete_sql)
-            .bind(("person_id", format!("person:{}", person_id)))
+            .bind(("person_id", person_id.clone()))
             .bind(("code_type", code_type.to_string()))
             .await?;
 
@@ -91,16 +95,16 @@ impl VerificationService {
             person_id = $person_id,
             code = $code,
             code_type = $code_type,
-            expires_at = $expires_at,
+            expires_at = <datetime>$expires_at,
             used = false,
             created_at = time::now()";
 
         let mut response = DB
             .query(sql)
-            .bind(("person_id", format!("person:{}", person_id)))
+            .bind(("person_id", person_id.clone()))
             .bind(("code", code.clone()))
             .bind(("code_type", code_type.to_string()))
-            .bind(("expires_at", expires_at))
+            .bind(("expires_at", expires_at.to_rfc3339()))
             .await?;
 
         let codes: Vec<VerificationCode> = response.take(0)?;
@@ -120,7 +124,7 @@ impl VerificationService {
     }
 
     /// Verify a code and mark it as used
-    pub async fn verify_code(person_id: &str, code: &str, code_type: CodeType) -> Result<()> {
+    pub async fn verify_code(person_id: &RecordId, code: &str, code_type: CodeType) -> Result<()> {
         // Find the verification code
         let sql = "SELECT * FROM verification_codes
             WHERE person_id = $person_id
@@ -130,7 +134,7 @@ impl VerificationService {
 
         let mut response = DB
             .query(sql)
-            .bind(("person_id", format!("person:{}", person_id)))
+            .bind(("person_id", person_id.clone()))
             .bind(("code", code.to_string()))
             .bind(("code_type", code_type.to_string()))
             .await?;
@@ -205,12 +209,10 @@ impl VerificationService {
     }
 
     /// Mark a person's email as verified
-    pub async fn mark_email_verified(person_id: &str) -> Result<()> {
+    pub async fn mark_email_verified(person_id: &RecordId) -> Result<()> {
         let sql = "UPDATE person SET verification_status = 'email' WHERE id = $person_id";
 
-        DB.query(sql)
-            .bind(("person_id", format!("person:{}", person_id)))
-            .await?;
+        DB.query(sql).bind(("person_id", person_id.clone())).await?;
 
         info!("Marked email as verified for person {}", person_id);
 
