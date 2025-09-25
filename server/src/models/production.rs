@@ -1,7 +1,7 @@
 use crate::db::DB;
 use crate::error::Error;
 use serde::{Deserialize, Serialize};
-use surrealdb::{RecordId, sql::Thing};
+use surrealdb::RecordId;
 use tracing::debug;
 
 /// Production entity from the database

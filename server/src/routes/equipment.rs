@@ -5,7 +5,6 @@ use axum::{
     routing::{get, post},
 };
 use serde::Deserialize;
-use std::sync::Arc;
 use tracing::info;
 
 use crate::{
@@ -17,7 +16,6 @@ use crate::{
             EquipmentModel, UpdateEquipmentData,
         },
         organization::OrganizationModel,
-        person::SessionUser,
     },
     templates::{
         BaseContext, User,

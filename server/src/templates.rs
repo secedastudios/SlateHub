@@ -3,9 +3,9 @@ use chrono::Datelike;
 use serde::{Deserialize, Serialize};
 
 use crate::db::DB;
-use crate::models::equipment::{
-    Equipment, EquipmentCategory, EquipmentCondition, EquipmentKit, EquipmentRental,
-};
+// use crate::models::equipment::{
+//     Equipment, EquipmentCategory, EquipmentCondition, EquipmentKit, EquipmentRental,
+// };
 use crate::models::person::SessionUser;
 
 /// Represents a user for template rendering

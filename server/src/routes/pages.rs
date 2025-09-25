@@ -6,15 +6,13 @@ use crate::{
     error::Error,
     middleware::UserExtractor,
     templates::{
-        AboutTemplate, Activity, BaseContext, IndexTemplate, PeopleTemplate, PrivacyTemplate,
-        TermsTemplate, User,
+        AboutTemplate, Activity, BaseContext, IndexTemplate, PrivacyTemplate, TermsTemplate, User,
     },
 };
 
 pub fn router() -> Router {
     Router::new()
         .route("/", get(index))
-        .route("/people", get(people))
         .route("/about", get(about))
         .route("/terms", get(terms))
         .route("/privacy", get(privacy))
@@ -69,41 +67,6 @@ async fn index(request: Request) -> Result<Html<String>, Error> {
 
     let html = template.render().map_err(|e| {
         error!("Failed to render index template: {}", e);
-        Error::template(e.to_string())
-    })?;
-
-    Ok(Html(html))
-}
-
-async fn people(request: Request) -> Result<Html<String>, Error> {
-    debug!("Rendering people page");
-
-    let mut base = BaseContext::new().with_page("people");
-
-    // Add user to context if authenticated
-    if let Some(user) = request.get_user() {
-        base = base.with_user(User::from_session_user(&user).await);
-    }
-
-    let mut template = PeopleTemplate::new(base);
-
-    // Add specialties list (in production, fetch from database)
-    template.specialties = vec![
-        "Director".to_string(),
-        "Producer".to_string(),
-        "Cinematographer".to_string(),
-        "Editor".to_string(),
-        "Sound Designer".to_string(),
-        "Actor".to_string(),
-        "Writer".to_string(),
-        "Composer".to_string(),
-    ];
-
-    // In production, you would fetch people from the database here
-    // and populate template.people
-
-    let html = template.render().map_err(|e| {
-        error!("Failed to render people template: {}", e);
         Error::template(e.to_string())
     })?;
 

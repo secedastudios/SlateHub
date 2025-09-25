@@ -9,14 +9,16 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
 use crate::{
+    db::DB,
     error::Error,
     middleware::UserExtractor,
     models::person::Person,
-    templates::{BaseContext, User},
+    templates::{BaseContext, PeopleTemplate, PersonCard, User},
 };
 
 pub fn router() -> Router {
     Router::new()
+        .route("/people", get(people))
         // User profile route - must be last to avoid conflicts with other routes
         .route("/{username}", get(user_profile))
 }
@@ -134,26 +136,90 @@ async fn user_profile(
     Ok(Html(html))
 }
 
-/// Check if a username is available (not taken or reserved)
-pub async fn check_username_availability(username: &str) -> Result<bool, Error> {
-    // Check if it's a reserved route
-    if RESERVED_ROUTES.contains(&username) {
-        return Ok(false);
+async fn people(request: Request) -> Result<Html<String>, Error> {
+    debug!("Rendering people page");
+
+    let mut base = BaseContext::new().with_page("people");
+
+    // Add user to context if authenticated
+    if let Some(user) = request.get_user() {
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
-    // Check if username already exists using the Person model
-    match Person::find_by_username(username).await? {
-        Some(_) => Ok(false),
-        None => Ok(true),
-    }
-}
+    let mut template = PeopleTemplate::new(base);
 
-/// Get the public URL for a user profile
-pub fn get_user_profile_url(username: &str) -> String {
-    format!("/{}", username)
-}
+    // Add specialties list (in production, fetch from database)
+    template.specialties = vec![
+        "Director".to_string(),
+        "Producer".to_string(),
+        "Cinematographer".to_string(),
+        "Editor".to_string(),
+        "Sound Designer".to_string(),
+        "Actor".to_string(),
+        "Writer".to_string(),
+        "Composer".to_string(),
+    ];
 
-/// Get the public URL for an organization profile
-pub fn get_organization_profile_url(slug: &str) -> String {
-    format!("/org/{}", slug)
+    // Fetch all profiles from the database ordered by created_at descending
+    // Note: Since Person model doesn't have a created_at field exposed, we'll use the database query directly
+    let query = r#"
+        SELECT * FROM person
+        WHERE profile.name IS NOT NULL
+           OR profile.headline IS NOT NULL
+           OR profile.bio IS NOT NULL
+        ORDER BY created_at DESC
+    "#;
+
+    let persons = match DB.query(query).await {
+        Ok(mut result) => match result.take::<Vec<Person>>(0) {
+            Ok(persons) => persons,
+            Err(e) => {
+                error!("Failed to fetch persons from database: {}", e);
+                vec![]
+            }
+        },
+        Err(e) => {
+            error!("Failed to query persons from database: {}", e);
+            vec![]
+        }
+    };
+
+    // Convert Person objects to PersonCard for the template
+    template.people = persons
+        .into_iter()
+        .filter_map(|person| {
+            // Only include profiles that have at least a name
+            if let Some(profile) = person.profile {
+                if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some() {
+                    Some(PersonCard {
+                        id: person.id.to_string(),
+                        name: profile
+                            .name
+                            .clone()
+                            .unwrap_or_else(|| person.username.clone()),
+                        username: person.username.clone(),
+                        headline: profile.headline.clone(),
+                        bio: profile.bio.clone(),
+                        location: profile.location.clone(),
+                        skills: profile.skills,
+                        avatar: profile
+                            .avatar
+                            .clone()
+                            .unwrap_or_else(|| format!("/static/images/default-avatar.png")),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let html = template.render().map_err(|e| {
+        error!("Failed to render people template: {}", e);
+        Error::template(e.to_string())
+    })?;
+
+    Ok(Html(html))
 }

@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::middleware::{AuthenticatedUser, UserExtractor};
 use crate::models::location::{
-    CreateLocationData, CreateRateData, Location, LocationModel, LocationRate, UpdateLocationData,
+    CreateLocationData, CreateRateData, LocationModel, LocationRate, UpdateLocationData,
 };
 use crate::serde_utils::deserialize_optional_i32;
 use crate::templates::{

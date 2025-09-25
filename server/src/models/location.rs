@@ -160,7 +160,7 @@ impl LocationModel {
 
         let mut result = DB
             .query("SELECT * FROM $location_id")
-            .bind(("location_id", location_id.to_string()))
+            .bind(("location_id", location_id.clone()))
             .await
             .map_err(|e| Error::Database(format!("Failed to fetch location: {}", e)))?;
 

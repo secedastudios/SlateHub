@@ -1,8 +1,7 @@
 use axum::{
     Json, Router,
-    extract::{Path, Query, Request},
-    http::HeaderMap,
-    response::{IntoResponse, Redirect, Response},
+    extract::Query,
+    response::{IntoResponse, Redirect},
     routing::{get, post},
 };
 use serde::Serialize;
@@ -10,8 +9,6 @@ use std::collections::HashMap;
 use tracing::{debug, error, info};
 
 use crate::db::DB;
-use crate::error::Error;
-use crate::middleware::{ErrorWithContext, RequestIdExt};
 use crate::models::system::System;
 
 pub fn router() -> Router {

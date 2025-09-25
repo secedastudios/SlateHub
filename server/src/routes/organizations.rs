@@ -112,7 +112,7 @@ pub struct SlugCheckQuery {
 pub struct InviteMemberForm {
     pub username: String,
     pub role: String,
-    pub message: Option<String>,
+    pub _message: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
