@@ -21,7 +21,6 @@ pub fn router() -> Router {
         .route("/avatar", get(avatar))
         .route("/debug/user", get(debug_user))
         .route("/fix-avatar-urls", post(fix_avatar_urls))
-        .route("/test-error/{code}", get(test_error))
 }
 
 #[axum::debug_handler]
@@ -254,25 +253,4 @@ async fn fix_avatar_urls() -> impl IntoResponse {
             }))
         }
     }
-}
-
-/// Test route to demonstrate error page rendering
-/// Access /api/test-error/404, /api/test-error/401, /api/test-error/500, etc.
-async fn test_error(Path(code): Path<u16>, headers: HeaderMap, req: Request) -> Response {
-    let request_id = req.request_id().map(|id| id.to_string());
-    let path = req.uri().path().to_string();
-
-    let error = match code {
-        404 => Error::NotFound,
-        401 => Error::Unauthorized,
-        403 => Error::Forbidden,
-        500 => Error::Internal("Test internal server error".to_string()),
-        400 => Error::BadRequest("Test bad request error".to_string()),
-        409 => Error::Conflict("Test conflict error".to_string()),
-        422 => Error::Validation("Test validation error".to_string()),
-        502 => Error::ExternalService("Test external service error".to_string()),
-        _ => Error::Internal(format!("Test error with code {}", code)),
-    };
-
-    error.with_context(&headers, Some(path), request_id)
 }

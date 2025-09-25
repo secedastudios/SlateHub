@@ -1,3 +1,4 @@
+use crate::logging::format_http_status;
 use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 use std::time::Instant;
 use tracing::{debug, error, info, warn};
@@ -40,60 +41,65 @@ pub async fn logging_middleware(request: Request, next: Next) -> Result<Response
     // Determine log level based on status code
     match status_code {
         200..=299 => {
+            let formatted_status = format_http_status(status_code);
             info!(
                 target: "http_response",
                 method = %method,
                 uri = %uri,
                 path = %path,
-                status = status_code,
+                status = %formatted_status,
                 duration_ms = duration_ms,
                 user = %user_info,
                 "✓ Request completed successfully"
             );
         }
         300..=399 => {
+            let formatted_status = format_http_status(status_code);
             info!(
                 target: "http_response",
                 method = %method,
                 uri = %uri,
                 path = %path,
-                status = status_code,
+                status = %formatted_status,
                 duration_ms = duration_ms,
                 user = %user_info,
                 "→ Request redirected"
             );
         }
         400..=499 => {
+            let formatted_status = format_http_status(status_code);
             warn!(
                 target: "http_response",
                 method = %method,
                 uri = %uri,
                 path = %path,
-                status = status_code,
+                status = %formatted_status,
                 duration_ms = duration_ms,
                 user = %user_info,
                 "⚠ Client error"
             );
         }
         500..=599 => {
+            let formatted_status = format_http_status(status_code);
             error!(
                 target: "http_response",
                 method = %method,
                 uri = %uri,
                 path = %path,
-                status = status_code,
+                status = %formatted_status,
                 duration_ms = duration_ms,
                 user = %user_info,
                 "✗ Server error"
             );
         }
         _ => {
+            let formatted_status = format_http_status(status_code);
             debug!(
                 target: "http_response",
                 method = %method,
                 uri = %uri,
                 path = %path,
-                status = status_code,
+                status = %formatted_status,
                 duration_ms = duration_ms,
                 user = %user_info,
                 "Request completed"
@@ -103,12 +109,13 @@ pub async fn logging_middleware(request: Request, next: Next) -> Result<Response
 
     // Log slow requests (over 1 second)
     if duration_ms > 1000 {
+        let formatted_status = format_http_status(status_code);
         warn!(
             target: "performance",
             method = %method,
             uri = %uri,
             path = %path,
-            status = status_code,
+            status = %formatted_status,
             duration_ms = duration_ms,
             user = %user_info,
             "⏱ Slow request detected"

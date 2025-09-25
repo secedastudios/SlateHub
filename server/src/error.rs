@@ -1,3 +1,5 @@
+use crate::log_colored_error;
+use crate::log_db_error;
 use axum::Json;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -42,7 +44,7 @@ impl IntoResponse for Error {
     fn into_response(self) -> Response {
         let (status, error_message, custom_message) = match &self {
             Error::Database(msg) => {
-                error!("Database error: {}", msg);
+                log_db_error!(msg);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Database error occurred",
@@ -50,7 +52,7 @@ impl IntoResponse for Error {
                 )
             }
             Error::Template(msg) => {
-                error!("Template rendering error: {}", msg);
+                log_colored_error!("internal", format!("Template rendering error: {}", msg));
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Template rendering failed",
@@ -59,7 +61,7 @@ impl IntoResponse for Error {
             }
             Error::NotFound => (StatusCode::NOT_FOUND, "Resource not found", None),
             Error::Internal(msg) => {
-                error!("Internal server error: {}", msg);
+                log_colored_error!("internal", format!("Internal server error: {}", msg));
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Internal server error",
@@ -76,7 +78,7 @@ impl IntoResponse for Error {
                 Some(msg.clone()),
             ),
             Error::ExternalService(msg) => {
-                error!("External service error: {}", msg);
+                log_colored_error!("network", format!("External service error: {}", msg));
                 (StatusCode::BAD_GATEWAY, "External service error", None)
             }
         };
@@ -110,7 +112,7 @@ impl IntoResponse for Error {
 // Conversion from surrealdb errors
 impl From<surrealdb::Error> for Error {
     fn from(err: surrealdb::Error) -> Self {
-        error!("Database error occurred: {:?}", err);
+        log_db_error!(format!("{:?}", err), "SurrealDB operation failed");
         Self::Database(err.to_string())
     }
 }
@@ -118,7 +120,7 @@ impl From<surrealdb::Error> for Error {
 // Conversion from template errors (Askama)
 impl From<askama::Error> for Error {
     fn from(err: askama::Error) -> Self {
-        error!("Template error occurred: {:?}", err);
+        log_colored_error!("internal", format!("Template error occurred: {:?}", err));
         Self::Template(err.to_string())
     }
 }
@@ -126,7 +128,7 @@ impl From<askama::Error> for Error {
 // Conversion from serde_json errors
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
-        error!("JSON serialization error: {:?}", err);
+        log_colored_error!("http", format!("JSON serialization error: {:?}", err));
         Self::BadRequest(format!("Invalid JSON: {}", err))
     }
 }
@@ -134,7 +136,7 @@ impl From<serde_json::Error> for Error {
 // Conversion from std::io::Error
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
-        error!("IO error occurred: {:?}", err);
+        log_colored_error!("internal", format!("IO error occurred: {:?}", err));
         Self::Internal(err.to_string())
     }
 }

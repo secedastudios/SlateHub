@@ -143,7 +143,7 @@ pub struct Activity {
 
 /// Login page template
 #[derive(Template)]
-#[template(path = "login.html")]
+#[template(path = "login/index.html")]
 pub struct LoginTemplate {
     pub app_name: String,
     pub year: i32,
@@ -156,7 +156,7 @@ pub struct LoginTemplate {
 
 /// Signup page template
 #[derive(Template)]
-#[template(path = "signup.html")]
+#[template(path = "signup/index.html")]
 pub struct SignupTemplate {
     pub app_name: String,
     pub year: i32,
@@ -168,7 +168,7 @@ pub struct SignupTemplate {
 
 /// Profile page template
 #[derive(Template)]
-#[template(path = "profile.html")]
+#[template(path = "persons/profile.html")]
 pub struct ProfileTemplate {
     pub app_name: String,
     pub year: i32,
@@ -223,7 +223,7 @@ pub struct DateRange {
 
 /// Profile edit page template
 #[derive(Template)]
-#[template(path = "profile_edit.html")]
+#[template(path = "persons/profile_edit.html")]
 pub struct ProfileEditTemplate {
     pub app_name: String,
     pub year: i32,
@@ -237,7 +237,7 @@ pub struct ProfileEditTemplate {
 
 /// Productions page template
 #[derive(Template)]
-#[template(path = "productions.html")]
+#[template(path = "productions/productions.html")]
 pub struct ProductionsTemplate {
     pub app_name: String,
     pub year: i32,
@@ -264,7 +264,7 @@ pub struct Production {
 
 /// Single production view template
 #[derive(Template)]
-#[template(path = "production.html")]
+#[template(path = "productions/production.html")]
 pub struct ProductionTemplate {
     pub app_name: String,
     pub year: i32,
@@ -303,7 +303,7 @@ pub struct ProductionMemberView {
 
 /// Production create form template
 #[derive(Template)]
-#[template(path = "production_create.html")]
+#[template(path = "productions/production_create.html")]
 pub struct ProductionCreateTemplate {
     pub app_name: String,
     pub year: i32,
@@ -317,7 +317,7 @@ pub struct ProductionCreateTemplate {
 
 /// Production edit form template
 #[derive(Template)]
-#[template(path = "production_edit.html")]
+#[template(path = "productions/production_edit.html")]
 pub struct ProductionEditTemplate {
     pub app_name: String,
     pub year: i32,
@@ -345,7 +345,7 @@ pub struct ProductionEditData {
 
 /// Locations page template
 #[derive(Template)]
-#[template(path = "locations.html")]
+#[template(path = "locations/locations.html")]
 pub struct LocationsTemplate {
     pub app_name: String,
     pub year: i32,
@@ -374,7 +374,7 @@ pub struct LocationView {
 
 /// Single location view template
 #[derive(Template)]
-#[template(path = "location.html")]
+#[template(path = "locations/location.html")]
 pub struct LocationTemplate {
     pub app_name: String,
     pub year: i32,
@@ -421,7 +421,7 @@ pub struct RateView {
 
 /// Location create form template
 #[derive(Template)]
-#[template(path = "location_create.html")]
+#[template(path = "locations/location_create.html")]
 pub struct LocationCreateTemplate {
     pub app_name: String,
     pub year: i32,
@@ -433,7 +433,7 @@ pub struct LocationCreateTemplate {
 
 /// Location edit form template
 #[derive(Template)]
-#[template(path = "location_edit.html")]
+#[template(path = "locations/location_edit.html")]
 pub struct LocationEditTemplate {
     pub app_name: String,
     pub year: i32,
@@ -467,7 +467,7 @@ pub struct LocationEditData {
 
 /// People page template
 #[derive(Template)]
-#[template(path = "people.html")]
+#[template(path = "persons/people.html")]
 pub struct PeopleTemplate {
     pub app_name: String,
     pub year: i32,
@@ -493,7 +493,7 @@ pub struct PersonCard {
 
 /// About page template
 #[derive(Template)]
-#[template(path = "about.html")]
+#[template(path = "about/index.html")]
 pub struct AboutTemplate {
     pub app_name: String,
     pub year: i32,
@@ -503,7 +503,7 @@ pub struct AboutTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "terms.html")]
+#[template(path = "terms/index.html")]
 pub struct TermsTemplate {
     pub app_name: String,
     pub year: i32,
@@ -513,7 +513,7 @@ pub struct TermsTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "privacy.html")]
+#[template(path = "privacy/index.html")]
 pub struct PrivacyTemplate {
     pub app_name: String,
     pub year: i32,

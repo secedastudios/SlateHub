@@ -1,3 +1,4 @@
+use crate::logging::format_http_status;
 use axum::{
     body::Body,
     http::{HeaderValue, Request},
@@ -83,10 +84,12 @@ pub async fn request_id_middleware(mut request: Request<Body>, next: Next) -> Re
 
     // Log the completion of the request
     let _enter = span.enter();
+    let status_code = response.status().as_u16();
+    let formatted_status = format_http_status(status_code);
     tracing::info!(
         request_id = %id_str,
-        status = %response.status(),
-        status_code = response.status().as_u16(),
+        status = %formatted_status,
+        status_code = status_code,
         "← Request completed"
     );
 

@@ -1,3 +1,4 @@
+use crate::log_db_error;
 use std::sync::LazyLock;
 use surrealdb::{Surreal, engine::remote::ws::Client};
 use tracing::{debug, info, instrument};
@@ -20,7 +21,10 @@ pub async fn ensure_db_initialized() -> Result<(), surrealdb::Error> {
             Ok(())
         }
         Err(e) => {
-            tracing::error!("Database connection verification failed: {:?}", e);
+            log_db_error!(
+                format!("{:?}", e),
+                "Database connection verification failed"
+            );
             Err(e)
         }
     }
@@ -39,7 +43,7 @@ where
             Ok(result)
         }
         Err(e) => {
-            tracing::error!("Database operation failed: {} - {:?}", operation, e);
+            log_db_error!(format!("{:?}", e), operation);
             Err(e)
         }
     }

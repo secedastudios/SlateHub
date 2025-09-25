@@ -1,27 +1,28 @@
-{% extends "_layout.html" %} {% block title %}Organizations - SlateHub{%
-endblock %} {% block content %}
-<main id="main-content" data-page="organizations">
-    <header>
-        <h1 id="heading-organizations">Organizations</h1>
-        <p>
-            Discover production companies, studios, agencies, and service
-            providers in the industry
-        </p>
-    </header>
-
-    <section
+{% extends "_layout.html" %}
+{% block title %}
+    Organizations - SlateHub
+{% endblock %}
+{% block content %}
+    <main id="main-content" data-page="organizations">
+        <header>
+            <h1 id="heading-organizations">Organizations</h1>
+            <p>
+                Discover production companies, studios, agencies, and service
+                            providers in the industry
+            </p>
+        </header>
+        <section
         data-component="search-filters"
         data-section="organizations-search"
     >
-        <form id="form-search-organizations" method="get" action="/orgs">
-            <fieldset data-role="search-bar">
-                <legend class="visually-hidden">Search Organizations</legend>
-
-                <div data-field="search">
-                    <label for="input-search" class="visually-hidden"
+            <form id="form-search-organizations" method="get" action="/orgs">
+                <fieldset data-role="search-bar">
+                    <legend class="visually-hidden">Search Organizations</legend>
+                    <div data-field="search">
+                        <label for="input-search" class="visually-hidden"
                         >Search organizations</label
                     >
-                    <input
+                        <input
                         id="input-search"
                         name="q"
                         type="search"
@@ -29,198 +30,196 @@ endblock %} {% block content %}
                         value="{% if search_query.is_some() %}{{ search_query.as_ref().unwrap() }}{% endif %}"
                         aria-label="Search organizations"
                     />
-                </div>
-
-                <div data-field="org_type">
-                    <label for="select-filter-type" class="visually-hidden"
+                    </div>
+                    <div data-field="org_type">
+                        <label for="select-filter-type" class="visually-hidden"
                         >Filter by type</label
                     >
-                    <select
+                        <select
                         id="select-filter-type"
                         name="org_type"
                         aria-label="Filter by organization type"
                     >
-                        <option value="">All Types</option>
-                        {% for org_type in org_types %}
-                        <option value="{{ org_type.id }}">
-                            {{ org_type.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div data-field="location">
-                    <label for="input-filter-location" class="visually-hidden"
+                            <option value="">All Types</option>
+                            {% for org_type in org_types %}
+                                <option value="{{ org_type.id }}">{{ org_type.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div data-field="location">
+                        <label for="input-filter-location" class="visually-hidden"
                         >Filter by location</label
                     >
-                    <input
+                        <input
                         id="input-filter-location"
                         name="location"
                         type="text"
                         placeholder="Location..."
                         aria-label="Filter by location"
                     />
-                </div>
-
-                <div data-role="search-actions">
-                    <button type="submit" data-type="primary">Search</button>
-                    <a href="/orgs" role="button" data-type="secondary"
+                    </div>
+                    <div data-role="search-actions">
+                        <button type="submit" data-type="primary">Search</button>
+                        <a href="/orgs" role="button" data-type="secondary"
                         >Clear</a
                     >
-                </div>
-            </fieldset>
-        </form>
-    </section>
-
-    {% if user.is_some() %}
-    <section data-section="actions">
-        <nav data-role="page-actions">
-            <a href="/orgs/new" role="button" data-type="primary">
-                <span aria-hidden="true">+</span> Create Organization
-            </a>
-        </nav>
-    </section>
-    {% endif %}
-
-    <section data-component="organizations-grid" data-section="results">
-        {% if organizations.len() == 0 %}
-        <div data-role="empty-state">
-            <h2>No organizations found</h2>
-            {% if search_query.is_some() %}
-            <p>
-                No organizations match your search criteria. Try adjusting your
-                filters.
-            </p>
-            {% else %}
-            <p>Be the first to create an organization on SlateHub!</p>
-            {% endif %} {% if user.is_some() %}
-            <nav data-role="empty-actions">
-                <a href="/orgs/new" role="button" data-type="primary"
+                    </div>
+                </fieldset>
+            </form>
+        </section>
+        {% if user.is_some() %}
+            <section data-section="actions">
+                <nav data-role="page-actions">
+                    <a href="/orgs/new" role="button" data-type="primary">
+                        <span aria-hidden="true">+</span>
+                        Create Organization
+                    </a>
+                </nav>
+            </section>
+        {% endif %}
+        <section data-component="organizations-grid" data-section="results">
+            {% if organizations.len() == 0 %}
+                <div data-role="empty-state">
+                    <h2>No organizations found</h2>
+                    {% if search_query.is_some() %}
+                        <p>
+                            No organizations match your search criteria. Try
+                            adjusting your
+                                            filters.
+                        </p>
+                    {% else %}
+                        <p>
+                            Be the first to create an organization on SlateHub!
+                        </p>
+                    {% endif %}
+                    {% if user.is_some() %}
+                        <nav data-role="empty-actions">
+                            <a href="/orgs/new" role="button" data-type="primary"
                     >Create Organization</a
                 >
-            </nav>
-            {% endif %}
-        </div>
-        {% else %}
-        <div data-role="results-count">
-            <p>
-                Showing {{ organizations.len() }} organization{% if
-                organizations.len() != 1 %}s{% endif %}
-            </p>
-        </div>
-
-        <div data-layout="grid" data-grid="organizations">
-            {% for org in organizations %}
-            <article
+                        </nav>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div data-role="results-count">
+                    <p>
+                        Showing
+                        {{ organizations.len() }}
+                        organization
+                        {%
+                            if
+                            organizations.len() != 1
+                        %}
+                            s
+                        {% endif %}
+                    </p>
+                </div>
+                <div data-layout="grid" data-grid="organizations">
+                    {% for org in organizations %}
+                        <article
                 data-component="organization-card"
                 data-org-type="{{ org.org_type.id }}"
             >
-                <header data-role="card-header">
-                    {% if org.logo.is_some() %}
-                    <div data-role="logo">
-                        <img
+                            <header data-role="card-header">
+                                {% if org.logo.is_some() %}
+                                    <div data-role="logo">
+                                        <img
                             src="{{ org.logo.as_ref().unwrap() }}"
                             alt="{{ org.name }} logo"
                         />
-                    </div>
-                    {% endif %}
-                    <h2 id="org-{{ org.id }}">
-                        <a href="/orgs/{{ org.slug }}">{{ org.name }}</a>
-                    </h2>
-                    <span
+                                    </div>
+                                {% endif %}
+                                <h2 id="org-{{ org.id }}">
+                                    <a href="/orgs/{{ org.slug }}">{{ org.name }}</a>
+                                </h2>
+                                <span
                         data-role="org-type"
                         data-value="{{ org.org_type.id }}"
                         >{{ org.org_type.name }}</span
                     >
-                </header>
-
-                <div data-role="card-body">
-                    {% if org.description.is_some() %}
-                    <p data-role="description">
-                        {{ org.description.as_ref().unwrap() }}
-                    </p>
-                    {% endif %}
-
-                    <dl data-role="metadata">
-                        {% if org.location.is_some() %}
-                        <div data-field="location">
-                            <dt>Location</dt>
-                            <dd>{{ org.location.as_ref().unwrap() }}</dd>
-                        </div>
-                        {% endif %} {% if !org.services.is_empty() %}
-                        <div data-field="services">
-                            <dt>Services</dt>
-                            <dd>
-                                <ul data-role="service-list">
-                                    {% for service in
-                                    org.services.iter().take(3) %}
-                                    <li>{{ service }}</li>
-                                    {% endfor %} {% if org.services.len() > 3 %}
-                                    <li data-role="more">
-                                        +{{ org.services.len() - 3 }} more
-                                    </li>
+                            </header>
+                            <div data-role="card-body">
+                                {% if org.description.is_some() %}
+                                    <p data-role="description">{{ org.description.as_ref().unwrap() }}</p>
+                                {% endif %}
+                                <dl data-role="metadata">
+                                    {% if org.location.is_some() %}
+                                        <div data-field="location">
+                                            <dt>Location</dt>
+                                            <dd>{{ org.location.as_ref().unwrap() }}</dd>
+                                        </div>
                                     {% endif %}
-                                </ul>
-                            </dd>
-                        </div>
-                        {% endif %} {% if org.founded_year.is_some() %}
-                        <div data-field="founded">
-                            <dt>Founded</dt>
-                            <dd>{{ org.founded_year.unwrap() }}</dd>
-                        </div>
-                        {% endif %} {% if org.employees_count.is_some() %}
-                        <div data-field="size">
-                            <dt>Size</dt>
-                            <dd>
-                                {{ org.employees_count.unwrap() }} employees
-                            </dd>
-                        </div>
-                        {% endif %}
-                    </dl>
-                </div>
-
-                <footer data-role="card-footer">
-                    <nav data-role="card-actions">
-                        <a
+                                    {% if !org.services.is_empty() %}
+                                        <div data-field="services">
+                                            <dt>Services</dt>
+                                            <dd>
+                                                <ul data-role="service-list">
+                                                    {%
+                                                        for service in
+                                                        org.services.iter().take(3)
+                                                    %}
+                                                        <li>{{ service }}</li>
+                                                    {% endfor %}
+                                                    {% if org.services.len() > 3 %}
+                                                        <li data-role="more">+{{ org.services.len() - 3 }} more</li>
+                                                    {% endif %}
+                                                </ul>
+                                            </dd>
+                                        </div>
+                                    {% endif %}
+                                    {% if org.founded_year.is_some() %}
+                                        <div data-field="founded">
+                                            <dt>Founded</dt>
+                                            <dd>{{ org.founded_year.unwrap() }}</dd>
+                                        </div>
+                                    {% endif %}
+                                    {% if org.employees_count.is_some() %}
+                                        <div data-field="size">
+                                            <dt>Size</dt>
+                                            <dd>{{ org.employees_count.unwrap() }} employees</dd>
+                                        </div>
+                                    {% endif %}
+                                </dl>
+                            </div>
+                            <footer data-role="card-footer">
+                                <nav data-role="card-actions">
+                                    <a
                             href="/orgs/{{ org.slug }}"
                             aria-label="View {{ org.name }} profile"
-                        >
-                            View Profile
-                        </a>
-                        {% if org.website.is_some() %}
-                        <a
+                        >View Profile</a>
+                                    {% if org.website.is_some() %}
+                                        <a
                             href="{{ org.website.as_ref().unwrap() }}"
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Visit {{ org.name }} website"
                         >
-                            <span aria-hidden="true">🔗</span> Website
-                        </a>
-                        {% endif %}
-                    </nav>
-                    <time
+                                            <span aria-hidden="true">🔗</span>
+                                            Website
+                                        </a>
+                                    {% endif %}
+                                </nav>
+                                <time
                         datetime="{{ org.created_at }}"
                         data-role="created-date"
-                    >
-                        Created {{ org.created_at }}
-                    </time>
-                </footer>
-            </article>
-            {% endfor %}
-        </div>
-
-        {% if organizations.len() >= 50 %}
-        <nav data-role="pagination" aria-label="Organizations pagination">
-            <p>
-                Showing first 50 results. Use search to find specific
-                organizations.
-            </p>
-        </nav>
-        {% endif %} {% endif %}
-    </section>
-</main>
-
-<style>
+                    >Created {{ org.created_at }}</time>
+                            </footer>
+                        </article>
+                    {% endfor %}
+                </div>
+                {% if organizations.len() >= 50 %}
+                    <nav data-role="pagination" aria-label="Organizations pagination">
+                        <p>
+                            Showing first 50 results. Use search to find
+                            specific
+                                            organizations.
+                        </p>
+                    </nav>
+                {% endif %}
+            {% endif %}
+        </section>
+    </main>
+    <style>
     /* Visually hidden but accessible to screen readers */
     .visually-hidden {
         position: absolute;

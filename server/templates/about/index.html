@@ -1,0 +1,259 @@
+{% extends "_layout.html" %}
+{% block title %}
+    About -
+    {{ app_name }}
+{% endblock %}
+{% block page_name %}
+    about
+{% endblock %}
+{% block content %}
+    <section id="about-main" data-component="about-page">
+        <section id="section-hero" data-section="hero">
+            <header id="hero-header" data-role="section-header">
+                <h1 id="heading-about">About SlateHub</h1>
+                <p id="hero-subtitle" data-role="subtitle">
+                    Connecting creative professionals in the film and media industry
+                </p>
+            </header>
+        </section>
+        <section id="section-mission" data-section="mission">
+            <header id="mission-header" data-role="section-header">
+                <h2 id="heading-mission">Our Mission</h2>
+            </header>
+            <p id="mission-statement" data-role="mission-text">
+                SlateHub is dedicated to revolutionizing how film and media
+                            professionals connect, collaborate, and create. We
+                believe that
+                            great productions start with great teams, and our
+                platform makes it
+                            easier than ever to find the perfect collaborators
+                for your next
+                            project.
+            </p>
+        </section>
+        <section id="section-values" data-section="values">
+            <header id="values-header" data-role="section-header">
+                <h2 id="heading-values">Why SlateHub?</h2>
+            </header>
+            <div id="values-container" data-layout="grid" data-role="values-list">
+                <article
+                id="value-industry"
+                data-component="value-card"
+                data-value="industry"
+            >
+                    <div id="icon-industry" data-role="icon" aria-hidden="true">🎬</div>
+                    <h3 id="heading-industry-focused">Industry-Focused</h3>
+                    <p data-role="description">
+                        Built specifically for film and media professionals,
+                        with
+                                            features tailored to the unique
+                        needs of creative
+                                            productions.
+                    </p>
+                </article>
+                <article
+                id="value-collaborative"
+                data-component="value-card"
+                data-value="collaborative"
+            >
+                    <div
+                    id="icon-collaborative"
+                    data-role="icon"
+                    aria-hidden="true"
+                >🤝</div>
+                    <h3 id="heading-collaborative">Collaborative</h3>
+                    <p data-role="description">
+                        Foster meaningful connections with talented individuals
+                        who
+                                            share your passion for storytelling
+                        and creative excellence.
+                    </p>
+                </article>
+                <article
+                id="value-growth"
+                data-component="value-card"
+                data-value="growth"
+            >
+                    <div id="icon-growth" data-role="icon" aria-hidden="true">🚀</div>
+                    <h3 id="heading-career-growth">Career Growth</h3>
+                    <p data-role="description">
+                        Showcase your portfolio, discover opportunities, and
+                        advance
+                                            your career in the entertainment
+                        industry.
+                    </p>
+                </article>
+            </div>
+        </section>
+        <section id="section-features" data-section="features">
+            <header id="features-header" data-role="section-header">
+                <h2 id="heading-features">Platform Features</h2>
+            </header>
+            <div
+            id="features-container"
+            data-layout="grid"
+            data-role="features-list"
+        >
+                <article
+                id="feature-profiles"
+                data-component="feature-card"
+                data-feature="profiles"
+            >
+                    <h3 id="heading-professional-profiles">Professional Profiles</h3>
+                    <p data-role="description">
+                        Create a comprehensive profile showcasing your skills,
+                                            experience, and portfolio. Let your
+                        work speak for itself.
+                    </p>
+                </article>
+                <article
+                id="feature-discovery"
+                data-component="feature-card"
+                data-feature="discovery"
+            >
+                    <h3 id="heading-project-discovery">Project Discovery</h3>
+                    <p data-role="description">
+                        Find exciting projects that match your expertise and
+                                            interests. Filter by genre, budget,
+                        location, and more.
+                    </p>
+                </article>
+                <article
+                id="feature-team"
+                data-component="feature-card"
+                data-feature="team"
+            >
+                    <h3 id="heading-team-building">Team Building</h3>
+                    <p data-role="description">
+                        Assemble the perfect crew for your production. Search
+                        for
+                                            professionals by role, availability,
+                        and specialization.
+                    </p>
+                </article>
+                <article
+                id="feature-messaging"
+                data-component="feature-card"
+                data-feature="messaging"
+            >
+                    <h3 id="heading-secure-messaging">Secure Messaging</h3>
+                    <p data-role="description">
+                        Communicate directly with potential collaborators
+                        through
+                                            our integrated messaging system.
+                    </p>
+                </article>
+                <article
+                id="feature-portfolio"
+                data-component="feature-card"
+                data-feature="portfolio"
+            >
+                    <h3 id="heading-portfolio-hosting">Portfolio Hosting</h3>
+                    <p data-role="description">
+                        Upload and showcase your work samples, demo reels, and
+                                            project highlights in one
+                        centralized location.
+                    </p>
+                </article>
+                <article
+                id="feature-insights"
+                data-component="feature-card"
+                data-feature="insights"
+            >
+                    <h3 id="heading-industry-insights">Industry Insights</h3>
+                    <p data-role="description">
+                        Stay updated with the latest trends, opportunities,
+                        and news
+                                            in the film and media industry.
+                    </p>
+                </article>
+            </div>
+        </section>
+        <section id="section-stats" data-section="statistics">
+            <header id="stats-header" data-role="section-header">
+                <h2 id="heading-stats">Growing Community</h2>
+            </header>
+            <div id="stats-container" data-layout="grid" data-role="stats-list">
+                <article
+                id="stat-professionals"
+                data-component="stat-card"
+                data-stat="professionals"
+            >
+                    <data
+                    id="stat-value-professionals"
+                    value="10000"
+                    data-role="stat-value"
+                    >10,000+</data
+                >
+                    <h3 id="stat-label-professionals" data-role="stat-label">Creative Professionals</h3>
+                </article>
+                <article
+                id="stat-projects"
+                data-component="stat-card"
+                data-stat="projects"
+            >
+                    <data
+                    id="stat-value-projects"
+                    value="2500"
+                    data-role="stat-value"
+                    >2,500+</data
+                >
+                    <h3 id="stat-label-projects" data-role="stat-label">Active Projects</h3>
+                </article>
+                <article
+                id="stat-countries"
+                data-component="stat-card"
+                data-stat="countries"
+            >
+                    <data
+                    id="stat-value-countries"
+                    value="50"
+                    data-role="stat-value"
+                    >50+</data
+                >
+                    <h3 id="stat-label-countries" data-role="stat-label">Countries Represented</h3>
+                </article>
+                <article
+                id="stat-success"
+                data-component="stat-card"
+                data-stat="success"
+            >
+                    <data id="stat-value-success" value="95" data-role="stat-value"
+                    >95%</data
+                >
+                    <h3 id="stat-label-success" data-role="stat-label">Success Rate</h3>
+                </article>
+            </div>
+        </section>
+        <section id="section-contact" data-section="contact">
+            <header id="contact-header" data-role="section-header">
+                <h2 id="heading-contact">Get in Touch</h2>
+                <p id="contact-description" data-role="description">
+                    Have questions, suggestions, or feedback? We'd love to hear
+                    from
+                                    you.
+                </p>
+            </header>
+            <nav
+            id="contact-actions"
+            data-role="contact-actions"
+            aria-label="Contact options"
+        >
+                <a
+                href="mailto:hello@slatehub.com"
+                id="link-email-us"
+                role="button"
+                data-type="primary"
+                aria-label="Send us an email"
+            >Email Us</a>
+                <a
+                href="/help"
+                id="link-help-center"
+                role="button"
+                data-type="secondary"
+                aria-label="Visit our help center"
+            >Help Center</a>
+            </nav>
+        </section>
+    </section>
+{% endblock %}

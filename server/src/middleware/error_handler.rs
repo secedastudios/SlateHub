@@ -9,6 +9,7 @@ use serde_json::json;
 use tracing::{error, warn};
 
 use crate::{error::Error, middleware::RequestIdExt};
+use crate::{log_colored_error, log_db_error};
 
 /// Check if the client accepts HTML responses
 fn accepts_html(headers: &HeaderMap) -> bool {
@@ -28,7 +29,7 @@ pub fn create_error_response(
 ) -> Response {
     let (status, error_message, custom_message) = match error {
         Error::Database(msg) => {
-            error!("Database error: {}", msg);
+            log_db_error!(msg);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Database error occurred",
@@ -36,7 +37,7 @@ pub fn create_error_response(
             )
         }
         Error::Template(msg) => {
-            error!("Template rendering error: {}", msg);
+            log_colored_error!("internal", format!("Template rendering error: {}", msg));
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Template rendering failed",
@@ -45,7 +46,7 @@ pub fn create_error_response(
         }
         Error::NotFound => (StatusCode::NOT_FOUND, "Resource not found", None),
         Error::Internal(msg) => {
-            error!("Internal server error: {}", msg);
+            log_colored_error!("internal", format!("Internal server error: {}", msg));
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error",
@@ -62,7 +63,7 @@ pub fn create_error_response(
             Some(msg.clone()),
         ),
         Error::ExternalService(msg) => {
-            error!("External service error: {}", msg);
+            log_colored_error!("network", format!("External service error: {}", msg));
             (StatusCode::BAD_GATEWAY, "External service error", None)
         }
     };
