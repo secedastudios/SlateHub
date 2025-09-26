@@ -1,4 +1,4 @@
-.PHONY: help all start stop clean db-start db-stop db-init db-drop db-reset server-run server-build docker-up docker-down docker-restart docker-logs minio-clean minio-list test test-setup test-teardown test-watch test-integration test-unit test-clean
+.PHONY: help all start stop clean db-start db-stop db-init db-drop db-reset server-run server-build docker-up docker-down docker-restart docker-logs minio-clean minio-list minio-public test test-setup test-teardown test-watch test-integration test-unit test-clean
 
 # Default target - show help
 help:
@@ -27,13 +27,16 @@ help:
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make docker-up      - Start Docker services (SurrealDB + MinIO)"
+	@echo "  make docker-up-public - Start Docker services and set MinIO public access"
 	@echo "  make docker-down    - Stop Docker services"
 	@echo "  make docker-restart - Restart Docker services"
 	@echo "  make docker-logs    - Show Docker container logs"
 	@echo ""
 	@echo "MinIO Commands:"
-	@echo "  make minio-clean    - Delete all files from MinIO storage"
-	@echo "  make minio-list     - List all files in MinIO storage"
+	@echo "  make minio-clean         - Delete all files from MinIO storage"
+	@echo "  make minio-list          - List all files in MinIO storage"
+	@echo "  make minio-public        - Set profiles and organizations folders as public"
+	@echo "  make minio-fix-permissions - Fix all MinIO permissions (comprehensive)"
 	@echo ""
 	@echo "Database Commands:"
 	@echo "  make db-start       - Start SurrealDB container"
@@ -73,6 +76,13 @@ docker-down:
 	@echo "Stopping Docker services..."
 	@docker-compose down
 	@echo "Docker services stopped!"
+
+docker-up-public: docker-up
+	@echo "Waiting for MinIO to be ready..."
+	@sleep 3
+	@echo "Setting MinIO public access..."
+	@make minio-public
+	@echo "Docker services started with public MinIO access!"
 
 docker-restart: docker-down docker-up
 
@@ -209,6 +219,85 @@ minio-list:
 		echo "MinIO container not running"; \
 	fi
 
+minio-public:
+	@echo "Setting MinIO profiles and organizations folders as public..."
+	@if docker ps | grep -q slatehub-minio; then \
+		docker exec slatehub-minio sh -c 'mc alias set local http://localhost:9000 slatehub slatehub123 2>/dev/null || true && \
+			echo "🔓 Setting public access for profiles directory..." && \
+			(mc anonymous set public local/slatehub-media/profiles/ 2>/dev/null || \
+			mc anonymous set download local/slatehub-media/profiles/ 2>/dev/null || \
+			echo "  ⚠️  Could not set profiles public - checking if bucket exists...") && \
+			echo "🔓 Setting public access for organizations directory..." && \
+			(mc anonymous set public local/slatehub-media/organizations/ 2>/dev/null || \
+			mc anonymous set download local/slatehub-media/organizations/ 2>/dev/null || \
+			echo "  ⚠️  Could not set organizations public - checking if bucket exists...") && \
+			echo "" && \
+			echo "📋 Current public access policies:" && \
+			(mc anonymous get local/slatehub-media 2>/dev/null | grep -E "(profiles|organizations)" || \
+			echo "  No specific policies found - trying to create bucket first...") && \
+			(mc ls local/ | grep -q slatehub-media || mc mb local/slatehub-media 2>/dev/null || true) && \
+			(mc anonymous set public local/slatehub-media/profiles/ 2>/dev/null || true) && \
+			(mc anonymous set public local/slatehub-media/organizations/ 2>/dev/null || true) && \
+			echo "" && \
+			echo "✅ Public access configuration complete!" && \
+			echo "   Profiles:      http://localhost:9000/slatehub-media/profiles/*" && \
+			echo "   Organizations: http://localhost:9000/slatehub-media/organizations/*"' ; \
+	else \
+		echo "❌ MinIO container not running. Please start it first with: make docker-up"; \
+		exit 1; \
+	fi
+
+minio-fix-permissions:
+	@echo "🔧 Comprehensive MinIO permission fix..."
+	@if docker ps | grep -q slatehub-minio; then \
+		docker exec slatehub-minio sh -c 'mc alias set local http://localhost:9000 slatehub slatehub123 2>/dev/null || true && \
+			echo "" && \
+			echo "1️⃣  Checking bucket existence..." && \
+			(mc ls local/ | grep -q slatehub-media && echo "   ✅ Bucket exists" || \
+			(echo "   📦 Creating bucket..." && mc mb local/slatehub-media)) && \
+			echo "" && \
+			echo "2️⃣  Setting bucket-level public policies..." && \
+			echo "   Setting profiles/* as public..." && \
+			mc anonymous set public local/slatehub-media/profiles/ 2>/dev/null || \
+			mc anonymous set download local/slatehub-media/profiles/ 2>/dev/null || true && \
+			echo "   Setting organizations/* as public..." && \
+			mc anonymous set public local/slatehub-media/organizations/ 2>/dev/null || \
+			mc anonymous set download local/slatehub-media/organizations/ 2>/dev/null || true && \
+			echo "" && \
+			echo "3️⃣  Fixing permissions on existing files..." && \
+			echo "   Processing profile images..." && \
+			for file in $$(mc ls local/slatehub-media/profiles/ --recursive 2>/dev/null | awk "{print \$$6}"); do \
+				if [ ! -z "$$file" ]; then \
+					mc anonymous set public "local/slatehub-media/$$file" 2>/dev/null || true; \
+				fi; \
+			done; \
+			echo "   Processing organization logos..." && \
+			for file in $$(mc ls local/slatehub-media/organizations/ --recursive 2>/dev/null | awk "{print \$$6}"); do \
+				if [ ! -z "$$file" ]; then \
+					mc anonymous set public "local/slatehub-media/$$file" 2>/dev/null || true; \
+				fi; \
+			done; \
+			echo "" && \
+			echo "4️⃣  Verifying public access..." && \
+			echo "   Current policies:" && \
+			mc anonymous get local/slatehub-media 2>/dev/null | grep -E "(profiles|organizations)" | sed "s/^/   /" || \
+			echo "   No explicit policies (may use ACLs)" && \
+			echo "" && \
+			echo "✅ Permission fix complete!" && \
+			echo "" && \
+			echo "📌 Public URLs accessible at:" && \
+			echo "   http://localhost:9000/slatehub-media/profiles/*" && \
+			echo "   http://localhost:9000/slatehub-media/organizations/*" && \
+			echo "" && \
+			echo "💡 Tip: Test with: curl -I http://localhost:9000/slatehub-media/profiles/<user-id>/avatar.jpg"' ; \
+	else \
+		echo "❌ MinIO container not running."; \
+		echo "   Please start it first with: make docker-up"; \
+		echo "   Then run: make minio-fix-permissions"; \
+		exit 1; \
+	fi
+
+# Test commands
 # Status check
 status:
 	@echo "Checking service status..."

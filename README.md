@@ -67,6 +67,26 @@ MAILJET_FROM_NAME=SlateHub
 3. Start the database (e.g., using docker-compose)
 4. Run the server: `cd server && cargo run`
 
+### MinIO Storage Management
+
+The project includes convenient make targets for managing MinIO storage and permissions:
+
+- `make docker-up-public` - Start Docker services with automatic MinIO public access configuration
+- `make minio-public` - Set profiles and organizations folders as public
+- `make minio-fix-permissions` - Comprehensive fix for all MinIO permissions (includes existing files)
+- `make minio-list` - List all files in MinIO storage
+- `make minio-clean` - Delete all files from MinIO storage
+
+For quick setup with public avatar access:
+```bash
+make docker-up-public
+```
+
+If you have existing files that need public access:
+```bash
+make minio-fix-permissions
+```
+
 ## Logging
 
 SlateHub uses the `tracing` ecosystem for structured logging, which is the modern standard for Rust applications.

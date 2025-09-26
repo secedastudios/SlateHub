@@ -112,6 +112,65 @@ mc anonymous set public local-minio/slatehub-media/profiles/
 mc anonymous get local-minio/slatehub-media
 ```
 
+## Make Targets for MinIO Public Access
+
+The project includes several convenient make targets for managing MinIO public access:
+
+### Quick Setup
+
+```bash
+# Start Docker with automatic public access configuration
+make docker-up-public
+```
+
+This command starts Docker services and automatically configures MinIO with public access for profiles and organizations folders.
+
+### Setting Public Access
+
+```bash
+# Set profiles and organizations folders as public
+make minio-public
+```
+
+This command:
+- Sets public read access for the `profiles/` directory
+- Sets public read access for the `organizations/` directory  
+- Verifies the current public access policies
+- Shows the public URLs for accessing files
+
+### Comprehensive Permission Fix
+
+```bash
+# Fix all MinIO permissions (comprehensive)
+make minio-fix-permissions
+```
+
+This is the most comprehensive command that:
+1. Checks if the bucket exists (creates if needed)
+2. Sets bucket-level public policies
+3. Fixes permissions on all existing files in profiles/ and organizations/
+4. Verifies the public access configuration
+5. Provides test URLs for validation
+
+Use this command when:
+- You have existing files that aren't publicly accessible
+- You've manually uploaded files that need public access
+- You want to ensure all permissions are correctly set
+
+### Example Workflow
+
+```bash
+# Start fresh with public access
+make docker-up-public
+
+# Or fix existing setup
+make docker-up
+make minio-fix-permissions
+
+# Verify public access is working
+curl -I http://localhost:9000/slatehub-media/profiles/test/avatar.jpg
+```
+
 ## Environment Variables
 
 Ensure these environment variables are set correctly:
