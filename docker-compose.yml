@@ -2,11 +2,12 @@ services:
     surrealdb:
         image: surrealdb/surrealdb:latest
         container_name: slatehub-surrealdb
+        user: "${UID:-1000}"
         ports:
             - "8000:8000"
         volumes:
             - ./db/data:/data
-        command: start --log trace --user root --pass root file:/data/database.db
+        command: start --log trace --user root --pass root rocksdb://data/database.db
         environment:
             - SURREAL_LOG=trace
         networks:
