@@ -1,4 +1,4 @@
-.PHONY: help all start stop clean db-start db-stop db-init db-drop db-reset server-run server-build docker-up docker-down docker-restart docker-logs minio-clean minio-list test test-setup test-teardown test-watch test-integration test-unit test-clean
+.PHONY: help all start stop clean db-start db-stop db-init db-drop db-reset server-run server-build docker-up docker-down docker-restart docker-logs minio-clean minio-list test test-setup test-teardown test-watch test-integration test-unit test-clean start-prod stop-prod restart-prod logs-prod setup-prod-permissions install-systemd-service
 
 # Default target - show help
 help:
@@ -46,6 +46,14 @@ help:
 	@echo "Server Commands:"
 	@echo "  make server-run     - Run the Rust server (cargo run)"
 	@echo "  make server-build   - Build the Rust server (cargo build --release)"
+	@echo ""
+	@echo "Production Commands:"
+	@echo "  make start-prod     - Start server in production (background with nohup)"
+	@echo "  make stop-prod      - Stop production server"
+	@echo "  make restart-prod   - Restart production server"
+	@echo "  make logs-prod      - View production server logs"
+	@echo "  make setup-prod-permissions - Setup capabilities for privileged ports (requires sudo)"
+	@echo "  make install-systemd-service - Install systemd service (Ubuntu/Debian)"
 
 # Main combined commands
 start: docker-up server-run
@@ -138,6 +146,97 @@ server-build:
 	@echo "Building SlateHub server..."
 	@cd server && cargo build --release
 	@echo "Build complete! Binary at: server/target/release/slatehub"
+
+# Production commands
+start-prod: server-build
+	@echo "Starting SlateHub server in production mode..."
+	@if [ ! -f server/target/release/slatehub ]; then \
+		echo "Error: Production binary not found. Run 'make server-build' first."; \
+		exit 1; \
+	fi
+	@if [ -f slatehub.pid ]; then \
+		echo "Warning: slatehub.pid file exists. Server may already be running."; \
+		echo "Run 'make stop-prod' first if you want to restart."; \
+		exit 1; \
+	fi
+	@echo "Starting server with nohup..."
+	@cd server && nohup ./target/release/slatehub > ../slatehub.log 2>&1 & echo $$! > ../slatehub.pid
+	@sleep 2
+	@if [ -f slatehub.pid ] && kill -0 $$(cat slatehub.pid) 2>/dev/null; then \
+		echo "Server started successfully! PID: $$(cat slatehub.pid)"; \
+		echo "Logs: tail -f slatehub.log"; \
+	else \
+		echo "Failed to start server. Check slatehub.log for details."; \
+		rm -f slatehub.pid; \
+		exit 1; \
+	fi
+
+stop-prod:
+	@if [ -f slatehub.pid ]; then \
+		echo "Stopping SlateHub server (PID: $$(cat slatehub.pid))..."; \
+		kill $$(cat slatehub.pid) 2>/dev/null || true; \
+		rm -f slatehub.pid; \
+		echo "Server stopped."; \
+	else \
+		echo "No slatehub.pid file found. Server may not be running."; \
+	fi
+
+restart-prod: stop-prod start-prod
+
+logs-prod:
+	@if [ -f slatehub.log ]; then \
+		tail -f slatehub.log; \
+	else \
+		echo "No log file found. Server may not have been started."; \
+	fi
+
+# Setup capabilities for binding to privileged ports (80, 443)
+setup-prod-permissions: server-build
+	@echo "Setting up capabilities for privileged port binding..."
+	@echo "This requires sudo access."
+	@sudo setcap 'cap_net_bind_service=+ep' server/target/release/slatehub
+	@echo "Capabilities set. The server can now bind to ports below 1024."
+	@echo "You can verify with: getcap server/target/release/slatehub"
+
+# Install as systemd service (for Ubuntu/Debian systems)
+install-systemd-service:
+	@echo "Creating systemd service file..."
+	@if [ ! -f server/target/release/slatehub ]; then \
+		echo "Error: Production binary not found. Run 'make server-build' first."; \
+		exit 1; \
+	fi
+	@echo "Creating slatehub.service file..."
+	@echo "[Unit]" > slatehub.service.tmp
+	@echo "Description=SlateHub Server" >> slatehub.service.tmp
+	@echo "After=network.target" >> slatehub.service.tmp
+	@echo "" >> slatehub.service.tmp
+	@echo "[Service]" >> slatehub.service.tmp
+	@echo "Type=simple" >> slatehub.service.tmp
+	@echo "User=$$(whoami)" >> slatehub.service.tmp
+	@echo "WorkingDirectory=$$(pwd)/server" >> slatehub.service.tmp
+	@echo "ExecStart=$$(pwd)/server/target/release/slatehub" >> slatehub.service.tmp
+	@echo "Restart=always" >> slatehub.service.tmp
+	@echo "RestartSec=10" >> slatehub.service.tmp
+	@echo "StandardOutput=append:$$(pwd)/slatehub.log" >> slatehub.service.tmp
+	@echo "StandardError=append:$$(pwd)/slatehub.log" >> slatehub.service.tmp
+	@echo "Environment=\"RUST_LOG=info\"" >> slatehub.service.tmp
+	@echo "" >> slatehub.service.tmp
+	@echo "[Install]" >> slatehub.service.tmp
+	@echo "WantedBy=multi-user.target" >> slatehub.service.tmp
+	@echo ""
+	@echo "Systemd service file created: slatehub.service.tmp"
+	@echo ""
+	@echo "To install, run:"
+	@echo "  sudo cp slatehub.service.tmp /etc/systemd/system/slatehub.service"
+	@echo "  sudo systemctl daemon-reload"
+	@echo "  sudo systemctl enable slatehub"
+	@echo "  sudo systemctl start slatehub"
+	@echo ""
+	@echo "Then you can manage with:"
+	@echo "  sudo systemctl status slatehub"
+	@echo "  sudo systemctl stop slatehub"
+	@echo "  sudo systemctl restart slatehub"
+	@echo "  sudo journalctl -u slatehub -f"
 
 # Development helpers with auto-rebuild
 dev: docker-up
