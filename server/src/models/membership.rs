@@ -161,7 +161,7 @@ impl MembershipModel {
         // Create the relationship using RELATE
         let query = if let Some(ref _inviter) = data.invited_by {
             format!(
-                "RELATE organization:{} -> organization_members -> person:{} SET
+                "RELATE person:{} -> member_of -> organization:{} SET
                     role = $role,
                     permissions = $permissions,
                     invitation_status = $status,
@@ -169,17 +169,17 @@ impl MembershipModel {
                     invited_at = time::now(),
                     joined_at = time::now()
                 RETURN AFTER",
-                data.organization_id, data.person_id
+                data.person_id, data.organization_id
             )
         } else {
             format!(
-                "RELATE organization:{} -> organization_members -> person:{} SET
+                "RELATE person:{} -> member_of -> organization:{} SET
                     role = $role,
                     permissions = $permissions,
                     invitation_status = $status,
                     joined_at = time::now()
                 RETURN AFTER",
-                data.organization_id, data.person_id
+                data.person_id, data.organization_id
             )
         };
 
@@ -212,13 +212,23 @@ impl MembershipModel {
         let person_id: RecordId = RecordId::from_str(person_id)?;
         let org_id: RecordId = RecordId::from_str(org_id)?;
 
-        let query = "SELECT *, in as person_id, out as organi_id FROM member_of
+        let query = "SELECT
+                        id,
+                        in as person_id,
+                        out as organization_id,
+                        role,
+                        permissions,
+                        joined_at,
+                        invitation_status,
+                        invited_by,
+                        invited_at
+                     FROM member_of
                      WHERE in = $person AND out = $org";
 
         let result: Option<Membership> = DB
             .query(query)
-            .bind(("org", org_id))
             .bind(("person", person_id))
+            .bind(("org", org_id))
             .await?
             .take(0)?;
 
@@ -248,7 +258,7 @@ impl MembershipModel {
         }
 
         let query = format!(
-            "UPDATE organization_members:{} SET {} RETURN AFTER",
+            "UPDATE member_of:{} SET {} RETURN AFTER",
             id,
             updates.join(", ")
         );
@@ -267,7 +277,7 @@ impl MembershipModel {
     pub async fn accept_invitation(&self, id: &str) -> Result<Membership, Error> {
         debug!("Accepting membership invitation: {}", id);
 
-        let query = "UPDATE organization_members:$id SET
+        let query = "UPDATE member_of:$id SET
                      invitation_status = 'accepted',
                      joined_at = time::now()
                      RETURN AFTER";
@@ -285,7 +295,7 @@ impl MembershipModel {
     pub async fn decline_invitation(&self, id: &str) -> Result<(), Error> {
         debug!("Declining membership invitation: {}", id);
 
-        let query = "UPDATE organization_members:$id SET
+        let query = "UPDATE member_of:$id SET
                      invitation_status = 'declined'";
 
         DB.query(query).bind(("id", id.to_string())).await?;
@@ -297,7 +307,7 @@ impl MembershipModel {
     pub async fn delete(&self, id: &str) -> Result<(), Error> {
         debug!("Deleting membership: {}", id);
 
-        let query = "DELETE organization_members:$id";
+        let query = "DELETE member_of:$id";
 
         DB.query(query).bind(("id", id.to_string())).await?;
 
@@ -311,8 +321,18 @@ impl MembershipModel {
     ) -> Result<Vec<Membership>, Error> {
         debug!("Fetching memberships for organization: {}", org_id);
 
-        let query = "SELECT * FROM organization_members
-                     WHERE in = organization:$org
+        let query = "SELECT
+                        id,
+                        in as person_id,
+                        out as organization_id,
+                        role,
+                        permissions,
+                        joined_at,
+                        invitation_status,
+                        invited_by,
+                        invited_at
+                     FROM member_of
+                     WHERE out = organization:$org
                      ORDER BY joined_at DESC";
 
         let result: Vec<Membership> = DB
@@ -329,8 +349,18 @@ impl MembershipModel {
     pub async fn get_person_memberships(&self, person_id: &str) -> Result<Vec<Membership>, Error> {
         debug!("Fetching memberships for person: {}", person_id);
 
-        let query = "SELECT * FROM organization_members
-                     WHERE out = person:$person
+        let query = "SELECT
+                        id,
+                        in as person_id,
+                        out as organization_id,
+                        role,
+                        permissions,
+                        joined_at,
+                        invitation_status,
+                        invited_by,
+                        invited_at
+                     FROM member_of
+                     WHERE in = person:$person
                      AND invitation_status = 'accepted'
                      ORDER BY joined_at DESC";
 

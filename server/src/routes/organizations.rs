@@ -302,7 +302,7 @@ async fn my_organizations(request: Request) -> Result<Html<String>, Error> {
     if user_orgs.is_empty() {
         debug!("No organizations found. Check:");
         debug!("  1. User ID format: '{}'", user.id);
-        debug!("  2. Database has organization_members record for this user");
+        debug!("  2. Database has member_of record for this user");
         debug!("  3. invitation_status is 'accepted'");
     } else {
         for (org, role, _) in &user_orgs {

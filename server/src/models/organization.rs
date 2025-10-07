@@ -345,7 +345,7 @@ impl OrganizationModel {
 
         // Delete all memberships first
         let _: Vec<()> = DB
-            .query("DELETE organization_members WHERE $id")
+            .query("DELETE member_of WHERE out = $id")
             .bind(("id", id.clone()))
             .await?
             .take(0)
@@ -388,7 +388,7 @@ impl OrganizationModel {
 
         let query = if let Some(inviter) = invited_by {
             DB.query(
-                "RELATE $org->organization_members->$person SET
+                "RELATE $person->member_of->$org SET
                         role = $role,
                         invitation_status = $status,
                         invited_by = $inviter",
@@ -431,14 +431,14 @@ impl OrganizationModel {
             .query(
                 "SELECT
                     id,
-                    out as person_id,
-                    out.username as person_username,
-                    out.profile.name as person_name,
+                    in as person_id,
+                    in.username as person_username,
+                    in.profile.name as person_name,
                     role,
                     joined_at,
                     invitation_status
-                FROM organization_members
-                WHERE in = type::thing('organization', $org_id)
+                FROM member_of
+                WHERE out = type::thing('organization', $org_id)
                 ORDER BY
                     role DESC,
                     person_name ASC",
@@ -619,7 +619,7 @@ impl OrganizationModel {
             .bind(("user_id", user_id.clone()))
             .await
             .map_err(|e| {
-                error!("Failed to query organization_members: {:?}", e);
+                error!("Failed to query member_of: {:?}", e);
                 e
             })?
             .take(0)
@@ -799,7 +799,7 @@ mod tests {
     #[test]
     fn test_organization_member_structure() {
         let member = OrganizationMember {
-            id: RecordId::from_str("organization_members:member_123").unwrap(),
+            id: RecordId::from_str("member_of:member_123").unwrap(),
             person_id: RecordId::from_str("person:person_456").unwrap(),
             person_username: "johndoe".to_string(),
             person_name: Some("John Doe".to_string()),
