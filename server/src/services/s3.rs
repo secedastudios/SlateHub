@@ -261,6 +261,41 @@ impl S3Service {
             Err(_) => Ok(false),
         }
     }
+
+    /// Download a file from S3/MinIO
+    pub async fn download_file(&self, key: &str) -> Result<(Bytes, String)> {
+        debug!("Downloading file from S3: {}", key);
+
+        let result = self
+            .client
+            .get_object()
+            .bucket(&self.config.bucket_name)
+            .key(key)
+            .send()
+            .await
+            .map_err(|e| Error::Internal(format!("Failed to download file: {}", e)))?;
+
+        // Get content type or default to application/octet-stream
+        let content_type = result
+            .content_type()
+            .unwrap_or("application/octet-stream")
+            .to_string();
+
+        // Collect the body into bytes
+        let data = result
+            .body
+            .collect()
+            .await
+            .map_err(|e| Error::Internal(format!("Failed to read file data: {}", e)))?
+            .into_bytes();
+
+        info!(
+            "File downloaded successfully: {} (size: {} bytes)",
+            key,
+            data.len()
+        );
+        Ok((data, content_type))
+    }
 }
 
 // Global S3 service instance

@@ -1,7 +1,9 @@
 use axum::{
     Router,
+    body::Body,
     extract::{Path, Query, multipart::Multipart},
-    response::Json,
+    http::{StatusCode, header},
+    response::{IntoResponse, Json, Response},
     routing::{get, post},
 };
 use bytes::Bytes;
@@ -27,6 +29,8 @@ pub fn router() -> Router {
             get(get_organization_logo_url),
         )
         .route("/debug/list-uploads", get(debug_list_uploads))
+        // Media proxy endpoint - catches all media/* paths
+        .route("/{*path}", get(proxy_media))
 }
 
 /// Response for successful upload
@@ -131,13 +135,18 @@ async fn upload_profile_image(
     // Upload to S3
     let s3_service = s3()?;
 
-    let main_url = s3_service
+    // Upload to S3 but don't use the returned URLs
+    s3_service
         .upload_file(&main_key, processed_image.clone(), "image/jpeg")
         .await?;
 
-    let thumb_url = s3_service
+    s3_service
         .upload_file(&thumb_key, thumbnail, "image/jpeg")
         .await?;
+
+    // Create proxy URLs instead of using direct MinIO URLs
+    let main_url = format!("/api/media/{}", main_key);
+    let thumb_url = format!("/api/media/{}", thumb_key);
 
     // Update the person's profile with the new avatar URL
     let person_id = if user.id.starts_with("person:") {
@@ -164,7 +173,7 @@ async fn upload_profile_image(
 
     Ok(Json(UploadResponse {
         media_id: image_id, // Use the generated UUID as the ID
-        url: main_url.clone(),
+        url: main_url,
         thumbnail_url: Some(thumb_url),
     }))
 }
@@ -416,13 +425,18 @@ async fn upload_organization_logo(
     // Upload to S3
     let s3_service = s3()?;
 
-    let main_url = s3_service
+    // Upload to S3 but don't use the returned URLs
+    s3_service
         .upload_file(&main_key, processed_image.clone(), &content_type)
         .await?;
 
-    let thumb_url = s3_service
+    s3_service
         .upload_file(&thumb_key, thumbnail, "image/jpeg")
         .await?;
+
+    // Create proxy URLs instead of using direct MinIO URLs
+    let main_url = format!("/api/media/{}", main_key);
+    let thumb_url = format!("/api/media/{}", thumb_key);
 
     // Update the organization's logo field
     let update_sql = format!(
@@ -439,7 +453,7 @@ async fn upload_organization_logo(
 
     Ok(Json(UploadResponse {
         media_id: image_id,
-        url: main_url.clone(),
+        url: main_url,
         thumbnail_url: Some(thumb_url),
     }))
 }
@@ -649,13 +663,18 @@ async fn upload_organization_logo_with_slug(
     // Upload to S3
     let s3_service = s3()?;
 
-    let main_url = s3_service
+    // Upload to S3 but don't use the returned URLs
+    s3_service
         .upload_file(&main_key, processed_image.clone(), &content_type)
         .await?;
 
-    let thumb_url = s3_service
+    s3_service
         .upload_file(&thumb_key, thumbnail, "image/jpeg")
         .await?;
+
+    // Create proxy URLs instead of using direct MinIO URLs
+    let main_url = format!("/api/media/{}", main_key);
+    let thumb_url = format!("/api/media/{}", thumb_key);
 
     // Update the organization's logo field
     let update_sql = format!(
@@ -672,7 +691,7 @@ async fn upload_organization_logo_with_slug(
 
     Ok(Json(UploadResponse {
         media_id: image_id,
-        url: main_url.clone(),
+        url: main_url,
         thumbnail_url: Some(thumb_url),
     }))
 }
@@ -721,6 +740,27 @@ async fn debug_list_uploads() -> Result<Json<serde_json::Value>, Error> {
         "database_records": media_records,
         "message": "Debug info for uploaded files"
     })))
+}
+
+/// Proxy media files from MinIO through the application
+async fn proxy_media(Path(path): Path<String>) -> Result<impl IntoResponse, Error> {
+    debug!("Proxying media file: {}", path);
+
+    // Get the S3 service
+    let s3 = s3()?;
+
+    // Download the file from MinIO
+    let (data, content_type) = s3.download_file(&path).await?;
+
+    // Build the response with appropriate headers
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CACHE_CONTROL, "public, max-age=31536000") // Cache for 1 year
+        .body(Body::from(data))
+        .map_err(|e| Error::Internal(format!("Failed to build response: {}", e)))?;
+
+    Ok(response)
 }
 
 // TODO: Future enhancements
