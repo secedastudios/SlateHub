@@ -1,0 +1,53 @@
+# Build artifacts
+target/
+
+# Git files
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+docs/
+
+# Test files
+tests/
+benches/
+*.test
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Log files
+*.log
+logs/
+
+# Local development
+.cargo/
+rustfmt.toml
+.rustfmt.toml
+clippy.toml
+.clippy.toml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Debug files
+*.pdb

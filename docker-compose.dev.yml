@@ -1,0 +1,127 @@
+# Docker Compose configuration for development environment
+# Usage: docker-compose -f docker-compose.dev.yml up
+
+services:
+    slatehub:
+        build:
+            context: ./server
+            dockerfile: Dockerfile
+            # For development, rebuild on changes
+            cache_from:
+                - rust:slim
+        container_name: slatehub-server-dev
+        ports:
+            - "${SERVER_PORT:-3000}:3000"
+        environment:
+            # Server configuration
+            SERVER_HOST: 0.0.0.0
+            SERVER_PORT: ${SERVER_PORT:-3000}
+
+            # Database configuration
+            DB_HOST: surrealdb
+            DB_PORT: 8000
+            DB_USERNAME: ${DB_USERNAME:-root}
+            DB_PASSWORD: ${DB_PASSWORD:-root}
+            DB_NAMESPACE: ${DB_NAMESPACE:-slatehub}
+            DB_NAME: ${DB_NAME:-main}
+
+            # S3/MinIO configuration
+            S3_ENDPOINT: http://minio:9000
+            S3_REGION: ${S3_REGION:-us-east-1}
+            S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-slatehub}
+            S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-slatehub123}
+            S3_BUCKET: ${S3_BUCKET:-slatehub}
+
+            # Development logging - more verbose
+            RUST_LOG: ${RUST_LOG:-debug,tower_http=debug,slatehub=trace}
+            LOG_FORMAT: ${LOG_FORMAT:-pretty}
+
+            # Development-specific flags
+            ENVIRONMENT: development
+            DEBUG: ${DEBUG:-true}
+            ENABLE_HOT_RELOAD: ${ENABLE_HOT_RELOAD:-false}
+        depends_on:
+            - surrealdb
+            - minio
+        networks:
+            - slatehub-network
+        restart: unless-stopped
+        volumes:
+            # Mount templates for live editing
+            - ./server/templates:/app/templates:ro
+            # Mount static files if needed
+            - ./server/static:/app/static:ro
+            # For debugging, you can mount the entire source
+            # - ./server/src:/app/src:ro
+        # Health check
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+    surrealdb:
+        image: surrealdb/surrealdb:latest
+        container_name: slatehub-surrealdb-dev
+        user: "${UID:-1000}"
+        ports:
+            - "8000:8000"
+        volumes:
+            - ./db/data:/data
+        command: start --log trace --user root --pass root rocksdb://data/database.db
+        environment:
+            SURREAL_LOG: trace
+        networks:
+            - slatehub-network
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+    minio:
+        image: minio/minio:latest
+        container_name: slatehub-minio-dev
+        ports:
+            - "9000:9000" # MinIO API
+            - "9001:9001" # MinIO Console
+        volumes:
+            - ./db/files:/data
+        environment:
+            MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-slatehub}
+            MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-slatehub123}
+            MINIO_CONSOLE_ADDRESS: :9001
+            MINIO_BROWSER: on
+        command: server /data --console-address ":9001"
+        networks:
+            - slatehub-network
+        restart: unless-stopped
+        healthcheck:
+            test:
+                ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+    # Optional: Development database UI
+    # surrealist:
+    #     image: surrealdb/surrealist:latest
+    #     container_name: slatehub-surrealist-dev
+    #     ports:
+    #         - "4321:4321"
+    #     networks:
+    #         - slatehub-network
+    #     depends_on:
+    #         - surrealdb
+
+volumes:
+    surrealdb-data:
+        driver: local
+    minio-data:
+        driver: local
+
+networks:
+    slatehub-network:
+        driver: bridge
