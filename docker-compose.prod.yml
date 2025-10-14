@@ -50,10 +50,8 @@ services:
             ENABLE_PUBLIC_PROJECTS: ${ENABLE_PUBLIC_PROJECTS:-false}
             MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
         depends_on:
-            surrealdb:
-                condition: service_healthy
-            minio:
-                condition: service_healthy
+            - surrealdb
+            - minio
         networks:
             - slatehub-network
         restart: always
@@ -81,6 +79,7 @@ services:
             - "127.0.0.1:8000:8000" # Only expose locally
         volumes:
             - surrealdb-data:/data
+        user: root
         command: start --log info --user ${DB_USERNAME} --pass ${DB_PASSWORD} rocksdb://data/database.db
         environment:
             SURREAL_LOG: info
@@ -112,10 +111,11 @@ services:
             # Console disabled in production for security
         volumes:
             - minio-data:/data
+        user: root
         environment:
             MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID}
             MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY}
-            MINIO_BROWSER: off # Disable console in production
+            MINIO_BROWSER: "off" # Disable console in production
         command: server /data
         networks:
             - slatehub-network
