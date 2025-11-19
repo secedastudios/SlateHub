@@ -113,9 +113,9 @@ services:
             - minio-data:/data
         user: root
         environment:
-            MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID}
-            MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY}
-            MINIO_BROWSER: "off" # Disable console in production
+            MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+            MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+            MINIO_BROWSER: "off"
         command: server /data
         networks:
             - slatehub-network

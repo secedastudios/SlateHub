@@ -93,7 +93,7 @@ services:
             MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-slatehub}
             MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-slatehub123}
             MINIO_CONSOLE_ADDRESS: :9001
-            MINIO_BROWSER: on
+            MINIO_BROWSER: "on"
         command: server /data --console-address ":9001"
         networks:
             - slatehub-network
