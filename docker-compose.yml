@@ -1,83 +1,67 @@
-# Default Docker Compose configuration
-# For development, use: docker-compose -f docker-compose.dev.yml up
-# For production, use: docker-compose -f docker-compose.prod.yml up
-
 services:
     slatehub:
         build:
             context: ./server
             dockerfile: Dockerfile
         container_name: slatehub-server
+        restart: unless-stopped
         ports:
-            - "3000:3000"
+            - "${BIND_IP:-127.0.0.1}:${SERVER_PORT:-3000}:3000"
         environment:
-            # Server configuration
-            SERVER_HOST: 0.0.0.0
-            SERVER_PORT: 3000
-
-            # Database configuration
-            DB_HOST: surrealdb
-            DB_PORT: 8000
-            DB_USERNAME: root
-            DB_PASSWORD: root
-            DB_NAMESPACE: slatehub
-            DB_NAME: main
-
-            # S3/MinIO configuration
-            S3_ENDPOINT: http://minio:9000
-            S3_REGION: us-east-1
-            S3_ACCESS_KEY_ID: slatehub
-            S3_SECRET_ACCESS_KEY: slatehub123
-            S3_BUCKET: slatehub
-
-            # Logging
-            RUST_LOG: info
-            LOG_FORMAT: pretty
+            - SERVER_HOST=0.0.0.0
+            - SERVER_PORT=3000
+            - ENVIRONMENT=${ENVIRONMENT:-production}
+            - RUST_LOG=${RUST_LOG:-info,slatehub=debug,tower_http=debug}
+            - LOG_FORMAT=${LOG_FORMAT:-pretty}
+            # Database
+            - DATABASE_URL=${DATABASE_URL}
+            - DB_HOST=${DB_HOST:-surrealdb}
+            - DB_PORT=${DB_PORT:-8000}
+            - DB_USERNAME=${DB_USER:-root}
+            - DB_PASSWORD=${DB_PASS:-root}
+            - DB_NAMESPACE=${DB_NAMESPACE:-slatehub}
+            - DB_NAME=${DB_NAME:-main}
+            # Storage
+            - S3_ENDPOINT=${S3_ENDPOINT:-http://minio:9000}
+            - S3_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+            - S3_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-password}
+            - S3_BUCKET=${S3_BUCKET_NAME:-slatehub}
+            - S3_REGION=us-east-1
+            # Secrets
+            - JWT_SECRET=${JWT_SECRET}
+            - SESSION_SECRET=${SESSION_SECRET}
+            # Email
+            - MAILJET_API_KEY=${MAILJET_API_KEY}
+            - MAILJET_API_SECRET=${MAILJET_API_SECRET}
+            - MAILJET_FROM_EMAIL=${MAILJET_FROM_EMAIL}
+            - MAILJET_FROM_NAME=${MAILJET_FROM_NAME}
         depends_on:
             - surrealdb
             - minio
-        networks:
-            - slatehub-network
-        restart: unless-stopped
 
     surrealdb:
         image: surrealdb/surrealdb:latest
         container_name: slatehub-surrealdb
+        restart: unless-stopped
         user: "${UID:-1000}"
         ports:
-            - "8000:8000"
+            - "${BIND_IP:-127.0.0.1}:${DB_PORT:-8000}:8000"
         volumes:
+            # Use local bind mount for easier backup/access
             - ./db/data:/data
-        command: start --log info --user root --pass root rocksdb://data/database.db
-        environment:
-            SURREAL_LOG: info
-        networks:
-            - slatehub-network
-        restart: unless-stopped
+        command: start --log info --user ${DB_USER:-root} --pass ${DB_PASS:-root} rocksdb://data/database.db
 
     minio:
         image: minio/minio:latest
         container_name: slatehub-minio
+        restart: unless-stopped
         ports:
-            - "9000:9000" # MinIO API
-            - "9001:9001" # MinIO Console
+            - "${BIND_IP:-127.0.0.1}:9000:9000"
+            - "${BIND_IP:-127.0.0.1}:9001:9001"
         volumes:
+            # Use local bind mount for easier backup/access
             - ./db/files:/data
         environment:
-            MINIO_ROOT_USER: slatehub
-            MINIO_ROOT_PASSWORD: slatehub123
-            MINIO_CONSOLE_ADDRESS: :9001
+            - MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
+            - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-password}
         command: server /data --console-address ":9001"
-        networks:
-            - slatehub-network
-        restart: unless-stopped
-
-volumes:
-    surrealdb-data:
-        driver: local
-    minio-data:
-        driver: local
-
-networks:
-    slatehub-network:
-        driver: bridge
