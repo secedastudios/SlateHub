@@ -57,7 +57,9 @@ db-init: wait-db
 start: up logs
 
 up: check-env dirs
-	UID=$(UID) docker-compose up -d
+	@# Remove potential conflicting containers to avoid port bind errors
+	@docker rm -f slatehub-server slatehub-server-dev 2>/dev/null || true
+	UID=$(UID) docker-compose up -d --remove-orphans
 	@$(MAKE) wait-db
 	@echo "✅ Services started."
 	@echo "   App available at port defined in .env (default 3000)"
