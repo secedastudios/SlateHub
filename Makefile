@@ -1,4 +1,4 @@
-.PHONY: help start up down logs build clean restart shell check-env db-init seed dirs wait-db
+.PHONY: help start up stop logs build clean restart shell check-env db-init seed dirs wait-db dependencies debug-net debug-dns
 
 # Default target
 all: help
@@ -21,13 +21,16 @@ help:
 	@echo "============================"
 	@echo "make start    - Start services and follow logs"
 	@echo "make up       - Start services (detached)"
-	@echo "make down     - Stop services"
+	@echo "make stop     - Stop services"
 	@echo "make restart  - Restart services"
 	@echo "make logs     - View logs"
 	@echo "make build    - Rebuild images"
 	@echo "make clean    - Stop services and remove all data"
 	@echo "make shell    - Open shell in server container"
 	@echo "make db-init  - (Re)Initialize database schema manually"
+	@echo "make dependencies - Start only SurrealDB and MinIO"
+	@echo "make debug-net - Test connectivity from server to database"
+	@echo "make debug-dns - Check DNS resolution for database"
 
 check-env:
 	@if [ ! -f .env ]; then \
@@ -54,7 +57,18 @@ db-init: wait-db
 		echo "Warning: db/schema.surql not found. Skipping initialization."; \
 	fi
 
-start: up logs
+dependencies: check-env dirs
+	UID=$(UID) docker-compose up -d --remove-orphans surrealdb minio
+	@$(MAKE) wait-db
+	@echo "✅ Dependencies started (SurrealDB, MinIO)."
+
+debug-net:
+	@echo "Testing connectivity from slatehub-server to surrealdb..."
+	@docker-compose run --rm --entrypoint curl slatehub -v http://surrealdb:8000/health
+
+debug-dns:
+	@echo "Checking DNS resolution for surrealdb..."
+	@docker-compose run --rm --entrypoint getent slatehub hosts surrealdb
 
 up: check-env dirs
 	@# Remove potential conflicting containers to avoid port bind errors
@@ -65,16 +79,16 @@ up: check-env dirs
 	@echo "   App available at port defined in .env (default 3000)"
 	@echo "   Run 'make db-init' to initialize the database schema if this is a fresh install."
 
-down:
+stop:
 	docker-compose down
 
 logs:
 	docker-compose logs -f
 
 build:
-	UID=$(UID) docker-compose build
+	UID=$(UID) docker-compose build --no-cache
 
-restart: down up
+restart: stop up
 
 clean:
 	@echo "Stopping services and removing data..."

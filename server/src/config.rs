@@ -60,9 +60,11 @@ impl DatabaseConfig {
                     )
                 })?,
             username: env::var("DB_USERNAME")
-                .map_err(|_| ConfigError::MissingEnvVar("DB_USERNAME".to_string()))?,
+                .or_else(|_| env::var("DB_USER"))
+                .map_err(|_| ConfigError::MissingEnvVar("DB_USERNAME or DB_USER".to_string()))?,
             password: env::var("DB_PASSWORD")
-                .map_err(|_| ConfigError::MissingEnvVar("DB_PASSWORD".to_string()))?,
+                .or_else(|_| env::var("DB_PASS"))
+                .map_err(|_| ConfigError::MissingEnvVar("DB_PASSWORD or DB_PASS".to_string()))?,
             namespace: env::var("DB_NAMESPACE").unwrap_or_else(|_| "slatehub".to_string()),
             name: env::var("DB_NAME").unwrap_or_else(|_| "main".to_string()),
         })
@@ -72,11 +74,17 @@ impl DatabaseConfig {
     pub fn connection_url(&self) -> String {
         // Check if DATABASE_URL is explicitly set
         if let Ok(url) = env::var("DATABASE_URL") {
-            return url;
+            if !url.is_empty() {
+                return url;
+            }
         }
 
         // Otherwise construct it from individual components
-        format!("{}:{}", self.host, self.port)
+        if self.host.contains("://") {
+            format!("{}:{}", self.host, self.port)
+        } else {
+            format!("ws://{}:{}", self.host, self.port)
+        }
     }
 }
 
@@ -123,7 +131,7 @@ mod tests {
             name: "testdb".to_string(),
         };
 
-        assert_eq!(config.connection_url(), "localhost:8000");
+        assert_eq!(config.connection_url(), "ws://localhost:8000");
     }
 
     #[test]

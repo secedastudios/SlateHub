@@ -37,13 +37,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Connect to database using configuration
     let db_url = config.database.connection_url();
+
+    info!("Database Config:");
+    info!("  User: {}", config.database.username);
+    info!(
+        "  Password: {}",
+        if config.database.password.is_empty() {
+            "<empty>"
+        } else {
+            "********"
+        }
+    );
+    info!("  Namespace: {}", config.database.namespace);
+    info!("  Database: {}", config.database.name);
+
     info!("Connecting to database at: {}", db_url);
 
-    match DB.connect::<Ws>(&db_url).await {
-        Ok(_) => info!("Database connection established"),
-        Err(e) => {
-            error!("Failed to connect to database: {}", e);
-            return Err(e.into());
+    let max_retries = 10;
+    let mut retry_count = 0;
+
+    loop {
+        match DB.connect::<Ws>(&db_url).await {
+            Ok(_) => {
+                info!("Database connection established");
+                break;
+            }
+            Err(e) => {
+                retry_count += 1;
+                if retry_count >= max_retries {
+                    error!(
+                        "Failed to connect to database after {} attempts: {}",
+                        max_retries, e
+                    );
+                    return Err(e.into());
+                }
+                error!(
+                    "Failed to connect to database (attempt {}/{}): {}. Retrying in 2 seconds...",
+                    retry_count, max_retries, e
+                );
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
         }
     }
 
