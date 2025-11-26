@@ -14,7 +14,7 @@ services:
             - RUST_LOG=${RUST_LOG:-info,slatehub=debug,tower_http=debug}
             - LOG_FORMAT=${LOG_FORMAT:-pretty}
             # Database
-            - DATABASE_URL=${DATABASE_URL}
+            - DATABASE_URL=${DATABASE_URL:-}
             - DB_HOST=${DB_HOST:-surrealdb}
             - DB_PORT=${DB_PORT:-8000}
             - DB_USERNAME=${DB_USER:-root}
@@ -28,13 +28,13 @@ services:
             - MINIO_BUCKET=${S3_BUCKET_NAME:-slatehub}
             - MINIO_REGION=us-east-1
             # Secrets
-            - JWT_SECRET=${JWT_SECRET}
-            - SESSION_SECRET=${SESSION_SECRET}
+            - JWT_SECRET=${JWT_SECRET:-}
+            - SESSION_SECRET=${SESSION_SECRET:-}
             # Email
-            - MAILJET_API_KEY=${MAILJET_API_KEY}
-            - MAILJET_API_SECRET=${MAILJET_API_SECRET}
-            - MAILJET_FROM_EMAIL=${MAILJET_FROM_EMAIL}
-            - MAILJET_FROM_NAME=${MAILJET_FROM_NAME}
+            - MAILJET_API_KEY=${MAILJET_API_KEY:-}
+            - MAILJET_API_SECRET=${MAILJET_API_SECRET:-}
+            - MAILJET_FROM_EMAIL=${MAILJET_FROM_EMAIL:-}
+            - MAILJET_FROM_NAME=${MAILJET_FROM_NAME:-}
         depends_on:
             - surrealdb
             - minio
