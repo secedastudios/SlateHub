@@ -80,11 +80,7 @@ impl DatabaseConfig {
         }
 
         // Otherwise construct it from individual components
-        if self.host.contains("://") {
-            format!("{}:{}", self.host, self.port)
-        } else {
-            format!("ws://{}:{}", self.host, self.port)
-        }
+        format!("{}:{}", self.host, self.port)
     }
 }
 
