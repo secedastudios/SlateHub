@@ -293,17 +293,19 @@ article {
 
 /* Logo */
 #site-header a[href="/"] {
-    font-family: var(--font-display);
-    font-size: var(--text-2xl);
-    font-weight: var(--font-weight-regular);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--color-text-primary);
-    transition: color var(--transition-fast);
+    display: flex;
+    align-items: center;
 }
 
-#site-header a[href="/"]:hover {
-    color: var(--color-accent);
+#site-header [data-role="logo-image"] {
+    width: 102.7px;
+    height: 15.99px;
+    display: block;
+    transition: filter var(--transition-fast);
+}
+
+#site-header a[href="/"]:hover [data-role="logo-image"] {
+    filter: brightness(1.2) contrast(1.1);
 }
 
 /* Navigation Links */
