@@ -28,72 +28,79 @@ SlateHub follows a **strict separation of concerns** architecture where HTML pro
 ## Design System Variables
 
 ### Colors
-The design system uses CSS custom properties defined in `/static/css/base/variables.css`:
+The design system uses CSS custom properties defined in `/static/css/main.css`:
 
-**Primary Palette:**
-- `--color-primary`: #0172ad (Main brand blue)
-- `--color-primary-dark`: #015a8a
-- `--color-primary-light`: #39a1d0
-- `--color-primary-bg`: #e6f4fa
+**Background Colors:**
+- `--color-bg-primary`: #d6d8ca (Main sage background)
+- `--color-bg-secondary`: #e5e7db
+- `--color-bg-tertiary`: #f2f3ed
+- `--color-bg-white`: #ffffff
+- `--color-bg-dark`: #2a2a2a
 
-**Secondary Palette:**
-- `--color-secondary`: #667eea (Purple accent)
-- `--color-secondary-dark`: #5469d4
-- `--color-secondary-light`: #818cf8
+**Text Colors:**
+- `--color-text-primary`: #171717 (Primary text)
+- `--color-text-secondary`: #5a5a5a
+- `--color-text-tertiary`: #8a8a8a
+- `--color-text-light`: #ffffff
+- `--color-text-muted`: #9ca39e
 
-**Semantic Colors:**
-- `--color-success`: #22c55e (Green)
-- `--color-warning`: #f59e0b (Amber)
-- `--color-danger`: #ef4444 (Red)
-- `--color-info`: #3b82f6 (Blue)
+**Accent & Semantic Colors:**
+- `--color-accent`: #eb5437 (Primary accent - orange/red)
+- `--color-accent-hover`: #d74328
+- `--color-success`: #4a7c59 (Green)
+- `--color-warning`: #d4a574 (Amber)
+- `--color-error`: #c44536 (Red)
+- `--color-info`: #5b7c99 (Blue)
 
-**Neutral Colors:**
-- `--color-text`: #1f2937 (Primary text)
-- `--color-text-secondary`: #4b5563
-- `--color-text-muted`: #6b7280
-- `--color-bg`: #ffffff (Main background)
-- `--color-bg-secondary`: #f9fafb
-- `--color-border`: #e5e7eb
+**Border Colors:**
+- `--color-border`: #c8cab9
+- `--color-border-light`: #e0e2d5
+- `--color-border-dark`: #9b9d8e
 
 ### Typography
 **Font Families:**
-- Primary: 'Denton XCondensed Test' (Custom brand font)
-- Secondary: 'Helvetica Now Display' (Headers)
-- Body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif
+- `--font-display`: "Denton XCondensed Test", "Helvetica Neue", Arial, sans-serif
+- `--font-body`: "Helvetica Now Display", "Helvetica Neue", Arial, sans-serif
+- `--font-mono`: "SF Mono", Monaco, "Courier New", monospace
 
 **Font Sizes:**
-- `--font-size-xs`: 0.75rem (12px)
-- `--font-size-sm`: 0.875rem (14px)
-- `--font-size-base`: 1rem (16px)
-- `--font-size-lg`: 1.25rem (20px)
-- `--font-size-xl`: 1.5rem (24px)
-- `--font-size-2xl`: 1.875rem (30px)
-- `--font-size-3xl`: 2.25rem (36px)
-- `--font-size-4xl`: 3rem (48px)
+- `--text-xs`: 0.75rem (12px)
+- `--text-sm`: 0.875rem (14px)
+- `--text-base`: 1rem (16px)
+- `--text-lg`: 1.125rem (18px)
+- `--text-xl`: 1.25rem (20px)
+- `--text-2xl`: 1.5rem (24px)
+- `--text-3xl`: 1.875rem (30px)
+- `--text-4xl`: 2.25rem (36px)
+- `--text-5xl`: 3rem (48px)
 
 ### Spacing System
-- `--spacing-xs`: 0.25rem (4px)
-- `--spacing-sm`: 0.5rem (8px)
-- `--spacing-md`: 1rem (16px)
-- `--spacing-lg`: 1.5rem (24px)
-- `--spacing-xl`: 2rem (32px)
-- `--spacing-2xl`: 3rem (48px)
-- `--spacing-3xl`: 4rem (64px)
-- `--spacing-4xl`: 6rem (96px)
+- `--space-xs`: 0.25rem (4px)
+- `--space-sm`: 0.5rem (8px)
+- `--space-md`: 1rem (16px)
+- `--space-lg`: 1.5rem (24px)
+- `--space-xl`: 2rem (32px)
+- `--space-2xl`: 3rem (48px)
+- `--space-3xl`: 4rem (64px)
+- `--space-4xl`: 6rem (96px)
 
 ### Border Radius
-- `--border-radius-sm`: 0.125rem (2px)
-- `--border-radius`: 0.375rem (6px)
-- `--border-radius-lg`: 0.75rem (12px)
-- `--border-radius-xl`: 1rem (16px)
-- `--border-radius-full`: 9999px (pill shape)
+- `--radius-sm`: 2px
+- `--radius-md`: 4px
+- `--radius-lg`: 8px
+- `--radius-xl`: 12px
+- `--radius-full`: 9999px (pill shape)
 
 ### Shadows
-- `--shadow-sm`: Subtle card shadow
-- `--shadow`: Standard element shadow
-- `--shadow-md`: Elevated element shadow
-- `--shadow-lg`: Modal/dropdown shadow
-- `--shadow-focus`: Focus ring shadow
+- `--shadow-sm`: 0 1px 2px rgba(23, 23, 23, 0.05)
+- `--shadow-md`: 0 2px 4px rgba(23, 23, 23, 0.08)
+- `--shadow-lg`: 0 4px 8px rgba(23, 23, 23, 0.1)
+- `--shadow-xl`: 0 8px 16px rgba(23, 23, 23, 0.12)
+
+### Transitions
+- `--transition-fast`: 150ms ease-in-out
+- `--transition-base`: 250ms ease-in-out
+- `--transition-slow`: 350ms ease-in-out
 
 ## HTML Structure Patterns
 
@@ -534,9 +541,7 @@ Print styles hide interactive elements and optimize for readability:
 ### Structure
 ```
 /static/css/
-├── base/
-│   └── variables.css          # Design system variables
-├── main.css                   # Core styles and layout
+├── main.css                   # Core styles, layout, and design system variables
 ├── components/
 │   ├── forms.css             # Form styling
 │   ├── avatar.css            # Avatar components  
@@ -545,7 +550,7 @@ Print styles hide interactive elements and optimize for readability:
 │   ├── errors.css            # Error page styles
 │   ├── profile.css           # Profile page styles
 │   └── public-profile.css    # Public profile styles
-└── legal.css                 # Legal pages styling
+└── legal.css                  # Legal pages styling
 ```
 
 ### Import Order
@@ -559,9 +564,9 @@ Print styles hide interactive elements and optimize for readability:
 ## Designer Guidelines
 
 ### Making Changes
-1. **Colors**: Modify CSS custom properties in `variables.css`
+1. **Colors**: Modify CSS custom properties in `main.css`
 2. **Typography**: Update font variables and heading styles in `main.css`
-3. **Spacing**: Adjust spacing variables for consistent rhythm
+3. **Spacing**: Adjust spacing variables in `main.css` for consistent rhythm
 4. **Components**: Target component data attributes, not classes
 5. **Layout**: Use CSS Grid and Flexbox via data attributes
 6. **States**: Leverage data-state and ARIA attributes for styling
@@ -627,10 +632,9 @@ button[data-type="primary"] {
 - Skip accessibility testing
 
 ## Resources
-
-- **CSS Variables**: `/static/css/base/variables.css`
+- **Main Stylesheet & Variables**: `/static/css/main.css`
 - **Component Examples**: `/static/css/components/`
-- **Page Examples**: `/static/css/pages/`
+- **Page Styles**: `/static/css/pages/`
 - **HTML Templates**: `/server/templates/`
 
 This guide ensures consistency and maintainability while providing complete creative freedom for visual design through CSS.
