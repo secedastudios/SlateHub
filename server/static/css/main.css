@@ -4,6 +4,100 @@
    ======================================== */
 
 /* ========================================
+   FONT DEFINITIONS
+   ======================================== */
+
+/* Denton XCondensed Test Fonts */
+@font-face {
+    font-family: "Denton XCondensed Test";
+    font-weight: 100;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Thin.otf")
+        format("opentype");
+}
+@font-face {
+    font-family: "Denton XCondensed Test";
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Light.otf")
+        format("opentype");
+}
+@font-face {
+    font-family: "Denton XCondensed Test";
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Regular.otf")
+        format("opentype");
+}
+@font-face {
+    font-family: "Denton XCondensed Test";
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Medium.otf")
+        format("opentype");
+}
+@font-face {
+    font-family: "Denton XCondensed Test";
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Bold.otf")
+        format("opentype");
+}
+@font-face {
+    font-family: "Denton XCondensed Test";
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/Denton XCondensed Test/DentonXCondensedTest-ExtraBold.otf")
+        format("opentype");
+}
+@font-face {
+    font-family: "Denton XCondensed Test";
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/Denton XCondensed Test/DentonXCondensedTest-Black.otf")
+        format("opentype");
+}
+
+/* Helvetica Now Display Fonts */
+@font-face {
+    font-family: "Helvetica Now Display";
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/helveticanowtext-bold-demo.ttf") format("truetype");
+}
+@font-face {
+    font-family: "Helvetica Now Display";
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/helveticanowtext-bold-demo.ttf") format("truetype");
+}
+@font-face {
+    font-family: "Helvetica Now Display";
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+    src: url("/static/fonts/helveticanowtext-black-demo.ttf") format("truetype");
+}
+
+/* Onsite SemiMono TRIAL Font */
+@font-face {
+    font-family: "Onsite SemiMono TRIAL";
+    src: url("/static/fonts/OnsiteSemiMonoTRIAL-Regular.otf") format("opentype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ========================================
    1. DESIGN TOKENS & CUSTOM PROPERTIES
    ======================================== */
 
@@ -306,6 +400,51 @@ article {
 
 #site-header a[href="/"]:hover [data-role="logo-image"] {
     filter: brightness(1.2) contrast(1.1);
+}
+
+/* Brand Slogan */
+#brand-slogan,
+[data-role="brand-slogan"] {
+    display: inline-block;
+    width: 168px;
+    height: 32px;
+    font-family: "Onsite SemiMono TRIAL", monospace;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 16px;
+    text-transform: uppercase;
+    color: var(--color-bg-primary); /* Using the Crema color #D6D8CA */
+    opacity: 0.5;
+    margin-left: var(--space-lg);
+    position: relative;
+    overflow: hidden;
+    text-indent: -9999px; /* Hide original text */
+}
+
+/* Replace text with formatted version using ::before */
+#brand-slogan::before,
+[data-role="brand-slogan"]::before {
+    content: "The Production\A Networking Revolution";
+    position: absolute;
+    left: 0;
+    top: 0;
+    text-indent: 0;
+    white-space: pre-line;
+}
+
+/* Nav Brand - Logo and Slogan */
+#nav-brand,
+[data-role="nav-brand"] {
+    list-style: none;
+    display: flex;
+    gap: var(--space-md);
+    align-items: center;
+}
+
+#nav-brand li {
+    display: flex;
+    align-items: center;
 }
 
 /* Navigation Links */
