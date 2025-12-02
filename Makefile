@@ -1,4 +1,4 @@
-.PHONY: help start up stop logs build clean restart shell check-env db-init seed dirs wait-db dependencies debug-net debug-dns
+.PHONY: help start up stop logs build clean restart shell check-env db-init seed dirs wait-db dependencies debug-net debug-dns deploy
 
 # Default target
 all: help
@@ -25,6 +25,7 @@ help:
 	@echo "make restart  - Restart services"
 	@echo "make logs     - View logs"
 	@echo "make build    - Rebuild images"
+	@echo "make deploy   - Rebuild and redeploy the server"
 	@echo "make clean    - Stop services and remove all data"
 	@echo "make shell    - Open shell in server container"
 	@echo "make db-init  - (Re)Initialize database schema manually"
@@ -102,3 +103,13 @@ shell:
 	docker-compose exec slatehub /bin/bash
 
 seed: db-init
+
+deploy:
+	@echo "🔨 Rebuilding SlateHub server..."
+	@docker-compose stop slatehub
+	@docker-compose build --no-cache slatehub
+	@echo "🚀 Redeploying SlateHub server..."
+	@docker-compose up -d slatehub
+	@echo "✅ SlateHub server has been rebuilt and redeployed!"
+	@echo "   Server available at port $(SERVER_PORT:-3000)"
+	@echo "   Run 'make logs' to view server logs"
