@@ -103,13 +103,13 @@
 
 :root {
     /* Colors */
-    --color-bg-primary: #d6d8ca;
+    --color-bg-primary: #171717;
     --color-bg-secondary: #e5e7db;
     --color-bg-tertiary: #f2f3ed;
     --color-bg-white: #ffffff;
     --color-bg-dark: #2a2a2a;
 
-    --color-text-primary: #171717;
+    --color-text-primary: #d6d8ca;
     --color-text-secondary: #5a5a5a;
     --color-text-tertiary: #8a8a8a;
     --color-text-light: #ffffff;
@@ -1646,7 +1646,7 @@ dd {
     body {
         font-size: 12pt;
         line-height: 1.5;
-        background: white;
+        background: #171717;
     }
 
     #site-header,
