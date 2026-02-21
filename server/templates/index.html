@@ -142,5 +142,24 @@
                 </blockquote>
             </div>
         </section>
+        <section id="section-community" data-section="community">
+            <div id="community-inner" data-role="section-content">
+                <div id="community-text" data-role="community-text">
+                    <h2 id="heading-community">Join the SlateHub Community Today</h2>
+                    <p id="community-description">Be part of the open-source revolution. Sign up now to get early access, stay updated, and start building your creative network.</p>
+                </div>
+                <form id="form-community-subscribe" data-component="subscribe-form" aria-label="Subscribe to newsletter">
+                    <div id="subscribe-input-group" data-role="input-group">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-role="email-icon"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <input type="email" id="input-community-email" name="email" placeholder="Enter your e-mail" aria-label="Email address" required />
+                        <button type="submit" id="button-community-subscribe">Subscribe</button>
+                    </div>
+                    <label id="label-community-consent" data-role="consent-label" for="input-community-consent">
+                        <input type="checkbox" id="input-community-consent" name="consent" required />
+                        <span>I agree to the <a href="/terms">Terms and Conditions</a> &amp; <a href="/privacy">Privacy Policy</a></span>
+                    </label>
+                </form>
+            </div>
+        </section>
     </section>
 {% endblock %}
