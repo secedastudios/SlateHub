@@ -40,3 +40,8 @@ whatsapp-bot/*.db-*
 **/.fastembed_cache/
 
 .claude
+
+# Local dev environment
+**/.env.dev
+dev.sh
+docker-compose.dev.yml
