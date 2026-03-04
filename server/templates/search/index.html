@@ -1,248 +1,251 @@
 {% extends "_layout.html" %}
-{% block title %}
-    Search -
-    {{ app_name }}
-{% endblock %}
-{% block page_name %}
-    search
+{% block title %}Search - {{ app_name }}{% endblock %}
+{% block page_name %}search{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/search.css" />
 {% endblock %}
 {% block content %}
-    <section id="section-search" data-component="search">
-        <header id="search-header" data-role="section-header">
-            <hgroup>
-                <h1 id="heading-search">Search</h1>
-                <p data-role="subtitle">
-                    Find people, organizations, locations, and productions
-                </p>
-            </hgroup>
-        </header>
-        <form id="form-search" method="get" action="/search" data-component="search-form">
-            <div id="field-search-query" data-field="query">
-                <label for="input-search-query">What are you looking for?</label>
-                <input
-                type="search"
-                id="input-search-query"
-                name="q"
-                placeholder="e.g., 'male actor ages 20-40 in Berlin' or 'modern office in Los Angeles with lots of light'"
-                value="{% match query %}{% when Some with (q) %}{{ q }}{% when None %}{% endmatch %}"
-                aria-describedby="help-search-query"
-                autofocus
-            />
-                <small id="help-search-query" data-role="help-text">
-                    Use natural language to describe what you're looking for.
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                                                            Our AI-powered
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    search understands
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                                        context.
-                </small>
+<section id="search-page" data-component="search">
+
+    <div id="search-hero" {% if has_results %}data-state="compact"{% endif %}>
+        <div id="search-hero-content">
+            {% if !has_results && query.is_none() %}
+            <h1 id="heading-search">Find Your Next<br/>Collaborator</h1>
+            <p id="search-tagline">Search across people, organizations, locations, and productions using natural language.</p>
+            {% endif %}
+
+            <form id="form-search" method="get" action="/search" data-component="search-form">
+                <div id="search-input-wrap">
+                    <svg id="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                    <input
+                        type="search"
+                        id="input-search-query"
+                        name="q"
+                        placeholder="Try &quot;cinematographer in Berlin&quot; or &quot;studio with natural light&quot;"
+                        value="{% match query %}{% when Some with (q) %}{{ q }}{% when None %}{% endmatch %}"
+                        autocomplete="off"
+                        autofocus
+                    />
+                    <button type="submit" id="button-submit-search">Search</button>
+                </div>
+            </form>
+
+            {% if !has_results && query.is_none() %}
+            <div id="search-suggestions">
+                <span data-role="suggestion-label">Try:</span>
+                <a href="/search?q=actor%20in%20Los%20Angeles" data-role="suggestion">"actor in Los Angeles"</a>
+                <a href="/search?q=cinematographer%20available%20for%20work" data-role="suggestion">"cinematographer available for work"</a>
+                <a href="/search?q=studio%20with%20green%20screen" data-role="suggestion">"studio with green screen"</a>
             </div>
-            <div id="search-actions" data-role="form-actions">
-                <button type="submit" id="button-submit-search" data-type="primary">Search</button>
-            </div>
-        </form>
-    </section>
+            {% endif %}
+        </div>
+    </div>
+
     {% if has_results %}
-        <section id="section-search-results" data-component="search-results">
-            <header id="results-header" data-role="section-header">
-                <h2 id="heading-results">Search Results</h2>
-                <p data-role="result-count">
-                    Found
-                    {{ total_results }}
-                    result
-                    {% if total_results != 1 %}
-                        s
-                    {% endif %}
-                </p>
-            </header>
-            {% if !people.is_empty() %}
-                <section id="results-people" data-result-type="people">
-                    <header data-role="subsection-header">
-                        <h3 id="heading-people-results">People</h3>
-                    </header>
-                    <ul data-role="results-list" data-layout="grid">
-                        {% for person in people %}
-                            <li data-item="true" data-item-id="{{ person.id }}">
-                                <article data-component="person-card" data-person-id="{{ person.id }}">
-                                    <header data-role="card-header">
-                                        {% match person.avatar_url %}
-                                            {% when Some with (url) %}
-                                            <img src="{{ url }}" alt="{{ person.name }}" data-role="avatar" />
-                                            {% when None %}
-                                            <div data-role="avatar-initials">{{ person.initials }}</div>
-                                        {% endmatch %}
-                                        <h4 id="person-name-{{ person.id }}">
-                                            <a href="/{{ person.username }}">{{ person.name }}</a>
-                                        </h4>
-                                        {% match person.headline %}
-                                            {% when Some with (headline) %}
-                                            <p data-role="headline">{{ headline }}</p>
-                                            {% when None %}
-                                        {% endmatch %}
-                                    </header>
-                                    <div data-role="card-body">
-                                        {% match person.location %}
-                                            {% when Some with (location) %}
-                                            <p data-role="location">{{ location }}</p>
-                                            {% when None %}
-                                        {% endmatch %}
-                                        {% if !person.skills.is_empty() %}
-                                            <ul data-role="skills-list">
-                                                {% for skill in person.skills %}
-                                                    <li data-role="skill">{{ skill }}</li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% endif %}
-                                        <p data-role="match-score">Match: {{ person.score }}%</p>
-                                    </div>
-                                </article>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </section>
-            {% endif %}
-            {% if !organizations.is_empty() %}
-                <section id="results-organizations" data-result-type="organizations">
-                    <header data-role="subsection-header">
-                        <h3 id="heading-organizations-results">Organizations</h3>
-                    </header>
-                    <ul data-role="results-list" data-layout="grid">
-                        {% for org in organizations %}
-                            <li data-item="true" data-item-id="{{ org.id }}">
-                                <article data-component="organization-card" data-organization-id="{{ org.id }}">
-                                    <header data-role="card-header">
-                                        {% match org.logo %}
-                                            {% when Some with (logo) %}
-                                            <img src="{{ logo }}" alt="{{ org.name }}" data-role="logo" />
-                                            {% when None %}
-                                        {% endmatch %}
-                                        <h4 id="org-name-{{ org.id }}">
-                                            <a href="/org/{{ org.slug }}">{{ org.name }}</a>
-                                        </h4>
-                                    </header>
-                                    <div data-role="card-body">
-                                        {% match org.description %}
-                                            {% when Some with (description) %}
-                                            <p data-role="description">{{ description }}</p>
-                                            {% when None %}
-                                        {% endmatch %}
-                                        {% match org.location %}
-                                            {% when Some with (location) %}
-                                            <p data-role="location">{{ location }}</p>
-                                            {% when None %}
-                                        {% endmatch %}
-                                        <p data-role="match-score">Match: {{ org.score }}%</p>
-                                    </div>
-                                </article>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </section>
-            {% endif %}
-            {% if !locations.is_empty() %}
-                <section id="results-locations" data-result-type="locations">
-                    <header data-role="subsection-header">
-                        <h3 id="heading-locations-results">Locations</h3>
-                    </header>
-                    <ul data-role="results-list" data-layout="grid">
-                        {% for location in locations %}
-                            <li data-item="true" data-item-id="{{ location.id }}">
-                                <article data-component="location-card" data-location-id="{{ location.id }}">
-                                    <header data-role="card-header">
-                                        <h4 id="location-name-{{ location.id }}">
-                                            <a href="/locations/{{ location.id }}">{{ location.name }}</a>
-                                        </h4>
-                                    </header>
-                                    <div data-role="card-body">
-                                        <p data-role="address">{{ location.address }}</p>
-                                        <p data-role="city">
-                                            {{ location.city }}
-                                            ,
-                                            {{ location.state }}
-                                        </p>
-                                        {% match location.description %}
-                                            {% when Some with (description) %}
-                                            <p data-role="description">{{ description }}</p>
-                                            {% when None %}
-                                        {% endmatch %}
-                                        <p data-role="match-score">Match: {{ location.score }}%</p>
-                                    </div>
-                                </article>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </section>
-            {% endif %}
-            {% if !productions.is_empty() %}
-                <section id="results-productions" data-result-type="productions">
-                    <header data-role="subsection-header">
-                        <h3 id="heading-productions-results">Productions</h3>
-                    </header>
-                    <ul data-role="results-list" data-layout="grid">
-                        {% for production in productions %}
-                            <li data-item="true" data-item-id="{{ production.id }}">
-                                <article data-component="production-card" data-production-id="{{ production.id }}">
-                                    <header data-role="card-header">
-                                        <h4 id="production-title-{{ production.id }}">
-                                            <a href="/productions/{{ production.id }}">{{ production.title }}</a>
-                                        </h4>
-                                        <span data-role="status-badge" data-status="{{ production.status }}">{{ production.status }}</span>
-                                    </header>
-                                    <div data-role="card-body">
-                                        {% match production.description %}
-                                            {% when Some with (description) %}
-                                            <p data-role="description">{{ description }}</p>
-                                            {% when None %}
-                                        {% endmatch %}
-                                        {% match production.location %}
-                                            {% when Some with (location) %}
-                                            <p data-role="location">{{ location }}</p>
-                                            {% when None %}
-                                        {% endmatch %}
-                                        <p data-role="match-score">Match: {{ production.score }}%</p>
-                                    </div>
-                                </article>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </section>
-            {% endif %}
+    <div id="search-results-container">
+        <header id="results-header">
+            <p id="results-count">{{ total_results }} result{% if total_results != 1 %}s{% endif %} for <strong>"{% match query %}{% when Some with (q) %}{{ q }}{% when None %}{% endmatch %}"</strong></p>
+        </header>
+
+        {% if !people.is_empty() %}
+        <section data-result-type="people">
+            <h2 data-role="section-heading">People <span data-role="count">{{ people.len() }}</span></h2>
+            <div data-role="card-grid">
+                {% for person in people %}
+                <article data-component="card" data-type="person">
+                    <a href="/profile/{{ person.username }}" data-role="card-visual">
+                        {% match person.avatar_url %}
+                        {% when Some with (url) %}
+                        <img src="{{ url }}" alt="{{ person.name }}" loading="lazy" />
+                        {% when None %}
+                        <div data-role="placeholder"><span>{{ person.initials }}</span></div>
+                        {% endmatch %}
+                        <div data-role="overlay">
+                            <h3>{{ person.name }}</h3>
+                            <div data-role="meta">
+                                {% match person.headline %}
+                                {% when Some with (headline) %}
+                                <span data-role="role">{{ headline }}</span>
+                                {% when None %}
+                                {% endmatch %}
+                                {% match person.location %}
+                                {% when Some with (location) %}
+                                <span data-role="loc">{{ location }}</span>
+                                {% when None %}
+                                {% endmatch %}
+                            </div>
+                        </div>
+                    </a>
+                    <div data-role="content">
+                        {% match person.bio %}
+                        {% when Some with (bio) %}
+                        <p data-role="bio">{{ bio }}</p>
+                        {% when None %}
+                        {% endmatch %}
+                        {% if !person.skills.is_empty() %}
+                        <p data-role="skills">{% for skill in person.skills %}<span>{{ skill }}</span>{% endfor %}</p>
+                        {% endif %}
+                        <div data-role="actions">
+                            <a href="/profile/{{ person.username }}" data-role="btn-primary">Message</a>
+                            <button type="button" data-role="btn-icon-bare" aria-label="Save">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            </button>
+                            <button type="button" data-role="btn-icon-outline" aria-label="Connect">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
         </section>
+        {% endif %}
+
+        {% if !organizations.is_empty() %}
+        <section data-result-type="organizations">
+            <h2 data-role="section-heading">Organizations <span data-role="count">{{ organizations.len() }}</span></h2>
+            <div data-role="card-grid">
+                {% for org in organizations %}
+                <article data-component="card" data-type="org">
+                    <a href="/orgs/{{ org.slug }}" data-role="card-visual">
+                        {% match org.logo %}
+                        {% when Some with (logo) %}
+                        <img src="{{ logo }}" alt="{{ org.name }}" loading="lazy" />
+                        {% when None %}
+                        <div data-role="placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+                        {% endmatch %}
+                        <div data-role="overlay">
+                            <h3>{{ org.name }}</h3>
+                            <div data-role="meta">
+                                {% match org.location %}
+                                {% when Some with (location) %}
+                                <span data-role="loc">{{ location }}</span>
+                                {% when None %}
+                                {% endmatch %}
+                            </div>
+                        </div>
+                    </a>
+                    <div data-role="content">
+                        {% match org.description %}
+                        {% when Some with (desc) %}
+                        <p data-role="bio">{{ desc }}</p>
+                        {% when None %}
+                        {% endmatch %}
+                        <div data-role="actions">
+                            <a href="/orgs/{{ org.slug }}" data-role="btn-primary">View</a>
+                            <button type="button" data-role="btn-icon-bare" aria-label="Save">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            </button>
+                            <button type="button" data-role="btn-icon-outline" aria-label="Follow">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if !locations.is_empty() %}
+        <section data-result-type="locations">
+            <h2 data-role="section-heading">Locations <span data-role="count">{{ locations.len() }}</span></h2>
+            <div data-role="card-grid">
+                {% for loc in locations %}
+                <article data-component="card" data-type="location">
+                    <a href="/locations/{{ loc.id }}" data-role="card-visual">
+                        <div data-role="placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+                        <div data-role="overlay">
+                            <h3>{{ loc.name }}</h3>
+                            <div data-role="meta">
+                                <span data-role="loc">{{ loc.city }}, {{ loc.state }}</span>
+                            </div>
+                        </div>
+                    </a>
+                    <div data-role="content">
+                        {% match loc.description %}
+                        {% when Some with (desc) %}
+                        <p data-role="bio">{{ desc }}</p>
+                        {% when None %}
+                        {% endmatch %}
+                        <div data-role="actions">
+                            <a href="/locations/{{ loc.id }}" data-role="btn-primary">View</a>
+                            <button type="button" data-role="btn-icon-bare" aria-label="Save">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            </button>
+                            <button type="button" data-role="btn-icon-outline" aria-label="Add">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if !productions.is_empty() %}
+        <section data-result-type="productions">
+            <h2 data-role="section-heading">Productions <span data-role="count">{{ productions.len() }}</span></h2>
+            <div data-role="card-grid">
+                {% for prod in productions %}
+                <article data-component="card" data-type="production">
+                    <a href="/productions/{{ prod.id }}" data-role="card-visual">
+                        <div data-role="placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg></div>
+                        <div data-role="overlay">
+                            <h3>{{ prod.title }}</h3>
+                            <div data-role="meta">
+                                <span data-role="badge" data-status="{{ prod.status }}">{{ prod.status }}</span>
+                                {% match prod.location %}
+                                {% when Some with (location) %}
+                                <span data-role="loc">{{ location }}</span>
+                                {% when None %}
+                                {% endmatch %}
+                            </div>
+                        </div>
+                    </a>
+                    <div data-role="content">
+                        {% match prod.description %}
+                        {% when Some with (desc) %}
+                        <p data-role="bio">{{ desc }}</p>
+                        {% when None %}
+                        {% endmatch %}
+                        <div data-role="actions">
+                            <a href="/productions/{{ prod.id }}" data-role="btn-primary">View</a>
+                            <button type="button" data-role="btn-icon-bare" aria-label="Save">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            </button>
+                            <button type="button" data-role="btn-icon-outline" aria-label="Add">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </div>
+
     {% else %}
         {% match query %}
-            {% when Some with (q) %}
-            <section id="section-no-results" data-state="empty">
-                <div data-role="empty-state">
-                    <p>
-                        No results found for "
-                        {{ q }}
-                        "
-                    </p>
-                    <p data-role="help-text">
-                        Try a different search term or be more specific about what you're looking for.
-                    </p>
-                </div>
-            </section>
-            {% when None %}
+        {% when Some with (q) %}
+        <div id="no-results" data-state="empty">
+            <div id="no-results-content">
+                <svg id="no-results-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="M21 21l-4.35-4.35"/>
+                    <path d="M8 11h6"/>
+                </svg>
+                <p id="no-results-title">No results for "{{ q }}"</p>
+                <p id="no-results-hint">Try broader terms, check your spelling, or describe what you need differently.</p>
+            </div>
+        </div>
+        {% when None %}
         {% endmatch %}
     {% endif %}
+</section>
 {% endblock %}
