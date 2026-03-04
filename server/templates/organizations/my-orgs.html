@@ -1,239 +1,67 @@
-{% extends "_layout.html" %} {% block title %}My Organizations - {{ app_name
-}}{% endblock %} {% block page_name %}my-organizations{% endblock %} {% block
-content %}
-<section id="my-orgs-main" data-component="my-organizations-page">
-    <header id="my-orgs-header" data-role="page-header">
-        <h1 id="heading-my-organizations">My Organizations</h1>
+{% extends "_layout.html" %}
+{% block title %}My Organizations - {{ app_name }}{% endblock %}
+{% block page_name %}my-organizations{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/orgs.css" />
+{% endblock %}
+{% block content %}
+<section data-component="my-orgs-page">
+    <header data-role="page-header">
+        <h1>My Organizations</h1>
         <p data-role="subtitle">Manage your organizations and memberships</p>
+        <div data-role="header-actions">
+            <a href="/orgs/new" data-role="btn-primary">+ Create New</a>
+            <a href="/orgs" data-role="btn-secondary">Browse All</a>
+        </div>
     </header>
 
-    <section id="section-actions" data-section="actions">
-        <nav
-            id="my-orgs-actions"
-            data-role="page-actions"
-            aria-label="Organization actions"
-        >
-            <a
-                href="/orgs/new"
-                id="link-create-org"
-                role="button"
-                data-type="primary"
-            >
-                <span aria-hidden="true" data-role="icon">+</span>
-                <span data-role="button-text">Create New Organization</span>
-            </a>
-            <a
-                href="/orgs"
-                id="link-browse-orgs"
-                role="button"
-                data-type="secondary"
-            >
-                <span data-role="button-text">Browse All Organizations</span>
-            </a>
-        </nav>
-    </section>
+    <section data-section="organizations-list"
+        data-state="{% if organizations.is_empty() %}empty{% else %}ready{% endif %}">
 
-    <section
-        id="section-organizations"
-        data-section="organizations-list"
-        data-state="{% if organizations.is_empty() %}empty{% else %}ready{% endif %}"
-    >
         {% if organizations.is_empty() %}
-        <div id="empty-state-orgs" data-role="empty-state" data-state="empty">
-            <h2 id="heading-empty-orgs">
-                You're not part of any organizations yet
-            </h2>
-            <p id="empty-message-orgs" data-role="empty-message">
-                Create your own organization or browse existing ones to join.
-            </p>
-            <nav
-                id="empty-actions-orgs"
-                data-role="empty-state-actions"
-                aria-label="Empty state actions"
-            >
-                <a
-                    href="/orgs/new"
-                    id="link-empty-create"
-                    role="button"
-                    data-type="primary"
-                >
-                    Create Organization
-                </a>
-                <a
-                    href="/orgs"
-                    id="link-empty-browse"
-                    role="button"
-                    data-type="secondary"
-                >
-                    Browse Organizations
-                </a>
+        <div data-role="empty-state">
+            <h2>You're not part of any organizations yet</h2>
+            <p>Create your own organization or browse existing ones to join.</p>
+            <nav data-role="empty-actions">
+                <a href="/orgs/new" data-role="btn-primary">Create Organization</a>
+                <a href="/orgs" data-role="btn-secondary">Browse Organizations</a>
             </nav>
         </div>
         {% else %}
-        <div id="results-summary" data-role="results-count">
-            <p id="org-count-text">
-                You are a member of {{ organizations.len() }} organization{% if
-                organizations.len() != 1 %}s{% endif %}
-            </p>
+        <div data-role="results-count">
+            <p>You are a member of {{ organizations.len() }} organization{% if organizations.len() != 1 %}s{% endif %}</p>
         </div>
-
-        <div
-            id="organizations-container"
-            data-layout="grid"
-            data-role="content-container"
-        >
+        <div data-role="card-grid">
             {% for membership in organizations %}
-            <article
-                id="org-card-{{ membership.organization.id.display() }}"
-                data-component="organization-card"
-                data-org-id="{{ membership.organization.id.display() }}"
-                data-org-type="{{ membership.organization.org_type.id.display() }}"
-                data-member-role="{{ membership.role }}"
-            >
-                <header data-role="card-header">
+            <article data-component="card" data-type="org">
+                <a href="/orgs/{{ membership.organization.slug }}" data-role="card-visual">
                     {% if membership.organization.logo.is_some() %}
-                    <div
-                        id="org-logo-{{ membership.organization.id.display() }}"
-                        data-role="logo-container"
-                    >
-                        <img
-                            src="{{ membership.organization.logo.as_ref().unwrap() }}"
-                            alt="{{ membership.organization.name }} logo"
-                            data-role="org-logo"
-                        />
-                    </div>
+                    <img src="{{ membership.organization.logo.as_ref().unwrap() }}" alt="{{ membership.organization.name }}" loading="lazy" onerror="this.style.display='none'" />
+                    {% else %}
+                    <div data-role="placeholder"><span>{{ membership.organization.name }}</span></div>
                     {% endif %}
-
-                    <h2 id="org-name-{{ membership.organization.id.display() }}">
-                        <a
-                            href="/orgs/{{ membership.organization.slug }}"
-                            id="link-org-{{ membership.organization.id.display() }}"
-                            aria-label="View {{ membership.organization.name }}"
-                        >
-                            {{ membership.organization.name }}
-                        </a>
-                    </h2>
-
-                    <div
-                        id="org-badges-{{ membership.organization.id.display() }}"
-                        data-role="badge-container"
-                    >
-                        <span
-                            id="org-type-{{ membership.organization.id.display() }}"
-                            data-role="org-type-badge"
-                            data-value="{{ membership.organization.org_type.id.display() }}"
-                        >
-                            {{ membership.organization.org_type.name }}
-                        </span>
-                        <span
-                            id="member-role-{{ membership.organization.id.display() }}"
-                            data-role="member-role-badge"
-                            data-value="{{ membership.role }}"
-                        >
-                            {{ membership.role }}
-                        </span>
+                    <div data-role="overlay">
+                        <h3>{{ membership.organization.name }}</h3>
+                        <div data-role="meta">
+                            <span data-role="type-label">{{ membership.organization.org_type.name }}</span>
+                            {% if membership.organization.location.is_some() %}
+                            <span data-role="loc">{{ membership.organization.location.as_ref().unwrap() }}</span>
+                            {% endif %}
+                        </div>
                     </div>
-                </header>
-
-                <div data-role="card-body">
+                    <span data-role="badge">{{ membership.role }}</span>
+                </a>
+                <div data-role="content">
                     {% if membership.organization.description.is_some() %}
-                    <p
-                        id="org-description-{{ membership.organization.id.display() }}"
-                        data-role="description"
-                    >
-                        {{ membership.organization.description.as_ref().unwrap()
-                        }}
-                    </p>
+                    <p data-role="desc">{{ membership.organization.description.as_ref().unwrap() }}</p>
                     {% endif %}
-
-                    <dl
-                        id="org-metadata-{{ membership.organization.id.display() }}"
-                        data-role="metadata"
-                    >
-                        {% if membership.organization.location.is_some() %}
-                        <dt
-                            id="label-location-{{ membership.organization.id.display() }}"
-                        >
-                            Location
-                        </dt>
-                        <dd
-                            id="detail-location-{{ membership.organization.id.display() }}"
-                            data-field="location"
-                        >
-                            {{
-                            membership.organization.location.as_ref().unwrap()
-                            }}
-                        </dd>
+                    <div data-role="actions">
+                        <a href="/orgs/{{ membership.organization.slug }}" data-role="btn-primary">View</a>
+                        {% if membership.role == "owner" || membership.role == "admin" %}
+                        <a href="/orgs/{{ membership.organization.slug }}/edit" data-role="btn-secondary">Edit</a>
                         {% endif %}
-
-                        <dt id="label-joined-{{ membership.organization.id.display() }}">
-                            Joined
-                        </dt>
-                        <dd
-                            id="detail-joined-{{ membership.organization.id.display() }}"
-                            data-field="joined"
-                        >
-                            <time datetime="{{ membership.joined_at }}">
-                                {{ membership.joined_at }}
-                            </time>
-                        </dd>
-
-                        {% if membership.organization.employees_count.is_some()
-                        %}
-                        <dt id="label-size-{{ membership.organization.id.display() }}">
-                            Size
-                        </dt>
-                        <dd
-                            id="detail-size-{{ membership.organization.id.display() }}"
-                            data-field="size"
-                        >
-                            {{ membership.organization.employees_count.unwrap()
-                            }} employees
-                        </dd>
-                        {% endif %}
-                    </dl>
+                    </div>
                 </div>
-
-                <footer data-role="card-footer">
-                    <nav
-                        id="org-actions-{{ membership.organization.id.display() }}"
-                        data-role="card-actions"
-                        aria-label="Actions for {{ membership.organization.name }}"
-                    >
-                        <a
-                            href="/orgs/{{ membership.organization.slug }}"
-                            id="button-view-org-{{ membership.organization.id.display() }}"
-                            role="button"
-                            data-type="primary"
-                            aria-label="View {{ membership.organization.name }}"
-                        >
-                            View Organization
-                        </a>
-
-                        {% if membership.role == "owner" || membership.role ==
-                        "admin" %}
-                        <a
-                            href="/orgs/{{ membership.organization.slug }}/edit"
-                            id="button-edit-org-{{ membership.organization.id.display() }}"
-                            role="button"
-                            data-type="secondary"
-                            aria-label="Edit {{ membership.organization.name }}"
-                        >
-                            Edit
-                        </a>
-                        {% endif %} {% if membership.role == "owner" %}
-                        <a
-                            href="/orgs/{{ membership.organization.slug }}/members"
-                            id="button-manage-members-{{ membership.organization.id.display() }}"
-                            role="button"
-                            data-type="secondary"
-                            aria-label="Manage members of {{ membership.organization.name }}"
-                        >
-                            Manage Members
-                        </a>
-                        {% endif %}
-                    </nav>
-                </footer>
             </article>
             {% endfor %}
         </div>

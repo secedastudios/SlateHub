@@ -1,0 +1,785 @@
+/* ========================================
+   Organization Profile — Cinematic Layout
+   Override global article/small/input/button
+   defaults that assume light backgrounds.
+   ======================================== */
+
+[data-page="organization-profile"] #main-content {
+    max-width: 100%;
+    padding: 0;
+}
+
+#org-profile {
+    max-width: var(--container-wide, 1440px);
+    margin: 0 auto;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#org-profile section,
+#org-profile aside,
+#org-profile header,
+#org-profile footer,
+#org-profile div,
+#org-profile dl {
+    background: transparent;
+    border-radius: 0;
+}
+
+#org-profile small {
+    color: rgba(156, 163, 158, 0.55);
+}
+
+#org-profile a {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#org-profile a.org-btn-primary {
+    color: #0a0a08;
+}
+
+#org-profile a.org-btn-outline {
+    color: rgba(214, 216, 202, 0.7);
+}
+
+#org-profile p {
+    color: var(--color-text-muted, #9ca39e);
+}
+
+#org-profile h1,
+#org-profile h2,
+#org-profile h3,
+#org-profile h4 {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#org-profile input,
+#org-profile select,
+#org-profile textarea {
+    color: var(--color-text-primary, #d6d8ca);
+    background: rgba(214, 216, 202, 0.05);
+    border-color: rgba(214, 216, 202, 0.12);
+}
+
+#org-profile input:focus,
+#org-profile select:focus,
+#org-profile textarea:focus {
+    border-color: var(--color-accent, #eb5437);
+}
+
+#org-profile input::placeholder,
+#org-profile textarea::placeholder {
+    color: rgba(156, 163, 158, 0.4);
+}
+
+#org-profile select option {
+    background: #1a1a18;
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#org-profile dt {
+    color: rgba(156, 163, 158, 0.55);
+    font-weight: 400;
+    margin-bottom: 0;
+}
+
+#org-profile dd {
+    color: var(--color-text-primary, #d6d8ca);
+    margin-left: 0;
+    margin-bottom: 0;
+}
+
+#org-profile label {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#org-profile legend {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#org-profile fieldset {
+    border: none;
+    padding: 0;
+}
+
+/* ========================================
+   Hero — full-width cinematic banner
+   ======================================== */
+
+#org-hero {
+    position: relative;
+    min-height: 420px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 var(--space-xl);
+    overflow: hidden;
+}
+
+#org-hero-visual {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+#org-hero-logo-bg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: blur(40px) saturate(0.5) brightness(0.35);
+    transform: scale(1.15);
+}
+
+#org-hero-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to top,
+        rgba(10, 10, 8, 1) 0%,
+        rgba(10, 10, 8, 0.85) 30%,
+        rgba(10, 10, 8, 0.5) 60%,
+        rgba(10, 10, 8, 0.7) 100%
+    );
+}
+
+#org-hero-content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 800px;
+    padding: 3rem 0 3.5rem;
+}
+
+/* Logo */
+#org-hero-logo {
+    width: 90px;
+    height: 90px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: linear-gradient(160deg, #1c2228 0%, #181816 60%, #1c221e 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(214, 216, 202, 0.08);
+}
+
+#org-hero-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+#org-hero-initials {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-size: 2rem;
+    font-weight: 700;
+    color: rgba(214, 216, 202, 0.1);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    user-select: none;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Name */
+#org-hero-name {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    margin: 0 0 1rem 0;
+}
+
+/* Badges */
+#org-hero-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+#org-badge-type {
+    font-family: var(--font-body);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(214, 216, 202, 0.75);
+    padding: 4px 14px;
+    border: 1px solid rgba(214, 216, 202, 0.18);
+    border-radius: 9999px;
+}
+
+#org-badge-visibility {
+    font-family: var(--font-body);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 14px;
+    border-radius: 9999px;
+}
+
+#org-badge-visibility[data-value="public"] {
+    color: #7ee8a0;
+    border: 1px solid rgba(126, 232, 160, 0.25);
+}
+
+#org-badge-visibility[data-value="private"] {
+    color: rgba(214, 216, 202, 0.5);
+    border: 1px solid rgba(214, 216, 202, 0.1);
+}
+
+/* Hero description */
+#org-hero-desc {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: rgba(214, 216, 202, 0.65);
+    line-height: 1.7;
+    margin: 0 0 1.5rem 0;
+    max-width: 600px;
+}
+
+/* Hero actions */
+#org-hero-actions {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+/* ========================================
+   Buttons — all use class selectors for
+   max specificity over global button {}
+   ======================================== */
+
+.org-btn-primary {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #0a0a08;
+    background: var(--color-text-primary, #d6d8ca);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    padding: 0.55rem 1.4rem;
+    border-radius: 9999px;
+    border: none;
+    transition: background 0.2s, transform 0.15s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    cursor: pointer;
+}
+
+.org-btn-primary:hover {
+    background: #fff;
+    transform: scale(1.03);
+    border-color: transparent;
+}
+
+.org-btn-outline {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: rgba(214, 216, 202, 0.7);
+    background: transparent;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    padding: 0.55rem 1.3rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(214, 216, 202, 0.18);
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    cursor: pointer;
+}
+
+.org-btn-outline:hover {
+    color: var(--color-text-primary, #d6d8ca);
+    border-color: rgba(214, 216, 202, 0.4);
+    background: rgba(214, 216, 202, 0.05);
+}
+
+button.org-btn-danger {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-accent, #eb5437);
+    background: transparent;
+    border: 1px solid rgba(235, 84, 55, 0.25);
+    border-radius: 9999px;
+    padding: 0.5rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    min-height: 0;
+}
+
+button.org-btn-danger:hover:not(:disabled) {
+    background: rgba(235, 84, 55, 0.1);
+    border-color: rgba(235, 84, 55, 0.5);
+}
+
+.org-btn-sm {
+    font-size: 0.6rem;
+    padding: 0.3rem 0.8rem;
+}
+
+/* ========================================
+   Body — two-column layout
+   ======================================== */
+
+#org-body {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 3rem;
+    padding: 3rem var(--space-xl) 4rem;
+}
+
+#org-main {
+    min-width: 0;
+}
+
+/* ========================================
+   Stats strip (location / founded / size)
+   ======================================== */
+
+#org-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding-bottom: 2rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+}
+
+.org-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+}
+
+.org-stat svg {
+    flex-shrink: 0;
+    color: rgba(214, 216, 202, 0.35);
+}
+
+/* ========================================
+   Services
+   ======================================== */
+
+#org-services {
+    margin-bottom: 2.5rem;
+}
+
+.org-section-title {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: var(--color-text-primary, #d6d8ca);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-style: italic;
+    margin: 0 0 1.25rem 0;
+}
+
+#org-services-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.org-service-pill {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: rgba(214, 216, 202, 0.7);
+    background: rgba(214, 216, 202, 0.04);
+    border: 1px solid rgba(214, 216, 202, 0.1);
+    border-radius: 9999px;
+    padding: 0.4rem 1.1rem;
+    letter-spacing: 0.02em;
+}
+
+/* ========================================
+   Members
+   ======================================== */
+
+#org-members {
+    padding-top: 2rem;
+    border-top: 1px solid rgba(214, 216, 202, 0.06);
+}
+
+#org-members-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+#org-members-header .org-section-title { margin-bottom: 0; }
+
+#org-members-empty {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+    margin: 0;
+    padding: 1rem 0;
+}
+
+#org-members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+
+.org-member {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 1rem;
+    background: rgba(214, 216, 202, 0.025);
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    border-radius: 10px;
+    transition: border-color 0.2s;
+    text-decoration: none;
+    color: inherit;
+}
+
+.org-member:hover {
+    border-color: rgba(214, 216, 202, 0.18);
+}
+
+.org-member-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: linear-gradient(160deg, #2b2822 0%, #181816 60%, #1e1c18 100%);
+}
+
+.org-member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.org-member-name {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-primary, #d6d8ca);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.org-member-role {
+    font-family: var(--font-body);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(214, 216, 202, 0.45);
+}
+
+.org-member-role[data-value="owner"] { color: #7ee8a0; }
+.org-member-role[data-value="admin"] { color: #8bb4e8; }
+
+/* Admin management */
+#org-member-admin { margin-top: 0.5rem; }
+
+#org-member-admin summary::-webkit-details-marker { display: none; }
+
+#org-member-admin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(214, 216, 202, 0.025);
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    border-radius: 8px;
+}
+
+.org-member-admin-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary, #d6d8ca);
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.04);
+}
+
+.org-member-admin-row:last-child { border-bottom: none; }
+
+.org-member-admin-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.35rem;
+}
+
+/* ========================================
+   Sidebar
+   ======================================== */
+
+#org-sidebar {
+    padding: 1.5rem;
+    background: rgba(214, 216, 202, 0.025);
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    border-radius: 12px;
+    align-self: start;
+}
+
+.org-sidebar-title {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text-primary, #d6d8ca);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1.25rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+}
+
+#org-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 0;
+}
+
+.org-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.org-detail dt {
+    font-family: var(--font-body);
+    font-size: 0.6rem;
+    color: rgba(156, 163, 158, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.org-detail dd {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary, #d6d8ca);
+    margin: 0;
+    word-break: break-all;
+}
+
+.org-detail dd a {
+    color: var(--color-text-primary, #d6d8ca);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.org-detail dd a:hover {
+    color: var(--color-accent, #eb5437);
+}
+
+/* Join CTA in sidebar */
+#org-join-cta {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(214, 216, 202, 0.06);
+}
+
+#org-join-cta p {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+    margin: 0 0 0.75rem 0;
+}
+
+/* Footer meta */
+#org-meta-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(214, 216, 202, 0.04);
+}
+
+#org-meta-footer span {
+    font-family: var(--font-body);
+    font-size: 0.65rem;
+    color: rgba(156, 163, 158, 0.4);
+}
+
+/* ========================================
+   Modal
+   ======================================== */
+
+#modal-invite-member {
+    background: #1a1a18;
+    border: 1px solid rgba(214, 216, 202, 0.1);
+    border-radius: 12px;
+    color: var(--color-text-primary, #d6d8ca);
+    padding: 0;
+    max-width: 480px;
+    width: 90%;
+}
+
+#modal-invite-member::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+#modal-invite-inner { padding: 2rem; }
+
+#modal-invite-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+#modal-invite-header h2 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1.3rem;
+    color: var(--color-text-primary, #d6d8ca);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+}
+
+#modal-invite-close {
+    background: none;
+    border: none;
+    color: var(--color-text-muted, #9ca39e);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    min-height: 0;
+    line-height: 1;
+}
+
+.org-form-field {
+    margin-bottom: 1.25rem;
+}
+
+.org-form-field label {
+    display: block;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary, #d6d8ca);
+    margin-bottom: 0.4rem;
+}
+
+.org-form-field input,
+.org-form-field select,
+.org-form-field textarea {
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: var(--color-text-primary, #d6d8ca);
+    background: rgba(214, 216, 202, 0.05);
+    border: 1px solid rgba(214, 216, 202, 0.12);
+    border-radius: var(--radius-sm, 4px);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.org-form-field input:focus,
+.org-form-field select:focus,
+.org-form-field textarea:focus {
+    border-color: var(--color-accent, #eb5437);
+}
+
+.org-form-field small {
+    display: block;
+    font-size: var(--text-xs);
+    color: rgba(156, 163, 158, 0.5);
+    margin-top: 0.3rem;
+}
+
+#modal-invite-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+
+@media (max-width: 960px) {
+    #org-body {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    #org-sidebar { order: -1; }
+}
+
+@media (max-width: 768px) {
+    #org-hero {
+        min-height: 340px;
+        padding: 0 var(--space-md);
+    }
+
+    #org-hero-logo {
+        width: 70px;
+        height: 70px;
+    }
+
+    #org-hero-name {
+        font-size: clamp(2rem, 8vw, 3rem);
+    }
+
+    #org-body {
+        padding: 2rem var(--space-md) 3rem;
+    }
+
+    #org-members-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    #org-hero {
+        min-height: 280px;
+        padding: 0 var(--space-sm);
+    }
+
+    #org-body {
+        padding: 1.5rem var(--space-sm) 2rem;
+    }
+
+    #org-hero-actions {
+        flex-direction: column;
+    }
+
+    #org-hero-actions .org-btn-primary,
+    #org-hero-actions .org-btn-outline {
+        width: 100%;
+        justify-content: center;
+    }
+}
