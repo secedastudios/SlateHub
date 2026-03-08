@@ -9,11 +9,13 @@
     <header data-role="page-header">
         <h1>Organizations</h1>
         <p data-role="subtitle">Discover production companies, studios, agencies, and service providers in the industry</p>
-        {% if user.is_some() %}
         <div data-role="header-actions">
+            {% if user.is_some() %}
             <a href="/orgs/new" data-role="btn-primary">+ Create Organization</a>
+            {% else %}
+            <a href="/login?redirect=/orgs/new" data-role="btn-primary">+ Create Organization</a>
+            {% endif %}
         </div>
-        {% endif %}
     </header>
 
     <section data-section="controls">
@@ -64,6 +66,8 @@
                 {% endif %}
                 {% if user.is_some() %}
                 <a href="/orgs/new" data-role="btn-primary">Create Organization</a>
+                {% else %}
+                <a href="/login?redirect=/orgs/new" data-role="btn-primary">Create Organization</a>
                 {% endif %}
             </nav>
         </div>

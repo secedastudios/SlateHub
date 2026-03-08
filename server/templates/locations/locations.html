@@ -10,11 +10,13 @@
     <header class="loc-page-header">
         <h1>Filming Locations</h1>
         <p>Discover and list filming locations for productions</p>
-        {% if user.is_some() %}
         <div class="loc-header-actions">
+            {% if user.is_some() %}
             <a href="/locations/new" class="loc-btn-primary">Add Location</a>
+            {% else %}
+            <a href="/login?redirect=/locations/new" class="loc-btn-primary">Add Location</a>
+            {% endif %}
         </div>
-        {% endif %}
     </header>
 
     <div class="loc-controls">
@@ -102,6 +104,8 @@
                 {% endif %}
                 {% if user.is_some() %}
                 <a href="/locations/new" class="loc-btn-primary">Add Location</a>
+                {% else %}
+                <a href="/login?redirect=/locations/new" class="loc-btn-primary">Add Location</a>
                 {% endif %}
             </div>
         </div>

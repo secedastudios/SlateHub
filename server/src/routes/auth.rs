@@ -108,17 +108,20 @@ async fn signup(Form(form): Form<CreateUser>) -> Result<Response, Error> {
     }
 }
 
-async fn login_form(request: Request) -> Result<Html<String>, Error> {
+async fn login_form(
+    Query(params): Query<std::collections::HashMap<String, String>>,
+    request: Request,
+) -> Result<Html<String>, Error> {
     debug!("Rendering login page");
 
     let mut base = BaseContext::new().with_page("login");
 
-    // Add user to context if authenticated
     if let Some(user) = request.get_user() {
         base = base.with_user(User::from_session_user(&user).await);
     }
 
-    let template = LoginTemplate::new(base);
+    let mut template = LoginTemplate::new(base);
+    template.redirect_to = params.get("redirect").cloned();
 
     let html = template.render().map_err(|e| {
         error!("Failed to render login template: {}", e);

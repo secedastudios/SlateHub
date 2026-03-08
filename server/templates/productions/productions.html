@@ -10,11 +10,13 @@
     <header class="prod-page-header">
         <h1>Productions</h1>
         <p>Discover film and media productions seeking collaborators</p>
-        {% if user.is_some() %}
         <div class="prod-header-actions">
+            {% if user.is_some() %}
             <a href="/productions/new" class="prod-btn-primary">Create Production</a>
+            {% else %}
+            <a href="/login?redirect=/productions/new" class="prod-btn-primary">Create Production</a>
+            {% endif %}
         </div>
-        {% endif %}
     </header>
 
     <div class="prod-controls">
@@ -95,7 +97,11 @@
                 {% if filter.is_some() %}
                 <a href="/productions" class="prod-btn-outline">Clear Search</a>
                 {% endif %}
+                {% if user.is_some() %}
                 <a href="/productions/new" class="prod-btn-primary">Create Production</a>
+                {% else %}
+                <a href="/login?redirect=/productions/new" class="prod-btn-primary">Create Production</a>
+                {% endif %}
             </div>
         </div>
         {% endif %}
