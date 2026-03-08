@@ -66,36 +66,32 @@ async fn list_locations(
         None
     };
 
+    let sort_by = params.sort.unwrap_or_else(|| "recent".to_string());
+    let filter_text = params.filter.filter(|s| !s.is_empty());
+    let city_text = params.city.filter(|s| !s.is_empty());
+
     // Determine if showing only public locations or user's locations
     let (locations, show_private) = if params.public_only.unwrap_or(true) || user_id.is_none() {
-        // Show only public locations
         (
-            LocationModel::list(None, true, params.city.as_deref(), None).await?,
+            LocationModel::list(
+                None, true, city_text.as_deref(), None,
+                filter_text.as_deref(), Some(sort_by.as_str()),
+            ).await?,
             false,
         )
     } else {
-        // Show user's locations and public locations
-        let mut all_locations = Vec::new();
+        let mut all_locations = LocationModel::list(
+            None, false, city_text.as_deref(), None,
+            filter_text.as_deref(), Some(sort_by.as_str()),
+        ).await?;
 
-        // Get user's locations
         if let Some(ref uid) = user_id {
-            let user_locations = LocationModel::get_by_creator(uid).await?;
-            all_locations.extend(user_locations);
+            all_locations.retain(|loc| loc.is_public || loc.created_by.key_string() == *uid);
         }
-
-        // Get public locations
-        let public_locations =
-            LocationModel::list(None, true, params.city.as_deref(), None).await?;
-        all_locations.extend(public_locations);
-
-        // Deduplicate by ID
-        all_locations.sort_by(|a, b| a.id.cmp(&b.id));
-        all_locations.dedup_by(|a, b| a.id == b.id);
 
         (all_locations, true)
     };
 
-    // Convert to template format
     let locations: Vec<crate::templates::LocationView> = locations
         .into_iter()
         .map(|l| crate::templates::LocationView {
@@ -107,7 +103,7 @@ async fn list_locations(
             country: l.country,
             description: l.description,
             is_public: l.is_public,
-            created_at: l.created_at,
+            created_at: l.created_at.to_string(),
         })
         .collect();
 
@@ -118,9 +114,10 @@ async fn list_locations(
         active_page: base.active_page,
         user: base.user,
         locations,
-        filter: params.filter,
+        filter: filter_text,
+        city: city_text,
         show_private,
-        sort_by: params.sort.unwrap_or_else(|| "recent".to_string()),
+        sort_by,
     };
 
     let html = template.render().map_err(|e| {
@@ -179,8 +176,8 @@ async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<
             restrictions: location.restrictions,
             parking_info: location.parking_info,
             max_capacity: location.max_capacity,
-            created_at: location.created_at,
-            updated_at: location.updated_at,
+            created_at: location.created_at.to_string(),
+            updated_at: location.updated_at.to_string(),
             rates: rates
                 .into_iter()
                 .map(|r| crate::templates::RateView {

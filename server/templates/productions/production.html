@@ -1,330 +1,186 @@
-{% extends "_layout.html" %} {% block title %}{{ production.title }} - {{
-app_name }}{% endblock %} {% block page_name %}productions{% endblock %} {%
-block content %}
-<article
-    id="production-detail"
-    data-component="production-detail"
-    data-production-id="{{ production.id }}"
-    data-status="{{ production.status }}"
->
-    <header id="production-header" data-role="page-header">
-        <hgroup id="production-title-group">
-            <h1 id="heading-production-title">{{ production.title }}</h1>
-            <p id="production-type-status" data-role="subtitle">
-                <span
-                    id="production-type"
-                    data-role="type-badge"
-                    data-type="{{ production.production_type }}"
-                >
-                    {{ production.production_type }}
-                </span>
-                <span
-                    id="production-status"
-                    data-role="status-badge"
-                    data-status="{{ production.status }}"
-                >
-                    {{ production.status }}
-                </span>
-            </p>
-        </hgroup>
+{% extends "_layout.html" %}
+{% block title %}{{ production.title }} - {{ app_name }}{% endblock %}
+{% block page_name %}productions{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/productions.css" />
+{% endblock %}
+{% block content %}
+<div id="prod-detail">
 
-        {% if production.can_edit %}
-        <nav
-            id="production-admin-actions"
-            data-role="admin-actions"
-            aria-label="Production administration"
-        >
-            <a
-                href="/productions/{{ production.slug }}/edit"
-                id="button-edit-production"
-                role="button"
-                data-type="secondary"
-            >
-                Edit Production
-            </a>
-            <form
-                id="form-delete-production"
-                action="/productions/{{ production.slug }}/delete"
-                method="post"
-                data-component="form"
-                onsubmit="return confirm('Are you sure you want to delete this production?');"
-            >
-                <button
-                    type="submit"
-                    id="button-delete-production"
-                    data-type="danger"
-                >
-                    Delete Production
-                </button>
-            </form>
-        </nav>
-        {% endif %}
-    </header>
+    <section id="prod-hero">
+        <h1>{{ production.title }}</h1>
 
-    <section id="section-production-info" data-section="production-info">
-        <h2 id="heading-details" hidden>Production Details</h2>
+        <div id="prod-hero-badges">
+            <span class="prod-badge" data-role="status" data-value="{{ production.status }}">{{ production.status }}</span>
+            <span class="prod-badge" data-role="type">{{ production.production_type }}</span>
+        </div>
 
         {% if production.description.is_some() %}
-        <div
-            id="production-description-container"
-            data-role="description-container"
-        >
-            <h3 id="heading-description">Description</h3>
-            <p id="production-description" data-role="description">
-                {{ production.description.as_ref().unwrap() }}
-            </p>
-        </div>
+        <p id="prod-hero-desc">{{ production.description.as_ref().unwrap() }}</p>
         {% endif %}
 
-        <dl id="production-metadata" data-role="metadata">
-            {% if production.location.is_some() %}
-            <dt id="label-location">Location</dt>
-            <dd id="production-location" data-field="location">
-                {{ production.location.as_ref().unwrap() }}
-            </dd>
-            {% endif %} {% if production.start_date.is_some() %}
-            <dt id="label-start-date">Start Date</dt>
-            <dd id="production-start-date" data-field="start-date">
-                <time datetime="{{ production.start_date.as_ref().unwrap() }}">
-                    {{ production.start_date.as_ref().unwrap() }}
-                </time>
-            </dd>
-            {% endif %} {% if production.end_date.is_some() %}
-            <dt id="label-end-date">End Date</dt>
-            <dd id="production-end-date" data-field="end-date">
-                <time datetime="{{ production.end_date.as_ref().unwrap() }}">
-                    {{ production.end_date.as_ref().unwrap() }}
-                </time>
-            </dd>
-            {% endif %}
-
-            <dt id="label-created">Created</dt>
-            <dd id="production-created" data-field="created-date">
-                <time datetime="{{ production.created_at }}">
-                    {{ production.created_at }}
-                </time>
-            </dd>
-
-            <dt id="label-updated">Last Updated</dt>
-            <dd id="production-updated" data-field="updated-date">
-                <time datetime="{{ production.updated_at }}">
-                    {{ production.updated_at }}
-                </time>
-            </dd>
-        </dl>
-    </section>
-
-    <section id="section-production-members" data-section="production-members">
-        <header id="members-header" data-role="section-header">
-            <h2 id="heading-members">Production Team</h2>
+        <div id="prod-hero-actions">
             {% if production.can_edit %}
-            <button
-                type="button"
-                id="button-add-member"
-                data-type="primary"
-                onclick="showAddMemberForm()"
-            >
-                Add Member
-            </button>
+            <a href="/productions/{{ production.slug }}/edit" class="prod-btn-primary">Edit Production</a>
             {% endif %}
-        </header>
-
-        {% if production.can_edit %}
-        <div
-            id="add-member-form-container"
-            data-component="add-member-form"
-            data-state="hidden"
-            hidden
-        >
-            <form
-                id="form-add-member"
-                action="/productions/{{ production.slug }}/members/add"
-                method="post"
-                data-component="form"
-            >
-                <fieldset id="fieldset-add-member" data-role="form-section">
-                    <legend>Add Team Member</legend>
-
-                    <div id="field-member-id" data-field="member-id">
-                        <label for="input-member-id">Member ID</label>
-                        <input
-                            type="text"
-                            id="input-member-id"
-                            name="member_id"
-                            required
-                            placeholder="Enter person or organization ID"
-                            aria-describedby="help-member-id"
-                        />
-                        <small id="help-member-id" data-role="help-text">
-                            Enter the full ID (e.g., person:abc123 or
-                            organization:xyz789)
-                        </small>
-                    </div>
-
-                    <div id="field-member-role" data-field="member-role">
-                        <label for="select-member-role">Role</label>
-                        <select id="select-member-role" name="role" required>
-                            <option value="member">Member</option>
-                            <option value="admin">Admin</option>
-                            <option value="owner">Owner</option>
-                        </select>
-                    </div>
-
-                    <div id="add-member-actions" data-role="form-actions">
-                        <button
-                            type="button"
-                            id="button-cancel-add"
-                            data-type="secondary"
-                            onclick="hideAddMemberForm()"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            id="button-submit-add"
-                            data-type="primary"
-                        >
-                            Add Member
-                        </button>
-                    </div>
-                </fieldset>
-            </form>
-        </div>
-        {% endif %}
-
-        <div id="members-list" data-component="members-list" data-layout="list">
-            {% if !production.members.is_empty() %}
-            <ul id="production-members-list" data-role="members-list">
-                {% for member in production.members %}
-                <li
-                    id="member-{{ member.id }}"
-                    data-component="member-item"
-                    data-role="{{ member.role }}"
-                    data-member-type="{{ member.member_type }}"
-                >
-                    <div
-                        id="member-info-{{ member.id }}"
-                        data-role="member-info"
-                    >
-                        {% if member.member_type == "person" &&
-                        member.username.is_some() %}
-                        <a
-                            href="/{{ member.username.as_ref().unwrap() }}"
-                            id="link-member-{{ member.id }}"
-                        >
-                            <strong>{{ member.name }}</strong>
-                        </a>
-                        {% else if member.member_type == "organization" &&
-                        member.slug.is_some() %}
-                        <a
-                            href="/orgs/{{ member.slug.as_ref().unwrap() }}"
-                            id="link-member-{{ member.id }}"
-                        >
-                            <strong>{{ member.name }}</strong>
-                        </a>
-                        {% else %}
-                        <strong>{{ member.name }}</strong>
-                        {% endif %}
-
-                        <span
-                            id="member-role-{{ member.id }}"
-                            data-role="role-badge"
-                            data-role-type="{{ member.role }}"
-                        >
-                            {{ member.role }}
-                        </span>
-
-                        <span
-                            id="member-type-{{ member.id }}"
-                            data-role="type-indicator"
-                        >
-                            ({{ member.member_type }})
-                        </span>
-                    </div>
-
-                    {% if production.can_edit && member.role != "owner" %}
-                    <form
-                        id="form-remove-member-{{ member.id }}"
-                        action="/productions/{{ production.slug }}/members/remove"
-                        method="post"
-                        data-component="form"
-                        data-role="remove-member-form"
-                    >
-                        <input
-                            type="hidden"
-                            name="member_id"
-                            value="{{ member.member_type }}:{{ member.id }}"
-                        />
-                        <button
-                            type="submit"
-                            id="button-remove-member-{{ member.id }}"
-                            data-type="danger-subtle"
-                            onclick="return confirm('Remove {{ member.name }} from this production?');"
-                        >
-                            Remove
-                        </button>
-                    </form>
-                    {% endif %}
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <div id="empty-state-members" data-role="empty-state">
-                <p id="empty-message-members" data-role="empty-message">
-                    No team members have been added to this production yet.
-                </p>
-                {% if production.can_edit %}
-                <nav id="empty-actions-members" data-role="empty-state-actions">
-                    <button
-                        type="button"
-                        id="button-add-first-member"
-                        data-type="primary"
-                        onclick="showAddMemberForm()"
-                    >
-                        Add First Member
-                    </button>
-                </nav>
-                {% endif %}
-            </div>
-            {% endif %}
+            <a href="/productions" class="prod-btn-outline">All Productions</a>
         </div>
     </section>
 
-    <footer id="production-footer" data-role="page-footer">
-        <nav
-            id="production-nav-actions"
-            data-role="footer-navigation"
-            aria-label="Production navigation"
-        >
-            <a
-                href="/productions"
-                id="link-back-to-productions"
-                role="button"
-                data-type="secondary"
-            >
-                ← Back to Productions
-            </a>
-        </nav>
-    </footer>
-</article>
+    <div id="prod-body">
+        <div id="prod-main">
+
+            <div id="prod-stats">
+                {% if production.location.is_some() %}
+                <div class="prod-stat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    {{ production.location.as_ref().unwrap() }}
+                </div>
+                {% endif %}
+                {% if production.start_date.is_some() %}
+                <div class="prod-stat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    {{ production.start_date.as_ref().unwrap() }}
+                    {% if production.end_date.is_some() %} &ndash; {{ production.end_date.as_ref().unwrap() }}{% endif %}
+                </div>
+                {% endif %}
+                <div class="prod-stat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                    {{ production.members.len() }} team member{% if production.members.len() != 1 %}s{% endif %}
+                </div>
+            </div>
+
+            <section>
+                <div id="prod-members-header">
+                    <h3 class="prod-section-title">Production Team</h3>
+                    {% if production.can_edit %}
+                    <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">+ Add Member</button>
+                    {% endif %}
+                </div>
+
+                {% if production.can_edit %}
+                <div id="add-member-form-container" hidden>
+                    <form id="prod-add-member-form" action="/productions/{{ production.slug }}/members/add" method="post">
+                        <fieldset>
+                            <legend>Add Team Member</legend>
+                            <div class="prod-form-grid">
+                                <div>
+                                    <label for="input-member-id">Member ID</label>
+                                    <input type="text" id="input-member-id" name="member_id" required
+                                           placeholder="e.g., person:abc123 or organization:xyz789" />
+                                </div>
+                                <div>
+                                    <label for="select-member-role">Role</label>
+                                    <select id="select-member-role" name="role" required>
+                                        <option value="member">Member</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="owner">Owner</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="prod-member-form-actions">
+                                <button type="submit" class="prod-btn-primary">Add Member</button>
+                                <button type="button" class="prod-btn-outline" onclick="hideAddMemberForm()">Cancel</button>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+                {% endif %}
+
+                {% if !production.members.is_empty() %}
+                <ul class="prod-members-list">
+                    {% for member in production.members %}
+                    <li class="prod-member-item">
+                        <div class="prod-member-info">
+                            {% if member.member_type == "person" && member.username.is_some() %}
+                            <a href="/{{ member.username.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
+                            {% else if member.member_type == "organization" && member.slug.is_some() %}
+                            <a href="/orgs/{{ member.slug.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
+                            {% else %}
+                            <strong>{{ member.name }}</strong>
+                            {% endif %}
+                            <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
+                            <span class="prod-type-indicator">{{ member.member_type }}</span>
+                        </div>
+                        {% if production.can_edit && member.role != "owner" %}
+                        <form action="/productions/{{ production.slug }}/members/remove" method="post"
+                              onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                            <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                            <button type="submit" class="prod-btn-danger">Remove</button>
+                        </form>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="prod-empty" style="padding:2rem 0">
+                    <p>No team members have been added to this production yet.</p>
+                    {% if production.can_edit %}
+                    <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">Add First Member</button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </section>
+
+        </div>
+
+        <aside id="prod-sidebar">
+            <h4 class="prod-sidebar-title">Details</h4>
+            <dl id="prod-meta-list">
+                <div class="prod-detail-item">
+                    <dt>Type</dt>
+                    <dd>{{ production.production_type }}</dd>
+                </div>
+                <div class="prod-detail-item">
+                    <dt>Status</dt>
+                    <dd>{{ production.status }}</dd>
+                </div>
+                {% if production.location.is_some() %}
+                <div class="prod-detail-item">
+                    <dt>Location</dt>
+                    <dd>{{ production.location.as_ref().unwrap() }}</dd>
+                </div>
+                {% endif %}
+                {% if production.start_date.is_some() %}
+                <div class="prod-detail-item">
+                    <dt>Start Date</dt>
+                    <dd>{{ production.start_date.as_ref().unwrap() }}</dd>
+                </div>
+                {% endif %}
+                {% if production.end_date.is_some() %}
+                <div class="prod-detail-item">
+                    <dt>End Date</dt>
+                    <dd>{{ production.end_date.as_ref().unwrap() }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+
+            <div id="prod-meta-footer">
+                <span>Created <time datetime="{{ production.created_at }}">{{ production.created_at }}</time></span>
+                <span>Updated <time datetime="{{ production.updated_at }}">{{ production.updated_at }}</time></span>
+            </div>
+        </aside>
+    </div>
+
+    <a href="/productions" class="prod-back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        Back to Productions
+    </a>
+
+</div>
 
 <script>
-    function showAddMemberForm() {
-        const container = document.getElementById("add-member-form-container");
-        if (container) {
-            container.removeAttribute("hidden");
-            container.setAttribute("data-state", "visible");
-            document.getElementById("input-member-id").focus();
-        }
-    }
-
-    function hideAddMemberForm() {
-        const container = document.getElementById("add-member-form-container");
-        if (container) {
-            container.setAttribute("hidden", "");
-            container.setAttribute("data-state", "hidden");
-            document.getElementById("form-add-member").reset();
-        }
-    }
+function showAddMemberForm() {
+    const c = document.getElementById('add-member-form-container');
+    if (c) { c.removeAttribute('hidden'); document.getElementById('input-member-id').focus(); }
+}
+function hideAddMemberForm() {
+    const c = document.getElementById('add-member-form-container');
+    if (c) { c.setAttribute('hidden', ''); document.getElementById('prod-add-member-form').reset(); }
+}
 </script>
 {% endblock %}
