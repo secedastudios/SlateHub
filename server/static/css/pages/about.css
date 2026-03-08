@@ -1,0 +1,485 @@
+/* ========================================
+   About Page — Dark Cinematic Theme
+   ======================================== */
+
+/* Layout: full-bleed */
+[data-page="about"] #main-content {
+    max-width: 100%;
+    padding: 0;
+}
+
+/* Reset global article styles inside about page */
+#about-page article {
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+}
+
+#about-page p,
+#about-page h2,
+#about-page h3,
+#about-page small,
+#about-page data {
+    color: inherit;
+}
+
+/* ========================================
+   Hero
+   ======================================== */
+#about-hero {
+    position: relative;
+    padding: var(--space-4xl) var(--space-xl);
+    text-align: center;
+    overflow: hidden;
+}
+
+#about-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(235, 84, 55, 0.08), transparent 70%),
+        linear-gradient(180deg, rgba(23, 23, 23, 0) 0%, rgba(23, 23, 23, 1) 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+#about-hero > * {
+    position: relative;
+    z-index: 1;
+}
+
+#about-hero .about-tag {
+    display: inline-block;
+    padding: var(--space-xs) var(--space-lg);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-full);
+    color: var(--color-accent);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-lg);
+}
+
+#about-hero h1 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    color: #d6d8ca;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    margin: 0 auto var(--space-lg);
+    max-width: 800px;
+}
+
+#about-hero .about-hero-subtitle {
+    font-size: clamp(var(--text-sm), 1.2vw, var(--text-lg));
+    color: rgba(156, 163, 158, 0.7);
+    line-height: 1.6;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* ========================================
+   Mission
+   ======================================== */
+#about-mission {
+    padding: var(--space-4xl) var(--space-xl);
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+#about-mission .about-section-label {
+    display: inline-block;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    margin-bottom: var(--space-md);
+}
+
+#about-mission .about-mission-text {
+    font-family: var(--font-body);
+    font-size: clamp(var(--text-base), 1.3vw, var(--text-xl));
+    line-height: 1.8;
+    color: rgba(214, 216, 202, 0.85);
+    margin: 0;
+}
+
+/* ========================================
+   Values — "Why SlateHub"
+   ======================================== */
+#about-values {
+    background: rgba(214, 216, 202, 0.03);
+    border-top: 1px solid rgba(214, 216, 202, 0.06);
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+    padding: var(--space-4xl) var(--space-xl);
+}
+
+#about-values .about-section-header {
+    text-align: center;
+    margin-bottom: var(--space-3xl);
+}
+
+#about-values .about-section-header h2 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 4vw, 3rem);
+    color: #d6d8ca;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    margin: 0;
+}
+
+.about-values-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-xl);
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.about-value-card {
+    padding: var(--space-xl);
+    background: rgba(30, 30, 28, 0.6);
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    border-radius: var(--radius-lg);
+    transition: border-color var(--transition-base), transform var(--transition-base);
+}
+
+.about-value-card:hover {
+    border-color: rgba(235, 84, 55, 0.25);
+    transform: translateY(-2px);
+}
+
+.about-value-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    background: rgba(235, 84, 55, 0.1);
+    margin-bottom: var(--space-md);
+}
+
+.about-value-icon svg {
+    color: var(--color-accent);
+}
+
+.about-value-card h3 {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
+    color: #d6d8ca;
+    margin: 0 0 var(--space-sm);
+}
+
+.about-value-card p {
+    font-size: var(--text-sm);
+    color: rgba(156, 163, 158, 0.7);
+    line-height: 1.7;
+    margin: 0;
+}
+
+/* ========================================
+   Features
+   ======================================== */
+#about-features {
+    padding: var(--space-4xl) var(--space-xl);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+#about-features .about-section-header {
+    text-align: center;
+    margin-bottom: var(--space-3xl);
+}
+
+#about-features .about-section-header h2 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 4vw, 3rem);
+    color: #d6d8ca;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    margin: 0;
+}
+
+.about-features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+}
+
+.about-feature-card {
+    padding: var(--space-xl);
+    border-top: 1px solid rgba(214, 216, 202, 0.08);
+}
+
+.about-feature-card:nth-child(3n+2),
+.about-feature-card:nth-child(3n) {
+    border-left: 1px solid rgba(214, 216, 202, 0.08);
+}
+
+.about-feature-card .about-feature-num {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: var(--space-md);
+}
+
+.about-feature-card h3 {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: #d6d8ca;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin: 0 0 var(--space-sm);
+}
+
+.about-feature-card p {
+    font-size: var(--text-xs);
+    color: rgba(156, 163, 158, 0.6);
+    line-height: 1.7;
+    margin: 0;
+}
+
+/* ========================================
+   Stats
+   ======================================== */
+#about-stats {
+    background: rgba(214, 216, 202, 0.03);
+    border-top: 1px solid rgba(214, 216, 202, 0.06);
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+    padding: var(--space-3xl) var(--space-xl);
+}
+
+#about-stats .about-section-header {
+    text-align: center;
+    margin-bottom: var(--space-2xl);
+}
+
+#about-stats .about-section-header h2 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 4vw, 3rem);
+    color: #d6d8ca;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    margin: 0;
+}
+
+.about-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.about-stat-item {
+    padding: var(--space-lg);
+}
+
+.about-stat-item + .about-stat-item {
+    border-left: 1px solid rgba(214, 216, 202, 0.08);
+}
+
+.about-stat-item data {
+    display: block;
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    color: #d6d8ca;
+    line-height: 1;
+    margin-bottom: var(--space-sm);
+}
+
+.about-stat-item h3 {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    color: rgba(156, 163, 158, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
+}
+
+/* ========================================
+   CTA / Contact
+   ======================================== */
+#about-cta {
+    padding: var(--space-4xl) var(--space-xl);
+    text-align: center;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+#about-cta h2 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    color: #d6d8ca;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    margin: 0 0 var(--space-sm);
+}
+
+#about-cta .about-cta-subtitle {
+    font-size: var(--text-sm);
+    color: rgba(156, 163, 158, 0.7);
+    line-height: 1.6;
+    margin: 0 0 var(--space-xl);
+}
+
+.about-cta-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.about-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.8rem;
+    background: var(--color-accent);
+    color: #fff;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-full);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.about-btn-primary:hover {
+    background: var(--color-accent-hover);
+    border-color: var(--color-accent-hover);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.about-btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.8rem;
+    background: transparent;
+    color: #d6d8ca;
+    border: 1px solid rgba(214, 216, 202, 0.2);
+    border-radius: var(--radius-full);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    transition:
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.about-btn-outline:hover {
+    border-color: rgba(214, 216, 202, 0.5);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+@media (max-width: 900px) {
+    .about-values-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+
+    .about-features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .about-feature-card:nth-child(3n+2),
+    .about-feature-card:nth-child(3n) {
+        border-left: none;
+    }
+
+    .about-feature-card:nth-child(even) {
+        border-left: 1px solid rgba(214, 216, 202, 0.08);
+    }
+
+    .about-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .about-stat-item + .about-stat-item {
+        border-left: none;
+    }
+
+    .about-stat-item:nth-child(even) {
+        border-left: 1px solid rgba(214, 216, 202, 0.08);
+    }
+
+    .about-stat-item:nth-child(n+3) {
+        border-top: 1px solid rgba(214, 216, 202, 0.08);
+    }
+}
+
+@media (max-width: 600px) {
+    #about-hero {
+        padding: var(--space-3xl) var(--space-md);
+    }
+
+    #about-mission {
+        padding: var(--space-2xl) var(--space-md);
+    }
+
+    .about-features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .about-feature-card:nth-child(even) {
+        border-left: none;
+    }
+
+    .about-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .about-stat-item:nth-child(even) {
+        border-left: none;
+    }
+
+    .about-stat-item + .about-stat-item {
+        border-top: 1px solid rgba(214, 216, 202, 0.08);
+    }
+
+    .about-cta-actions {
+        flex-direction: column;
+    }
+}

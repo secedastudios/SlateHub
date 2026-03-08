@@ -1340,25 +1340,6 @@ dd {
    15. PAGE-SPECIFIC STYLES
    ======================================== */
 
-/* Login & Signup Pages */
-[data-page="login"] #main-content,
-[data-page="signup"] #main-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 80vh;
-}
-
-[data-page="login"] [data-component="auth-form"],
-[data-page="signup"] [data-component="auth-form"] {
-    background: var(--color-bg-white);
-    padding: var(--space-2xl);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    width: 100%;
-    max-width: 400px;
-}
-
 /* Profile Pages */
 [data-page="profile"] [data-component="profile-header"] {
     display: flex;

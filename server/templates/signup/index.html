@@ -1,39 +1,28 @@
-{% extends "_layout.html" %} {% block title %}Sign Up - {{ app_name }}{%
-endblock %} {% block page_name %}signup{% endblock %} {% block content %}
-<section id="section-signup" data-component="auth-form" data-type="signup">
-    <header id="signup-header" data-role="form-header">
-        <hgroup>
-            <h1 id="heading-signup">Join {{ app_name }}</h1>
-            <p data-role="subtitle">
-                Create your account and start connecting with the entertainment
-                industry
-            </p>
-        </hgroup>
+{% extends "_layout.html" %}
+{% block title %}Sign Up - {{ app_name }}{% endblock %}
+{% block page_name %}signup{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/auth.css" />
+{% endblock %}
+{% block content %}
+<div class="auth-card">
+
+    <header class="auth-header">
+        <h1>Join {{ app_name }}</h1>
+        <p>Create your account and start connecting with the entertainment industry</p>
     </header>
 
-    {% match error %} {% when Some with (err) %}
-    <div
-        id="alert-signup-error"
-        role="alert"
-        aria-live="polite"
-        data-component="alert"
-        data-type="error"
-    >
-        {{ err }}
-    </div>
-    {% when None %} {% endmatch %}
+    {% match error %}
+        {% when Some with (err) %}
+        <div class="auth-alert" data-type="error" role="alert" aria-live="polite">{{ err }}</div>
+        {% when None %}
+    {% endmatch %}
 
-    <form
-        id="form-signup"
-        method="post"
-        action="/signup"
-        data-component="form"
-        data-state="ready"
-    >
-        <fieldset id="fieldset-account" data-role="form-section">
+    <form method="post" action="/signup">
+        <fieldset>
             <legend hidden>Account Information</legend>
 
-            <div id="field-username" data-field="username">
+            <div class="auth-field">
                 <label for="input-username">Username</label>
                 <input
                     type="text"
@@ -43,35 +32,13 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
                     required
                     autofocus
                     aria-required="true"
-                    aria-describedby="help-username"
-                    {%
-                    match
-                    error
-                    %}
-                    {%
-                    when
-                    Some
-                    with
-                    (_)
-                    %}
-                    aria-invalid="true"
-                    aria-describedby="alert-signup-error help-username"
-                    {%
-                    when
-                    None
-                    %}
-                    aria-invalid="false"
-                    aria-describedby="help-username"
-                    {%
-                    endmatch
-                    %}
+                    {% match error %}
+                        {% when Some with (_) %}aria-invalid="true"{% when None %}{% endmatch %}
                 />
-                <small id="help-username" data-role="help-text">
-                    Your unique username for SlateHub
-                </small>
+                <small class="auth-help">Your unique username for {{ app_name }}</small>
             </div>
 
-            <div id="field-email" data-field="email">
+            <div class="auth-field">
                 <label for="input-email">Email Address</label>
                 <input
                     type="email"
@@ -80,35 +47,13 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
                     placeholder="Enter your email"
                     required
                     aria-required="true"
-                    aria-describedby="help-email"
-                    {%
-                    match
-                    error
-                    %}
-                    {%
-                    when
-                    Some
-                    with
-                    (_)
-                    %}
-                    aria-invalid="true"
-                    aria-describedby="alert-signup-error help-email"
-                    {%
-                    when
-                    None
-                    %}
-                    aria-invalid="false"
-                    aria-describedby="help-email"
-                    {%
-                    endmatch
-                    %}
+                    {% match error %}
+                        {% when Some with (_) %}aria-invalid="true"{% when None %}{% endmatch %}
                 />
-                <small id="help-email" data-role="help-text">
-                    We'll use this for account notifications
-                </small>
+                <small class="auth-help">We'll use this for account notifications</small>
             </div>
 
-            <div id="field-password" data-field="password">
+            <div class="auth-field">
                 <label for="input-password">Password</label>
                 <input
                     type="password"
@@ -118,35 +63,13 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
                     required
                     minlength="8"
                     aria-required="true"
-                    aria-describedby="help-password"
-                    {%
-                    match
-                    error
-                    %}
-                    {%
-                    when
-                    Some
-                    with
-                    (_)
-                    %}
-                    aria-invalid="true"
-                    aria-describedby="alert-signup-error help-password"
-                    {%
-                    when
-                    None
-                    %}
-                    aria-invalid="false"
-                    aria-describedby="help-password"
-                    {%
-                    endmatch
-                    %}
+                    {% match error %}
+                        {% when Some with (_) %}aria-invalid="true"{% when None %}{% endmatch %}
                 />
-                <small id="help-password" data-role="help-text">
-                    Must be at least 8 characters long
-                </small>
+                <small class="auth-help">Must be at least 8 characters long</small>
             </div>
 
-            <div id="field-confirm-password" data-field="confirm-password">
+            <div class="auth-field">
                 <label for="input-confirm-password">Confirm Password</label>
                 <input
                     type="password"
@@ -156,85 +79,29 @@ endblock %} {% block page_name %}signup{% endblock %} {% block content %}
                     required
                     minlength="8"
                     aria-required="true"
-                    aria-describedby="help-confirm-password"
-                    {%
-                    match
-                    error
-                    %}
-                    {%
-                    when
-                    Some
-                    with
-                    (_)
-                    %}
-                    aria-invalid="true"
-                    aria-describedby="alert-signup-error help-confirm-password"
-                    {%
-                    when
-                    None
-                    %}
-                    aria-invalid="false"
-                    aria-describedby="help-confirm-password"
-                    {%
-                    endmatch
-                    %}
+                    {% match error %}
+                        {% when Some with (_) %}aria-invalid="true"{% when None %}{% endmatch %}
                 />
-                <small id="help-confirm-password" data-role="help-text">
-                    Enter the same password again
-                </small>
             </div>
 
-            <div id="field-terms" data-field="terms">
-                <label for="input-terms">
-                    <input
-                        type="checkbox"
-                        id="input-terms"
-                        name="terms"
-                        required
-                        aria-required="true"
-                        aria-describedby="help-terms"
-                    />
+            <div class="auth-check">
+                <label>
+                    <input type="checkbox" name="terms" required aria-required="true" />
                     I agree to the
-                    <a
-                        href="/terms"
-                        id="link-terms"
-                        target="_blank"
-                        rel="noopener"
-                    >
-                        Terms of Service
-                    </a>
+                    <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>
                     and
-                    <a
-                        href="/privacy"
-                        id="link-privacy"
-                        target="_blank"
-                        rel="noopener"
-                    >
-                        Privacy Policy
-                    </a>
+                    <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>
                 </label>
-                <small id="help-terms" data-role="help-text" hidden>
-                    You must agree to the terms to create an account
-                </small>
             </div>
         </fieldset>
 
-        <div id="signup-actions" data-role="form-actions">
-            <button type="submit" id="button-submit-signup" data-type="primary">
-                Create Account
-            </button>
+        <div class="auth-submit">
+            <button type="submit">Create Account</button>
         </div>
 
-        <nav
-            id="nav-signup-alternatives"
-            aria-label="Signup alternatives"
-            data-role="form-footer"
-        >
-            <p data-role="text">
-                Already have an account?
-                <a href="/login" id="link-login">Log in</a>
-            </p>
+        <nav class="auth-footer" aria-label="Signup alternatives">
+            <p>Already have an account? <a href="/login">Log in</a></p>
         </nav>
     </form>
-</section>
+</div>
 {% endblock %}
