@@ -61,11 +61,17 @@ async fn list_productions(
         base = base.with_user(User::from_session_user(&user).await);
     }
 
-    // Fetch productions from database
+    let sort_by = params.sort.unwrap_or_else(|| "recent".to_string());
+    let filter_text = params.filter.filter(|s| !s.is_empty());
+    let status_filter = params.status.filter(|s| !s.is_empty());
+    let type_filter = params.production_type.filter(|s| !s.is_empty());
+
     let productions = ProductionModel::list(
         None,
-        params.status.as_deref(),
-        params.production_type.as_deref(),
+        status_filter.as_deref(),
+        type_filter.as_deref(),
+        filter_text.as_deref(),
+        Some(sort_by.as_str()),
     )
     .await
     .map_err(|e| {
@@ -73,7 +79,6 @@ async fn list_productions(
         Error::Database(format!("Failed to fetch productions: {}", e))
     })?;
 
-    // Convert to template format
     let productions: Vec<crate::templates::Production> = productions
         .into_iter()
         .map(|p| crate::templates::Production {
@@ -83,9 +88,9 @@ async fn list_productions(
             description: p.description.unwrap_or_default(),
             status: p.status,
             production_type: p.production_type,
-            created_at: p.created_at,
-            owner: String::new(), // TODO: Fetch owner info
-            tags: vec![],         // TODO: Implement tags
+            created_at: p.created_at.to_string(),
+            owner: String::new(),
+            tags: vec![],
         })
         .collect();
 
@@ -96,8 +101,8 @@ async fn list_productions(
         active_page: base.active_page,
         user: base.user,
         productions,
-        filter: params.filter,
-        sort_by: params.sort.unwrap_or_else(|| "recent".to_string()),
+        filter: filter_text,
+        sort_by,
     };
 
     let html = template.render().map_err(|e| {
@@ -148,11 +153,11 @@ async fn view_production(
             description: production.description,
             status: production.status,
             production_type: production.production_type,
-            start_date: production.start_date,
-            end_date: production.end_date,
+            start_date: production.start_date.map(|d| d.to_string()),
+            end_date: production.end_date.map(|d| d.to_string()),
             location: production.location,
-            created_at: production.created_at,
-            updated_at: production.updated_at,
+            created_at: production.created_at.to_string(),
+            updated_at: production.updated_at.to_string(),
             members: members
                 .into_iter()
                 .map(|m| crate::templates::ProductionMemberView {
@@ -301,8 +306,8 @@ async fn edit_production_form(
             description: production.description,
             status: production.status,
             production_type: production.production_type,
-            start_date: production.start_date,
-            end_date: production.end_date,
+            start_date: production.start_date.map(|d| d.to_string()),
+            end_date: production.end_date.map(|d| d.to_string()),
             location: production.location,
         },
         production_types,

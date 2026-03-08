@@ -397,6 +397,7 @@ pub struct LocationsTemplate {
     pub user: Option<User>,
     pub locations: Vec<LocationView>,
     pub filter: Option<String>,
+    pub city: Option<String>,
     pub show_private: bool,
     pub sort_by: String,
 }

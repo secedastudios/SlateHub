@@ -1,0 +1,1028 @@
+/* ========================================
+   Locations Pages — Dark Cinematic
+   Override global article/small/dd/button
+   ======================================== */
+
+[data-page="locations"] #main-content {
+    max-width: 100%;
+    padding: 0;
+}
+
+/* Reset global article on all location wrappers */
+[data-page="locations"] #main-content > article,
+[data-page="locations"] #main-content > section {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+}
+
+#loc-page,
+#loc-detail,
+#loc-form-page {
+    max-width: var(--container-wide, 1440px);
+    margin: 0 auto;
+    padding: 0 var(--space-xl);
+    background: transparent;
+    border-radius: 0;
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#loc-page article,
+#loc-detail section,
+#loc-detail aside,
+#loc-detail header,
+#loc-detail footer,
+#loc-detail div,
+#loc-detail dl,
+#loc-form-page fieldset {
+    background: transparent;
+    border-radius: 0;
+}
+
+#loc-page small,
+#loc-detail small,
+#loc-form-page small {
+    color: rgba(156, 163, 158, 0.5);
+}
+
+#loc-detail a,
+#loc-page a {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#loc-detail a.loc-btn-primary,
+#loc-page a.loc-btn-primary {
+    color: #0a0a08;
+}
+
+#loc-detail a.loc-btn-outline,
+#loc-page a.loc-btn-outline {
+    color: rgba(214, 216, 202, 0.7);
+}
+
+#loc-detail p,
+#loc-page p {
+    color: var(--color-text-muted, #9ca39e);
+}
+
+#loc-detail h1, #loc-detail h2, #loc-detail h3, #loc-detail h4,
+#loc-page h1, #loc-page h2, #loc-page h3,
+#loc-form-page h1, #loc-form-page h2 {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#loc-detail dt,
+#loc-page dt {
+    color: rgba(156, 163, 158, 0.55);
+    font-weight: 400;
+    margin-bottom: 0;
+}
+
+#loc-detail dd,
+#loc-page dd {
+    color: var(--color-text-primary, #d6d8ca);
+    margin-left: 0;
+    margin-bottom: 0;
+}
+
+#loc-form-page label {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#loc-form-page legend {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#loc-form-page input,
+#loc-form-page select,
+#loc-form-page textarea {
+    color: var(--color-text-primary, #d6d8ca);
+    background: rgba(214, 216, 202, 0.05);
+    border-color: rgba(214, 216, 202, 0.12);
+}
+
+#loc-form-page input:focus,
+#loc-form-page select:focus,
+#loc-form-page textarea:focus {
+    border-color: var(--color-accent, #eb5437);
+}
+
+#loc-form-page input::placeholder,
+#loc-form-page textarea::placeholder {
+    color: rgba(156, 163, 158, 0.4);
+}
+
+/* ========================================
+   Page Header
+   ======================================== */
+
+.loc-page-header {
+    padding: 3rem 0 1.5rem;
+}
+
+.loc-page-header h1 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    color: var(--color-text-primary, #d6d8ca);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    margin: 0 0 0.5rem 0;
+}
+
+.loc-page-header p {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: var(--color-text-muted, #9ca39e);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.loc-header-actions {
+    display: flex;
+    gap: 0.65rem;
+    margin-top: 1.25rem;
+}
+
+/* ========================================
+   Buttons
+   ======================================== */
+
+.loc-btn-primary {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #0a0a08;
+    background: var(--color-text-primary, #d6d8ca);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    padding: 0.55rem 1.4rem;
+    border-radius: 9999px;
+    border: none;
+    transition: background 0.2s, transform 0.15s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    cursor: pointer;
+}
+
+.loc-btn-primary:hover {
+    background: #fff;
+    transform: scale(1.03);
+    border-color: transparent;
+}
+
+.loc-btn-outline {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: rgba(214, 216, 202, 0.7);
+    background: transparent;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    padding: 0.55rem 1.3rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(214, 216, 202, 0.18);
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    cursor: pointer;
+}
+
+.loc-btn-outline:hover {
+    color: var(--color-text-primary, #d6d8ca);
+    border-color: rgba(214, 216, 202, 0.4);
+    background: rgba(214, 216, 202, 0.05);
+}
+
+button.loc-btn-danger {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-accent, #eb5437);
+    background: transparent;
+    border: 1px solid rgba(235, 84, 55, 0.25);
+    border-radius: 9999px;
+    padding: 0.5rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    min-height: 0;
+}
+
+button.loc-btn-danger:hover:not(:disabled) {
+    background: rgba(235, 84, 55, 0.1);
+    border-color: rgba(235, 84, 55, 0.5);
+}
+
+/* ========================================
+   Search + Filters
+   ======================================== */
+
+.loc-controls {
+    padding-bottom: 2rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+    margin-bottom: 2.5rem;
+}
+
+#loc-search-wrap {
+    display: flex;
+    align-items: center;
+    background: rgba(214, 216, 202, 0.05);
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    border-radius: var(--radius-sm, 4px);
+    overflow: hidden;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+#loc-search-wrap:focus-within {
+    border-color: var(--color-accent, #eb5437);
+    background: rgba(214, 216, 202, 0.08);
+}
+
+#loc-search-icon {
+    flex-shrink: 0;
+    margin-left: var(--space-md, 1rem);
+    color: var(--color-text-muted, #9ca39e);
+    opacity: 0.5;
+}
+
+#loc-search-wrap:focus-within #loc-search-icon {
+    color: var(--color-accent, #eb5437);
+    opacity: 0.8;
+}
+
+#loc-search-input {
+    flex: 1;
+    padding: var(--space-md, 1rem);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: var(--color-text-primary, #d6d8ca);
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    min-height: 0;
+}
+
+#loc-search-input::placeholder { color: rgba(156, 163, 158, 0.45); }
+#loc-search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+#loc-search-submit {
+    flex-shrink: 0;
+    padding: var(--space-md, 1rem) var(--space-xl, 1.5rem);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: #fff;
+    background: var(--color-accent, #eb5437);
+    border: none;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-radius: 0;
+    min-height: 0;
+}
+
+#loc-search-submit:hover {
+    background: var(--color-accent-hover, #d74328);
+    border-color: transparent;
+}
+
+.loc-filter-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.loc-filter-row input[type="text"] {
+    flex: 1;
+    min-width: 140px;
+    padding: 0.6rem 1rem;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary, #d6d8ca);
+    background: rgba(214, 216, 202, 0.05);
+    border: 1px solid rgba(214, 216, 202, 0.12);
+    border-radius: var(--radius-sm, 4px);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.loc-filter-row input[type="text"]:focus {
+    border-color: var(--color-accent, #eb5437);
+}
+
+.loc-filter-row input[type="text"]::placeholder { color: rgba(156, 163, 158, 0.4); }
+
+.loc-filter-row label {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: rgba(214, 216, 202, 0.6);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+}
+
+.loc-filter-row input[type="checkbox"] {
+    accent-color: var(--color-accent, #eb5437);
+}
+
+.loc-filter-row select {
+    padding: 0.6rem 1rem;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary, #d6d8ca);
+    background: rgba(214, 216, 202, 0.05);
+    border: 1px solid rgba(214, 216, 202, 0.12);
+    border-radius: var(--radius-sm, 4px);
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    min-height: 0;
+}
+
+.loc-filter-row select:focus { border-color: var(--color-accent, #eb5437); }
+
+.loc-filter-row select option {
+    background: #1a1a18;
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+/* ========================================
+   Card Grid — List Page
+   ======================================== */
+
+.loc-results { padding-bottom: 4rem; }
+
+.loc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.75rem;
+}
+
+.loc-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+    transition: transform 0.25s ease;
+}
+
+.loc-card:hover { transform: translateY(-4px); }
+
+.loc-card-visual {
+    display: block;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+    border: none;
+    outline: none;
+    background: linear-gradient(160deg, #22201c 0%, #181816 60%, #1e221c 100%);
+}
+
+.loc-card-visual .loc-card-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.loc-card-visual .loc-card-placeholder svg {
+    color: rgba(214, 216, 202, 0.06);
+}
+
+.loc-card-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.25rem;
+    background: linear-gradient(
+        to top,
+        rgba(8, 8, 6, 0.88) 0%,
+        rgba(8, 8, 6, 0.45) 40%,
+        transparent 70%
+    );
+    pointer-events: none;
+}
+
+.loc-card-overlay h3 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.15;
+    margin: 0 0 0.3rem 0;
+}
+
+.loc-card-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.loc-card-meta .loc-city {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.65);
+    line-height: 1.35;
+    flex: 1;
+    min-width: 0;
+}
+
+.loc-card-meta .loc-badge {
+    font-family: var(--font-body);
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 9999px;
+}
+
+.loc-badge[data-value="public"] {
+    color: #7ee8a0;
+    border: 1px solid rgba(126, 232, 160, 0.25);
+}
+
+.loc-badge[data-value="private"] {
+    color: rgba(214, 216, 202, 0.5);
+    border: 1px solid rgba(214, 216, 202, 0.1);
+}
+
+.loc-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 1rem 0.25rem 0.25rem;
+    flex: 1;
+}
+
+.loc-card-desc {
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    color: var(--color-text-muted, #9ca39e);
+    line-height: 1.55;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.loc-card-address {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-style: normal;
+    color: rgba(156, 163, 158, 0.7);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.loc-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-top: auto;
+    padding-top: 0.6rem;
+}
+
+/* ========================================
+   Empty State
+   ======================================== */
+
+.loc-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 5rem 0;
+}
+
+.loc-empty h2 {
+    font-family: var(--font-body);
+    font-size: var(--text-lg);
+    color: var(--color-text-primary, #d6d8ca);
+    margin: 0 0 0.5rem 0;
+}
+
+.loc-empty p {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+    margin: 0 0 1.5rem 0;
+    max-width: 400px;
+    line-height: 1.6;
+}
+
+.loc-empty-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* ========================================
+   Detail Page — Hero
+   ======================================== */
+
+#loc-detail { padding-bottom: 4rem; }
+
+#loc-hero {
+    padding: 3rem 0 2.5rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+    margin-bottom: 3rem;
+}
+
+#loc-hero h1 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    margin: 0 0 1rem 0;
+}
+
+#loc-hero-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+#loc-hero-address {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    font-style: normal;
+    color: var(--color-text-muted, #9ca39e);
+    line-height: 1.6;
+    margin: 0 0 1rem 0;
+}
+
+#loc-hero-desc {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: rgba(214, 216, 202, 0.6);
+    line-height: 1.7;
+    margin: 0 0 1.5rem 0;
+    max-width: 650px;
+}
+
+#loc-hero-actions {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+/* ========================================
+   Detail Page — Body (two-column)
+   ======================================== */
+
+#loc-body {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 3rem;
+}
+
+#loc-main { min-width: 0; }
+
+/* Stats */
+#loc-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding-bottom: 2rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+}
+
+.loc-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+}
+
+.loc-stat svg {
+    flex-shrink: 0;
+    color: rgba(214, 216, 202, 0.35);
+}
+
+/* Section titles */
+.loc-section-title {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: var(--color-text-primary, #d6d8ca);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-style: italic;
+    margin: 0 0 1.25rem 0;
+}
+
+/* Pills (amenities / restrictions) */
+.loc-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.loc-pill {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: rgba(214, 216, 202, 0.7);
+    background: rgba(214, 216, 202, 0.04);
+    border: 1px solid rgba(214, 216, 202, 0.1);
+    border-radius: 9999px;
+    padding: 0.4rem 1.1rem;
+}
+
+.loc-pill-warn {
+    color: rgba(235, 180, 55, 0.8);
+    border-color: rgba(235, 180, 55, 0.15);
+    background: rgba(235, 180, 55, 0.04);
+}
+
+/* Rates Section */
+#loc-rates {
+    padding-top: 2rem;
+    border-top: 1px solid rgba(214, 216, 202, 0.06);
+}
+
+#loc-rates-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+#loc-rates-header .loc-section-title { margin-bottom: 0; }
+
+.loc-rates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.loc-rate-card {
+    padding: 1.25rem;
+    background: rgba(214, 216, 202, 0.025);
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    border-radius: 10px;
+    transition: border-color 0.2s;
+}
+
+.loc-rate-card:hover { border-color: rgba(214, 216, 202, 0.15); }
+
+.loc-rate-type {
+    font-family: var(--font-body);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(214, 216, 202, 0.5);
+    margin: 0 0 0.4rem 0;
+}
+
+.loc-rate-amount {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--color-text-primary, #d6d8ca);
+    line-height: 1;
+    margin: 0 0 0.3rem 0;
+}
+
+.loc-rate-amount small {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: rgba(156, 163, 158, 0.5);
+    margin-left: 0.25rem;
+}
+
+.loc-rate-detail {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted, #9ca39e);
+    margin: 0.3rem 0 0 0;
+}
+
+.loc-rate-actions { margin-top: 0.75rem; }
+
+/* Add Rate Form */
+#loc-add-rate-form {
+    padding: 1.5rem;
+    background: rgba(214, 216, 202, 0.025);
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+}
+
+#loc-add-rate-form fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+#loc-add-rate-form legend {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary, #d6d8ca);
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+#loc-add-rate-form .loc-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+#loc-add-rate-form label {
+    display: block;
+    font-size: var(--text-xs);
+    color: rgba(214, 216, 202, 0.7);
+    margin-bottom: 0.3rem;
+}
+
+#loc-add-rate-form input,
+#loc-add-rate-form select {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary, #d6d8ca);
+    background: rgba(214, 216, 202, 0.05);
+    border: 1px solid rgba(214, 216, 202, 0.12);
+    border-radius: var(--radius-sm, 4px);
+    outline: none;
+    box-sizing: border-box;
+}
+
+#loc-add-rate-form input:focus,
+#loc-add-rate-form select:focus {
+    border-color: var(--color-accent, #eb5437);
+}
+
+#loc-add-rate-form select option {
+    background: #1a1a18;
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+.loc-rate-form-actions {
+    display: flex;
+    gap: 0.65rem;
+}
+
+/* Sidebar */
+#loc-sidebar {
+    padding: 1.5rem;
+    background: rgba(214, 216, 202, 0.025);
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    border-radius: 12px;
+    align-self: start;
+}
+
+.loc-sidebar-title {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text-primary, #d6d8ca);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1.25rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+}
+
+#loc-contact-list,
+#loc-meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 0;
+}
+
+.loc-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.loc-detail-item dt {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.loc-detail-item dd {
+    font-size: var(--text-sm);
+    word-break: break-all;
+}
+
+.loc-detail-item dd a {
+    transition: color 0.2s;
+}
+
+.loc-detail-item dd a:hover {
+    color: var(--color-accent, #eb5437);
+}
+
+#loc-meta-footer {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(214, 216, 202, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+#loc-meta-footer span {
+    font-family: var(--font-body);
+    font-size: 0.65rem;
+    color: rgba(156, 163, 158, 0.4);
+}
+
+.loc-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(214, 216, 202, 0.06);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.loc-back-link:hover { color: var(--color-text-primary, #d6d8ca); }
+
+/* ========================================
+   Form Pages (Create + Edit)
+   ======================================== */
+
+#loc-form-page {
+    max-width: 720px;
+    padding-bottom: 4rem;
+}
+
+#loc-form-page fieldset {
+    border: none;
+    padding: 0;
+    margin: 0 0 2.5rem 0;
+}
+
+#loc-form-page legend {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 1.25rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+    width: 100%;
+}
+
+#loc-form-page [data-field] { margin-bottom: 1.5rem; }
+
+#loc-form-page label {
+    display: block;
+    font-size: var(--text-sm);
+    margin-bottom: 0.4rem;
+    font-weight: 500;
+}
+
+#loc-form-page input[type="text"],
+#loc-form-page input[type="email"],
+#loc-form-page input[type="tel"],
+#loc-form-page input[type="number"],
+#loc-form-page textarea,
+#loc-form-page select {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    font-size: var(--text-base);
+    border-radius: var(--radius-sm, 4px);
+    box-sizing: border-box;
+}
+
+#loc-form-page input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5rem;
+    accent-color: var(--color-accent, #eb5437);
+}
+
+#loc-form-page small {
+    display: block;
+    font-size: var(--text-xs);
+    margin-top: 0.35rem;
+}
+
+#loc-form-page [data-role="form-actions"] {
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 1rem;
+}
+
+#loc-form-page [role="alert"] {
+    padding: 1rem 1.25rem;
+    background: rgba(235, 84, 55, 0.08);
+    border: 1px solid rgba(235, 84, 55, 0.2);
+    border-radius: var(--radius-sm, 4px);
+    margin-bottom: 1.5rem;
+}
+
+#loc-form-page [role="alert"] h2 {
+    font-size: var(--text-sm);
+    color: var(--color-accent, #eb5437);
+    margin: 0 0 0.5rem 0;
+}
+
+#loc-form-page [role="alert"] li {
+    font-size: var(--text-sm);
+    color: var(--color-accent, #eb5437);
+}
+
+.loc-danger-zone {
+    margin-top: 3rem;
+    padding: 1.5rem;
+    border: 1px solid rgba(235, 84, 55, 0.15);
+    border-radius: 10px;
+}
+
+.loc-danger-zone h2 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-accent, #eb5437);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.75rem 0;
+}
+
+.loc-danger-zone p {
+    font-size: var(--text-sm);
+    margin: 0 0 1rem 0;
+    line-height: 1.5;
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+
+@media (max-width: 1100px) {
+    .loc-grid { grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+}
+
+@media (max-width: 960px) {
+    #loc-body { grid-template-columns: 1fr; gap: 2rem; }
+    #loc-sidebar { order: -1; }
+}
+
+@media (max-width: 768px) {
+    #loc-page, #loc-detail, #loc-form-page { padding: 0 var(--space-md); }
+    .loc-page-header h1 { font-size: clamp(2rem, 8vw, 3rem); }
+    #loc-search-wrap { flex-direction: column; }
+    #loc-search-submit { width: 100%; border-top: 1px solid rgba(214, 216, 202, 0.08); }
+    .loc-grid { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+    .loc-filter-row { flex-direction: column; }
+}
+
+@media (max-width: 480px) {
+    #loc-page, #loc-detail, #loc-form-page { padding: 0 var(--space-sm); }
+    .loc-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .loc-rates-grid { grid-template-columns: 1fr; }
+}

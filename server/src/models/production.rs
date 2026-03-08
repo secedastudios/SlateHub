@@ -2,6 +2,7 @@ use crate::db::DB;
 use crate::error::Error;
 use crate::record_id_ext::RecordIdExt;
 use crate::services::embedding::{build_production_embedding_text, generate_embedding};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
 use tracing::{debug, warn};
@@ -16,12 +17,12 @@ pub struct Production {
     #[surreal(rename = "type")]
     pub production_type: String,
     pub status: String,
-    pub start_date: Option<String>,
-    pub end_date: Option<String>,
+    pub start_date: Option<DateTime<Utc>>,
+    pub end_date: Option<DateTime<Utc>>,
     pub description: Option<String>,
     pub location: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 /// Data required to create a new production
@@ -205,10 +206,12 @@ impl ProductionModel {
         limit: Option<usize>,
         status_filter: Option<&str>,
         type_filter: Option<&str>,
+        filter: Option<&str>,
+        sort: Option<&str>,
     ) -> Result<Vec<Production>, Error> {
         debug!(
-            "Listing productions with filters - status: {:?}, type: {:?}",
-            status_filter, type_filter
+            "Listing productions - status: {:?}, type: {:?}, filter: {:?}, sort: {:?}",
+            status_filter, type_filter, filter, sort
         );
 
         let mut query = String::from("SELECT * FROM production WHERE 1=1");
@@ -221,7 +224,20 @@ impl ProductionModel {
             query.push_str(" AND type = $type");
         }
 
-        query.push_str(" ORDER BY created_at DESC");
+        if filter.is_some() {
+            query.push_str(
+                " AND (string::lowercase(title) CONTAINS string::lowercase($filter) \
+                 OR string::lowercase(description ?? '') CONTAINS string::lowercase($filter) \
+                 OR string::lowercase(location ?? '') CONTAINS string::lowercase($filter))",
+            );
+        }
+
+        let order_clause = match sort {
+            Some("title") => " ORDER BY title ASC",
+            Some("status") => " ORDER BY status ASC, created_at DESC",
+            _ => " ORDER BY created_at DESC",
+        };
+        query.push_str(order_clause);
 
         if let Some(limit) = limit {
             query.push_str(&format!(" LIMIT {}", limit));
@@ -235,6 +251,10 @@ impl ProductionModel {
 
         if let Some(prod_type) = type_filter {
             db_query = db_query.bind(("type", prod_type.to_string()));
+        }
+
+        if let Some(filter) = filter {
+            db_query = db_query.bind(("filter", filter.to_string()));
         }
 
         let mut result = db_query
@@ -290,8 +310,10 @@ impl ProductionModel {
         let status = data.status.as_ref().unwrap_or(&current.status);
         let description = data.description.as_ref().or(current.description.as_ref());
         let location = data.location.as_ref().or(current.location.as_ref());
-        let start_date = data.start_date.as_ref().or(current.start_date.as_ref());
-        let end_date = data.end_date.as_ref().or(current.end_date.as_ref());
+        let current_start_str = current.start_date.map(|d| d.to_string());
+        let current_end_str = current.end_date.map(|d| d.to_string());
+        let start_date = data.start_date.as_ref().or(current_start_str.as_ref());
+        let end_date = data.end_date.as_ref().or(current_end_str.as_ref());
 
         let embedding_text = build_production_embedding_text(
             title,

@@ -2,6 +2,7 @@ use crate::db::DB;
 use crate::error::Error;
 use crate::record_id_ext::RecordIdExt;
 use crate::services::embedding::{build_location_embedding_text, generate_embedding};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
 use tracing::{debug, warn};
@@ -25,8 +26,8 @@ pub struct Location {
     pub restrictions: Option<Vec<String>>,
     pub parking_info: Option<String>,
     pub max_capacity: Option<i32>,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub created_by: RecordId,
 }
 
@@ -201,10 +202,12 @@ impl LocationModel {
         public_only: bool,
         city: Option<&str>,
         creator_id: Option<&str>,
+        filter: Option<&str>,
+        sort: Option<&str>,
     ) -> Result<Vec<Location>, Error> {
         debug!(
-            "Listing locations - public_only: {}, city: {:?}, creator: {:?}",
-            public_only, city, creator_id
+            "Listing locations - public_only: {}, city: {:?}, creator: {:?}, filter: {:?}, sort: {:?}",
+            public_only, city, creator_id, filter, sort
         );
 
         let mut query = String::from("SELECT * FROM location WHERE 1=1");
@@ -214,14 +217,28 @@ impl LocationModel {
         }
 
         if city.is_some() {
-            query.push_str(" AND city = $city");
+            query.push_str(" AND string::lowercase(city) CONTAINS string::lowercase($city)");
         }
 
         if creator_id.is_some() {
             query.push_str(" AND created_by = $creator_id");
         }
 
-        query.push_str(" ORDER BY created_at DESC");
+        if filter.is_some() {
+            query.push_str(
+                " AND (string::lowercase(name) CONTAINS string::lowercase($filter) \
+                 OR string::lowercase(city) CONTAINS string::lowercase($filter) \
+                 OR string::lowercase(description ?? '') CONTAINS string::lowercase($filter) \
+                 OR string::lowercase(address) CONTAINS string::lowercase($filter))",
+            );
+        }
+
+        let order_clause = match sort {
+            Some("name") => " ORDER BY name ASC",
+            Some("city") => " ORDER BY city ASC",
+            _ => " ORDER BY created_at DESC",
+        };
+        query.push_str(order_clause);
 
         if let Some(limit) = limit {
             query.push_str(&format!(" LIMIT {}", limit));
@@ -235,6 +252,10 @@ impl LocationModel {
 
         if let Some(creator_id) = creator_id {
             db_query = db_query.bind(("creator_id", creator_id.to_string()));
+        }
+
+        if let Some(filter) = filter {
+            db_query = db_query.bind(("filter", filter.to_string()));
         }
 
         let mut result = db_query
