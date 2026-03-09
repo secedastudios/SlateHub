@@ -155,9 +155,9 @@ async fn upload_profile_image(
         format!("person:{}", user.id)
     };
 
-    // Update the person's profile.avatar field directly with the URL
+    // Use MERGE to ensure profile object is created if it doesn't exist yet
     let update_sql = format!(
-        "UPDATE {} SET profile.avatar = $avatar RETURN NONE",
+        "UPDATE {} MERGE {{ profile: {{ avatar: $avatar }} }} RETURN NONE",
         person_id
     );
 

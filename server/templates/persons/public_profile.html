@@ -7,6 +7,16 @@
 {% block page_name %}
     public-profile
 {% endblock %}
+{% block og_type %}profile{% endblock %}
+{% block og_title %}{{ person.get_display_name() }} (@{{ person.username }}) - {{ app_name }}{% endblock %}
+{% block og_description %}{% match person.profile %}{% when Some with (profile) %}{% match profile.headline %}{% when Some with (headline) %}{{ headline }}{% when None %}{% match profile.bio %}{% when Some with (bio) %}{{ bio }}{% when None %}Film &amp; TV professional on {{ app_name }}{% endmatch %}{% endmatch %}{% when None %}Film &amp; TV professional on {{ app_name }}{% endmatch %}{% endblock %}
+{% block og_image %}{% match person.get_avatar_url() %}{% when Some with (avatar_url) %}<meta property="og:image" content="{{ avatar_url }}" />{% when None %}<meta property="og:image" content="/static/images/og-default.png" />{% endmatch %}{% endblock %}
+{% block og_extra %}
+<meta property="profile:username" content="{{ person.username }}" />
+{% endblock %}
+{% block twitter_title %}{{ person.get_display_name() }} (@{{ person.username }}) - {{ app_name }}{% endblock %}
+{% block twitter_description %}{% match person.profile %}{% when Some with (profile) %}{% match profile.headline %}{% when Some with (headline) %}{{ headline }}{% when None %}{% match profile.bio %}{% when Some with (bio) %}{{ bio }}{% when None %}Film &amp; TV professional on {{ app_name }}{% endmatch %}{% endmatch %}{% when None %}Film &amp; TV professional on {{ app_name }}{% endmatch %}{% endblock %}
+{% block twitter_image %}{% match person.get_avatar_url() %}{% when Some with (avatar_url) %}<meta name="twitter:image" content="{{ avatar_url }}" />{% when None %}<meta name="twitter:image" content="/static/images/og-default.png" />{% endmatch %}{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/static/css/pages/public-profile.css" />
 {% endblock %}

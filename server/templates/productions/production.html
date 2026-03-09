@@ -1,6 +1,12 @@
 {% extends "_layout.html" %}
 {% block title %}{{ production.title }} - {{ app_name }}{% endblock %}
 {% block page_name %}productions{% endblock %}
+{% block og_title %}{{ production.title }} - {{ app_name }}{% endblock %}
+{% block og_description %}{% if production.description.is_some() %}{{ production.description.as_ref().unwrap() }}{% else %}{{ production.title }} on {{ app_name }}{% endif %}{% endblock %}
+{% block og_image %}{% if production.poster_url.is_some() %}<meta property="og:image" content="{{ production.poster_url.as_ref().unwrap() }}" />{% else %}<meta property="og:image" content="/static/images/og-default.png" />{% endif %}{% endblock %}
+{% block twitter_title %}{{ production.title }} - {{ app_name }}{% endblock %}
+{% block twitter_description %}{% if production.description.is_some() %}{{ production.description.as_ref().unwrap() }}{% else %}{{ production.title }} on {{ app_name }}{% endif %}{% endblock %}
+{% block twitter_image %}{% if production.poster_url.is_some() %}<meta name="twitter:image" content="{{ production.poster_url.as_ref().unwrap() }}" />{% else %}<meta name="twitter:image" content="/static/images/og-default.png" />{% endif %}{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/productions.css" />
 {% endblock %}

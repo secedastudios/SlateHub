@@ -13,6 +13,24 @@
                 {{ app_name }}
             {% endblock %}
         </title>
+
+        <!-- Open Graph -->
+        <meta property="og:type" content="{% block og_type %}website{% endblock %}" />
+        <meta property="og:site_name" content="{{ app_name }}" />
+        <meta property="og:title" content="{% block og_title %}{{ app_name }}{% endblock %}" />
+        <meta property="og:description" content="{% block og_description %}A collaborative hub for the TV, film, and content industries{% endblock %}" />
+        {% block og_image %}<meta property="og:image" content="/static/images/og-default.png" />{% endblock %}
+        {% block og_extra %}{% endblock %}
+
+        <!-- Twitter Card -->
+        <meta name="twitter:card" content="{% block twitter_card %}summary_large_image{% endblock %}" />
+        <meta name="twitter:title" content="{% block twitter_title %}{{ app_name }}{% endblock %}" />
+        <meta name="twitter:description" content="{% block twitter_description %}A collaborative hub for the TV, film, and content industries{% endblock %}" />
+        {% block twitter_image %}<meta name="twitter:image" content="/static/images/og-default.png" />{% endblock %}
+
+        <!-- Theme -->
+        <meta name="theme-color" content="#eb5437" />
+
         {% include "partials/styles.html" %}
         {% block head %}{% endblock %}
     </head>
