@@ -333,7 +333,8 @@ impl InvolvementModel {
     pub async fn get_production_id(involvement_id: &str) -> Result<Option<RecordId>, Error> {
         let inv_rid = to_record_id(involvement_id);
 
-        let query = "SELECT out FROM $rid";
+        let query =
+            "SELECT VALUE string::concat(meta::tb(out), ':', meta::id(out)) FROM ONLY $rid";
 
         let mut result = DB
             .query(query)
@@ -341,13 +342,11 @@ impl InvolvementModel {
             .await
             .map_err(|e| Error::Database(format!("Failed to get involvement production: {}", e)))?;
 
-        let row: Option<serde_json::Value> = result.take(0)?;
-        if let Some(obj) = row {
-            if let Some(out) = obj.get("out").and_then(|v| v.as_str()) {
-                let parts: Vec<&str> = out.splitn(2, ':').collect();
-                if parts.len() == 2 {
-                    return Ok(Some(RecordId::new(parts[0], parts[1])));
-                }
+        let prod_id_str: Option<String> = result.take(0)?;
+        if let Some(id_str) = prod_id_str {
+            let parts: Vec<&str> = id_str.splitn(2, ':').collect();
+            if parts.len() == 2 {
+                return Ok(Some(RecordId::new(parts[0], parts[1])));
             }
         }
         Ok(None)

@@ -18,6 +18,12 @@ use crate::{
     templates::{BaseContext, User},
 };
 
+mod filters {
+    pub fn abs_url(path: &str) -> askama::Result<String> {
+        Ok(format!("{}{}", crate::config::app_url(), path))
+    }
+}
+
 /// Template-friendly notification view with String fields instead of RecordId
 struct NotificationView {
     id: String,

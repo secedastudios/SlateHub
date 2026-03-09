@@ -16,6 +16,12 @@ use crate::middleware::UserExtractor;
 use crate::services::embedding::generate_embedding;
 use crate::templates::User;
 
+mod filters {
+    pub fn abs_url(path: &str) -> askama::Result<String> {
+        Ok(format!("{}{}", crate::config::app_url(), path))
+    }
+}
+
 #[derive(Template)]
 #[template(path = "search/index.html")]
 struct SearchTemplate {

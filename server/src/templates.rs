@@ -9,6 +9,14 @@ use crate::db::DB;
 use crate::models::notification::NotificationModel;
 use crate::models::person::SessionUser;
 
+mod filters {
+    /// Convert a relative path to an absolute URL using APP_URL
+    pub fn abs_url(path: &str) -> askama::Result<String> {
+        let base = crate::config::app_url();
+        Ok(format!("{}{}", base, path))
+    }
+}
+
 /// Represents a user for template rendering
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -637,6 +645,12 @@ pub mod equipment {
     mod filters {
         use crate::record_id_ext::RecordIdExt;
         use surrealdb::types::RecordId;
+
+        /// Convert a relative path to an absolute URL using APP_URL
+        pub fn abs_url(path: &str) -> askama::Result<String> {
+            let base = crate::config::app_url();
+            Ok(format!("{}{}", base, path))
+        }
 
         /// Render a RecordId as "table:key" string for use in templates
         pub fn rid(id: &RecordId) -> askama::Result<String> {

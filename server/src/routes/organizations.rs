@@ -137,6 +137,12 @@ impl std::fmt::Display for OrgType {
     }
 }
 
+mod filters {
+    pub fn abs_url(path: &str) -> askama::Result<String> {
+        Ok(format!("{}{}", crate::config::app_url(), path))
+    }
+}
+
 #[derive(Template)]
 #[template(path = "organizations/list.html")]
 pub struct OrganizationsListTemplate {

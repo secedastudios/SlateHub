@@ -26,6 +26,12 @@ pub fn router() -> Router {
         .route("/{username}", get(user_profile))
 }
 
+mod filters {
+    pub fn abs_url(path: &str) -> askama::Result<String> {
+        Ok(format!("{}{}", crate::config::app_url(), path))
+    }
+}
+
 /// Organization summary for displaying user's organizations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrganizationSummary {
@@ -49,7 +55,6 @@ pub struct PublicProfileTemplate {
     pub organizations: Vec<OrganizationSummary>,
     pub social_links: Vec<SocialLinkDisplay>,
     pub involvements: Vec<crate::templates::InvolvementDisplay>,
-    pub base_url: String,
 }
 
 /// List of reserved routes that should not be treated as usernames
@@ -179,7 +184,6 @@ async fn user_profile(
         organizations,
         social_links,
         involvements,
-        base_url: crate::config::app_url(),
     };
 
     let html = template.render().map_err(|e| {

@@ -600,6 +600,8 @@ async fn delete_involvement(
     AuthenticatedUser(user): AuthenticatedUser,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
+    use surrealdb::types::RecordId;
+
     // Build full involvement record ID
     let involvement_id = if id.starts_with("involvement:") {
         id.clone()
@@ -607,45 +609,51 @@ async fn delete_involvement(
         format!("involvement:{}", id)
     };
 
+    // Parse into RecordId for proper SurrealDB binding
+    let inv_rid = if involvement_id.contains(':') {
+        let parts: Vec<&str> = involvement_id.splitn(2, ':').collect();
+        RecordId::new(parts[0], parts[1])
+    } else {
+        RecordId::new("involvement", involvement_id.as_str())
+    };
+
     // Auth check: user must be the person on the involvement or owner of the production
-    // Check if this is the user's own involvement
     let query = r#"
-        SELECT in.id AS person_id, out AS production_id
-        FROM $involvement_id
+        SELECT VALUE string::concat(meta::tb(in), ':', meta::id(in))
+        FROM ONLY $rid
     "#;
 
-    let mut result = match DB
-        .query(query)
-        .bind(("involvement_id", involvement_id.clone()))
-        .await
-    {
+    let mut result = match DB.query(query).bind(("rid", inv_rid)).await {
         Ok(r) => r,
         Err(e) => {
+            error!("Failed to check involvement: {}", e);
             return Json(serde_json::json!({ "error": format!("Failed to check involvement: {}", e) }))
                 .into_response();
         }
     };
 
-    let row: Option<serde_json::Value> = match result.take(0) {
+    let person_id_str: Option<String> = match result.take(0) {
         Ok(r) => r,
         Err(e) => {
+            error!("Involvement not found (deser): {}", e);
             return Json(serde_json::json!({ "error": format!("Involvement not found: {}", e) }))
                 .into_response();
         }
     };
 
-    let row = match row {
+    let person_id_str = match person_id_str {
         Some(r) => r,
         None => {
             return Json(serde_json::json!({ "error": "Involvement not found" })).into_response();
         }
     };
 
-    let person_id_str = row
-        .get("person_id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let is_own = person_id_str == user.id || person_id_str == format!("person:{}", user.id);
+    let user_full_id = if user.id.contains(':') {
+        user.id.clone()
+    } else {
+        format!("person:{}", user.id)
+    };
+    let is_own = person_id_str == user.id || person_id_str == user_full_id;
 
     if !is_own {
         // Check if user is owner of the production
@@ -661,6 +669,7 @@ async fn delete_involvement(
         }
     }
 
+    // Only delete the involvement edge, not the production
     match InvolvementModel::delete(&involvement_id).await {
         Ok(()) => Json(serde_json::json!({ "success": true })).into_response(),
         Err(e) => {
