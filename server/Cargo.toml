@@ -7,6 +7,14 @@ authors = ["Chris Bruce <chris@secedastudios.com>"]
 license = "Apache-2.0"
 default-run = "slatehub"
 
+[[bin]]
+name = "slatehub"
+path = "src/main.rs"
+
+[[bin]]
+name = "rebuild-embeddings"
+path = "src/bin/rebuild_embeddings.rs"
+
 [dependencies]
 axum = { version = "0.8.4", features = ["macros", "multipart"] }
 axum-extra = { version = "0.10", features = ["cookie"] }

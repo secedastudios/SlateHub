@@ -1,4 +1,4 @@
-.PHONY: all help start stop services services-start services-stop server server-start server-stop dev dev-start dev-stop logs logs-services logs-server build clean purge shell check-env db-init dirs wait-db
+.PHONY: all help start stop services services-start services-stop server server-start server-stop dev dev-start dev-stop logs logs-services logs-server build clean purge shell check-env db-init dirs wait-db rebuild-embeddings
 
 # Default target
 all: help
@@ -46,6 +46,9 @@ help:
 	@echo "Database:"
 	@echo "  make db-init        - Initialize database schema"
 	@echo "  make db-drop        - Drop database (delete all data)"
+	@echo ""
+	@echo "Search:"
+	@echo "  make rebuild-embeddings - Rebuild all vector embeddings for semantic search"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make shell          - Open shell in server container"
@@ -163,6 +166,10 @@ db-init: wait-db
 	else \
 		echo "Warning: db/schema.surql not found. Skipping initialization."; \
 	fi
+
+rebuild-embeddings:
+	@echo "Rebuilding all vector embeddings for semantic search..."
+	@cd server && cargo run --bin rebuild-embeddings
 
 db-drop:
 	@echo "⚠️  WARNING: This will delete the entire database!"

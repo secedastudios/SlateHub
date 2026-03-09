@@ -31,6 +31,7 @@ cp .env.example .env
 | `S3_REGION` | S3 region | `us-east-1` |
 | `MAILJET_API_KEY` | Mailjet API key for sending emails | Required for email features |
 | `MAILJET_API_SECRET` | Mailjet API secret | Required for email features |
+| `APP_URL` | Public URL of the application (used in emails and links) | `http://localhost:3000` |
 | `MAILJET_FROM_EMAIL` | Default sender email address | `noreply@slatehub.com` |
 | `MAILJET_FROM_NAME` | Default sender name | `SlateHub` |
 
@@ -93,6 +94,18 @@ Profile images and organisation logos are stored there and served publicly witho
 The server talks to RustFS (and any other S3-compatible backend) through the standard AWS S3 SDK —
 swap the `S3_ENDPOINT`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY` variables to point at AWS S3,
 Cloudflare R2, or any other compatible service instead.
+
+## Semantic Search
+
+SlateHub uses vector embeddings (BGE-Large-EN-v1.5, 1024 dimensions) for semantic search across people, organizations, locations, and productions. Embeddings are automatically generated when records are created or updated.
+
+To rebuild all embeddings from scratch (e.g. after a schema change or model upgrade):
+
+```bash
+make rebuild-embeddings
+```
+
+This connects to your configured database, fetches all records, regenerates embedding text and vectors, and updates each record in place.
 
 ## Logging
 

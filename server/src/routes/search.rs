@@ -132,33 +132,24 @@ async fn search_page(
 
     debug!("Search query: {}", query);
 
-    // Generate embedding for the search query
+    // Generate embedding for the search query (optional — text search works without it)
     let query_embedding = match generate_embedding(query) {
-        Ok(emb) => emb,
+        Ok(emb) => Some(emb),
         Err(e) => {
-            error!(
+            debug!(
                 error = %e,
-                error_debug = ?e,
                 query = %query,
-                "Failed to generate embedding for search query - embedding service may not be initialized"
+                "Embedding generation failed, falling back to text-only search"
             );
-            return Err(Error::Internal(
-                "Failed to process search query - embedding service error".to_string(),
-            ));
+            None
         }
     };
 
-    // Search people
-    let people = search_people(query_embedding.clone()).await?;
-
-    // Search organizations
-    let organizations = search_organizations(query_embedding.clone()).await?;
-
-    // Search locations
-    let locations = search_locations(query_embedding.clone()).await?;
-
-    // Search productions
-    let productions = search_productions(query_embedding.clone()).await?;
+    // Search all entity types
+    let people = search_people(query, query_embedding.clone()).await?;
+    let organizations = search_organizations(query, query_embedding.clone()).await?;
+    let locations = search_locations(query, query_embedding.clone()).await?;
+    let productions = search_productions(query, query_embedding).await?;
 
     let total_results = people.len() + organizations.len() + locations.len() + productions.len();
 
@@ -185,19 +176,25 @@ async fn search_page(
     Ok(Html(html))
 }
 
-async fn search_people(query_embedding: Vec<f32>) -> Result<Vec<PersonSearchResult>, Error> {
+async fn search_people(
+    query: &str,
+    query_embedding: Option<Vec<f32>>,
+) -> Result<Vec<PersonSearchResult>, Error> {
     #[derive(Debug, serde::Deserialize, SurrealValue)]
     struct PersonSearchDb {
         id: String,
-        name: String,
-        username: String,
+        name: Option<String>,
+        username: Option<String>,
         headline: Option<String>,
         bio: Option<String>,
         location: Option<String>,
-        skills: Vec<String>,
+        skills: Option<Vec<String>>,
         avatar_url: Option<String>,
         score: f32,
     }
+
+    let query_lower = query.to_lowercase();
+    let empty_embedding: Vec<f32> = vec![];
 
     let mut response = DB
         .query(
@@ -210,40 +207,47 @@ async fn search_people(query_embedding: Vec<f32>) -> Result<Vec<PersonSearchResu
                 profile.location AS location,
                 profile.skills AS skills,
                 profile.avatar AS avatar_url,
-                vector::similarity::cosine(embedding, $query_embedding) AS score
+                (
+                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(username ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(profile.headline ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        ELSE 0
+                    END)
+                ) AS score
             FROM person
-            WHERE embedding IS NOT NONE
+            WHERE
+                string::lowercase(name ?? '') CONTAINS $query_lower
+                OR string::lowercase(username ?? '') CONTAINS $query_lower
+                OR string::lowercase(profile.headline ?? '') CONTAINS $query_lower
+                OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower
+                OR (embedding IS NOT NONE AND $has_embedding = true
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
             ORDER BY score DESC
             LIMIT 10",
         )
-        .bind(("query_embedding", query_embedding))
+        .bind(("query_lower", query_lower))
+        .bind(("has_embedding", query_embedding.is_some()))
+        .bind(("query_embedding", query_embedding.unwrap_or(empty_embedding)))
         .await
         .map_err(|e| {
-            error!(
-                error = %e,
-                error_debug = ?e,
-                table = "person",
-                "Database error during vector search"
-            );
+            error!(error = %e, table = "person", "Database error during search");
             Error::Database(e.to_string())
         })?;
 
     let db_people: Vec<PersonSearchDb> = response.take(0).map_err(|e| {
-        error!(
-            error = %e,
-            error_debug = ?e,
-            table = "person",
-            "Failed to deserialize search results"
-        );
+        error!(error = %e, table = "person", "Failed to deserialize search results");
         Error::Database(e.to_string())
     })?;
 
-    // Convert to display results with score as percentage
     let people: Vec<PersonSearchResult> = db_people
         .into_iter()
+        .filter(|p| p.score > 0.0)
         .map(|p| {
-            let initials = p
-                .name
+            let name = p.name.unwrap_or_default();
+            let username = p.username.unwrap_or_default();
+            let initials = name
                 .split_whitespace()
                 .filter_map(|word| word.chars().next())
                 .take(2)
@@ -252,36 +256,39 @@ async fn search_people(query_embedding: Vec<f32>) -> Result<Vec<PersonSearchResu
 
             PersonSearchResult {
                 id: p.id,
-                name: p.name,
-                username: p.username,
+                name,
+                username,
                 headline: p.headline,
                 bio: p.bio,
                 location: p.location,
-                skills: p.skills,
+                skills: p.skills.unwrap_or_default(),
                 avatar_url: p.avatar_url,
                 initials,
-                score: (p.score * 100.0).round() as i32,
+                score: p.score.round() as i32,
             }
         })
-        .filter(|p| p.score >= 50)
         .collect();
 
     Ok(people)
 }
 
 async fn search_organizations(
-    query_embedding: Vec<f32>,
+    query: &str,
+    query_embedding: Option<Vec<f32>>,
 ) -> Result<Vec<OrganizationSearchResult>, Error> {
     #[derive(Debug, serde::Deserialize, SurrealValue)]
     struct OrganizationSearchDb {
         id: String,
-        name: String,
-        slug: String,
+        name: Option<String>,
+        slug: Option<String>,
         description: Option<String>,
         location: Option<String>,
         logo: Option<String>,
         score: f32,
     }
+
+    let query_lower = query.to_lowercase();
+    let empty_embedding: Vec<f32> = vec![];
 
     let mut response = DB
         .query(
@@ -292,63 +299,73 @@ async fn search_organizations(
                 description,
                 location,
                 logo,
-                vector::similarity::cosine(embedding, $query_embedding) AS score
+                (
+                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(slug ?? '') CONTAINS $query_lower THEN 30 ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        ELSE 0
+                    END)
+                ) AS score
             FROM organization
-            WHERE embedding IS NOT NONE
+            WHERE
+                string::lowercase(name ?? '') CONTAINS $query_lower
+                OR string::lowercase(slug ?? '') CONTAINS $query_lower
+                OR string::lowercase(description ?? '') CONTAINS $query_lower
+                OR (embedding IS NOT NONE AND $has_embedding = true
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
             ORDER BY score DESC
             LIMIT 10",
         )
-        .bind(("query_embedding", query_embedding))
+        .bind(("query_lower", query_lower))
+        .bind(("has_embedding", query_embedding.is_some()))
+        .bind(("query_embedding", query_embedding.unwrap_or(empty_embedding)))
         .await
         .map_err(|e| {
-            error!(
-                error = %e,
-                error_debug = ?e,
-                table = "organization",
-                "Database error during vector search"
-            );
+            error!(error = %e, table = "organization", "Database error during search");
             Error::Database(e.to_string())
         })?;
 
     let db_organizations: Vec<OrganizationSearchDb> = response.take(0).map_err(|e| {
-        error!(
-            error = %e,
-            error_debug = ?e,
-            table = "organization",
-            "Failed to deserialize search results"
-        );
+        error!(error = %e, table = "organization", "Failed to deserialize search results");
         Error::Database(e.to_string())
     })?;
 
-    // Convert to display results with score as percentage
     let organizations: Vec<OrganizationSearchResult> = db_organizations
         .into_iter()
+        .filter(|o| o.score > 0.0)
         .map(|o| OrganizationSearchResult {
             id: o.id,
-            name: o.name,
-            slug: o.slug,
+            name: o.name.unwrap_or_default(),
+            slug: o.slug.unwrap_or_default(),
             description: o.description,
             location: o.location,
             logo: o.logo,
-            score: (o.score * 100.0).round() as i32,
+            score: o.score.round() as i32,
         })
-        .filter(|o| o.score >= 50)
         .collect();
 
     Ok(organizations)
 }
 
-async fn search_locations(query_embedding: Vec<f32>) -> Result<Vec<LocationSearchResult>, Error> {
+async fn search_locations(
+    query: &str,
+    query_embedding: Option<Vec<f32>>,
+) -> Result<Vec<LocationSearchResult>, Error> {
     #[derive(Debug, serde::Deserialize, SurrealValue)]
     struct LocationSearchDb {
         id: String,
-        name: String,
-        address: String,
-        city: String,
-        state: String,
+        name: Option<String>,
+        address: Option<String>,
+        city: Option<String>,
+        state: Option<String>,
         description: Option<String>,
         score: f32,
     }
+
+    let query_lower = query.to_lowercase();
+    let empty_embedding: Vec<f32> = vec![];
 
     let mut response = DB
         .query(
@@ -359,64 +376,77 @@ async fn search_locations(query_embedding: Vec<f32>) -> Result<Vec<LocationSearc
                 city,
                 state,
                 description,
-                vector::similarity::cosine(embedding, $query_embedding) AS score
+                (
+                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(city ?? '') CONTAINS $query_lower THEN 30 ELSE 0 END)
+                    + (IF string::lowercase(state ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    + (IF string::lowercase(address ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 10 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        ELSE 0
+                    END)
+                ) AS score
             FROM location
-            WHERE embedding IS NOT NONE AND is_public = true
+            WHERE is_public = true AND (
+                string::lowercase(name ?? '') CONTAINS $query_lower
+                OR string::lowercase(city ?? '') CONTAINS $query_lower
+                OR string::lowercase(state ?? '') CONTAINS $query_lower
+                OR string::lowercase(address ?? '') CONTAINS $query_lower
+                OR string::lowercase(description ?? '') CONTAINS $query_lower
+                OR (embedding IS NOT NONE AND $has_embedding = true
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
+            )
             ORDER BY score DESC
             LIMIT 10",
         )
-        .bind(("query_embedding", query_embedding))
+        .bind(("query_lower", query_lower))
+        .bind(("has_embedding", query_embedding.is_some()))
+        .bind(("query_embedding", query_embedding.unwrap_or(empty_embedding)))
         .await
         .map_err(|e| {
-            error!(
-                error = %e,
-                error_debug = ?e,
-                table = "location",
-                "Database error during vector search"
-            );
+            error!(error = %e, table = "location", "Database error during search");
             Error::Database(e.to_string())
         })?;
 
     let db_locations: Vec<LocationSearchDb> = response.take(0).map_err(|e| {
-        error!(
-            error = %e,
-            error_debug = ?e,
-            table = "location",
-            "Failed to deserialize search results"
-        );
+        error!(error = %e, table = "location", "Failed to deserialize search results");
         Error::Database(e.to_string())
     })?;
 
-    // Convert to display results with score as percentage
     let locations: Vec<LocationSearchResult> = db_locations
         .into_iter()
+        .filter(|l| l.score > 0.0)
         .map(|l| LocationSearchResult {
             id: l.id,
-            name: l.name,
-            address: l.address,
-            city: l.city,
-            state: l.state,
+            name: l.name.unwrap_or_default(),
+            address: l.address.unwrap_or_default(),
+            city: l.city.unwrap_or_default(),
+            state: l.state.unwrap_or_default(),
             description: l.description,
-            score: (l.score * 100.0).round() as i32,
+            score: l.score.round() as i32,
         })
-        .filter(|l| l.score >= 50)
         .collect();
 
     Ok(locations)
 }
 
 async fn search_productions(
-    query_embedding: Vec<f32>,
+    query: &str,
+    query_embedding: Option<Vec<f32>>,
 ) -> Result<Vec<ProductionSearchResult>, Error> {
     #[derive(Debug, serde::Deserialize, SurrealValue)]
     struct ProductionSearchDb {
         id: String,
-        title: String,
-        status: String,
+        title: Option<String>,
+        status: Option<String>,
         description: Option<String>,
         location: Option<String>,
         score: f32,
     }
+
+    let query_lower = query.to_lowercase();
+    let empty_embedding: Vec<f32> = vec![];
 
     let mut response = DB
         .query(
@@ -426,46 +456,50 @@ async fn search_productions(
                 status,
                 description,
                 location,
-                vector::similarity::cosine(embedding, $query_embedding) AS score
+                (
+                    (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        ELSE 0
+                    END)
+                ) AS score
             FROM production
-            WHERE embedding IS NOT NONE
+            WHERE
+                string::lowercase(title ?? '') CONTAINS $query_lower
+                OR string::lowercase(description ?? '') CONTAINS $query_lower
+                OR string::lowercase(location ?? '') CONTAINS $query_lower
+                OR (embedding IS NOT NONE AND $has_embedding = true
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
             ORDER BY score DESC
             LIMIT 10",
         )
-        .bind(("query_embedding", query_embedding))
+        .bind(("query_lower", query_lower))
+        .bind(("has_embedding", query_embedding.is_some()))
+        .bind(("query_embedding", query_embedding.unwrap_or(empty_embedding)))
         .await
         .map_err(|e| {
-            error!(
-                error = %e,
-                error_debug = ?e,
-                table = "production",
-                "Database error during vector search"
-            );
+            error!(error = %e, table = "production", "Database error during search");
             Error::Database(e.to_string())
         })?;
 
     let db_productions: Vec<ProductionSearchDb> = response.take(0).map_err(|e| {
-        error!(
-            error = %e,
-            error_debug = ?e,
-            table = "production",
-            "Failed to deserialize search results"
-        );
+        error!(error = %e, table = "production", "Failed to deserialize search results");
         Error::Database(e.to_string())
     })?;
 
-    // Convert to display results with score as percentage
     let productions: Vec<ProductionSearchResult> = db_productions
         .into_iter()
+        .filter(|p| p.score > 0.0)
         .map(|p| ProductionSearchResult {
             id: p.id,
-            title: p.title,
-            status: p.status,
+            title: p.title.unwrap_or_default(),
+            status: p.status.unwrap_or_default(),
             description: p.description,
             location: p.location,
-            score: (p.score * 100.0).round() as i32,
+            score: p.score.round() as i32,
         })
-        .filter(|p| p.score >= 50)
         .collect();
 
     Ok(productions)
