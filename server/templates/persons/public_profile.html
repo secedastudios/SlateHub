@@ -45,6 +45,21 @@
                         {% endmatch %}
                         {% when None %}
                     {% endmatch %}
+                    {% if !social_links.is_empty() %}
+                    <nav id="public-profile-social-links" aria-label="Social links">
+                        {% for link in social_links %}
+                        <a
+                            href="{{ link.url }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-role="social-link"
+                            title="{{ link.name }}"
+                        >
+                            {{ link.icon_svg|safe }}
+                        </a>
+                        {% endfor %}
+                    </nav>
+                    {% endif %}
                 </div>
             </div>
             {% if is_own_profile %}

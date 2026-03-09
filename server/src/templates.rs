@@ -248,8 +248,17 @@ pub struct ProfileData {
     pub availability: Option<String>,
     pub experience: Vec<Experience>,
     pub education: Vec<Education>,
+    pub social_links: Vec<SocialLinkDisplay>,
     pub is_own_profile: bool,
     pub is_public: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SocialLinkDisplay {
+    pub platform: String,
+    pub url: String,
+    pub name: String,
+    pub icon_svg: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -284,8 +293,17 @@ pub struct ProfileEditTemplate {
     pub active_page: String,
     pub user: Option<User>,
     pub profile: ProfileData,
+    pub platforms: Vec<SocialPlatformOption>,
     pub error: Option<String>,
     pub success: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SocialPlatformOption {
+    pub id: String,
+    pub name: String,
+    pub placeholder: String,
+    pub base_url: Option<String>,
 }
 
 /// Productions page template

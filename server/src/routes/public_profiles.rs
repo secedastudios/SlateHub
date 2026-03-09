@@ -14,7 +14,8 @@ use crate::{
     middleware::UserExtractor,
     models::person::Person,
     record_id_ext::RecordIdExt,
-    templates::{BaseContext, PeopleTemplate, PersonCard, User},
+    social_platforms,
+    templates::{BaseContext, PeopleTemplate, PersonCard, SocialLinkDisplay, User},
 };
 
 pub fn router() -> Router {
@@ -45,6 +46,7 @@ pub struct PublicProfileTemplate {
     pub person: Person,
     pub is_own_profile: bool,
     pub organizations: Vec<OrganizationSummary>,
+    pub social_links: Vec<SocialLinkDisplay>,
 }
 
 /// List of reserved routes that should not be treated as usernames
@@ -117,6 +119,24 @@ async fn user_profile(
         base = base.with_user(User::from_session_user(&user).await);
     }
 
+    // Build social link displays from person's stored links
+    let social_links: Vec<SocialLinkDisplay> = person
+        .profile
+        .as_ref()
+        .map(|p| &p.social_links)
+        .unwrap_or(&vec![])
+        .iter()
+        .map(|link| {
+            let platform = social_platforms::find_platform(&link.platform);
+            SocialLinkDisplay {
+                platform: link.platform.clone(),
+                url: link.url.clone(),
+                name: platform.name.to_string(),
+                icon_svg: platform.icon_svg.to_string(),
+            }
+        })
+        .collect();
+
     // Create and render template
     let template = PublicProfileTemplate {
         app_name: base.app_name,
@@ -127,6 +147,7 @@ async fn user_profile(
         person,
         is_own_profile,
         organizations,
+        social_links,
     };
 
     let html = template.render().map_err(|e| {

@@ -5,16 +5,18 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
     routing::get,
 };
+use std::collections::HashMap;
 use tracing::{debug, error, info};
 
 use crate::{
     error::Error,
     middleware::{AuthenticatedUser, UserExtractor},
-    models::person::Person,
+    models::person::{Person, SocialLink},
     record_id_ext::RecordIdExt,
+    social_platforms::{self, SOCIAL_PLATFORMS},
     templates::{
         BaseContext, DateRange, Education, Experience, ProfileData, ProfileEditTemplate,
-        ProfileTemplate, User,
+        ProfileTemplate, SocialLinkDisplay, SocialPlatformOption, User,
     },
 };
 
@@ -23,6 +25,35 @@ pub fn router() -> Router {
         .route("/profile", get(own_profile))
         .route("/profile/{username}", get(user_profile))
         .route("/profile/edit", get(edit_profile_form).post(update_profile))
+}
+
+/// Convert stored social links to display format with platform metadata
+fn to_social_link_displays(links: &[SocialLink]) -> Vec<SocialLinkDisplay> {
+    links
+        .iter()
+        .map(|link| {
+            let platform = social_platforms::find_platform(&link.platform);
+            SocialLinkDisplay {
+                platform: link.platform.clone(),
+                url: link.url.clone(),
+                name: platform.name.to_string(),
+                icon_svg: platform.icon_svg.to_string(),
+            }
+        })
+        .collect()
+}
+
+/// Build platform options for the edit form dropdown
+fn platform_options() -> Vec<SocialPlatformOption> {
+    SOCIAL_PLATFORMS
+        .iter()
+        .map(|p| SocialPlatformOption {
+            id: p.id.to_string(),
+            name: p.name.to_string(),
+            placeholder: p.placeholder.to_string(),
+            base_url: p.base_url.map(|s| s.to_string()),
+        })
+        .collect()
 }
 
 /// Handler for viewing the logged-in user's own profile
@@ -119,6 +150,9 @@ async fn user_profile(
                 }),
             })
             .collect(),
+        social_links: to_social_link_displays(
+            &profile.map(|p| p.social_links.clone()).unwrap_or_default(),
+        ),
         is_own_profile,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
     };
@@ -219,6 +253,9 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
                 }),
             })
             .collect(),
+        social_links: to_social_link_displays(
+            &profile.map(|p| p.social_links.clone()).unwrap_or_default(),
+        ),
         is_own_profile: true,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
     };
@@ -231,6 +268,7 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         active_page: base.active_page,
         user: base.user,
         profile: profile_data,
+        platforms: platform_options(),
         error: None,
         success: None,
     };
@@ -243,24 +281,73 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
     Ok(Html(html).into_response())
 }
 
+/// Parse social link form fields from the flat form data.
+/// Form fields come as `social_links[0][platform]`, `social_links[0][url]`, etc.
+fn parse_social_links(form: &HashMap<String, String>) -> Vec<SocialLink> {
+    let mut links: HashMap<usize, (Option<String>, Option<String>)> = HashMap::new();
+
+    for (key, value) in form {
+        if let Some(rest) = key.strip_prefix("social_links[") {
+            if let Some(bracket_pos) = rest.find(']') {
+                if let Ok(idx) = rest[..bracket_pos].parse::<usize>() {
+                    let field = rest[bracket_pos + 1..]
+                        .trim_start_matches('[')
+                        .trim_end_matches(']');
+                    let entry = links.entry(idx).or_insert((None, None));
+                    match field {
+                        "platform" => entry.0 = Some(value.clone()),
+                        "url" => entry.1 = Some(value.clone()),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    let mut sorted: Vec<_> = links.into_iter().collect();
+    sorted.sort_by_key(|(idx, _)| *idx);
+
+    sorted
+        .into_iter()
+        .filter_map(|(_, (platform, url))| {
+            let platform = platform?.trim().to_string();
+            let url = url?.trim().to_string();
+            if platform.is_empty() || url.is_empty() {
+                return None;
+            }
+            let expanded_url = social_platforms::expand_url(&platform, &url);
+            if expanded_url.is_empty() {
+                return None;
+            }
+            Some(SocialLink {
+                platform,
+                url: expanded_url,
+            })
+        })
+        .collect()
+}
+
 /// Handler for updating the user's profile
 async fn update_profile(
     AuthenticatedUser(current_user): AuthenticatedUser,
-    Form(form): Form<UpdateProfileForm>,
+    Form(form): Form<HashMap<String, String>>,
 ) -> Result<Response, Error> {
     debug!("Handling profile update request");
+
+    let social_links = parse_social_links(&form);
 
     // Update the profile in the database
     match Person::update_profile(
         &current_user.id,
-        form.name,
-        form.headline,
-        form.bio,
-        form.location,
-        form.website,
-        form.skills,
-        form.languages,
-        form.availability,
+        form.get("name").cloned(),
+        form.get("headline").cloned(),
+        form.get("bio").cloned(),
+        form.get("location").cloned(),
+        form.get("website").cloned(),
+        form.get("skills").cloned(),
+        form.get("languages").cloned(),
+        form.get("availability").cloned(),
+        Some(social_links),
     )
     .await
     {
@@ -283,17 +370,4 @@ async fn update_profile(
             Err(e)
         }
     }
-}
-
-/// Form data for updating a user profile
-#[derive(Debug, serde::Deserialize)]
-pub struct UpdateProfileForm {
-    pub name: Option<String>,
-    pub headline: Option<String>,
-    pub bio: Option<String>,
-    pub location: Option<String>,
-    pub website: Option<String>,
-    pub skills: Option<String>,    // Comma-separated list
-    pub languages: Option<String>, // Comma-separated list
-    pub availability: Option<String>,
 }

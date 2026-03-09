@@ -281,8 +281,20 @@
 }
 
 /* ----------------------------------------
-   Dynamic Items (Experience / Education)
+   Dynamic Items (Social Links / Experience / Education)
    ---------------------------------------- */
+
+[data-role="social-link-item"] {
+    border: 1px solid rgba(214, 216, 202, 0.08);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+    background: rgba(214, 216, 202, 0.02);
+    transition: border-color var(--transition-fast);
+}
+
+[data-role="social-link-item"]:hover {
+    border-color: rgba(214, 216, 202, 0.15);
+}
 
 [data-role="experience-item"],
 [data-role="education-item"] {

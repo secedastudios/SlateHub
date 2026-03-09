@@ -11,4 +11,5 @@ pub mod response;
 pub mod routes;
 pub mod serde_utils;
 pub mod services;
+pub mod social_platforms;
 pub mod templates;

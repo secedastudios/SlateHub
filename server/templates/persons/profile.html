@@ -43,8 +43,20 @@
                         {% endif %}
                     </div>
 
-                    {% if profile.website.is_some() %}
+                    {% if !profile.social_links.is_empty() || profile.website.is_some() %}
                     <nav id="profile-social-links" aria-label="External links">
+                        {% for link in profile.social_links %}
+                        <a
+                            href="{{ link.url }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-role="social-link"
+                            title="{{ link.name }}"
+                        >
+                            {{ link.icon_svg|safe }}
+                        </a>
+                        {% endfor %}
+                        {% if profile.website.is_some() %}
                         <a
                             href="{{ profile.website.as_ref().unwrap() }}"
                             target="_blank"
@@ -57,6 +69,7 @@
                                 <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                             </svg>
                         </a>
+                        {% endif %}
                     </nav>
                     {% endif %}
                 </div>

@@ -488,6 +488,7 @@ impl Person {
         skills: Option<String>,
         languages: Option<String>,
         availability: Option<String>,
+        social_links: Option<Vec<SocialLink>>,
     ) -> Result<Option<Self>> {
         let _span = db_span!("Person::update_profile", user_id);
 
@@ -595,6 +596,9 @@ impl Person {
             }
             if let Some(a) = availability {
                 profile.availability = if a.is_empty() { None } else { Some(a) };
+            }
+            if let Some(links) = social_links {
+                profile.social_links = links;
             }
         }
 

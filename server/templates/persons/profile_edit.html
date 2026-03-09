@@ -164,6 +164,85 @@
             </div>
         </section>
 
+        <section id="section-social-links" data-section="social-links" aria-labelledby="heading-social-links">
+            <div id="social-links-section-header" data-role="section-header-row">
+                <h2 id="heading-social-links">Social Links</h2>
+                <button type="button" id="button-add-social-link" data-action="add" data-target="social-links" onclick="addSocialLink()">
+                    + Add
+                </button>
+            </div>
+
+            <div id="social-links-container" data-role="dynamic-container" data-items="social-links">
+                {% for link in profile.social_links %}
+                <fieldset id="fieldset-social-link-{{ loop.index }}" data-role="social-link-item" data-index="{{ loop.index }}">
+                    <legend hidden>Social Link {{ loop.index }}</legend>
+
+                    <div data-role="field-grid">
+                        <div data-field="platform">
+                            <label for="select-social-platform-{{ loop.index }}">Platform</label>
+                            <select
+                                id="select-social-platform-{{ loop.index }}"
+                                name="social_links[{{ loop.index0 }}][platform]"
+                                onchange="updateSocialPlaceholder(this)"
+                            >
+                                {% for p in platforms %}
+                                <option value="{{ p.id }}" data-placeholder="{{ p.placeholder }}" {% if p.id == link.platform %}selected{% endif %}>{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div data-field="url">
+                            <label for="input-social-url-{{ loop.index }}">URL or Handle</label>
+                            <input
+                                type="text"
+                                id="input-social-url-{{ loop.index }}"
+                                name="social_links[{{ loop.index0 }}][url]"
+                                value="{{ link.url }}"
+                                placeholder="URL or handle"
+                            />
+                        </div>
+                    </div>
+
+                    <div data-role="item-footer">
+                        <span></span>
+                        <button type="button" data-action="remove" onclick="removeItem(this)">Remove</button>
+                    </div>
+                </fieldset>
+                {% endfor %}
+
+                {% if profile.social_links.is_empty() %}
+                <fieldset id="fieldset-social-link-1" data-role="social-link-item" data-index="1">
+                    <legend hidden>Social Link 1</legend>
+
+                    <div data-role="field-grid">
+                        <div data-field="platform">
+                            <label for="select-social-platform-1">Platform</label>
+                            <select
+                                id="select-social-platform-1"
+                                name="social_links[0][platform]"
+                                onchange="updateSocialPlaceholder(this)"
+                            >
+                                {% for p in platforms %}
+                                <option value="{{ p.id }}" data-placeholder="{{ p.placeholder }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div data-field="url">
+                            <label for="input-social-url-1">URL or Handle</label>
+                            <input type="text" id="input-social-url-1" name="social_links[0][url]" placeholder="@channel or full URL" />
+                        </div>
+                    </div>
+
+                    <div data-role="item-footer">
+                        <span></span>
+                        <button type="button" data-action="remove" onclick="removeItem(this)">Remove</button>
+                    </div>
+                </fieldset>
+                {% endif %}
+            </div>
+        </section>
+
         <section id="section-experience" data-section="experience" aria-labelledby="heading-experience">
             <div id="experience-section-header" data-role="section-header-row">
                 <h2 id="heading-experience">Experience</h2>
@@ -471,6 +550,53 @@ function addEducation() {
 function removeItem(button) {
     const fieldset = button.closest('fieldset');
     fieldset.remove();
+}
+
+function addSocialLink() {
+    const container = document.getElementById('social-links-container');
+    const items = container.querySelectorAll('[data-role="social-link-item"]');
+    const newIndex = items.length + 1;
+    const arrayIndex = items.length;
+
+    const fieldset = document.createElement('fieldset');
+    fieldset.id = 'fieldset-social-link-' + newIndex;
+    fieldset.setAttribute('data-role', 'social-link-item');
+    fieldset.setAttribute('data-index', newIndex);
+
+    var optionsHtml = '';
+    var platforms = document.querySelector('[data-role="social-link-item"] select');
+    if (platforms) {
+        for (var i = 0; i < platforms.options.length; i++) {
+            var opt = platforms.options[i];
+            optionsHtml += '<option value="' + opt.value + '" data-placeholder="' + (opt.dataset.placeholder || '') + '">' + opt.text + '</option>';
+        }
+    }
+
+    fieldset.innerHTML =
+        '<legend hidden>Social Link ' + newIndex + '</legend>' +
+        '<div data-role="field-grid">' +
+            '<div data-field="platform"><label for="select-social-platform-' + newIndex + '">Platform</label>' +
+            '<select id="select-social-platform-' + newIndex + '" name="social_links[' + arrayIndex + '][platform]" onchange="updateSocialPlaceholder(this)">' +
+            optionsHtml + '</select></div>' +
+            '<div data-field="url"><label for="input-social-url-' + newIndex + '">URL or Handle</label>' +
+            '<input type="text" id="input-social-url-' + newIndex + '" name="social_links[' + arrayIndex + '][url]" placeholder="@channel or full URL" /></div>' +
+        '</div>' +
+        '<div data-role="item-footer"><span></span>' +
+            '<button type="button" data-action="remove" onclick="removeItem(this)">Remove</button>' +
+        '</div>';
+
+    container.appendChild(fieldset);
+    updateSocialPlaceholder(fieldset.querySelector('select'));
+}
+
+function updateSocialPlaceholder(select) {
+    var selected = select.options[select.selectedIndex];
+    var placeholder = selected.dataset.placeholder || '@handle or full URL';
+    var fieldset = select.closest('fieldset');
+    var input = fieldset.querySelector('input[name*="[url]"]');
+    if (input) {
+        input.placeholder = placeholder;
+    }
 }
 </script>
 <script src="/static/js/profile-image-upload.js"></script>

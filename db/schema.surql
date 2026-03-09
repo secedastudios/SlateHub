@@ -237,7 +237,9 @@ DEFINE FIELD profile.reels ON person TYPE array<record<media>> PERMISSIONS FULL;
 DEFINE FIELD profile.name ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.skills ON person TYPE array<string> PERMISSIONS FULL;
 DEFINE FIELD profile.bio ON person TYPE option<string> PERMISSIONS FULL;  -- For semantic search (detailed description)
-DEFINE FIELD profile.social_links ON person TYPE array<object> PERMISSIONS FULL;
+DEFINE FIELD profile.social_links ON person TYPE array<object> FLEXIBLE PERMISSIONS FULL;
+DEFINE FIELD profile.social_links[*].platform ON person TYPE string PERMISSIONS FULL;
+DEFINE FIELD profile.social_links[*].url ON person TYPE string PERMISSIONS FULL;
 
 DEFINE FIELD profile.location ON person TYPE option<string> PERMISSIONS FULL;  -- e.g., city/state for search
 DEFINE FIELD profile.unions ON person TYPE array<string> PERMISSIONS FULL;  -- From union enum, e.g., ["SAG-AFTRA", "IATSE"]
