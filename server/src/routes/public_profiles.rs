@@ -12,10 +12,11 @@ use crate::{
     db::DB,
     error::Error,
     middleware::UserExtractor,
+    models::involvement::InvolvementModel,
     models::person::Person,
     record_id_ext::RecordIdExt,
     social_platforms,
-    templates::{BaseContext, PeopleTemplate, PersonCard, SocialLinkDisplay, User},
+    templates::{BaseContext, InvolvementDisplay, PeopleTemplate, PersonCard, SocialLinkDisplay, User},
 };
 
 pub fn router() -> Router {
@@ -47,6 +48,7 @@ pub struct PublicProfileTemplate {
     pub is_own_profile: bool,
     pub organizations: Vec<OrganizationSummary>,
     pub social_links: Vec<SocialLinkDisplay>,
+    pub involvements: Vec<crate::templates::InvolvementDisplay>,
 }
 
 /// List of reserved routes that should not be treated as usernames
@@ -137,6 +139,33 @@ async fn user_profile(
         })
         .collect();
 
+    // Fetch involvements via graph traversal
+    let person_id_str = person.id.to_raw_string();
+    let involvements: Vec<InvolvementDisplay> = match InvolvementModel::get_for_person(&person_id_str).await {
+        Ok(invs) => invs
+            .into_iter()
+            .map(|inv| InvolvementDisplay {
+                involvement_id: inv.id.to_raw_string(),
+                role: inv.role,
+                relation_type: inv.relation_type,
+                department: inv.department,
+                verification_status: inv.verification_status,
+                production_title: inv.production_title,
+                production_slug: inv.production_slug,
+                production_type: inv.production_type,
+                poster_url: inv.poster_url,
+                tmdb_url: inv.tmdb_url,
+                release_date: inv.release_date,
+                media_type: inv.media_type,
+                is_claimed: inv.is_claimed,
+            })
+            .collect(),
+        Err(e) => {
+            error!("Failed to fetch involvements for {}: {}", username, e);
+            vec![]
+        }
+    };
+
     // Create and render template
     let template = PublicProfileTemplate {
         app_name: base.app_name,
@@ -148,6 +177,7 @@ async fn user_profile(
         is_own_profile,
         organizations,
         social_links,
+        involvements,
     };
 
     let html = template.render().map_err(|e| {

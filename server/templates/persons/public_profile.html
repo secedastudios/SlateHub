@@ -137,31 +137,46 @@
                     </ul>
                 </section>
             {% endif %}
-            {% if !profile.experience.is_empty() %}
+            {% if !involvements.is_empty() %}
                 <section
-        id="section-experience"
-        aria-labelledby="heading-experience"
-        data-section="experience"
+        id="section-credits"
+        aria-labelledby="heading-credits"
+        data-section="credits"
     >
-                    <h2 id="heading-experience">Experience</h2>
-                    <div data-role="experience-list">
-                        {% for exp in profile.experience %}
+                    <h2 id="heading-credits">Credits</h2>
+                    <div data-role="credits-list">
+                        {% for inv in involvements %}
                             <div
-                data-component="experience-item"
-                data-experience-id="{{ loop.index }}"
+                data-component="credit-item"
+                {% if inv.poster_url.is_some() %}data-has-poster{% endif %}
             >
-                                <header data-role="experience-header">
-                                    <h3 id="experience-role-{{ loop.index }}">{{ exp.role }}</h3>
-                                    {% match exp.production %}
-                                        {% when Some with (production) %}
-                                        <p data-role="production-name">{{ production }}</p>
-                                        {% when None %}
-                                    {% endmatch %}
-                                    {% match exp.description %}
-                                        {% when Some with (description) %}
-                                        <p data-role="experience-description">{{ description }}</p>
-                                        {% when None %}
-                                    {% endmatch %}
+                                {% if inv.poster_url.is_some() %}
+                                <div data-role="credit-poster">
+                                    <img src="{{ inv.poster_url.as_ref().unwrap() }}" alt="" loading="lazy" />
+                                </div>
+                                {% endif %}
+                                <header data-role="credit-header">
+                                    <h3>
+                                        {% if inv.role.is_some() %}
+                                        {{ inv.role.as_ref().unwrap() }}
+                                        {% else %}
+                                        {{ inv.relation_type }}
+                                        {% endif %}
+                                    </h3>
+                                    <p data-role="production-name">
+                                        <a href="/productions/{{ inv.production_slug }}">{{ inv.production_title }}</a>
+                                    </p>
+                                    {% if inv.release_date.is_some() %}
+                                    <p data-role="release-date">{{ inv.release_date.as_ref().unwrap() }}</p>
+                                    {% endif %}
+                                    <div data-role="credit-badges">
+                                        <span data-role="credit-type-badge">{{ inv.production_type }}</span>
+                                        {% if inv.verification_status == "verified" %}
+                                        <span data-role="verification-badge" data-status="verified">Verified</span>
+                                        {% else if inv.verification_status == "externally_sourced" %}
+                                        <span data-role="verification-badge" data-status="external">TMDb</span>
+                                        {% endif %}
+                                    </div>
                                 </header>
                             </div>
                         {% endfor %}
@@ -231,7 +246,7 @@
             {%
                 if
                 profile.bio.is_none() && profile.headline.is_none() &&
-                profile.skills.is_empty() && profile.experience.is_empty()
+                profile.skills.is_empty() && involvements.is_empty()
             %}
                 <section
         id="section-empty-state"

@@ -305,6 +305,441 @@
     transition: border-color var(--transition-fast);
 }
 
+[data-role="experience-item"][data-tmdb-id] {
+    display: flex;
+    gap: var(--space-md);
+}
+
+[data-role="experience-poster"] {
+    flex-shrink: 0;
+    width: 70px;
+    border-radius: var(--radius-sm, 4px);
+    overflow: hidden;
+}
+
+[data-role="experience-poster"] img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+[data-role="experience-fields"] {
+    flex: 1;
+    min-width: 0;
+}
+
+[data-role="item-actions"] {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+a[data-role="tmdb-link"] {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-accent, #eb5437);
+    text-decoration: none;
+    opacity: 0.7;
+}
+
+a[data-role="tmdb-link"]:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+[data-role="section-actions"] {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* TMDB Import Panel */
+[data-role="import-panel"] {
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    background: rgba(214, 216, 202, 0.04);
+}
+
+[data-role="import-search"] label {
+    display: block;
+    margin-bottom: var(--space-sm);
+}
+
+[data-role="search-row"] {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+[data-role="search-row"] input {
+    flex: 1;
+}
+
+[data-role="search-results"] ul[data-role="person-results"] {
+    list-style: none;
+    padding: 0;
+    margin: var(--space-md) 0 0;
+}
+
+[data-role="person-results"] li {
+    margin-bottom: var(--space-xs);
+}
+
+[data-role="person-results"] button {
+    width: 100%;
+    text-align: left;
+    background: rgba(214, 216, 202, 0.04);
+    border: 1px solid rgba(214, 216, 202, 0.08);
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    color: var(--color-text-primary, #d6d8ca);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+}
+
+[data-role="person-results"] button:hover {
+    background: rgba(214, 216, 202, 0.08);
+    border-color: rgba(214, 216, 202, 0.15);
+}
+
+[data-role="person-results"] [data-role="department"] {
+    color: var(--color-text-muted, #9ca39e);
+    font-size: var(--text-xs);
+}
+
+[data-role="credits-header"] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid rgba(214, 216, 202, 0.08);
+}
+
+label[data-role="credit-item"] {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.04);
+    cursor: pointer;
+}
+
+label[data-role="credit-item"][data-imported="true"] {
+    opacity: 0.5;
+}
+
+label[data-role="credit-item"] input[type="checkbox"] {
+    margin-top: var(--space-xs);
+    flex-shrink: 0;
+}
+
+[data-role="credit-poster"] {
+    flex-shrink: 0;
+    width: 40px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+[data-role="credit-poster"] img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+[data-role="no-poster"] {
+    width: 40px;
+    height: 60px;
+    background: rgba(214, 216, 202, 0.06);
+    border-radius: 2px;
+}
+
+[data-role="credit-info"] {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-sm);
+}
+
+[data-role="credit-info"] strong {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+[data-role="credit-info"] [data-role="year"] {
+    color: var(--color-text-muted, #9ca39e);
+    font-size: var(--text-xs);
+}
+
+[data-role="credit-role"] {
+    color: var(--color-text-muted, #9ca39e);
+    font-size: var(--text-xs);
+}
+
+[data-role="imported-badge"] {
+    font-size: var(--text-xs);
+    color: var(--color-accent, #eb5437);
+    font-style: italic;
+}
+
+[data-role="import-footer"] {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid rgba(214, 216, 202, 0.08);
+}
+
+[data-role="import-panel"] button,
+[data-role="manual-add-panel"] button {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #8a8c7e);
+    background-color: transparent;
+    border: 1px solid rgba(214, 216, 202, 0.2);
+    padding: var(--space-sm) var(--space-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border-radius: var(--radius-sm);
+}
+
+[data-role="import-panel"] button:hover,
+[data-role="manual-add-panel"] button:hover {
+    background-color: rgba(214, 216, 202, 0.05);
+    border-color: rgba(214, 216, 202, 0.3);
+    color: var(--color-text-light, #d6d8ca);
+}
+
+/* Primary action buttons within panels */
+[data-role="import-panel"] button[onclick*="importSelected"],
+[data-role="import-panel"] button[onclick*="searchTmdb"],
+[data-role="manual-add-panel"] button[onclick*="submitManual"] {
+    color: var(--color-text-light, #d6d8ca);
+    background-color: var(--color-accent, #eb5437);
+    border-color: var(--color-accent, #eb5437);
+}
+
+[data-role="import-panel"] button[onclick*="importSelected"]:hover,
+[data-role="import-panel"] button[onclick*="searchTmdb"]:hover,
+[data-role="manual-add-panel"] button[onclick*="submitManual"]:hover {
+    background-color: var(--color-accent-hover, #d74328);
+    border-color: var(--color-accent-hover, #d74328);
+}
+
+[data-role="error"] {
+    color: rgba(196, 69, 54, 0.8);
+}
+
+button[data-action="import"] {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-accent, #eb5437);
+    background: transparent;
+    border: 1px solid rgba(235, 84, 55, 0.3);
+    padding: var(--space-xs) var(--space-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+button[data-action="import"]:hover {
+    background: rgba(235, 84, 55, 0.1);
+    border-color: rgba(235, 84, 55, 0.5);
+}
+
+/* ----------------------------------------
+   Credit Edit Cards (read-only, API-managed)
+   ---------------------------------------- */
+
+[data-role="credits-container"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+[data-component="credit-edit-card"] {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    border: 1px solid rgba(214, 216, 202, 0.08);
+    background: rgba(214, 216, 202, 0.02);
+}
+
+[data-component="credit-edit-card"] [data-role="credit-poster"] {
+    flex-shrink: 0;
+    width: 50px;
+    border-radius: var(--radius-sm, 4px);
+    overflow: hidden;
+}
+
+[data-component="credit-edit-card"] [data-role="credit-poster"] img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+[data-component="credit-edit-card"] [data-role="credit-details"] {
+    flex: 1;
+    min-width: 0;
+}
+
+[data-component="credit-edit-card"] [data-role="credit-details"] h3 {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary, #d6d8ca);
+    margin: 0;
+}
+
+[data-component="credit-edit-card"] [data-role="production-name"] {
+    font-size: var(--text-xs);
+    margin: var(--space-2xs) 0 0;
+}
+
+[data-component="credit-edit-card"] [data-role="production-name"] a {
+    color: var(--color-accent, #eb5437);
+    text-decoration: none;
+}
+
+[data-component="credit-edit-card"] [data-role="release-date"] {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted, #9ca39e);
+    margin: 0;
+}
+
+[data-component="credit-edit-card"] [data-role="credit-badges"] {
+    display: flex;
+    gap: var(--space-xs);
+    margin-top: var(--space-2xs);
+}
+
+[data-component="credit-edit-card"] [data-role="credit-type-badge"],
+[data-component="credit-edit-card"] [data-role="verification-badge"] {
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 5px;
+    border: 1px solid rgba(214, 216, 202, 0.2);
+    color: var(--color-text-muted, #9ca39e);
+    border-radius: 2px;
+}
+
+[data-component="credit-edit-card"] [data-role="verification-badge"][data-status="verified"] {
+    border-color: var(--color-success, #22c55e);
+    color: var(--color-success, #22c55e);
+}
+
+[data-component="credit-edit-card"] [data-role="verification-badge"][data-status="external"] {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+[data-component="credit-edit-card"] [data-role="verification-badge"][data-status="pending"] {
+    border-color: var(--color-warning, #eab308);
+    color: var(--color-warning, #eab308);
+}
+
+[data-component="credit-edit-card"] [data-role="credit-actions"] {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-shrink: 0;
+}
+
+[data-component="credit-edit-card"] button[data-action="remove-credit"] {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted, #9ca39e);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.7;
+}
+
+[data-component="credit-edit-card"] button[data-action="remove-credit"]:hover {
+    color: rgba(196, 69, 54, 0.8);
+    opacity: 1;
+}
+
+/* ----------------------------------------
+   Manual Add Panel
+   ---------------------------------------- */
+
+[data-role="manual-add-panel"] {
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    background: rgba(214, 216, 202, 0.04);
+}
+
+[data-role="manual-add-panel"] [data-role="field-grid"] {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+}
+
+[data-role="manual-add-panel"] [data-span="full"] {
+    grid-column: 1 / -1;
+}
+
+[data-role="autocomplete-results"] {
+    position: relative;
+    background: var(--color-bg-secondary, #1a1d1b);
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+[data-role="autocomplete-results"] button[data-role="ac-item"] {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.05);
+    padding: var(--space-sm) var(--space-md);
+    color: var(--color-text-primary, #d6d8ca);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    cursor: pointer;
+}
+
+[data-role="autocomplete-results"] button[data-role="ac-item"]:hover {
+    background: rgba(214, 216, 202, 0.06);
+}
+
+[data-role="autocomplete-results"] [data-role="ac-type"] {
+    color: var(--color-text-muted, #9ca39e);
+    font-size: var(--text-xs);
+}
+
+[data-role="autocomplete-results"] [data-role="ac-empty"],
+[data-role="autocomplete-results"] [data-role="ac-footer"] {
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted, #9ca39e);
+}
+
+[data-role="manual-add-new-production"] {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid rgba(214, 216, 202, 0.08);
+}
+
+[data-role="manual-add-new-production"] p[data-role="help-text"] {
+    margin: 0 0 var(--space-sm);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted, #9ca39e);
+}
+
+[data-role="manual-add-footer"] {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid rgba(214, 216, 202, 0.08);
+    display: flex;
+    gap: var(--space-sm);
+}
+
 [data-role="experience-item"]:hover,
 [data-role="education-item"]:hover {
     border-color: rgba(214, 216, 202, 0.15);

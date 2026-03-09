@@ -71,7 +71,6 @@ pub struct Profile {
     pub unions: Vec<String>,
     pub languages: Vec<String>,
     pub availability: Option<String>,
-    pub experience: Vec<Experience>,
     pub education: Vec<Education>,
     pub awards: Vec<Award>,
 
@@ -98,13 +97,6 @@ pub struct SocialLink {
     pub url: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
-pub struct Experience {
-    pub role: String,
-    pub production: Option<String>,
-    pub description: Option<String>,
-    pub dates: Option<DateRange>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct Education {
@@ -541,7 +533,6 @@ impl Person {
                 unions: Vec::new(),
                 languages: Vec::new(),
                 availability: None,
-                experience: Vec::new(),
                 education: Vec::new(),
                 awards: Vec::new(),
                 reels: Vec::new(),
@@ -619,11 +610,7 @@ impl Person {
                 profile.eye_color.as_deref(),
                 &profile.languages,
                 &profile.unions,
-                &profile
-                    .experience
-                    .iter()
-                    .filter_map(|e| e.description.clone())
-                    .collect::<Vec<_>>(),
+                &[], // experience descriptions removed - credits are now involvement edges
             );
 
             match generate_embedding(&embedding_text) {
@@ -640,6 +627,7 @@ impl Person {
         // Update the name, profile, and embedding fields in the database
         // Use MERGE to update just these fields without affecting other fields like password
         let query = "UPDATE $id MERGE { name: $name, profile: $profile, embedding: $embedding, embedding_text: $embedding_text } RETURN AFTER";
+
         let mut response = DB
             .query(query)
             .bind(("id", person.id.clone()))
@@ -653,10 +641,7 @@ impl Person {
                 Error::from(e)
             })?;
 
-        let updated: Option<Person> = response.take(0).map_err(|e| {
-            log_error!(e, "Failed to extract updated person from response");
-            Error::from(e)
-        })?;
+        let updated: Option<Person> = response.take(0)?;
 
         Ok(updated)
     }

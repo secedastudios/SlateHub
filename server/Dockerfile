@@ -28,9 +28,10 @@ WORKDIR /usr/src/app
 # Copy Cargo files for dependency caching
 COPY Cargo.toml Cargo.lock ./
 
-# Create dummy src/main.rs for dependency compilation
-RUN mkdir src && \
-    echo "fn main() {}" > src/main.rs
+# Create dummy sources for dependency compilation
+RUN mkdir -p src/bin && \
+    echo "fn main() {}" > src/main.rs && \
+    echo "fn main() {}" > src/bin/rebuild_embeddings.rs
 
 # Build dependencies - this is cached unless Cargo.toml or Cargo.lock change
 RUN cargo build --release
@@ -46,7 +47,7 @@ COPY templates ./templates
 COPY static ./static
 
 # Build the actual application
-RUN touch src/main.rs && \
+RUN touch src/main.rs src/bin/rebuild_embeddings.rs && \
     cargo build --release
 
 # Runtime stage - use the same bookworm base

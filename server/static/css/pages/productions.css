@@ -360,6 +360,12 @@ button.prod-btn-danger:hover:not(:disabled) {
     outline: none;
 }
 
+.prod-card-visual .prod-card-poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .prod-card-visual .prod-card-placeholder {
     width: 100%;
     height: 100%;
@@ -824,6 +830,191 @@ button.prod-btn-danger:hover:not(:disabled) {
 .prod-back-link:hover { color: var(--color-text-primary, #d6d8ca); }
 
 /* ========================================
+   Detail Page — Hero with Poster
+   ======================================== */
+
+.prod-hero-layout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+.prod-hero-poster {
+    flex-shrink: 0;
+    width: 200px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.prod-hero-poster img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.prod-hero-info { flex: 1; min-width: 0; }
+
+.prod-badge-source {
+    color: rgba(100, 200, 240, 0.8);
+    border: 1px solid rgba(100, 200, 240, 0.2);
+}
+
+.prod-badge-claimed {
+    color: #7ee8a0;
+    border: 1px solid rgba(126, 232, 160, 0.25);
+}
+
+/* ========================================
+   Detail Page — Cast & Crew
+   ======================================== */
+
+.prod-credits-section {
+    margin-bottom: 2.5rem;
+}
+
+.prod-credits-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.prod-credit-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(214, 216, 202, 0.025);
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    border-radius: 10px;
+    transition: border-color 0.2s;
+}
+
+.prod-credit-item:hover { border-color: rgba(214, 216, 202, 0.15); }
+
+.prod-credit-avatar {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.prod-credit-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.prod-credit-avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(214, 216, 202, 0.08);
+    color: rgba(214, 216, 202, 0.5);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.prod-credit-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.prod-credit-info a { text-decoration: none; }
+.prod-credit-info a:hover strong { color: var(--color-accent, #eb5437); }
+
+.prod-credit-info strong {
+    font-size: var(--text-sm);
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+.prod-credit-role {
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #9ca39e);
+}
+
+.prod-credit-dept {
+    font-size: 0.65rem;
+    color: rgba(156, 163, 158, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.prod-verification-badge {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    flex-shrink: 0;
+}
+
+.prod-verification-badge[data-status="verified"] {
+    color: #7ee8a0;
+    border: 1px solid rgba(126, 232, 160, 0.25);
+}
+
+.prod-verification-badge[data-status="externally_sourced"] {
+    color: rgba(100, 200, 240, 0.8);
+    border: 1px solid rgba(100, 200, 240, 0.2);
+}
+
+.prod-verification-badge[data-status="self_asserted"],
+.prod-verification-badge[data-status="pending_verification"] {
+    color: rgba(235, 180, 55, 0.8);
+    border: 1px solid rgba(235, 180, 55, 0.2);
+}
+
+.prod-credit-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+/* Pending credits section */
+.prod-pending-section {
+    padding: 1.5rem;
+    background: rgba(235, 180, 55, 0.03);
+    border: 1px solid rgba(235, 180, 55, 0.12);
+    border-radius: 12px;
+}
+
+.prod-pending-desc {
+    font-size: var(--text-sm);
+    color: rgba(235, 180, 55, 0.7);
+    margin: 0 0 1rem 0;
+}
+
+/* Sidebar TMDb link */
+.prod-sidebar-tmdb {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(214, 216, 202, 0.06);
+}
+
+.prod-tmdb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: var(--text-sm);
+    color: rgba(100, 200, 240, 0.8);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.prod-tmdb-link:hover { color: rgba(100, 200, 240, 1); }
+
+/* ========================================
    Form Pages (Create + Edit)
    ======================================== */
 
@@ -945,6 +1136,8 @@ button.prod-btn-danger:hover:not(:disabled) {
     .prod-grid { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
     .prod-filter-row { flex-direction: column; }
     #prod-add-member-form .prod-form-grid { grid-template-columns: 1fr; }
+    .prod-hero-layout { flex-direction: column; }
+    .prod-hero-poster { width: 140px; }
 }
 
 @media (max-width: 480px) {

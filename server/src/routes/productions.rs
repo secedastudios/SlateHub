@@ -1,12 +1,13 @@
 use crate::error::Error;
 use crate::middleware::{AuthenticatedUser, UserExtractor};
+use crate::models::involvement::InvolvementModel;
 use crate::models::production::{
     CreateProductionData, ProductionMember, ProductionModel, UpdateProductionData,
 };
 use crate::record_id_ext::RecordIdExt;
 use crate::templates::{
-    BaseContext, ProductionCreateTemplate, ProductionEditTemplate, ProductionTemplate,
-    ProductionsTemplate, User,
+    BaseContext, CastCrewMember, ProductionCreateTemplate, ProductionEditTemplate,
+    ProductionTemplate, ProductionsTemplate, User,
 };
 use askama::Template;
 use axum::{
@@ -91,6 +92,7 @@ async fn list_productions(
             created_at: p.created_at.to_string(),
             owner: String::new(),
             tags: vec![],
+            poster_url: p.poster_url,
         })
         .collect();
 
@@ -140,6 +142,55 @@ async fn view_production(
         .await
         .unwrap_or_default();
 
+    // Fetch involvements (cast/crew) via graph traversal
+    let involvements = InvolvementModel::get_for_production(&production.id)
+        .await
+        .unwrap_or_default();
+
+    let is_claimed = ProductionModel::is_claimed(&production.id)
+        .await
+        .unwrap_or(false);
+
+    // Split into cast and crew
+    let mut cast = Vec::new();
+    let mut crew = Vec::new();
+    for inv in &involvements {
+        let member = CastCrewMember {
+            involvement_id: inv.id.to_raw_string(),
+            person_name: inv.person_name.clone(),
+            person_username: inv.person_username.clone(),
+            person_avatar: inv.person_avatar.clone(),
+            role: inv.role.clone(),
+            department: inv.department.clone(),
+            verification_status: inv.verification_status.clone(),
+        };
+        if inv.relation_type == "cast" {
+            cast.push(member);
+        } else {
+            crew.push(member);
+        }
+    }
+
+    // Fetch pending credits if user is owner
+    let pending_credits = if can_edit {
+        InvolvementModel::get_pending_for_production(&production.id)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|inv| CastCrewMember {
+                involvement_id: inv.id.to_raw_string(),
+                person_name: inv.person_name,
+                person_username: inv.person_username,
+                person_avatar: inv.person_avatar,
+                role: inv.role,
+                department: inv.department,
+                verification_status: inv.verification_status,
+            })
+            .collect()
+    } else {
+        vec![]
+    };
+
     let template = ProductionTemplate {
         app_name: base.app_name,
         year: base.year,
@@ -148,7 +199,7 @@ async fn view_production(
         user: base.user,
         production: crate::templates::ProductionDetail {
             id: production.id.key_string(),
-            slug: production.slug,
+            slug: production.slug.clone(),
             title: production.title,
             description: production.description,
             status: production.status,
@@ -175,6 +226,14 @@ async fn view_production(
                 })
                 .collect(),
             can_edit,
+            poster_url: production.poster_url,
+            tmdb_url: production.tmdb_url,
+            release_date: production.release_date,
+            source: production.source,
+            is_claimed,
+            cast,
+            crew,
+            pending_credits,
         },
     };
 

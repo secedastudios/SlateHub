@@ -8,22 +8,46 @@
 <div id="prod-detail">
 
     <section id="prod-hero">
-        <h1>{{ production.title }}</h1>
-
-        <div id="prod-hero-badges">
-            <span class="prod-badge" data-role="status" data-value="{{ production.status }}">{{ production.status }}</span>
-            <span class="prod-badge" data-role="type">{{ production.production_type }}</span>
-        </div>
-
-        {% if production.description.is_some() %}
-        <p id="prod-hero-desc">{{ production.description.as_ref().unwrap() }}</p>
-        {% endif %}
-
-        <div id="prod-hero-actions">
-            {% if production.can_edit %}
-            <a href="/productions/{{ production.slug }}/edit" class="prod-btn-primary">Edit Production</a>
+        <div class="prod-hero-layout">
+            {% if production.poster_url.is_some() %}
+            <div class="prod-hero-poster">
+                <img src="{{ production.poster_url.as_ref().unwrap() }}" alt="{{ production.title }} poster" />
+            </div>
             {% endif %}
-            <a href="/productions" class="prod-btn-outline">All Productions</a>
+            <div class="prod-hero-info">
+                <h1>{{ production.title }}</h1>
+
+                <div id="prod-hero-badges">
+                    <span class="prod-badge" data-role="status" data-value="{{ production.status }}">{{ production.status }}</span>
+                    <span class="prod-badge" data-role="type">{{ production.production_type }}</span>
+                    {% if production.release_date.is_some() %}
+                    <span class="prod-badge" data-role="type">{{ production.release_date.as_ref().unwrap() }}</span>
+                    {% endif %}
+                    {% if production.source != "manual" %}
+                    <span class="prod-badge prod-badge-source">{{ production.source }}</span>
+                    {% endif %}
+                    {% if production.is_claimed %}
+                    <span class="prod-badge prod-badge-claimed">Claimed</span>
+                    {% endif %}
+                </div>
+
+                {% if production.description.is_some() %}
+                <p id="prod-hero-desc">{{ production.description.as_ref().unwrap() }}</p>
+                {% endif %}
+
+                <div id="prod-hero-actions">
+                    {% if production.can_edit %}
+                    <a href="/productions/{{ production.slug }}/edit" class="prod-btn-primary">Edit Production</a>
+                    {% endif %}
+                    {% if production.tmdb_url.is_some() %}
+                    <a href="{{ production.tmdb_url.as_ref().unwrap() }}" target="_blank" rel="noopener" class="prod-btn-outline">View on TMDb</a>
+                    {% endif %}
+                    {% if !production.is_claimed && user.is_some() %}
+                    <button type="button" class="prod-btn-outline" onclick="claimProduction()">Claim Production</button>
+                    {% endif %}
+                    <a href="/productions" class="prod-btn-outline">All Productions</a>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -49,9 +73,104 @@
                 <div class="prod-stat">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                    {{ production.members.len() }} team member{% if production.members.len() != 1 %}s{% endif %}
+                    {{ production.cast.len() + production.crew.len() }} credit{% if production.cast.len() + production.crew.len() != 1 %}s{% endif %}
                 </div>
             </div>
+
+            {% if !production.cast.is_empty() %}
+            <section class="prod-credits-section">
+                <h3 class="prod-section-title">Cast</h3>
+                <ul class="prod-credits-list">
+                    {% for member in production.cast %}
+                    <li class="prod-credit-item">
+                        <div class="prod-credit-avatar">
+                            {% if member.person_avatar.is_some() %}
+                            <img src="{{ member.person_avatar.as_ref().unwrap() }}" alt="" />
+                            {% else %}
+                            <div class="prod-credit-avatar-placeholder">{{ member.person_username.chars().next().unwrap_or('?') }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="prod-credit-info">
+                            <a href="/{{ member.person_username }}"><strong>{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}{{ member.person_username }}{% endif %}</strong></a>
+                            {% if member.role.is_some() %}
+                            <span class="prod-credit-role">{{ member.role.as_ref().unwrap() }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="prod-verification-badge" data-status="{{ member.verification_status }}">{{ member.verification_status }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if !production.crew.is_empty() %}
+            <section class="prod-credits-section">
+                <h3 class="prod-section-title">Crew</h3>
+                <ul class="prod-credits-list">
+                    {% for member in production.crew %}
+                    <li class="prod-credit-item">
+                        <div class="prod-credit-avatar">
+                            {% if member.person_avatar.is_some() %}
+                            <img src="{{ member.person_avatar.as_ref().unwrap() }}" alt="" />
+                            {% else %}
+                            <div class="prod-credit-avatar-placeholder">{{ member.person_username.chars().next().unwrap_or('?') }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="prod-credit-info">
+                            <a href="/{{ member.person_username }}"><strong>{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}{{ member.person_username }}{% endif %}</strong></a>
+                            {% if member.role.is_some() %}
+                            <span class="prod-credit-role">{{ member.role.as_ref().unwrap() }}</span>
+                            {% endif %}
+                            {% if member.department.is_some() %}
+                            <span class="prod-credit-dept">{{ member.department.as_ref().unwrap() }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="prod-verification-badge" data-status="{{ member.verification_status }}">{{ member.verification_status }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if production.cast.is_empty() && production.crew.is_empty() %}
+            <section class="prod-credits-section">
+                <h3 class="prod-section-title">Cast & Crew</h3>
+                <div class="prod-empty" style="padding:2rem 0">
+                    <p>No credits have been added to this production yet.</p>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if production.can_edit && !production.pending_credits.is_empty() %}
+            <section class="prod-credits-section prod-pending-section">
+                <h3 class="prod-section-title">Pending Credits</h3>
+                <p class="prod-pending-desc">These credits are awaiting your review.</p>
+                <ul class="prod-credits-list">
+                    {% for member in production.pending_credits %}
+                    <li class="prod-credit-item">
+                        <div class="prod-credit-avatar">
+                            {% if member.person_avatar.is_some() %}
+                            <img src="{{ member.person_avatar.as_ref().unwrap() }}" alt="" />
+                            {% else %}
+                            <div class="prod-credit-avatar-placeholder">{{ member.person_username.chars().next().unwrap_or('?') }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="prod-credit-info">
+                            <a href="/{{ member.person_username }}"><strong>{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}{{ member.person_username }}{% endif %}</strong></a>
+                            {% if member.role.is_some() %}
+                            <span class="prod-credit-role">{{ member.role.as_ref().unwrap() }}</span>
+                            {% endif %}
+                            <span class="prod-verification-badge" data-status="{{ member.verification_status }}">{{ member.verification_status }}</span>
+                        </div>
+                        <div class="prod-credit-actions">
+                            <button type="button" class="prod-btn-primary" onclick="verifyCredit('{{ member.involvement_id }}')">Approve</button>
+                            <button type="button" class="prod-btn-danger" onclick="rejectCredit('{{ member.involvement_id }}')">Reject</button>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
 
             <section>
                 <div id="prod-members-header">
@@ -138,6 +257,12 @@
                     <dt>Status</dt>
                     <dd>{{ production.status }}</dd>
                 </div>
+                {% if production.release_date.is_some() %}
+                <div class="prod-detail-item">
+                    <dt>Release Date</dt>
+                    <dd>{{ production.release_date.as_ref().unwrap() }}</dd>
+                </div>
+                {% endif %}
                 {% if production.location.is_some() %}
                 <div class="prod-detail-item">
                     <dt>Location</dt>
@@ -156,7 +281,22 @@
                     <dd>{{ production.end_date.as_ref().unwrap() }}</dd>
                 </div>
                 {% endif %}
+                {% if production.source != "manual" %}
+                <div class="prod-detail-item">
+                    <dt>Source</dt>
+                    <dd>{{ production.source }}</dd>
+                </div>
+                {% endif %}
             </dl>
+
+            {% if production.tmdb_url.is_some() %}
+            <div class="prod-sidebar-tmdb">
+                <a href="{{ production.tmdb_url.as_ref().unwrap() }}" target="_blank" rel="noopener" class="prod-tmdb-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    View on TMDb
+                </a>
+            </div>
+            {% endif %}
 
             <div id="prod-meta-footer">
                 <span>Created <time datetime="{{ production.created_at }}">{{ production.created_at }}</time></span>
@@ -181,6 +321,29 @@ function showAddMemberForm() {
 function hideAddMemberForm() {
     const c = document.getElementById('add-member-form-container');
     if (c) { c.setAttribute('hidden', ''); document.getElementById('prod-add-member-form').reset(); }
+}
+
+function claimProduction() {
+    if (!confirm('Claim this production? You will become the owner and can manage credits.')) return;
+    fetch('/api/productions/{{ production.slug }}/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(r => { if (!r.ok) throw new Error('Failed to claim'); return r.json(); })
+        .then(() => location.reload())
+        .catch(e => alert(e.message));
+}
+
+function verifyCredit(id) {
+    fetch('/api/involvements/' + id + '/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(r => { if (!r.ok) throw new Error('Failed to verify'); return r.json(); })
+        .then(() => location.reload())
+        .catch(e => alert(e.message));
+}
+
+function rejectCredit(id) {
+    if (!confirm('Reject this credit? The person will no longer appear on this production.')) return;
+    fetch('/api/involvements/' + id + '/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(r => { if (!r.ok) throw new Error('Failed to reject'); return r.json(); })
+        .then(() => location.reload())
+        .catch(e => alert(e.message));
 }
 </script>
 {% endblock %}

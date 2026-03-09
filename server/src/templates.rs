@@ -246,7 +246,7 @@ pub struct ProfileData {
     pub skills: Vec<String>,
     pub languages: Vec<String>,
     pub availability: Option<String>,
-    pub experience: Vec<Experience>,
+    pub involvements: Vec<InvolvementDisplay>,
     pub education: Vec<Education>,
     pub social_links: Vec<SocialLinkDisplay>,
     pub is_own_profile: bool,
@@ -261,12 +261,22 @@ pub struct SocialLinkDisplay {
     pub icon_svg: String,
 }
 
+/// Display struct for involvement-based credits (graph traversal)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Experience {
-    pub role: String,
-    pub production: Option<String>,
-    pub description: Option<String>,
-    pub dates: Option<DateRange>,
+pub struct InvolvementDisplay {
+    pub involvement_id: String,
+    pub role: Option<String>,
+    pub relation_type: String,
+    pub department: Option<String>,
+    pub verification_status: String,
+    pub production_title: String,
+    pub production_slug: String,
+    pub production_type: String,
+    pub poster_url: Option<String>,
+    pub tmdb_url: Option<String>,
+    pub release_date: Option<String>,
+    pub media_type: Option<String>,
+    pub is_claimed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -331,6 +341,7 @@ pub struct Production {
     pub created_at: String,
     pub owner: String,
     pub tags: Vec<String>,
+    pub poster_url: Option<String>,
 }
 
 /// Single production view template
@@ -360,6 +371,26 @@ pub struct ProductionDetail {
     pub updated_at: String,
     pub members: Vec<ProductionMemberView>,
     pub can_edit: bool,
+    pub poster_url: Option<String>,
+    pub tmdb_url: Option<String>,
+    pub release_date: Option<String>,
+    pub source: String,
+    pub is_claimed: bool,
+    pub cast: Vec<CastCrewMember>,
+    pub crew: Vec<CastCrewMember>,
+    pub pending_credits: Vec<CastCrewMember>,
+}
+
+/// A cast or crew member on a production (from involvement graph traversal)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CastCrewMember {
+    pub involvement_id: String,
+    pub person_name: Option<String>,
+    pub person_username: String,
+    pub person_avatar: Option<String>,
+    pub role: Option<String>,
+    pub department: Option<String>,
+    pub verification_status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

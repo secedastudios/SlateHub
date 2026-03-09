@@ -42,18 +42,12 @@ struct PersonProfileRow {
     eye_color: Option<String>,
     languages: Option<Vec<String>>,
     unions: Option<Vec<String>>,
-    experience: Option<Vec<ExperienceRow>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, SurrealValue)]
 struct AgeRangeRow {
     min: i32,
     max: i32,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, SurrealValue)]
-struct ExperienceRow {
-    description: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, SurrealValue)]
@@ -163,16 +157,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .to_string();
 
             let embedding_text = if let Some(profile) = &person.profile {
-                let exp_descriptions: Vec<String> = profile
-                    .experience
-                    .as_ref()
-                    .map(|exps| {
-                        exps.iter()
-                            .filter_map(|e| e.description.clone())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
                 build_person_embedding_text(
                     &display_name,
                     profile.headline.as_deref(),
@@ -188,7 +172,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     profile.eye_color.as_deref(),
                     &profile.languages.clone().unwrap_or_default(),
                     &profile.unions.clone().unwrap_or_default(),
-                    &exp_descriptions,
+                    &[],
                 )
             } else {
                 build_person_embedding_text(

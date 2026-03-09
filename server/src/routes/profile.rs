@@ -11,12 +11,13 @@ use tracing::{debug, error, info};
 use crate::{
     error::Error,
     middleware::{AuthenticatedUser, UserExtractor},
+    models::involvement::InvolvementModel,
     models::person::{Person, SocialLink},
     record_id_ext::RecordIdExt,
     social_platforms::{self, SOCIAL_PLATFORMS},
     templates::{
-        BaseContext, DateRange, Education, Experience, ProfileData, ProfileEditTemplate,
-        ProfileTemplate, SocialLinkDisplay, SocialPlatformOption, User,
+        BaseContext, DateRange, Education, InvolvementDisplay, ProfileData,
+        ProfileEditTemplate, ProfileTemplate, SocialLinkDisplay, SocialPlatformOption, User,
     },
 };
 
@@ -122,20 +123,33 @@ async fn user_profile(
         skills: profile.map(|p| p.skills.clone()).unwrap_or_default(),
         languages: profile.map(|p| p.languages.clone()).unwrap_or_default(),
         availability: profile.and_then(|p| p.availability.clone()),
-        experience: profile
-            .map(|p| p.experience.clone())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|e| Experience {
-                role: e.role,
-                production: e.production,
-                description: e.description,
-                dates: e.dates.map(|d| DateRange {
-                    start: d.start,
-                    end: d.end,
-                }),
-            })
-            .collect(),
+        involvements: {
+            let pid = profile_user.id.to_raw_string();
+            match InvolvementModel::get_for_person(&pid).await {
+                Ok(invs) => invs
+                    .into_iter()
+                    .map(|inv| InvolvementDisplay {
+                        involvement_id: inv.id.to_raw_string(),
+                        role: inv.role,
+                        relation_type: inv.relation_type,
+                        department: inv.department,
+                        verification_status: inv.verification_status,
+                        production_title: inv.production_title,
+                        production_slug: inv.production_slug,
+                        production_type: inv.production_type,
+                        poster_url: inv.poster_url,
+                        tmdb_url: inv.tmdb_url,
+                        release_date: inv.release_date,
+                        media_type: inv.media_type,
+                        is_claimed: inv.is_claimed,
+                    })
+                    .collect(),
+                Err(e) => {
+                    tracing::error!("Failed to fetch involvements for profile: {}", e);
+                    vec![]
+                }
+            }
+        },
         education: profile
             .map(|p| p.education.clone())
             .unwrap_or_default()
@@ -225,20 +239,33 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         skills: profile.map(|p| p.skills.clone()).unwrap_or_default(),
         languages: profile.map(|p| p.languages.clone()).unwrap_or_default(),
         availability: profile.and_then(|p| p.availability.clone()),
-        experience: profile
-            .map(|p| p.experience.clone())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|e| Experience {
-                role: e.role,
-                production: e.production,
-                description: e.description,
-                dates: e.dates.map(|d| DateRange {
-                    start: d.start,
-                    end: d.end,
-                }),
-            })
-            .collect(),
+        involvements: {
+            let pid = profile_user.id.to_raw_string();
+            match InvolvementModel::get_for_person(&pid).await {
+                Ok(invs) => invs
+                    .into_iter()
+                    .map(|inv| InvolvementDisplay {
+                        involvement_id: inv.id.to_raw_string(),
+                        role: inv.role,
+                        relation_type: inv.relation_type,
+                        department: inv.department,
+                        verification_status: inv.verification_status,
+                        production_title: inv.production_title,
+                        production_slug: inv.production_slug,
+                        production_type: inv.production_type,
+                        poster_url: inv.poster_url,
+                        tmdb_url: inv.tmdb_url,
+                        release_date: inv.release_date,
+                        media_type: inv.media_type,
+                        is_claimed: inv.is_claimed,
+                    })
+                    .collect(),
+                Err(e) => {
+                    tracing::error!("Failed to fetch involvements for edit profile: {}", e);
+                    vec![]
+                }
+            }
+        },
         education: profile
             .map(|p| p.education.clone())
             .unwrap_or_default()

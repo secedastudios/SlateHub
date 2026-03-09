@@ -1,4 +1,5 @@
 pub mod equipment;
+pub mod involvement;
 pub mod location;
 pub mod media;
 pub mod membership;

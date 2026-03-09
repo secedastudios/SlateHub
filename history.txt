@@ -1,0 +1,17 @@
+#V2
+SELECT id, in, out, relation_type, role, source, verification_status FROM involvement LIMIT 5;
+INFO FOR DB;
+SELECT id, in, out, relation_type, role, source, verification_status FROM involvement LIMIT 5;
+SELECT id, username FROM person WHERE id = person:6l3k8z8eyaht5bjgzjs9;
+SELECT id, role, relation_type FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 LIMIT 3;
+SELECT id, role, out.id AS production_id, out.title AS production_title, out.slug AS production_slug FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 LIMIT 2;
+SELECT id, out.`type` AS production_type, count(out<-member_of[WHERE role = 'owner']) > 0 AS is_claimed FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 LIMIT 2;
+SELECT id, role, relation_type, department, credit_type, verification_status, source, out.id AS production_id, out.title AS production_title, out.slug AS production_slug, out.poster_url AS poster_url, out.tmdb_url AS tmdb_url, out.tmdb_id AS tmdb_id, out.media_type AS media_type, out.release_date AS release_date, count(out<-member_of[WHERE role = 'owner']) > 0 AS is_claimed FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 AND verification_status != 'rejected' ORDER BY release_date DESC LIMIT 2;
+SELECT out.`type` AS production_type FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 LIMIT 1;
+SELECT id, out.release_date AS release_date, out.title AS production_title, role, release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC, production_title ASC, role ASC;
+SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC, production_title ASC, role ASC;
+SELECT id, out.release_date AS release_date, out.title AS production_title, role FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 AND out.release_date IS NOT NONE ORDER BY release_date DESC;
+SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC, production_title ASC, role ASC LIMIT 3;
+SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC;
+SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC, production_title ASC;
+SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC, production_title ASC, role ASC;

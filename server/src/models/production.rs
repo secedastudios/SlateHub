@@ -23,6 +23,36 @@ pub struct Production {
     pub location: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    // TMDB / external source
+    #[serde(default)]
+    #[surreal(default)]
+    pub tmdb_id: Option<i64>,
+    #[serde(default)]
+    #[surreal(default)]
+    pub media_type: Option<String>,
+    #[serde(default)]
+    #[surreal(default)]
+    pub poster_url: Option<String>,
+    #[serde(default)]
+    #[surreal(default)]
+    pub tmdb_url: Option<String>,
+    #[serde(default)]
+    #[surreal(default)]
+    pub release_date: Option<String>,
+    #[serde(default)]
+    #[surreal(default)]
+    pub overview: Option<String>,
+    // Source tracking
+    #[serde(default = "default_source")]
+    #[surreal(default)]
+    pub source: String,
+    #[serde(default)]
+    #[surreal(default)]
+    pub source_overrides: Vec<String>,
+}
+
+fn default_source() -> String {
+    "manual".to_string()
 }
 
 /// Data required to create a new production
@@ -597,4 +627,202 @@ impl ProductionModel {
             .filter_map(|s| s.get("name").and_then(|n| n.as_str()).map(String::from))
             .collect())
     }
+
+    /// Find a production by TMDB ID
+    pub async fn find_by_tmdb_id(tmdb_id: i64) -> Result<Option<Production>, Error> {
+        debug!("Finding production by tmdb_id: {}", tmdb_id);
+
+        let query = "SELECT * FROM production WHERE tmdb_id = $tmdb_id LIMIT 1";
+        let mut result = DB
+            .query(query)
+            .bind(("tmdb_id", tmdb_id))
+            .await
+            .map_err(|e| Error::Database(format!("Failed to find production by tmdb_id: {}", e)))?;
+
+        let productions: Vec<Production> = result.take(0)?;
+        Ok(productions.into_iter().next())
+    }
+
+    /// Find a production by TMDB ID, or create it from TMDB data
+    pub async fn find_or_create_from_tmdb(
+        tmdb_id: i64,
+        title: String,
+        media_type: String,
+        poster_url: Option<String>,
+        tmdb_url: String,
+        release_date: Option<String>,
+        overview: Option<String>,
+    ) -> Result<Production, Error> {
+        // Try to find existing
+        if let Some(existing) = Self::find_by_tmdb_id(tmdb_id).await? {
+            return Ok(existing);
+        }
+
+        debug!("Creating production from TMDB: {} (tmdb_id={})", title, tmdb_id);
+
+        // Map TMDB media_type to production_type
+        let production_type = match media_type.as_str() {
+            "movie" => "Film",
+            "tv" => "TV Series",
+            _ => "Other",
+        };
+
+        // Generate slug from title
+        let slug = generate_slug(&title);
+
+        // Generate embedding
+        let embedding_text = build_production_embedding_text(
+            &title,
+            production_type,
+            "Released",
+            overview.as_deref(),
+            None,
+            release_date.as_deref(),
+            None,
+        );
+
+        let (embedding, embedding_text_opt) = match generate_embedding(&embedding_text) {
+            Ok(emb) => (Some(emb), Some(embedding_text)),
+            Err(e) => {
+                warn!("Failed to generate embedding for TMDB production: {}", e);
+                (None, None)
+            }
+        };
+
+        let query = r#"
+            CREATE production CONTENT {
+                title: $title,
+                slug: $slug,
+                type: $type,
+                status: 'Released',
+                description: $overview,
+                tmdb_id: $tmdb_id,
+                media_type: $media_type,
+                poster_url: $poster_url,
+                tmdb_url: $tmdb_url,
+                release_date: $release_date,
+                overview: $overview,
+                source: 'tmdb',
+                source_overrides: [],
+                embedding: $embedding,
+                embedding_text: $embedding_text
+            } RETURN *;
+        "#;
+
+        let mut result = DB
+            .query(query)
+            .bind(("title", title))
+            .bind(("slug", slug))
+            .bind(("type", production_type.to_string()))
+            .bind(("overview", overview))
+            .bind(("tmdb_id", tmdb_id))
+            .bind(("media_type", media_type))
+            .bind(("poster_url", poster_url))
+            .bind(("tmdb_url", tmdb_url))
+            .bind(("release_date", release_date))
+            .bind(("embedding", embedding))
+            .bind(("embedding_text", embedding_text_opt))
+            .await
+            .map_err(|e| Error::Database(format!("Failed to create TMDB production: {}", e)))?;
+
+        let production: Option<Production> = result.take(0)?;
+        production.ok_or_else(|| {
+            Error::Database("Failed to create TMDB production - no result returned".to_string())
+        })
+    }
+
+    /// Search productions by title for dedup autocomplete
+    pub async fn search_by_title(query: &str, limit: usize) -> Result<Vec<Production>, Error> {
+        debug!("Searching productions by title: {}", query);
+
+        let sql = r#"
+            SELECT * FROM production
+            WHERE string::lowercase(title) CONTAINS string::lowercase($query)
+            ORDER BY release_date DESC, created_at DESC
+            LIMIT $limit
+        "#;
+
+        let mut result = DB
+            .query(sql)
+            .bind(("query", query.to_string()))
+            .bind(("limit", limit))
+            .await
+            .map_err(|e| Error::Database(format!("Failed to search productions: {}", e)))?;
+
+        let productions: Vec<Production> = result.take(0)?;
+        Ok(productions)
+    }
+
+    /// Check if a production is claimed (has an owner via member_of edge)
+    pub async fn is_claimed(production_id: &RecordId) -> Result<bool, Error> {
+        let query = r#"
+            SELECT count() AS count FROM member_of
+            WHERE out = $production_id AND role = 'owner'
+        "#;
+
+        let mut result = DB
+            .query(query)
+            .bind(("production_id", production_id.to_raw_string()))
+            .await
+            .map_err(|e| Error::Database(format!("Failed to check claim status: {}", e)))?;
+
+        let count: Option<serde_json::Value> = result.take(0)?;
+        if let Some(obj) = count {
+            if let Some(c) = obj.get("count") {
+                return Ok(c.as_u64().unwrap_or(0) > 0);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Claim an unclaimed production — creates owner member_of edge and promotes self-asserted credits
+    pub async fn claim(production_id: &RecordId, claimer_id: &str) -> Result<(), Error> {
+        debug!(
+            "Claiming production {} by {}",
+            production_id.display(),
+            claimer_id
+        );
+
+        // Create owner edge
+        let query = r#"
+            RELATE $person->member_of->$production SET
+                role = 'owner',
+                joined_at = time::now(),
+                invitation_status = 'accepted'
+        "#;
+
+        DB.query(query)
+            .bind(("person", claimer_id.to_string()))
+            .bind(("production", production_id.to_raw_string()))
+            .await
+            .map_err(|e| Error::Database(format!("Failed to claim production: {}", e)))?;
+
+        // Promote self-asserted involvements to pending_verification
+        let promote_query = r#"
+            UPDATE involvement SET verification_status = 'pending_verification'
+            WHERE out = $production_id AND verification_status = 'self_asserted'
+        "#;
+
+        DB.query(promote_query)
+            .bind(("production_id", production_id.to_raw_string()))
+            .await
+            .map_err(|e| {
+                Error::Database(format!("Failed to promote credits on claim: {}", e))
+            })?;
+
+        Ok(())
+    }
+}
+
+/// Generate a URL-friendly slug from a title
+fn generate_slug(title: &str) -> String {
+    title
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect::<String>()
+        .split('-')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("-")
 }

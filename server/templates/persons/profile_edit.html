@@ -243,123 +243,141 @@
             </div>
         </section>
 
-        <section id="section-experience" data-section="experience" aria-labelledby="heading-experience">
-            <div id="experience-section-header" data-role="section-header-row">
-                <h2 id="heading-experience">Experience</h2>
-                <button type="button" id="button-add-experience" data-action="add" data-target="experience" onclick="addExperience()">
-                    + Add
-                </button>
+        <section id="section-credits" data-section="credits" aria-labelledby="heading-credits">
+            <div id="credits-section-header" data-role="section-header-row">
+                <h2 id="heading-credits">Credits</h2>
+                <div data-role="section-actions">
+                    <button type="button" id="button-import-tmdb" data-action="import" onclick="openTmdbImport()">
+                        Import from TMDb
+                    </button>
+                    <button type="button" id="button-add-credit" data-action="add" onclick="openManualAdd()">
+                        + Add Manually
+                    </button>
+                </div>
             </div>
 
-            <div id="experience-container" data-role="dynamic-container" data-items="experience">
-                {% for exp in profile.experience %}
-                <fieldset id="fieldset-experience-{{ loop.index }}" data-role="experience-item" data-index="{{ loop.index }}">
-                    <legend hidden>Experience {{ loop.index }}</legend>
-
-                    <div data-role="field-grid">
-                        <div data-field="role">
-                            <label for="input-exp-role-{{ loop.index }}">Role / Title</label>
-                            <input
-                                type="text"
-                                id="input-exp-role-{{ loop.index }}"
-                                name="experience[{{ loop.index0 }}][role]"
-                                value="{{ exp.role }}"
-                            />
-                        </div>
-
-                        <div data-field="production">
-                            <label for="input-exp-production-{{ loop.index }}">Production / Company</label>
-                            <input
-                                type="text"
-                                id="input-exp-production-{{ loop.index }}"
-                                name="experience[{{ loop.index0 }}][production]"
-                                value="{% if exp.production.is_some() %}{{ exp.production.as_ref().unwrap() }}{% endif %}"
-                            />
-                        </div>
-
-                        <div data-field="description" data-span="full">
-                            <label for="textarea-exp-description-{{ loop.index }}">Description</label>
-                            <textarea
-                                id="textarea-exp-description-{{ loop.index }}"
-                                name="experience[{{ loop.index0 }}][description]"
-                                rows="2"
-                            >{% if exp.description.is_some() %}{{ exp.description.as_ref().unwrap() }}{% endif %}</textarea>
-                        </div>
-
-                        <div data-field="start-date">
-                            <label for="input-exp-start-{{ loop.index }}">Start Date</label>
-                            <input
-                                type="month"
-                                id="input-exp-start-{{ loop.index }}"
-                                name="experience[{{ loop.index0 }}][start_date]"
-                                value="{% if exp.dates.is_some() && exp.dates.as_ref().unwrap().start.is_some() %}{{ exp.dates.as_ref().unwrap().start.as_ref().unwrap() }}{% endif %}"
-                            />
-                        </div>
-
-                        <div data-field="end-date">
-                            <label for="input-exp-end-{{ loop.index }}">End Date</label>
-                            <input
-                                type="month"
-                                id="input-exp-end-{{ loop.index }}"
-                                name="experience[{{ loop.index0 }}][end_date]"
-                                value="{% if exp.dates.is_some() && exp.dates.as_ref().unwrap().end.is_some() %}{{ exp.dates.as_ref().unwrap().end.as_ref().unwrap() }}{% endif %}"
-                            />
-                        </div>
+            <div id="tmdb-import-panel" data-role="import-panel" hidden>
+                <div data-role="import-search">
+                    <label for="input-tmdb-search">Search TMDb for your name</label>
+                    <div data-role="search-row">
+                        <input type="text" id="input-tmdb-search" placeholder="e.g., Chris Bruce" />
+                        <button type="button" onclick="searchTmdb()">Search</button>
                     </div>
-
-                    <div data-role="item-footer">
-                        <label for="input-exp-current-{{ loop.index }}" data-role="checkbox-label">
-                            <input
-                                type="checkbox"
-                                id="input-exp-current-{{ loop.index }}"
-                                name="experience[{{ loop.index0 }}][current]"
-                                {% if exp.dates.is_some() && exp.dates.as_ref().unwrap().end.is_none() %}checked{% endif %}
-                            />
-                            Currently working here
+                </div>
+                <div id="tmdb-search-results" data-role="search-results" hidden></div>
+                <div id="tmdb-credits-list" data-role="credits-list" hidden>
+                    <div data-role="credits-header">
+                        <label data-role="checkbox-label">
+                            <input type="checkbox" id="tmdb-select-all" onchange="toggleAllCredits(this)" />
+                            Select All
                         </label>
-                        <button type="button" data-action="remove" onclick="removeItem(this)">Remove</button>
+                        <button type="button" onclick="importSelectedCredits()">Import Selected</button>
                     </div>
-                </fieldset>
+                    <div id="tmdb-credits-items"></div>
+                </div>
+                <div data-role="import-footer">
+                    <button type="button" onclick="closeTmdbImport()">Close</button>
+                </div>
+            </div>
+
+            <div id="manual-add-panel" data-role="manual-add-panel" hidden>
+                <div data-role="field-grid">
+                    <div data-field="production-search" data-span="full">
+                        <label for="input-production-search">Production</label>
+                        <input type="text" id="input-production-search" placeholder="Search existing productions..." oninput="searchProductions(this.value)" autocomplete="off" />
+                        <div id="production-autocomplete" data-role="autocomplete-results" hidden></div>
+                        <input type="hidden" id="input-production-id" />
+                    </div>
+                    <div data-field="role">
+                        <label for="input-manual-role">Role</label>
+                        <input type="text" id="input-manual-role" placeholder="e.g., Director, Actor" />
+                    </div>
+                    <div data-field="relation-type">
+                        <label for="select-relation-type">Type</label>
+                        <select id="select-relation-type">
+                            <option value="cast">Cast</option>
+                            <option value="crew">Crew</option>
+                        </select>
+                    </div>
+                    <div data-field="department">
+                        <label for="input-manual-department">Department</label>
+                        <input type="text" id="input-manual-department" placeholder="e.g., Directing, Camera" />
+                    </div>
+                </div>
+                <div data-role="manual-add-new-production" id="new-production-fields" hidden>
+                    <p data-role="help-text">Production not found? Create a new one:</p>
+                    <div data-role="field-grid">
+                        <div data-field="title">
+                            <label for="input-new-production-title">Title</label>
+                            <input type="text" id="input-new-production-title" />
+                        </div>
+                        <div data-field="type">
+                            <label for="select-new-production-type">Type</label>
+                            <select id="select-new-production-type">
+                                <option value="Film">Film</option>
+                                <option value="TV Series">TV Series</option>
+                                <option value="Short Film">Short Film</option>
+                                <option value="Documentary">Documentary</option>
+                                <option value="Web Series">Web Series</option>
+                                <option value="Music Video">Music Video</option>
+                                <option value="Commercial">Commercial</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div data-role="manual-add-footer">
+                    <button type="button" onclick="submitManualCredit()">Add Credit</button>
+                    <button type="button" onclick="closeManualAdd()">Cancel</button>
+                </div>
+            </div>
+
+            <div id="credits-container" data-role="credits-container">
+                {% for inv in profile.involvements %}
+                <article data-component="credit-edit-card" data-involvement-id="{{ inv.involvement_id }}" {% if inv.poster_url.is_some() %}data-has-poster{% endif %}>
+                    {% if inv.poster_url.is_some() %}
+                    <div data-role="credit-poster">
+                        <img src="{{ inv.poster_url.as_ref().unwrap() }}" alt="" loading="lazy" />
+                    </div>
+                    {% endif %}
+                    <div data-role="credit-details">
+                        <h3>
+                            {% if inv.role.is_some() %}
+                            {{ inv.role.as_ref().unwrap() }}
+                            {% else %}
+                            {{ inv.relation_type }}
+                            {% endif %}
+                        </h3>
+                        <p data-role="production-name">
+                            <a href="/productions/{{ inv.production_slug }}">{{ inv.production_title }}</a>
+                        </p>
+                        {% if inv.release_date.is_some() %}
+                        <p data-role="release-date">{{ inv.release_date.as_ref().unwrap() }}</p>
+                        {% endif %}
+                        <div data-role="credit-badges">
+                            <span data-role="credit-type-badge">{{ inv.production_type }}</span>
+                            {% if inv.verification_status == "verified" %}
+                            <span data-role="verification-badge" data-status="verified">Verified</span>
+                            {% else if inv.verification_status == "externally_sourced" %}
+                            <span data-role="verification-badge" data-status="external">TMDb</span>
+                            {% else if inv.verification_status == "self_asserted" %}
+                            <span data-role="verification-badge" data-status="pending">Pending</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div data-role="credit-actions">
+                        {% if inv.tmdb_url.is_some() %}
+                        <a href="{{ inv.tmdb_url.as_ref().unwrap() }}" target="_blank" rel="noopener noreferrer" data-role="tmdb-link">TMDb</a>
+                        {% endif %}
+                        <button type="button" data-action="remove-credit" onclick="removeCredit('{{ inv.involvement_id }}', this)">Remove</button>
+                    </div>
+                </article>
                 {% endfor %}
 
-                {% if profile.experience.is_empty() %}
-                <fieldset id="fieldset-experience-1" data-role="experience-item" data-index="1">
-                    <legend hidden>Experience 1</legend>
-
-                    <div data-role="field-grid">
-                        <div data-field="role">
-                            <label for="input-exp-role-1">Role / Title</label>
-                            <input type="text" id="input-exp-role-1" name="experience[0][role]" />
-                        </div>
-
-                        <div data-field="production">
-                            <label for="input-exp-production-1">Production / Company</label>
-                            <input type="text" id="input-exp-production-1" name="experience[0][production]" />
-                        </div>
-
-                        <div data-field="description" data-span="full">
-                            <label for="textarea-exp-description-1">Description</label>
-                            <textarea id="textarea-exp-description-1" name="experience[0][description]" rows="2"></textarea>
-                        </div>
-
-                        <div data-field="start-date">
-                            <label for="input-exp-start-1">Start Date</label>
-                            <input type="month" id="input-exp-start-1" name="experience[0][start_date]" />
-                        </div>
-
-                        <div data-field="end-date">
-                            <label for="input-exp-end-1">End Date</label>
-                            <input type="month" id="input-exp-end-1" name="experience[0][end_date]" />
-                        </div>
-                    </div>
-
-                    <div data-role="item-footer">
-                        <label for="input-exp-current-1" data-role="checkbox-label">
-                            <input type="checkbox" id="input-exp-current-1" name="experience[0][current]" />
-                            Currently working here
-                        </label>
-                    </div>
-                </fieldset>
+                {% if profile.involvements.is_empty() %}
+                <div data-role="section-empty" data-state="empty">
+                    <p>No credits yet. Import from TMDb or add manually.</p>
+                </div>
                 {% endif %}
             </div>
         </section>
@@ -481,38 +499,254 @@
 </section>
 
 <script>
-function addExperience() {
-    const container = document.getElementById('experience-container');
-    const items = container.querySelectorAll('[data-role="experience-item"]');
-    const newIndex = items.length + 1;
-    const arrayIndex = items.length;
+/* ---- TMDB Import (API-driven) ---- */
+function openTmdbImport() {
+    document.getElementById('tmdb-import-panel').hidden = false;
+    document.getElementById('input-tmdb-search').focus();
+}
 
-    const fieldset = document.createElement('fieldset');
-    fieldset.id = 'fieldset-experience-' + newIndex;
-    fieldset.setAttribute('data-role', 'experience-item');
-    fieldset.setAttribute('data-index', newIndex);
+function closeTmdbImport() {
+    document.getElementById('tmdb-import-panel').hidden = true;
+    document.getElementById('tmdb-search-results').hidden = true;
+    document.getElementById('tmdb-credits-list').hidden = true;
+}
 
-    fieldset.innerHTML =
-        '<legend hidden>Experience ' + newIndex + '</legend>' +
-        '<div data-role="field-grid">' +
-            '<div data-field="role"><label for="input-exp-role-' + newIndex + '">Role / Title</label>' +
-            '<input type="text" id="input-exp-role-' + newIndex + '" name="experience[' + arrayIndex + '][role]" /></div>' +
-            '<div data-field="production"><label for="input-exp-production-' + newIndex + '">Production / Company</label>' +
-            '<input type="text" id="input-exp-production-' + newIndex + '" name="experience[' + arrayIndex + '][production]" /></div>' +
-            '<div data-field="description" data-span="full"><label for="textarea-exp-description-' + newIndex + '">Description</label>' +
-            '<textarea id="textarea-exp-description-' + newIndex + '" name="experience[' + arrayIndex + '][description]" rows="2"></textarea></div>' +
-            '<div data-field="start-date"><label for="input-exp-start-' + newIndex + '">Start Date</label>' +
-            '<input type="month" id="input-exp-start-' + newIndex + '" name="experience[' + arrayIndex + '][start_date]" /></div>' +
-            '<div data-field="end-date"><label for="input-exp-end-' + newIndex + '">End Date</label>' +
-            '<input type="month" id="input-exp-end-' + newIndex + '" name="experience[' + arrayIndex + '][end_date]" /></div>' +
-        '</div>' +
-        '<div data-role="item-footer">' +
-            '<label for="input-exp-current-' + newIndex + '" data-role="checkbox-label">' +
-            '<input type="checkbox" id="input-exp-current-' + newIndex + '" name="experience[' + arrayIndex + '][current]" /> Currently working here</label>' +
-            '<button type="button" data-action="remove" onclick="removeItem(this)">Remove</button>' +
-        '</div>';
+function searchTmdb() {
+    var query = document.getElementById('input-tmdb-search').value.trim();
+    if (!query) return;
 
-    container.appendChild(fieldset);
+    var resultsDiv = document.getElementById('tmdb-search-results');
+    resultsDiv.innerHTML = '<p>Searching...</p>';
+    resultsDiv.hidden = false;
+    document.getElementById('tmdb-credits-list').hidden = true;
+
+    fetch('/api/tmdb/search?q=' + encodeURIComponent(query))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) { resultsDiv.innerHTML = '<p data-role="error">' + data.error + '</p>'; return; }
+            if (!data.results || data.results.length === 0) { resultsDiv.innerHTML = '<p>No results found.</p>'; return; }
+            var html = '<ul data-role="person-results">';
+            data.results.forEach(function(person) {
+                var dept = person.known_for_department || '';
+                html += '<li><button type="button" onclick="fetchTmdbCredits(' + person.id + ')">' +
+                    '<strong>' + person.name + '</strong>' +
+                    (dept ? ' <span data-role="department">(' + dept + ')</span>' : '') +
+                    '</button></li>';
+            });
+            html += '</ul>';
+            resultsDiv.innerHTML = html;
+        })
+        .catch(function(err) { resultsDiv.innerHTML = '<p data-role="error">Search failed: ' + err.message + '</p>'; });
+}
+
+function fetchTmdbCredits(personId) {
+    var creditsDiv = document.getElementById('tmdb-credits-list');
+    var itemsDiv = document.getElementById('tmdb-credits-items');
+    itemsDiv.innerHTML = '<p>Loading credits...</p>';
+    creditsDiv.hidden = false;
+
+    fetch('/api/tmdb/credits/' + personId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) { itemsDiv.innerHTML = '<p data-role="error">' + data.error + '</p>'; return; }
+            var credits = data.credits || [];
+            if (credits.length === 0) { itemsDiv.innerHTML = '<p>No credits found.</p>'; return; }
+
+            var html = '';
+            credits.forEach(function(credit, i) {
+                var year = credit.release_date ? credit.release_date.substring(0, 4) : '';
+                var posterHtml = credit.poster_url
+                    ? '<img src="' + credit.poster_url + '" alt="" loading="lazy" />'
+                    : '<div data-role="no-poster"></div>';
+                html += '<label data-role="credit-item">' +
+                    '<input type="checkbox" data-credit-index="' + i + '" />' +
+                    '<div data-role="credit-poster">' + posterHtml + '</div>' +
+                    '<div data-role="credit-info">' +
+                        '<strong>' + credit.title + '</strong>' +
+                        (year ? ' <span data-role="year">(' + year + ')</span>' : '') +
+                        '<br /><span data-role="credit-role">' + credit.role + '</span>' +
+                    '</div></label>';
+            });
+            itemsDiv.innerHTML = html;
+            window._tmdbCredits = credits;
+        })
+        .catch(function(err) { itemsDiv.innerHTML = '<p data-role="error">Failed to load credits: ' + err.message + '</p>'; });
+}
+
+function toggleAllCredits(checkbox) {
+    document.querySelectorAll('#tmdb-credits-items input[type="checkbox"]').forEach(function(cb) { cb.checked = checkbox.checked; });
+}
+
+function importSelectedCredits() {
+    var checkboxes = document.querySelectorAll('#tmdb-credits-items input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) return;
+
+    var credits = window._tmdbCredits || [];
+    var payload = [];
+    checkboxes.forEach(function(cb) {
+        var idx = parseInt(cb.getAttribute('data-credit-index'));
+        var credit = credits[idx];
+        if (!credit) return;
+        payload.push({
+            tmdb_id: credit.tmdb_id,
+            title: credit.title,
+            role: credit.role,
+            media_type: credit.media_type || 'movie',
+            poster_url: credit.poster_url || null,
+            tmdb_url: credit.tmdb_url || '',
+            release_date: credit.release_date || null,
+            overview: credit.overview || null,
+            department: credit.department || null
+        });
+    });
+
+    fetch('/api/tmdb/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credits: payload })
+    })
+    .then(function(r) {
+        if (!r.ok) return r.text().then(function(t) { throw new Error('Server error ' + r.status + ': ' + t); });
+        return r.json();
+    })
+    .then(function(data) {
+        if (data.error) { alert('Import failed: ' + data.error); return; }
+        if (data.errors && data.errors.length > 0) {
+            alert('Import issues:\n' + data.errors.join('\n') + '\n\nImported: ' + (data.imported || 0) + ', Skipped: ' + (data.skipped || 0));
+            if (data.imported === 0) return;
+        }
+        closeTmdbImport();
+        location.reload();
+    })
+    .catch(function(err) { alert('Import failed: ' + err.message); });
+}
+
+/* ---- Manual Add (API-driven) ---- */
+var _searchTimeout = null;
+
+function openManualAdd() {
+    document.getElementById('manual-add-panel').hidden = false;
+}
+
+function closeManualAdd() {
+    document.getElementById('manual-add-panel').hidden = true;
+    document.getElementById('input-production-search').value = '';
+    document.getElementById('input-production-id').value = '';
+    document.getElementById('input-manual-role').value = '';
+    document.getElementById('input-manual-department').value = '';
+    document.getElementById('production-autocomplete').hidden = true;
+    document.getElementById('new-production-fields').hidden = true;
+}
+
+function searchProductions(query) {
+    clearTimeout(_searchTimeout);
+    var acDiv = document.getElementById('production-autocomplete');
+    if (query.length < 2) { acDiv.hidden = true; return; }
+
+    _searchTimeout = setTimeout(function() {
+        fetch('/api/productions/search?q=' + encodeURIComponent(query) + '&limit=8')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var results = data.results || [];
+                if (results.length === 0) {
+                    acDiv.innerHTML = '<div data-role="ac-empty">No matches. <button type="button" onclick="showNewProductionFields()">Create new production</button></div>';
+                    acDiv.hidden = false;
+                    return;
+                }
+                var html = '';
+                results.forEach(function(p) {
+                    var year = p.release_date ? ' (' + p.release_date.substring(0, 4) + ')' : '';
+                    html += '<button type="button" data-role="ac-item" onclick="selectProduction(\'' + p.id + '\', \'' + p.title.replace(/'/g, "\\'") + '\')">' +
+                        p.title + year + ' <span data-role="ac-type">' + p.type + '</span></button>';
+                });
+                html += '<div data-role="ac-footer"><button type="button" onclick="showNewProductionFields()">Create new production</button></div>';
+                acDiv.innerHTML = html;
+                acDiv.hidden = false;
+            });
+    }, 300);
+}
+
+function selectProduction(id, title) {
+    document.getElementById('input-production-id').value = id;
+    document.getElementById('input-production-search').value = title;
+    document.getElementById('production-autocomplete').hidden = true;
+    document.getElementById('new-production-fields').hidden = true;
+}
+
+function showNewProductionFields() {
+    document.getElementById('new-production-fields').hidden = false;
+    document.getElementById('input-production-id').value = '';
+    document.getElementById('production-autocomplete').hidden = true;
+    var title = document.getElementById('input-production-search').value;
+    document.getElementById('input-new-production-title').value = title;
+}
+
+function submitManualCredit() {
+    var productionId = document.getElementById('input-production-id').value;
+    var role = document.getElementById('input-manual-role').value.trim();
+    var relationType = document.getElementById('select-relation-type').value;
+    var department = document.getElementById('input-manual-department').value.trim();
+
+    if (!role) { alert('Please enter a role.'); return; }
+
+    if (productionId) {
+        // Add involvement to existing production
+        fetch('/api/involvements', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                production_id: productionId,
+                relation_type: relationType,
+                role: role || null,
+                department: department || null,
+                credit_type: relationType
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) { alert(data.error); return; }
+            closeManualAdd();
+            location.reload();
+        })
+        .catch(function(err) { alert('Failed: ' + err.message); });
+    } else {
+        // Create new production + involvement
+        var title = document.getElementById('input-new-production-title').value.trim();
+        var prodType = document.getElementById('select-new-production-type').value;
+        if (!title) { alert('Please enter a production title.'); return; }
+
+        fetch('/api/involvements/with-production', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: title,
+                production_type: prodType,
+                relation_type: relationType,
+                role: role || null,
+                department: department || null,
+                credit_type: relationType
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) { alert(data.error); return; }
+            closeManualAdd();
+            location.reload();
+        })
+        .catch(function(err) { alert('Failed: ' + err.message); });
+    }
+}
+
+function removeCredit(involvementId, btn) {
+    if (!confirm('Remove this credit?')) return;
+    fetch('/api/involvements/' + encodeURIComponent(involvementId), { method: 'DELETE' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) { alert(data.error); return; }
+            var card = btn.closest('[data-component="credit-edit-card"]');
+            if (card) card.remove();
+        })
+        .catch(function(err) { alert('Failed: ' + err.message); });
 }
 
 function addEducation() {

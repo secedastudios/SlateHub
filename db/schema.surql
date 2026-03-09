@@ -245,7 +245,7 @@ DEFINE FIELD profile.location ON person TYPE option<string> PERMISSIONS FULL;  -
 DEFINE FIELD profile.unions ON person TYPE array<string> PERMISSIONS FULL;  -- From union enum, e.g., ["SAG-AFTRA", "IATSE"]
 DEFINE FIELD profile.languages ON person TYPE array<string> PERMISSIONS FULL;  -- e.g., ["English", "Spanish"]
 DEFINE FIELD profile.availability ON person TYPE option<string> PERMISSIONS FULL;  -- e.g., "full-time", "freelance", dates
-DEFINE FIELD profile.experience ON person TYPE array<object> PERMISSIONS FULL;  -- For semantic (past roles/projects/credits)
+-- Experience is now modeled via involvement graph edges (person->involvement->production)
 
 DEFINE FIELD profile.education ON person TYPE array<object> PERMISSIONS FULL;  -- Training/schools
 
@@ -268,7 +268,7 @@ DEFINE INDEX idx_person_skills ON person FIELDS profile.skills;
 -- TABLE: production
 -- ------------------------------
 
-DEFINE TABLE production TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE production TYPE NORMAL SCHEMAFULL CHANGEFEED 90d PERMISSIONS NONE;
 
 DEFINE FIELD title ON production TYPE string PERMISSIONS FULL;
 DEFINE FIELD slug ON production TYPE string PERMISSIONS FULL;
@@ -282,6 +282,18 @@ DEFINE FIELD created_at ON production TYPE datetime DEFAULT time::now() PERMISSI
 DEFINE FIELD updated_at ON production TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD embedding ON production TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)
 DEFINE FIELD embedding_text ON production TYPE option<string> PERMISSIONS FULL;  -- Cached text used to generate embedding
+
+-- External source data (TMDB)
+DEFINE FIELD tmdb_id ON production TYPE option<int> PERMISSIONS FULL;
+DEFINE FIELD media_type ON production TYPE option<string> PERMISSIONS FULL;  -- "movie", "tv"
+DEFINE FIELD poster_url ON production TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD tmdb_url ON production TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD release_date ON production TYPE option<string> PERMISSIONS FULL;  -- "YYYY-MM-DD" from TMDB
+DEFINE FIELD overview ON production TYPE option<string> PERMISSIONS FULL;  -- TMDB overview/synopsis
+
+-- Source tracking (claim state derived from graph: count(<-member_of[WHERE role = 'owner']) > 0)
+DEFINE FIELD source ON production TYPE string DEFAULT 'manual' PERMISSIONS FULL;  -- "tmdb", "manual"
+DEFINE FIELD source_overrides ON production TYPE array<string> DEFAULT [] PERMISSIONS FULL;  -- fields manually edited by owner, won't be overwritten on re-sync
 
 -- ------------------------------
 -- TABLE: location (filming locations)
@@ -336,16 +348,24 @@ DEFINE FIELD timestamp ON part_of TYPE datetime DEFAULT time::now() PERMISSIONS 
 -- RELATION: involvement (generic for person/organization to production)
 -- ------------------------------
 
-DEFINE TABLE involvement TYPE RELATION FROM person|organization TO production SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE involvement TYPE RELATION FROM person|organization TO production SCHEMAFULL CHANGEFEED 90d PERMISSIONS NONE;
 
-DEFINE FIELD relation_type ON involvement TYPE string PERMISSIONS FULL;  -- From involvement_relation_type
-DEFINE FIELD role ON involvement TYPE option<string> PERMISSIONS FULL;  -- From role
-DEFINE FIELD department ON involvement TYPE option<string> PERMISSIONS FULL;  -- From department
-DEFINE FIELD phase ON involvement TYPE option<string> PERMISSIONS FULL;  -- From phase
-DEFINE FIELD credit_type ON involvement TYPE option<string> PERMISSIONS FULL;  -- From credit_type
+DEFINE FIELD relation_type ON involvement TYPE string PERMISSIONS FULL;  -- "cast", "crew", "credit"
+DEFINE FIELD role ON involvement TYPE option<string> PERMISSIONS FULL;  -- Character name or job title
+DEFINE FIELD department ON involvement TYPE option<string> PERMISSIONS FULL;  -- From department enum
+DEFINE FIELD phase ON involvement TYPE option<string> PERMISSIONS FULL;  -- From phase enum
+DEFINE FIELD credit_type ON involvement TYPE option<string> PERMISSIONS FULL;  -- "cast", "crew", "above_the_line", "below_the_line"
 DEFINE FIELD status ON involvement TYPE option<string> PERMISSIONS FULL;
-DEFINE FIELD dates ON involvement TYPE object PERMISSIONS FULL; -- Flexible {start: datetime, end: datetime, join_date: datetime}
+DEFINE FIELD description ON involvement TYPE option<string> PERMISSIONS FULL;  -- Additional role notes
+DEFINE FIELD dates ON involvement TYPE option<object> PERMISSIONS FULL; -- {start, end}
 DEFINE FIELD timestamp ON involvement TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+
+-- Verification lifecycle: self_asserted → pending_verification → verified / rejected
+-- TMDB imports start as "externally_sourced" (soft-verified)
+DEFINE FIELD verification_status ON involvement TYPE string DEFAULT 'self_asserted' PERMISSIONS FULL;
+DEFINE FIELD source ON involvement TYPE string DEFAULT 'manual' PERMISSIONS FULL;  -- "tmdb_import", "manual", "claimed"
+DEFINE FIELD verified_by ON involvement TYPE option<record<person>> PERMISSIONS FULL;
+DEFINE FIELD verified_at ON involvement TYPE option<datetime> PERMISSIONS FULL;
 
 -- ------------------------------
 -- TABLE: job_posting (for jobs/casting calls)
@@ -385,6 +405,7 @@ DEFINE FIELD applied_at ON application TYPE datetime DEFAULT time::now() PERMISS
 
 DEFINE INDEX idx_production_type ON production FIELDS type;
 DEFINE INDEX idx_production_slug ON production FIELDS slug UNIQUE;
+DEFINE INDEX idx_production_tmdb_id ON production FIELDS tmdb_id UNIQUE;
 DEFINE INDEX idx_location_public ON location FIELDS is_public;
 DEFINE INDEX idx_location_city ON location FIELDS city;
 DEFINE INDEX idx_location_created_by ON location FIELDS created_by;
@@ -396,7 +417,6 @@ DEFINE INDEX idx_involvement_relation_type ON involvement FIELDS relation_type;
 -- Additional for search
 DEFINE ANALYZER profile_analyzer TOKENIZERS blank,class FILTERS lowercase,snowball(english);
 DEFINE INDEX idx_person_bio ON person FIELDS profile.bio FULLTEXT ANALYZER profile_analyzer BM25;
-DEFINE INDEX idx_person_experience_desc ON person FIELDS profile.experience[*].description FULLTEXT ANALYZER profile_analyzer BM25;
 DEFINE INDEX idx_job_description ON job_posting FIELDS description FULLTEXT ANALYZER profile_analyzer BM25;
 DEFINE INDEX idx_job_requirements ON job_posting FIELDS requirements FULLTEXT ANALYZER profile_analyzer BM25;
 

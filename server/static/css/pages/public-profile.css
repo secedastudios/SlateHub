@@ -212,6 +212,33 @@
     transition: box-shadow 0.2s;
 }
 
+[data-component="experience-item"][data-has-poster] {
+    display: flex;
+    gap: 1.25rem;
+}
+
+[data-component="experience-item"] [data-role="experience-poster"] {
+    flex-shrink: 0;
+    width: 80px;
+    border-radius: var(--border-radius, 0.25rem);
+    overflow: hidden;
+}
+
+[data-component="experience-item"] [data-role="experience-poster"] img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+[data-component="experience-item"] [data-role="production-name"] a {
+    color: var(--primary-color, #1095c1);
+    text-decoration: none;
+}
+
+[data-component="experience-item"] [data-role="production-name"] a:hover {
+    text-decoration: underline;
+}
+
 [data-component="experience-item"]:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
@@ -232,6 +259,90 @@
     color: var(--muted-color, #73828c);
     margin: 0.5rem 0 0 0;
     line-height: 1.6;
+}
+
+/* Credits Section (involvement-based) */
+[data-section="credits"] [data-role="credits-list"] {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+[data-component="credit-item"] {
+    padding: 1.5rem;
+    background: var(--card-background-color, #fff);
+    border: 1px solid var(--muted-border-color, #e1e1e1);
+    border-radius: var(--border-radius, 0.25rem);
+    transition: box-shadow 0.2s;
+}
+
+[data-component="credit-item"][data-has-poster] {
+    display: flex;
+    gap: 1.25rem;
+}
+
+[data-component="credit-item"] [data-role="credit-poster"] {
+    flex-shrink: 0;
+    width: 80px;
+    border-radius: var(--border-radius, 0.25rem);
+    overflow: hidden;
+}
+
+[data-component="credit-item"] [data-role="credit-poster"] img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+[data-component="credit-item"]:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-component="credit-item"] [data-role="credit-header"] h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    color: var(--h3-color, #24333e);
+}
+
+[data-component="credit-item"] [data-role="production-name"] a {
+    color: var(--primary-color, #1095c1);
+    text-decoration: none;
+}
+
+[data-component="credit-item"] [data-role="production-name"] a:hover {
+    text-decoration: underline;
+}
+
+[data-component="credit-item"] [data-role="release-date"] {
+    color: var(--muted-color, #73828c);
+    font-size: 0.875rem;
+    margin: 0.25rem 0 0;
+}
+
+[data-component="credit-item"] [data-role="credit-badges"] {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+[data-component="credit-item"] [data-role="credit-type-badge"],
+[data-component="credit-item"] [data-role="verification-badge"] {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--muted-border-color, #e1e1e1);
+    color: var(--muted-color, #73828c);
+}
+
+[data-component="credit-item"] [data-role="verification-badge"][data-status="verified"] {
+    border-color: #22c55e;
+    color: #22c55e;
+}
+
+[data-component="credit-item"] [data-role="verification-badge"][data-status="external"] {
+    border-color: #1095c1;
+    color: #1095c1;
 }
 
 /* Organizations Section */
