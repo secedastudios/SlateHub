@@ -52,6 +52,10 @@ bytes = "1.9"
 uuid = { version = "1.10", features = ["v4"] }
 urlencoding = "2.1"
 
+# Markdown rendering + HTML sanitization
+pulldown-cmark = "0.12"
+ammonia = "4"
+
 # Semantic search dependencies
 fastembed = "4.0"
 anyhow = "1.0"

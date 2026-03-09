@@ -497,6 +497,28 @@ ul#nav-user {
     font-weight: var(--font-weight-semibold);
 }
 
+[data-role="avatar-wrapper"] {
+    position: relative;
+    display: inline-flex;
+}
+
+#notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: var(--radius-full);
+    background: #22c55e;
+    color: #fff;
+    font-size: 10px;
+    font-weight: var(--font-weight-bold);
+    line-height: 16px;
+    text-align: center;
+    pointer-events: none;
+}
+
 #user-menu-dropdown[open] summary {
     background-color: rgba(214, 216, 202, 0.06);
 }

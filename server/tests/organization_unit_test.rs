@@ -9,7 +9,7 @@ fn create_test_org_data(slug: &str) -> CreateOrganizationData {
     CreateOrganizationData {
         name: format!("Test Organization {}", slug),
         slug: slug.to_string(),
-        org_type: "production_company".to_string(),
+        org_type: "Production Company".to_string(),
         description: Some("A test organization for unit testing".to_string()),
         location: Some("Los Angeles, CA".to_string()),
         website: Some("https://example.com".to_string()),
@@ -28,7 +28,7 @@ fn test_organization_data_creation() {
 
     assert_eq!(org_data.name, "Test Organization test-org");
     assert_eq!(org_data.slug, "test-org");
-    assert_eq!(org_data.org_type, "production_company");
+    assert_eq!(org_data.org_type, "Production Company");
     assert!(org_data.description.is_some());
     assert_eq!(org_data.services.len(), 2);
     assert_eq!(org_data.founded_year, Some(2020));
@@ -80,7 +80,7 @@ fn test_social_link_structure() {
 fn test_update_organization_data() {
     let update_data = UpdateOrganizationData {
         name: "Updated Organization".to_string(),
-        org_type: "studio".to_string(),
+        org_type: "Film Studio".to_string(),
         description: Some("Updated description".to_string()),
         location: Some("New York, NY".to_string()),
         website: Some("https://updated.com".to_string()),
@@ -93,7 +93,7 @@ fn test_update_organization_data() {
     };
 
     assert_eq!(update_data.name, "Updated Organization");
-    assert_eq!(update_data.org_type, "studio");
+    assert_eq!(update_data.org_type, "Film Studio");
     assert!(!update_data.public);
     assert_eq!(update_data.employees_count, Some(100));
 }
@@ -127,7 +127,7 @@ fn test_organization_fields_optional() {
     let org_data = CreateOrganizationData {
         name: "Minimal Org".to_string(),
         slug: "minimal-org".to_string(),
-        org_type: "production_company".to_string(),
+        org_type: "Production Company".to_string(),
         description: None,
         location: None,
         website: None,
@@ -152,18 +152,18 @@ fn test_organization_fields_optional() {
 #[test]
 fn test_organization_type_variations() {
     let org_types = vec![
-        "production_company",
-        "studio",
-        "agency",
-        "post_production",
-        "equipment_rental",
-        "freelancer_collective",
+        "Production Company",
+        "Film Studio",
+        "Talent Agency",
+        "Post Production House",
+        "Equipment Rental",
+        "Community Group",
     ];
 
     for org_type in org_types {
         let org_data = CreateOrganizationData {
             name: format!("Test {}", org_type),
-            slug: format!("test-{}", org_type.replace('_', "-")),
+            slug: format!("test-{}", org_type.to_lowercase().replace(' ', "-")),
             org_type: org_type.to_string(),
             description: None,
             location: None,

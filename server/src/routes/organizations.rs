@@ -113,7 +113,7 @@ pub struct SlugCheckQuery {
 pub struct InviteMemberForm {
     pub username: String,
     pub role: String,
-    pub _message: Option<String>,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -159,6 +159,7 @@ pub struct OrganizationProfileTemplate {
     pub active_page: String,
     pub user: Option<User>,
     pub organization: Organization,
+    pub description_html: Option<String>,
     pub members: Vec<OrganizationMember>,
     pub is_member: bool,
     pub is_admin: bool,
@@ -215,19 +216,7 @@ async fn list_organizations(
     let mut base = BaseContext::new().with_page("organizations");
 
     if let Some(user) = request.get_user() {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-            avatar_url: Some(format!("/api/avatar?id={}", user.id)),
-            initials: user
-                .username
-                .chars()
-                .take(2)
-                .collect::<String>()
-                .to_uppercase(),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
     }
 
     // Use model to fetch organizations
@@ -276,19 +265,7 @@ async fn my_organizations(request: Request) -> Result<Html<String>, Error> {
     );
 
     let mut base = BaseContext::new().with_page("my-organizations");
-    base = base.with_user(User {
-        id: user.id.clone(),
-        name: user.username.clone(),
-        email: user.email.clone(),
-        avatar: format!("/api/avatar?id={}", user.id),
-        avatar_url: Some(format!("/api/avatar?id={}", user.id)),
-        initials: user
-            .username
-            .chars()
-            .take(2)
-            .collect::<String>()
-            .to_uppercase(),
-    });
+    base = base.with_user(User::from_session_user(&user).await);
 
     // Fetch user's organizations
     let model = OrganizationModel::new();
@@ -344,19 +321,7 @@ async fn new_organization_page(request: Request) -> Result<Html<String>, Error> 
     let user = request.get_user().ok_or(Error::Unauthorized)?;
 
     let mut base = BaseContext::new().with_page("new-organization");
-    base = base.with_user(User {
-        id: user.id.clone(),
-        name: user.username.clone(),
-        email: user.email.clone(),
-        avatar: format!("/api/avatar?id={}", user.id),
-        avatar_url: Some(format!("/api/avatar?id={}", user.id)),
-        initials: user
-            .username
-            .chars()
-            .take(2)
-            .collect::<String>()
-            .to_uppercase(),
-    });
+    base = base.with_user(User::from_session_user(&user).await);
 
     // Get organization types
     let model = OrganizationModel::new();
@@ -445,19 +410,7 @@ async fn organization_profile(
     // Check if user is authenticated and their membership
     let user_opt = request.get_user();
     if let Some(user) = &user_opt {
-        base = base.with_user(User {
-            id: user.id.clone(),
-            name: user.username.clone(),
-            email: user.email.clone(),
-            avatar: format!("/api/avatar?id={}", user.id),
-            avatar_url: Some(format!("/api/avatar?id={}", user.id)),
-            initials: user
-                .username
-                .chars()
-                .take(2)
-                .collect::<String>()
-                .to_uppercase(),
-        });
+        base = base.with_user(User::from_session_user(&user).await);
 
         // Check user's role in the organization using model
         if let Some(member_role) = model
@@ -482,6 +435,11 @@ async fn organization_profile(
     // Get organization members using model
     let members = model.get_members(&organization.id.to_raw_string()).await?;
 
+    let description_html = organization
+        .description
+        .as_deref()
+        .map(crate::markdown::render);
+
     let template = OrganizationProfileTemplate {
         app_name: base.app_name,
         year: base.year,
@@ -489,6 +447,7 @@ async fn organization_profile(
         active_page: base.active_page,
         user: base.user,
         organization,
+        description_html,
         members,
         is_member,
         is_admin,
@@ -520,19 +479,7 @@ async fn edit_organization_page(
     }
 
     let mut base = BaseContext::new().with_page("edit-organization");
-    base = base.with_user(User {
-        id: user.id.clone(),
-        name: user.username.clone(),
-        email: user.email.clone(),
-        avatar: format!("/api/avatar?id={}", user.id),
-        avatar_url: Some(format!("/api/avatar?id={}", user.id)),
-        initials: user
-            .username
-            .chars()
-            .take(2)
-            .collect::<String>()
-            .to_uppercase(),
-    });
+    base = base.with_user(User::from_session_user(&user).await);
 
     let org_types_data = model.get_organization_types().await?;
     let org_types: Vec<OrgType> = org_types_data
@@ -714,7 +661,7 @@ async fn invite_member(
     AuthenticatedUser(user): AuthenticatedUser,
     Path(slug): Path<String>,
     axum::Form(data): axum::Form<InviteMemberForm>,
-) -> Result<Json<serde_json::Value>, Error> {
+) -> Result<Redirect, Error> {
     let model = OrganizationModel::new();
     let organization = model.get_by_slug(&slug).await?;
 
@@ -726,23 +673,46 @@ async fn invite_member(
         return Err(Error::Forbidden);
     }
 
-    // Find user by username or email
-    let invited_user_id: String = model.find_user_by_username_or_email(&data.username).await?;
+    let org_id = organization.id.to_raw_string();
+    let inviter_name = user.name.clone();
 
-    // Add member with pending status
-    model
-        .add_member(
-            &organization.id.to_raw_string(),
-            &invited_user_id,
-            &data.role,
-            Some(&user.id),
-        )
-        .await?;
+    let result = crate::services::invitation::InvitationService::invite_to_organization(
+        &org_id,
+        &organization.name,
+        &slug,
+        &data.username,
+        &data.role,
+        &user.id,
+        &inviter_name,
+        data.message.as_deref(),
+    )
+    .await?;
 
-    Ok(Json(json!({
-        "success": true,
-        "message": "Invitation sent successfully"
-    })))
+    match result {
+        crate::services::invitation::InviteResult::AlreadyMember => {
+            info!("User '{}' is already a member of '{}'", data.username, slug);
+        }
+        crate::services::invitation::InviteResult::AlreadyInvited => {
+            info!(
+                "User '{}' already has a pending invitation to '{}'",
+                data.username, slug
+            );
+        }
+        crate::services::invitation::InviteResult::ExistingUser => {
+            info!(
+                "User '{}' invited existing user '{}' to '{}'",
+                user.id, data.username, slug
+            );
+        }
+        crate::services::invitation::InviteResult::NewUserInvited => {
+            info!(
+                "User '{}' invited new user '{}' to '{}'",
+                user.id, data.username, slug
+            );
+        }
+    }
+
+    Ok(Redirect::to(&format!("/orgs/{slug}")))
 }
 
 #[axum::debug_handler]

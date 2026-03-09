@@ -34,6 +34,7 @@ pub fn router() -> Router {
         .route("/login", get(login_form).post(login))
         .route("/logout", post(logout))
         .route("/verify-email", get(verify_email_form).post(verify_email))
+        .route("/verify-email/confirm", get(verify_email_link))
         .route("/resend-verification", post(resend_verification))
         .route(
             "/forgot-password",
@@ -45,7 +46,15 @@ pub fn router() -> Router {
         )
 }
 
-async fn signup_form(request: Request) -> Result<Html<String>, Error> {
+#[derive(Debug, Deserialize)]
+struct SignupQuery {
+    email: Option<String>,
+}
+
+async fn signup_form(
+    Query(query): Query<SignupQuery>,
+    request: Request,
+) -> Result<Html<String>, Error> {
     debug!("Rendering signup page");
 
     let mut base = BaseContext::new().with_page("signup");
@@ -55,7 +64,8 @@ async fn signup_form(request: Request) -> Result<Html<String>, Error> {
         base = base.with_user(User::from_session_user(&user).await);
     }
 
-    let template = SignupTemplate::new(base);
+    let mut template = SignupTemplate::new(base);
+    template.prefill_email = query.email;
 
     let html = template.render().map_err(|e| {
         error!("Failed to render signup template: {}", e);
@@ -254,9 +264,23 @@ async fn verify_email(
 
             info!("Email verified for user: {}", form.email);
 
+            // Process any pending invitations for this email
+            let person_id = person.id.to_raw_string();
+            let redirect_url = match crate::services::invitation::InvitationService::process_pending_invitations(&person_id, &form.email).await {
+                Ok(Some(url)) => {
+                    info!("Processed pending invitations for {}, redirecting to {}", form.email, url);
+                    url
+                }
+                Ok(None) => "/profile".to_string(),
+                Err(e) => {
+                    error!("Failed to process pending invitations for {}: {}", form.email, e);
+                    "/profile".to_string()
+                }
+            };
+
             // Create authentication token for the verified user
             let token =
-                crate::auth::create_jwt(&person.id.to_raw_string(), &person.username, &person.email)?;
+                crate::auth::create_jwt(&person_id, &person.username, &person.email)?;
 
             // Create authentication cookie
             let cookie = Cookie::build(("auth_token", token))
@@ -266,8 +290,8 @@ async fn verify_email(
                 .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
                 .build();
 
-            // Redirect to profile
-            Ok((jar.add(cookie), response::redirect("/profile")).into_response())
+            // Redirect to invitation target or profile
+            Ok((jar.add(cookie), response::redirect(&redirect_url)).into_response())
         }
         Err(e) => {
             error!("Email verification failed for {}: {}", form.email, e);
@@ -290,6 +314,27 @@ async fn verify_email(
             Ok(Html(html).into_response())
         }
     }
+}
+
+/// Direct email verification via link (GET with query params)
+#[derive(Debug, Deserialize)]
+struct VerifyEmailQuery {
+    code: String,
+    email: String,
+}
+
+async fn verify_email_link(
+    jar: CookieJar,
+    Query(query): Query<VerifyEmailQuery>,
+) -> Result<Response, Error> {
+    debug!("Processing email verification via link for: {}", query.email);
+
+    let form = VerifyEmailForm {
+        code: query.code,
+        email: query.email,
+    };
+
+    verify_email(jar, Form(form)).await
 }
 
 // Password Reset Routes

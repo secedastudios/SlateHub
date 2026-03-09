@@ -84,6 +84,16 @@ impl DatabaseConfig {
     }
 }
 
+/// Get the application base URL (e.g. "https://app.slatehub.com").
+/// Reads from APP_URL env var, defaults to "http://localhost:3000".
+/// Returned without a trailing slash.
+pub fn app_url() -> String {
+    env::var("APP_URL")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string())
+        .trim_end_matches('/')
+        .to_string()
+}
+
 impl ServerConfig {
     fn from_env() -> Result<Self, ConfigError> {
         Ok(ServerConfig {

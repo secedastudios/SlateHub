@@ -6,6 +6,7 @@ use crate::db::DB;
 // use crate::models::equipment::{
 //     Equipment, EquipmentCategory, EquipmentCondition, EquipmentKit, EquipmentRental,
 // };
+use crate::models::notification::NotificationModel;
 use crate::models::person::SessionUser;
 
 /// Represents a user for template rendering
@@ -17,6 +18,7 @@ pub struct User {
     pub avatar: String,             // Compatibility field - either URL or empty
     pub avatar_url: Option<String>, // Actual profile image URL if exists
     pub initials: String,           // Fallback initials from username/name
+    pub notification_count: u32,    // Unread notification count
 }
 
 impl User {
@@ -27,6 +29,12 @@ impl User {
 
         // Try to fetch the avatar URL from the database
         let avatar_url = Self::fetch_avatar_url(&session_user.id).await;
+
+        // Fetch unread notification count
+        let notification_count = NotificationModel::new()
+            .get_unread_count(&session_user.id)
+            .await
+            .unwrap_or(0);
 
         // For compatibility, set avatar to the URL if it exists, otherwise use /api/avatar endpoint
         let avatar = avatar_url
@@ -40,6 +48,7 @@ impl User {
             avatar,
             avatar_url,
             initials,
+            notification_count,
         }
     }
 
@@ -164,6 +173,7 @@ pub struct SignupTemplate {
     pub active_page: String,
     pub user: Option<User>,
     pub error: Option<String>,
+    pub prefill_email: Option<String>,
 }
 
 /// Email verification page template
@@ -803,6 +813,7 @@ impl SignupTemplate {
             active_page: base.active_page,
             user: base.user,
             error: None,
+            prefill_email: None,
         }
     }
 }

@@ -23,7 +23,9 @@ DEFINE INDEX idx_production_type_name ON production_type FIELDS name UNIQUE;
 -- Production Statuses
 DEFINE TABLE production_status TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
 DEFINE FIELD name ON production_status TYPE string;
+DEFINE FIELD position ON production_status TYPE int;
 DEFINE INDEX idx_production_status_name ON production_status FIELDS name UNIQUE;
+DEFINE INDEX idx_production_status_position ON production_status FIELDS position;
 
 -- Involvement Relation Types
 DEFINE TABLE involvement_relation_type TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
@@ -151,6 +153,44 @@ DEFINE FIELD invited_at ON member_of TYPE option<datetime> DEFAULT time::now() P
 
 DEFINE INDEX idx_member_of_unique ON member_of FIELDS in, out UNIQUE;
 
+
+-- ------------------------------
+-- TABLE: notification
+-- ------------------------------
+
+DEFINE TABLE notification TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD person_id ON notification TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD notification_type ON notification TYPE string ASSERT $value IN ['invitation', 'invitation_accepted', 'member_joined', 'general'] PERMISSIONS FULL;
+DEFINE FIELD title ON notification TYPE string PERMISSIONS FULL;
+DEFINE FIELD message ON notification TYPE string PERMISSIONS FULL;
+DEFINE FIELD link ON notification TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD read ON notification TYPE bool DEFAULT false PERMISSIONS FULL;
+DEFINE FIELD related_id ON notification TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD created_at ON notification TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_notification_person ON notification FIELDS person_id;
+DEFINE INDEX idx_notification_person_read ON notification FIELDS person_id, read;
+
+-- ------------------------------
+-- TABLE: pending_invitation
+-- ------------------------------
+
+DEFINE TABLE pending_invitation TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD email ON pending_invitation TYPE string PERMISSIONS FULL;
+DEFINE FIELD target_type ON pending_invitation TYPE string ASSERT $value IN ['organization', 'production'] PERMISSIONS FULL;
+DEFINE FIELD target_id ON pending_invitation TYPE string PERMISSIONS FULL;
+DEFINE FIELD target_name ON pending_invitation TYPE string PERMISSIONS FULL;
+DEFINE FIELD target_slug ON pending_invitation TYPE string PERMISSIONS FULL;
+DEFINE FIELD role ON pending_invitation TYPE string DEFAULT 'member' PERMISSIONS FULL;
+DEFINE FIELD invited_by ON pending_invitation TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD status ON pending_invitation TYPE string DEFAULT 'pending' ASSERT $value IN ['pending', 'accepted', 'expired'] PERMISSIONS FULL;
+DEFINE FIELD created_at ON pending_invitation TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD expires_at ON pending_invitation TYPE option<datetime> PERMISSIONS FULL;
+
+DEFINE INDEX idx_pending_invitation_email ON pending_invitation FIELDS email;
+DEFINE INDEX idx_pending_invitation_status ON pending_invitation FIELDS status;
 
 -- ------------------------------
 -- TABLE: verification_codes
@@ -380,60 +420,65 @@ DEFINE ACCESS user ON DATABASE TYPE RECORD
 
 -- Organization Types
 INSERT INTO organization_type (name) VALUES
-("production_company"), ("film_studio"), ("tv_production_company"), ("commercial_production_company"),
-("animation_studio"), ("vfx_studio"), ("talent_agency"), ("management_company"), ("distribution_company"),
-("marketing_agency"), ("post_production_house"), ("casting_agency"), ("sound_studio"), ("catering_company"),
-("equipment_rental"), ("location_services"), ("film_school"), ("community_group"), ("guild"), ("other");
+("Production Company"), ("Film Studio"), ("TV Production Company"), ("Commercial Production Company"),
+("Animation Studio"), ("VFX Studio"), ("Talent Agency"), ("Management Company"), ("Distribution Company"),
+("Marketing Agency"), ("Post Production House"), ("Casting Agency"), ("Sound Studio"), ("Catering Company"),
+("Equipment Rental"), ("Location Services"), ("Film School"), ("Community Group"), ("Guild"), ("Other");
 
 -- Production Types
 INSERT INTO production_type (name) VALUES
-("film"), ("tv_series"), ("season"), ("episode"), ("documentary"), ("music_video"), ("commercial"),
-("podcast"), ("webseries"), ("short_film"), ("animation"), ("reality_tv"), ("corporate_video"), ("other");
+("Film"), ("TV Series"), ("Season"), ("Episode"), ("Documentary"), ("Music Video"), ("Commercial"),
+("Podcast"), ("Webseries"), ("Short Film"), ("Animation"), ("Reality TV"), ("Corporate Video"), ("Other");
 
 -- Production Statuses
-INSERT INTO production_status (name) VALUES
-("development"), ("pre_production"), ("production"), ("post_production"), ("completed"), ("released"), ("canceled");
+INSERT INTO production_status (name, position) VALUES
+("Development", 0), ("Pre-Production", 1), ("Production", 2), ("Post-Production", 3), ("Completed", 4), ("Festival", 5), ("Pre-Sales", 6), ("Released", 7), ("Canceled", 8);
 
 -- Involvement Relation Types
 INSERT INTO involvement_relation_type (name) VALUES
 ("owner"), ("admin"), ("member"), ("credit"), ("contractor"), ("other");
 
 -- Departments
-INSERT INTO department (name) VALUES
-("above_the_line"), ("art"), ("camera"), ("sound"), ("lighting"), ("grip"), ("wardrobe"), ("makeup_hair"),
-("production_management"), ("directing"), ("post_production"), ("casting"), ("stunts"), ("marketing"),
-("distribution"), ("social_media"), ("vfx"), ("editing"), ("locations"), ("transportation"), ("other");
+INSERT INTO department (id, name) VALUES
+(department:above_the_line, "Above The Line"), (department:art, "Art"), (department:camera, "Camera"),
+(department:sound, "Sound"), (department:lighting, "Lighting"), (department:grip, "Grip"),
+(department:wardrobe, "Wardrobe"), (department:makeup_hair, "Makeup & Hair"),
+(department:production_management, "Production Management"), (department:directing, "Directing"),
+(department:post_production, "Post-Production"), (department:casting, "Casting"), (department:stunts, "Stunts"),
+(department:marketing, "Marketing"), (department:distribution, "Distribution"), (department:social_media, "Social Media"),
+(department:vfx, "VFX"), (department:editing, "Editing"), (department:locations, "Locations"),
+(department:transportation, "Transportation"), (department:cast, "Cast"), (department:other, "Other");
 
 -- Roles (Comprehensive list from standard film crew positions)
 INSERT INTO role (name, department) VALUES
-("director", department:above_the_line), ("producer", department:above_the_line), ("executive_producer", department:above_the_line),
-("writer", department:above_the_line), ("screenwriter", department:above_the_line), ("actor", department:cast),
-("principal_cast", department:cast), ("production_designer", department:art), ("art_director", department:art),
-("set_designer", department:art), ("set_decorator", department:art), ("prop_master", department:art),
-("greensman", department:art), ("director_of_photography", department:camera), ("cinematographer", department:camera),
-("camera_operator", department:camera), ("first_ac", department:camera), ("second_ac", department:camera),
-("dit", department:camera), ("production_sound_mixer", department:sound), ("boom_operator", department:sound),
-("sound_assistant", department:sound), ("gaffer", department:lighting), ("best_boy_electric", department:lighting),
-("key_grip", department:grip), ("best_boy_grip", department:grip), ("costume_designer", department:wardrobe),
-("costume_coordinator", department:wardrobe), ("tailor", department:wardrobe), ("shopper", department:wardrobe),
-("makeup_artist", department:makeup_hair), ("key_makeup_artist", department:makeup_hair), ("hair_stylist", department:makeup_hair),
-("key_hair_stylist", department:makeup_hair), ("line_producer", department:production_management),
-("unit_production_manager", department:production_management), ("production_coordinator", department:production_management),
-("production_assistant", department:production_management), ("location_manager", department:locations),
-("location_scout", department:locations), ("first_ad", department:directing), ("second_ad", department:directing),
-("script_supervisor", department:directing), ("editor", department:post_production), ("vfx_supervisor", department:vfx),
-("colorist", department:post_production), ("sound_editor", department:post_production),
-("casting_director", department:casting), ("stunt_coordinator", department:stunts), ("weapons_wrangler", department:stunts),
-("on_set_editor", department:post_production), ("influencer", department:social_media), ("content_creator", department:social_media),
-("brand_ambassador", department:marketing), ("social_media_manager", department:social_media), ("marketing_manager", department:marketing),
-("distributor", department:distribution), ("agent", department:above_the_line), ("publicist", department:marketing),
-("copywriter", department:marketing), ("video_editor", department:post_production), ("graphic_designer", department:art),
-("photographer", department:camera), ("videographer", department:camera), ("driver", department:transportation),
-("caterer", department:other), ("other", null);
+("Director", department:above_the_line), ("Producer", department:above_the_line), ("Executive Producer", department:above_the_line),
+("Writer", department:above_the_line), ("Screenwriter", department:above_the_line), ("Actor", department:cast),
+("Principal Cast", department:cast), ("Production Designer", department:art), ("Art Director", department:art),
+("Set Designer", department:art), ("Set Decorator", department:art), ("Prop Master", department:art),
+("Greensman", department:art), ("Director of Photography", department:camera), ("Cinematographer", department:camera),
+("Camera Operator", department:camera), ("First AC", department:camera), ("Second AC", department:camera),
+("DIT", department:camera), ("Production Sound Mixer", department:sound), ("Boom Operator", department:sound),
+("Sound Assistant", department:sound), ("Gaffer", department:lighting), ("Best Boy Electric", department:lighting),
+("Key Grip", department:grip), ("Best Boy Grip", department:grip), ("Costume Designer", department:wardrobe),
+("Costume Coordinator", department:wardrobe), ("Tailor", department:wardrobe), ("Shopper", department:wardrobe),
+("Makeup Artist", department:makeup_hair), ("Key Makeup Artist", department:makeup_hair), ("Hair Stylist", department:makeup_hair),
+("Key Hair Stylist", department:makeup_hair), ("Line Producer", department:production_management),
+("Unit Production Manager", department:production_management), ("Production Coordinator", department:production_management),
+("Production Assistant", department:production_management), ("Location Manager", department:locations),
+("Location Scout", department:locations), ("First AD", department:directing), ("Second AD", department:directing),
+("Script Supervisor", department:directing), ("Editor", department:post_production), ("VFX Supervisor", department:vfx),
+("Colorist", department:post_production), ("Sound Editor", department:post_production),
+("Casting Director", department:casting), ("Stunt Coordinator", department:stunts), ("Weapons Wrangler", department:stunts),
+("On Set Editor", department:post_production), ("Influencer", department:social_media), ("Content Creator", department:social_media),
+("Brand Ambassador", department:marketing), ("Social Media Manager", department:social_media), ("Marketing Manager", department:marketing),
+("Distributor", department:distribution), ("Agent", department:above_the_line), ("Publicist", department:marketing),
+("Copywriter", department:marketing), ("Video Editor", department:post_production), ("Graphic Designer", department:art),
+("Photographer", department:camera), ("Videographer", department:camera), ("Driver", department:transportation),
+("Caterer", department:other), ("Other", null);
 
 -- Phases
 INSERT INTO phase (name) VALUES
-("development"), ("pre_production"), ("production"), ("post_production"), ("distribution"), ("all");
+("Development"), ("Pre-Production"), ("Production"), ("Post-Production"), ("Distribution"), ("All");
 
 -- Credit Types
 INSERT INTO credit_type (name) VALUES
@@ -445,28 +490,28 @@ INSERT INTO ownership_type (name) VALUES
 
 -- Genders
 INSERT INTO gender (name) VALUES
-("male"), ("female"), ("non_binary"), ("prefer_not_to_say"), ("other");
+("Male"), ("Female"), ("Non-Binary"), ("Prefer Not To Say"), ("Other");
 
 -- Ethnicities (representative list)
 INSERT INTO ethnicity (name) VALUES
-("african_american"), ("asian"), ("caucasian"), ("hispanic_latino"), ("native_american"), ("pacific_islander"),
-("middle_eastern"), ("mixed"), ("other");
+("African American"), ("Asian"), ("Caucasian"), ("Hispanic/Latino"), ("Native American"), ("Pacific Islander"),
+("Middle Eastern"), ("Mixed"), ("Other");
 
 -- Hair Colors
 INSERT INTO hair_color (name) VALUES
-("black"), ("brown"), ("blonde"), ("red"), ("gray"), ("white"), ("bald"), ("other");
+("Black"), ("Brown"), ("Blonde"), ("Red"), ("Gray"), ("White"), ("Bald"), ("Other");
 
 -- Eye Colors
 INSERT INTO eye_color (name) VALUES
-("brown"), ("blue"), ("green"), ("hazel"), ("gray"), ("black"), ("other");
+("Brown"), ("Blue"), ("Green"), ("Hazel"), ("Gray"), ("Black"), ("Other");
 
 -- Body Types
 INSERT INTO body_type (name) VALUES
-("athletic"), ("average"), ("slim"), ("curvy"), ("muscular"), ("petite"), ("tall"), ("other");
+("Athletic"), ("Average"), ("Slim"), ("Curvy"), ("Muscular"), ("Petite"), ("Tall"), ("Other");
 
 -- Unions
 INSERT INTO union (name) VALUES
-("sag_aftra"), ("iatse"), ("dga"), ("wga"), ("pga"), ("asc"), ("ace"), ("other");
+("SAG-AFTRA"), ("IATSE"), ("DGA"), ("WGA"), ("PGA"), ("ASC"), ("ACE"), ("Other");
 
 -- Reserved Names (URLs that organizations cannot use)
 INSERT INTO reserved_names (name) VALUES

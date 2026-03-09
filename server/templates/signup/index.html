@@ -47,6 +47,8 @@
                     placeholder="Enter your email"
                     required
                     aria-required="true"
+                    {% match prefill_email %}
+                        {% when Some with (email) %}value="{{ email }}"{% when None %}{% endmatch %}
                     {% match error %}
                         {% when Some with (_) %}aria-invalid="true"{% when None %}{% endmatch %}
                 />

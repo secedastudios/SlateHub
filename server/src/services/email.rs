@@ -144,16 +144,25 @@ impl EmailService {
         verification_code: &str,
     ) -> Result<()> {
         let subject = "Verify your SlateHub email address";
+        let base_url = crate::config::app_url();
+        let verify_url = format!(
+            "{}/verify-email/confirm?code={}&email={}",
+            base_url,
+            urlencoding::encode(verification_code),
+            urlencoding::encode(to_email)
+        );
 
         let text_body = format!(
             "Welcome to SlateHub!\n\n\
-            Your verification code is: {}\n\n\
-            Please enter this code on the verification page to complete your registration.\n\n\
+            Click the link below to verify your email:\n\
+            {}\n\n\
+            Or enter this code on the verification page:\n\
+            {}\n\n\
             This code will expire in 24 hours.\n\n\
             If you didn't create an account on SlateHub, please ignore this email.\n\n\
             Best regards,\n\
             The SlateHub Team",
-            verification_code
+            verify_url, verification_code
         );
 
         let html_body = format!(
@@ -170,15 +179,17 @@ impl EmailService {
     </div>
 
     <div style="background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 30px;">
-        <p style="font-size: 16px; margin-bottom: 20px;">Your verification code is:</p>
-
-        <div style="background-color: #f0f4f8; border: 2px dashed #4a90e2; border-radius: 6px; padding: 20px; text-align: center; margin: 20px 0;">
-            <code style="font-size: 32px; font-weight: bold; color: #4a90e2; letter-spacing: 4px;">{}</code>
+        <div style="text-align: center; margin: 20px 0 30px 0;">
+            <a href="{}" style="display: inline-block; background-color: #eb5437; color: white; padding: 14px 36px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Verify My Email</a>
         </div>
 
-        <p style="font-size: 14px; color: #666; margin-top: 20px;">
-            Please enter this code on the verification page to complete your registration.
-        </p>
+        <div style="border-top: 1px solid #e0e0e0; padding-top: 20px; margin-top: 10px;">
+            <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Or enter this code on the verification page:</p>
+
+            <div style="background-color: #f0f4f8; border: 2px dashed #4a90e2; border-radius: 6px; padding: 20px; text-align: center; margin: 10px 0;">
+                <code style="font-size: 32px; font-weight: bold; color: #4a90e2; letter-spacing: 4px;">{}</code>
+            </div>
+        </div>
 
         <p style="font-size: 14px; color: #999; margin-top: 20px;">
             This code will expire in 24 hours. If you didn't create an account on SlateHub, please ignore this email.
@@ -186,11 +197,11 @@ impl EmailService {
     </div>
 
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #999; font-size: 12px;">
-        <p>© 2024 SlateHub. All rights reserved.</p>
+        <p>&copy; 2024 SlateHub. All rights reserved.</p>
     </div>
 </body>
 </html>"#,
-            verification_code
+            verify_url, verification_code
         );
 
         self.send_email(
@@ -211,13 +222,15 @@ impl EmailService {
         reset_code: &str,
     ) -> Result<()> {
         let subject = "Reset your SlateHub password";
+        let base_url = crate::config::app_url();
+        let encoded_email = urlencoding::encode(to_email);
 
         let text_body = format!(
             "Hello {},\n\n\
             We received a request to reset your SlateHub password.\n\n\
             Your password reset code is: {}\n\n\
             To reset your password:\n\
-            1. Go to: https://slatehub.com/reset-password?email={}\n\
+            1. Go to: {}/reset-password?email={}\n\
             2. Enter the code above\n\
             3. Create your new password\n\n\
             This code will expire in 1 hour.\n\n\
@@ -226,7 +239,8 @@ impl EmailService {
             The SlateHub Team",
             to_name.unwrap_or("there"),
             reset_code,
-            urlencoding::encode(to_email)
+            base_url,
+            encoded_email
         );
 
         let html_body = format!(
@@ -250,7 +264,7 @@ impl EmailService {
         </div>
 
         <div style="text-align: center; margin: 30px 0;">
-            <a href="https://slatehub.com/reset-password?email={}" style="display: inline-block; background-color: #dc3545; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Reset Your Password</a>
+            <a href="{}/reset-password?email={}" style="display: inline-block; background-color: #dc3545; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Reset Your Password</a>
         </div>
 
         <p style="font-size: 14px; color: #666; margin-top: 20px;">
@@ -272,7 +286,8 @@ impl EmailService {
 </body>
 </html>"#,
             reset_code,
-            urlencoding::encode(to_email)
+            base_url,
+            encoded_email
         );
 
         self.send_email(
@@ -283,6 +298,91 @@ impl EmailService {
             Some(&html_body),
         )
         .await
+    }
+
+    /// Send organization invitation email to a non-user
+    pub async fn send_invitation_email(
+        &self,
+        to_email: &str,
+        org_name: &str,
+        inviter_name: &str,
+        signup_url: &str,
+        message: Option<&str>,
+    ) -> Result<()> {
+        let subject = format!("You've been invited to join {} on SlateHub", org_name);
+
+        let message_text = match message {
+            Some(msg) if !msg.is_empty() => format!("\n\n{} says: \"{}\"\n", inviter_name, msg),
+            _ => String::new(),
+        };
+
+        let text_body = format!(
+            "Hi there!\n\n\
+            {} has invited you to join {} on SlateHub — the production networking platform.{}\n\n\
+            To accept this invitation, create your free account:\n\
+            {}\n\n\
+            Once you sign up and verify your email, you'll automatically be added to {}.\n\n\
+            If you weren't expecting this invitation, you can safely ignore this email.\n\n\
+            Best regards,\n\
+            The SlateHub Team",
+            inviter_name, org_name, message_text, signup_url, org_name
+        );
+
+        let message_html = match message {
+            Some(msg) if !msg.is_empty() => format!(
+                r#"<div style="background-color: #f5f5f5; border-left: 3px solid #eb5437; padding: 15px 20px; margin: 20px 0; border-radius: 4px;">
+            <p style="font-size: 14px; color: #666; margin: 0 0 5px 0; font-weight: 600;">{} says:</p>
+            <p style="font-size: 15px; color: #333; margin: 0; font-style: italic;">"{}"</p>
+        </div>"#,
+                inviter_name,
+                ammonia::clean(msg)
+            ),
+            _ => String::new(),
+        };
+
+        let html_body = format!(
+            r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #171717; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+        <h1 style="color: #d6d8ca; margin-top: 0;">You're Invited!</h1>
+        <p style="font-size: 16px; color: #d6d8ca;">{} has invited you to join <strong>{}</strong> on SlateHub.</p>
+    </div>
+
+    <div style="background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 30px;">
+        <p style="font-size: 16px; margin-bottom: 20px;">
+            SlateHub is the production networking platform for film, TV, and media professionals.
+        </p>
+
+        {}
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{}" style="display: inline-block; background-color: #eb5437; color: white; padding: 14px 36px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Create Your Account</a>
+        </div>
+
+        <p style="font-size: 14px; color: #666; margin-top: 20px;">
+            Once you sign up and verify your email, you'll automatically be added to {}.
+        </p>
+
+        <p style="font-size: 14px; color: #999; margin-top: 20px;">
+            If you weren't expecting this invitation, you can safely ignore this email.
+        </p>
+    </div>
+
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #999; font-size: 12px;">
+        <p>&copy; 2024 SlateHub. All rights reserved.</p>
+    </div>
+</body>
+</html>"#,
+            inviter_name, org_name, message_html, signup_url, org_name
+        );
+
+        self.send_email(to_email, None, &subject, Some(&text_body), Some(&html_body))
+            .await
     }
 }
 

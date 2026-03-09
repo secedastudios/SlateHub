@@ -13,6 +13,7 @@ mod auth;
 mod equipment;
 mod locations;
 mod media;
+mod notifications;
 mod organizations;
 mod pages;
 mod productions;
@@ -40,6 +41,8 @@ pub fn app() -> Router {
         .merge(productions::router())
         // Mount locations routes
         .merge(locations::router())
+        // Mount notifications routes
+        .merge(notifications::router())
         // Mount equipment routes
         .merge(equipment::router())
         // Mount profile routes

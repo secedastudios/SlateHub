@@ -230,6 +230,7 @@ test-services-stop:
 
 test-db-init: test-wait-db
 	@echo "Initializing test database schema..."
+	@echo "REMOVE DATABASE IF EXISTS test;" | docker exec -i slatehub-surrealdb-test /surreal sql --endpoint http://localhost:8000 --username root --password root --namespace slatehub-test > /dev/null 2>&1 || true
 	@cat db/schema.surql | docker exec -i slatehub-surrealdb-test /surreal import --endpoint http://localhost:8000 --username root --password root --namespace slatehub-test --database test /dev/stdin
 	@echo "Test database initialized."
 

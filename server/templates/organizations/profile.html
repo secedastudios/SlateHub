@@ -29,8 +29,8 @@
                     {% if organization.public %}Public{% else %}Private{% endif %}
                 </span>
             </div>
-            {% if organization.description.is_some() %}
-            <p id="org-hero-desc">{{ organization.description.as_ref().unwrap() }}</p>
+            {% if let Some(html) = description_html %}
+            <div id="org-hero-desc" class="markdown-content">{{ html|safe }}</div>
             {% endif %}
             <div id="org-hero-actions">
                 {% if organization.website.is_some() %}

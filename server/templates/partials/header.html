@@ -75,19 +75,24 @@
                         aria-haspopup="true"
                         aria-expanded="false"
                     >
-                            {% match user.avatar_url %}
-                                {% when Some with (url) %}
-                                <img
-                            src="{{ url }}"
-                            alt="{{ user.name }}'s avatar"
-                            id="nav-user-avatar"
-                            data-role="avatar"
-                            width="32"
-                            height="32"
-                        />
-                                {% when None %}
-                                <div id="nav-user-initials" data-role="avatar-initials">{{ user.initials }}</div>
-                            {% endmatch %}
+                            <span data-role="avatar-wrapper">
+                                {% match user.avatar_url %}
+                                    {% when Some with (url) %}
+                                    <img
+                                src="{{ url }}"
+                                alt="{{ user.name }}'s avatar"
+                                id="nav-user-avatar"
+                                data-role="avatar"
+                                width="32"
+                                height="32"
+                            />
+                                    {% when None %}
+                                    <div id="nav-user-initials" data-role="avatar-initials">{{ user.initials }}</div>
+                                {% endmatch %}
+                                {% if user.notification_count > 0 %}
+                                <span id="notification-badge" data-role="notification-badge" aria-label="{{ user.notification_count }} unread notifications">{{ user.notification_count }}</span>
+                                {% endif %}
+                            </span>
                         </summary>
                         <ul
                         id="user-menu-list"
@@ -102,6 +107,13 @@
                                 id="link-menu-profile"
                                 role="menuitem"
                             >Profile</a>
+                            </li>
+                            <li role="none">
+                                <a
+                                href="/notifications"
+                                id="link-menu-notifications"
+                                role="menuitem"
+                            >Notifications{% if user.notification_count > 0 %} ({{ user.notification_count }}){% endif %}</a>
                             </li>
                             <li role="none">
                                 <a

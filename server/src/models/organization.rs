@@ -452,13 +452,12 @@ impl OrganizationModel {
             )
         };
 
-        let _: Option<()> = query
+        query
             .bind(("org", org_id))
             .bind(("person", person_id))
             .bind(("role", role.to_string()))
             .bind(("status", invitation_status))
-            .await?
-            .take(0)?;
+            .await?;
 
         Ok(())
     }
@@ -557,7 +556,7 @@ impl OrganizationModel {
         debug!("Checking availability of slug: {}", slug);
 
         // Check if slug is taken
-        let org_check: Vec<(String,)> = DB
+        let org_check: Vec<serde_json::Value> = DB
             .query("SELECT slug FROM organization WHERE slug = $slug")
             .bind(("slug", slug.to_string()))
             .await?
@@ -569,7 +568,7 @@ impl OrganizationModel {
         }
 
         // Check against reserved names
-        let reserved_check: Vec<(String,)> = DB
+        let reserved_check: Vec<serde_json::Value> = DB
             .query("SELECT name FROM reserved_names WHERE name = $name")
             .bind(("name", slug.to_string()))
             .await?
@@ -625,18 +624,21 @@ impl OrganizationModel {
     pub async fn find_user_by_username_or_email(&self, identifier: &str) -> Result<String, Error> {
         debug!("Finding user by identifier: {}", identifier);
 
-        let result: Vec<(String,)> = DB
+        #[derive(Debug, serde::Deserialize, SurrealValue)]
+        struct PersonId {
+            id: RecordId,
+        }
+
+        let result: Option<PersonId> = DB
             .query(
                 "SELECT id FROM person WHERE username = $identifier OR email = $identifier LIMIT 1",
             )
             .bind(("identifier", identifier.to_string()))
             .await?
-            .take(0)
-            .unwrap_or_default();
+            .take(0)?;
 
         result
-            .first()
-            .map(|(id,)| id.clone())
+            .map(|p| p.id.to_raw_string())
             .ok_or(Error::NotFound)
     }
 
@@ -652,6 +654,13 @@ impl OrganizationModel {
 
         // First get the organization relationships
         // user_id should already be a full record ID like "person:xyz"
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct MemberRel {
+            org_id: RecordId,
+            role: String,
+            joined_at: DateTime<Utc>,
+        }
+
         let query = "
             SELECT
                 out as org_id,
@@ -664,7 +673,7 @@ impl OrganizationModel {
 
         debug!("Executing relationship query with user_id: '{}'", user_id.display());
 
-        let relationships: Vec<(RecordId, String, DateTime<Utc>)> = DB
+        let relationships: Vec<MemberRel> = DB
             .query(query)
             .bind(("user_id", user_id.clone()))
             .await
@@ -691,8 +700,8 @@ impl OrganizationModel {
             debug!("  3. invitation_status is not 'accepted'");
         } else {
             debug!("Found relationships:");
-            for (org_id, role, joined_at) in &relationships {
-                debug!("  - Org: {}, Role: {}, Joined: {}", org_id.display(), role, joined_at);
+            for rel in &relationships {
+                debug!("  - Org: {}, Role: {}, Joined: {}", rel.org_id.display(), rel.role, rel.joined_at);
             }
         }
 
@@ -703,16 +712,16 @@ impl OrganizationModel {
             relationships.len()
         );
 
-        for (org_id, role, joined_at) in relationships {
-            debug!("Fetching organization: {}", org_id.display());
+        for rel in relationships {
+            debug!("Fetching organization: {}", rel.org_id.display());
             let org_query = "SELECT *, type.* FROM organization WHERE id = $id";
 
             let org: Option<Organization> = DB
                 .query(org_query)
-                .bind(("id", org_id.to_raw_string()))
+                .bind(("id", rel.org_id.clone()))
                 .await
                 .map_err(|e| {
-                    error!("Failed to fetch organization {}: {:?}", org_id.display(), e);
+                    error!("Failed to fetch organization {}: {:?}", rel.org_id.display(), e);
                     e
                 })?
                 .take(0)?;
@@ -722,11 +731,13 @@ impl OrganizationModel {
                     "Successfully fetched organization: {} ({})",
                     org.name, org.slug
                 );
-                result.push((org, role, joined_at.to_rfc3339()));
+                result.push((org, rel.role, rel.joined_at.to_rfc3339()));
             } else {
-                warn!("Organization {} not found in database", org_id.display());
+                warn!("Organization {} not found in database", rel.org_id.display());
             }
         }
+
+        result.sort_by(|(a, _, _), (b, _, _)| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
         debug!(
             "=== Completed get_user_organizations: returning {} organizations ===",
