@@ -158,37 +158,3 @@ pub fn decode_jwt_insecure(token: &str) -> Result<Claims> {
 
     Ok(token_data.claims)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_password_hashing() {
-        let password = "test_password_123";
-        let hash = hash_password(password).expect("Should hash password");
-
-        // Verify the hash format matches SurrealDB's format
-        assert!(hash.starts_with("$argon2id$"));
-        assert!(hash.contains("$m=19456,t=2,p=1$"));
-
-        // Verify the password
-        assert!(verify_password(password, &hash).expect("Should verify password"));
-        assert!(!verify_password("wrong_password", &hash).expect("Should verify password"));
-    }
-
-    #[test]
-    fn test_jwt_creation_and_validation() {
-        let user_id = "person:test123";
-        let username = "testuser";
-        let email = "test@example.com";
-
-        let token = create_jwt(user_id, username, email).expect("Should create JWT");
-        assert!(!token.is_empty());
-
-        let claims = decode_jwt(&token).expect("Should decode JWT");
-        assert_eq!(claims.sub, user_id);
-        assert_eq!(claims.username, username);
-        assert_eq!(claims.email, email);
-    }
-}

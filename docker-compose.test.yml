@@ -1,0 +1,19 @@
+services:
+    surrealdb-test:
+        image: surrealdb/surrealdb:v3.0.1
+        container_name: slatehub-surrealdb-test
+        ports:
+            - "127.0.0.1:8100:8000"
+        command: start --log warn --user root --pass root memory
+        healthcheck:
+            test: ["CMD", "/surreal", "isready"]
+            interval: 5s
+            timeout: 3s
+            retries: 10
+            start_period: 5s
+        networks:
+            - slatehub-test
+
+networks:
+    slatehub-test:
+        driver: bridge

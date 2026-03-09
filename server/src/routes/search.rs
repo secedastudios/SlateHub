@@ -34,6 +34,7 @@ struct SearchTemplate {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)]
 struct PersonSearchResult {
     id: String,
     name: String,
@@ -48,6 +49,7 @@ struct PersonSearchResult {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)]
 struct OrganizationSearchResult {
     id: String,
     name: String,
@@ -59,6 +61,7 @@ struct OrganizationSearchResult {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)]
 struct LocationSearchResult {
     id: String,
     name: String,
@@ -70,6 +73,7 @@ struct LocationSearchResult {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)]
 struct ProductionSearchResult {
     id: String,
     title: String,

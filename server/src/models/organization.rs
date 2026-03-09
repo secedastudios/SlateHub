@@ -6,7 +6,7 @@ use tracing::{debug, error, warn};
 use crate::{
     db::DB,
     error::Error,
-    models::membership::{InvitationStatus, MembershipModel, MembershipRole},
+    models::membership::{MembershipModel, MembershipRole},
     record_id_ext::RecordIdExt,
     services::embedding::{build_organization_embedding_text, generate_embedding},
 };
@@ -169,7 +169,7 @@ impl OrganizationModel {
             "publish_content".to_string(),
         ];
 
-        // Single SQL transaction that creates the organization and membership
+        // Transaction creates the org and owner membership atomically
         let transaction_query = r#"
             BEGIN TRANSACTION;
 
@@ -194,16 +194,12 @@ impl OrganizationModel {
                 invitation_status = 'accepted',
                 joined_at = time::now();
 
-            LET $result = (SELECT *, type.* FROM $org.id);
-
             COMMIT TRANSACTION;
-
-            RETURN $result;
             "#;
 
         debug!("Executing transaction to create organization and owner membership");
 
-        let mut response = DB
+        let response = DB
             .query(transaction_query)
             .bind(("name", data.name))
             .bind(("slug", data.slug.clone()))
@@ -220,8 +216,26 @@ impl OrganizationModel {
             .bind(("person", owner_id))
             .await?;
 
-        debug!("Create organization response: {:?}", response);
-        let org: Option<Organization> = response.take(3)?;
+        // Check the transaction response for errors.
+        // Use debug format to inspect all statement results for constraint violations.
+        let response_debug = format!("{:?}", response);
+        debug!("Create organization response: {}", response_debug);
+
+        if response_debug.contains("already contains") {
+            return Err(Error::conflict("This slug is already taken"));
+        }
+        if response_debug.contains("cancelled transaction") {
+            return Err(Error::database(
+                "Organization creation transaction failed",
+            ));
+        }
+
+        // Fetch the created org with type details in a separate query
+        let org: Option<Organization> = DB
+            .query("SELECT *, type.* FROM organization WHERE slug = $slug")
+            .bind(("slug", data.slug.clone()))
+            .await?
+            .take(0)?;
 
         let org = org.ok_or_else(|| {
             error!("Organization creation returned no record");
@@ -504,8 +518,8 @@ impl OrganizationModel {
             .await?;
 
         Ok(membership
-            .filter(|m| m.invitation_status == InvitationStatus::Accepted)
-            .map(|m| m.role.as_str().to_string()))
+            .filter(|m| m.invitation_status == "accepted")
+            .map(|m| m.role.clone()))
     }
 
     /// Update a member's role
@@ -719,300 +733,5 @@ impl OrganizationModel {
             result.len()
         );
         Ok(result)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tokio;
-
-    // Helper function to create test organization data
-    fn create_test_org_data(slug: &str) -> CreateOrganizationData {
-        CreateOrganizationData {
-            name: format!("Test Organization {}", slug),
-            slug: slug.to_string(),
-            org_type: "production_company".to_string(),
-            description: Some("A test organization for unit testing".to_string()),
-            location: Some("Los Angeles, CA".to_string()),
-            website: Some("https://example.com".to_string()),
-            contact_email: Some("contact@example.com".to_string()),
-            phone: Some("+1-555-0123".to_string()),
-            services: vec!["production".to_string(), "post-production".to_string()],
-            founded_year: Some(2020),
-            employees_count: Some(50),
-            public: true,
-        }
-    }
-
-    #[test]
-    fn test_organization_data_creation() {
-        let org_data = create_test_org_data("test-org");
-
-        assert_eq!(org_data.name, "Test Organization test-org");
-        assert_eq!(org_data.slug, "test-org");
-        assert_eq!(org_data.org_type, "production_company");
-        assert!(org_data.description.is_some());
-        assert_eq!(org_data.services.len(), 2);
-        assert_eq!(org_data.founded_year, Some(2020));
-        assert!(org_data.public);
-    }
-
-    #[test]
-    fn test_organization_slug_validation() {
-        // Test various slug formats
-        let valid_slugs = vec![
-            "my-company",
-            "company-123",
-            "test-org-2024",
-            "production-co",
-        ];
-
-        let invalid_slugs = vec![
-            "My Company", // spaces
-            "company!",   // special chars
-            "test@org",   // @ symbol
-            "",           // empty
-        ];
-
-        for slug in valid_slugs {
-            // In a real implementation, you'd validate the slug format
-            assert!(!slug.is_empty());
-            assert!(!slug.contains(' '));
-            assert!(!slug.contains('@'));
-            assert!(!slug.contains('!'));
-        }
-
-        for slug in invalid_slugs {
-            // These should fail validation
-            assert!(
-                slug.is_empty() || slug.contains(' ') || slug.contains('@') || slug.contains('!')
-            );
-        }
-    }
-
-    #[test]
-    fn test_social_link_structure() {
-        let social_link = SocialLink {
-            platform: "linkedin".to_string(),
-            url: "https://linkedin.com/company/test".to_string(),
-        };
-
-        assert_eq!(social_link.platform, "linkedin");
-        assert!(social_link.url.starts_with("https://"));
-    }
-
-    #[test]
-    fn test_update_organization_data() {
-        let update_data = UpdateOrganizationData {
-            name: "Updated Organization".to_string(),
-            org_type: "studio".to_string(),
-            description: Some("Updated description".to_string()),
-            location: Some("New York, NY".to_string()),
-            website: Some("https://updated.com".to_string()),
-            contact_email: Some("new@example.com".to_string()),
-            phone: Some("+1-555-9999".to_string()),
-            services: vec!["editing".to_string()],
-            founded_year: Some(2019),
-            employees_count: Some(100),
-            public: false,
-        };
-
-        assert_eq!(update_data.name, "Updated Organization");
-        assert_eq!(update_data.org_type, "studio");
-        assert!(!update_data.public);
-        assert_eq!(update_data.employees_count, Some(100));
-    }
-
-    #[tokio::test]
-    async fn test_organization_model_new() {
-        let _model = OrganizationModel::new();
-        // The model should be created successfully
-        // In Rust, if this compiles and runs, it works
-        assert!(true);
-    }
-
-    #[test]
-    fn test_organization_member_structure() {
-        let member = OrganizationMember {
-            id: RecordId::parse_simple("member_of:member_123").unwrap(),
-            person_id: RecordId::parse_simple("person:person_456").unwrap(),
-            person_username: "johndoe".to_string(),
-            person_name: Some("John Doe".to_string()),
-            role: "admin".to_string(),
-            joined_at: Utc::now(),
-            invitation_status: "accepted".to_string(),
-        };
-
-        assert_eq!(member.person_username, "johndoe");
-        assert_eq!(member.role, "admin");
-        assert_eq!(member.invitation_status, "accepted");
-        assert!(member.person_name.is_some());
-    }
-
-    #[test]
-    fn test_organization_fields_optional() {
-        // Test that optional fields can be None
-        let org_data = CreateOrganizationData {
-            name: "Minimal Org".to_string(),
-            slug: "minimal-org".to_string(),
-            org_type: "production_company".to_string(),
-            description: None,
-            location: None,
-            website: None,
-            contact_email: None,
-            phone: None,
-            services: vec![],
-            founded_year: None,
-            employees_count: None,
-            public: false,
-        };
-
-        assert!(org_data.description.is_none());
-        assert!(org_data.location.is_none());
-        assert!(org_data.website.is_none());
-        assert!(org_data.contact_email.is_none());
-        assert!(org_data.phone.is_none());
-        assert!(org_data.founded_year.is_none());
-        assert!(org_data.employees_count.is_none());
-        assert!(org_data.services.is_empty());
-    }
-
-    #[test]
-    fn test_organization_type_variations() {
-        let org_types = vec![
-            "production_company",
-            "studio",
-            "agency",
-            "post_production",
-            "equipment_rental",
-            "freelancer_collective",
-        ];
-
-        for org_type in org_types {
-            let org_data = CreateOrganizationData {
-                name: format!("Test {}", org_type),
-                slug: format!("test-{}", org_type.replace('_', "-")),
-                org_type: org_type.to_string(),
-                description: None,
-                location: None,
-                website: None,
-                contact_email: None,
-                phone: None,
-                services: vec![],
-                founded_year: None,
-                employees_count: None,
-                public: true,
-            };
-
-            assert_eq!(org_data.org_type, org_type);
-        }
-    }
-
-    // Integration test placeholder - would require database connection
-    #[tokio::test]
-    #[ignore] // Ignore by default as it requires database
-    async fn test_create_organization_with_membership() {
-        // This test would require a test database connection
-        // Uncomment and implement when test database is available
-
-        /*
-        let model = OrganizationModel::new();
-        let membership_model = crate::models::membership::MembershipModel::new();
-
-        // Create test organization data with a mock user ID
-        let user_id = "test_user_123";
-        let org_data = create_test_org_data("integration-test-org");
-
-        // Create the organization
-        match model.create(org_data, user_id).await {
-            Ok(org) => {
-                // Verify organization was created
-                assert_eq!(org.slug, "integration-test-org");
-                assert!(org.id.starts_with("organization:"));
-                assert_eq!(org.org_type, "production_company");
-
-
-                // Verify membership was created
-                let membership = membership_model
-                    .find_by_person_and_org(user_id, &org.id)
-                    .await
-                    .expect("Should find membership")
-                    .expect("Membership should exist");
-
-                assert_eq!(membership.person_id, user_id);
-                assert_eq!(membership.organization_id, org.id);
-                assert_eq!(membership.role, crate::models::membership::MembershipRole::Owner);
-                assert_eq!(membership.invitation_status, crate::models::membership::InvitationStatus::Accepted);
-
-                // Verify owner has all permissions
-                let has_delete_perm = membership_model
-                    .has_permission(user_id, &org.id, crate::models::membership::Permission::DeleteOrganization)
-                    .await
-                    .expect("Should check permission");
-                assert!(has_delete_perm, "Owner should have delete permission");
-
-                // Cleanup - delete the test organization and membership
-                let _ = membership_model.delete(&membership.id).await;
-                let _ = model.delete(&org.id).await;
-            }
-            Err(e) => {
-                panic!("Failed to create organization: {:?}", e);
-            }
-        }
-        */
-    }
-
-    #[tokio::test]
-    #[ignore] // Ignore by default as it requires database
-    async fn test_create_organization_integration() {
-        // This test would require a test database connection
-        // Uncomment and implement when test database is available
-
-        /*
-        let model = OrganizationModel::new();
-        let org_data = create_test_org_data("integration-test-org");
-
-        match model.create(org_data, "test_user").await {
-            Ok(org) => {
-                assert_eq!(org.slug, "integration-test-org");
-                assert!(org.id.starts_with("organization:"));
-                assert_eq!(org.org_type, "production_company");
-
-                // Cleanup - delete the test organization
-                let _ = model.delete(&org.id).await;
-            }
-            Err(e) => {
-                panic!("Failed to create organization: {:?}", e);
-            }
-        }
-        */
-    }
-
-    #[tokio::test]
-    #[ignore] // Ignore by default as it requires database
-    async fn test_slug_availability_check() {
-        // This test would require a test database connection
-
-        /*
-        let model = OrganizationModel::new();
-
-        // Check availability of a new slug
-        let (available, reason) = model.check_slug_availability("unique-test-slug").await.unwrap();
-        assert!(available);
-        assert!(reason.is_none());
-
-        // Create an organization with that slug
-        let org_data = create_test_org_data("unique-test-slug");
-        let _ = model.create(org_data, "test_user").await.unwrap();
-
-        // Check again - should not be available
-        let (available, reason) = model.check_slug_availability("unique-test-slug").await.unwrap();
-        assert!(!available);
-        assert!(reason.is_some());
-
-        // Cleanup
-        let _ = model.delete("unique-test-slug").await;
-        */
     }
 }

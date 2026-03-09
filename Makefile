@@ -206,6 +206,41 @@ purge:
 	@echo "✅ Purge complete. All slatehub Docker resources have been removed."
 
 # ============================================================================
+# Testing
+# ============================================================================
+
+.PHONY: test test-services test-services-stop test-db-init test-wait-db
+
+test-wait-db:
+	@echo "Waiting for test SurrealDB..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		docker exec slatehub-surrealdb-test /surreal isready 2>/dev/null && break; \
+		sleep 1; \
+	done
+	@echo "Test SurrealDB ready."
+
+test-services:
+	@echo "Starting test services..."
+	@docker compose -f docker-compose.test.yml up -d
+	@$(MAKE) test-wait-db
+
+test-services-stop:
+	@echo "Stopping test services..."
+	@docker compose -f docker-compose.test.yml down
+
+test-db-init: test-wait-db
+	@echo "Initializing test database schema..."
+	@cat db/schema.surql | docker exec -i slatehub-surrealdb-test /surreal import --endpoint http://localhost:8000 --username root --password root --namespace slatehub-test --database test /dev/stdin
+	@echo "Test database initialized."
+
+test: test-services test-db-init
+	@echo "Running tests..."
+	@cd server && cargo test --lib --tests -- --test-threads=1; \
+	EXIT_CODE=$$?; \
+	cd .. && $(MAKE) test-services-stop; \
+	exit $$EXIT_CODE
+
+# ============================================================================
 # Aliases for convenience
 # ============================================================================
 

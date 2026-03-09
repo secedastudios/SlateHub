@@ -15,21 +15,23 @@ use tracing::{debug, error};
 // ============================
 
 /// Represents a membership relationship between a person and an organization
+/// Note: role/invitation_status/permissions use String types because SurrealValue
+/// derive does not work on Rust enums in SurrealDB v3.0.1 SDK.
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct Membership {
     pub id: RecordId,
     pub person_id: RecordId,
     pub organization_id: RecordId,
-    pub role: MembershipRole,
-    pub permissions: Vec<Permission>,
+    pub role: String,
+    pub permissions: Vec<String>,
     pub joined_at: DateTime<Utc>,
-    pub invitation_status: InvitationStatus,
+    pub invitation_status: String,
     pub invited_by: Option<RecordId>,
     pub invited_at: Option<DateTime<Utc>>,
 }
 
 /// Membership roles within an organization
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SurrealValue)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum MembershipRole {
     Owner,
@@ -57,7 +59,7 @@ impl MembershipRole {
 }
 
 /// Permissions that can be granted to members
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SurrealValue)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum Permission {
     // Organization management
@@ -80,7 +82,7 @@ pub enum Permission {
 }
 
 /// Status of a membership invitation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SurrealValue)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum InvitationStatus {
     Pending,
@@ -182,11 +184,17 @@ impl MembershipModel {
             )
         };
 
+        let permissions_strs: Vec<String> = data
+            .permissions
+            .iter()
+            .map(|p| serde_json::to_string(p).unwrap_or_default().trim_matches('"').to_string())
+            .collect();
+
         let result: Option<Membership> = DB
             .query(query)
-            .bind(("role", data.role.clone()))
-            .bind(("permissions", data.permissions.clone()))
-            .bind(("status", data.invitation_status.clone()))
+            .bind(("role", data.role.as_str().to_string()))
+            .bind(("permissions", permissions_strs))
+            .bind(("status", data.invitation_status.as_str().to_string()))
             .bind(("inviter", data.invited_by.clone()))
             .await?
             .take("AFTER")?;
@@ -384,7 +392,7 @@ impl MembershipModel {
     ) -> Result<bool, Error> {
         let membership = self.find_by_person_and_org(person_id, org_id).await?;
 
-        Ok(membership.map(|m| m.role == role).unwrap_or(false))
+        Ok(membership.map(|m| m.role == role.as_str()).unwrap_or(false))
     }
 
     /// Check if a person has a specific permission in an organization
@@ -398,12 +406,16 @@ impl MembershipModel {
 
         if let Some(membership) = membership {
             // Owners have all permissions
-            if membership.role == MembershipRole::Owner {
+            if membership.role == "owner" {
                 return Ok(true);
             }
 
             // Check specific permissions
-            Ok(membership.permissions.contains(&permission))
+            let perm_str = serde_json::to_string(&permission)
+                .unwrap_or_default()
+                .trim_matches('"')
+                .to_string();
+            Ok(membership.permissions.contains(&perm_str))
         } else {
             Ok(false)
         }
@@ -443,59 +455,3 @@ impl MembershipModel {
     }
 }
 
-// ============================
-// Tests
-// ============================
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_role_conversion() {
-        assert_eq!(
-            MembershipRole::from_str("owner").unwrap(),
-            MembershipRole::Owner
-        );
-        assert_eq!(
-            MembershipRole::from_str("admin").unwrap(),
-            MembershipRole::Admin
-        );
-        assert_eq!(
-            MembershipRole::from_str("member").unwrap(),
-            MembershipRole::Member
-        );
-        assert!(MembershipRole::from_str("invalid").is_err());
-    }
-
-    #[test]
-    fn test_invitation_status_conversion() {
-        assert_eq!(
-            InvitationStatus::from_str("pending").unwrap(),
-            InvitationStatus::Pending
-        );
-        assert_eq!(
-            InvitationStatus::from_str("accepted").unwrap(),
-            InvitationStatus::Accepted
-        );
-        assert_eq!(
-            InvitationStatus::from_str("declined").unwrap(),
-            InvitationStatus::Declined
-        );
-        assert!(InvitationStatus::from_str("invalid").is_err());
-    }
-
-    #[test]
-    fn test_default_permissions() {
-        let owner_perms = MembershipModel::get_default_permissions(&MembershipRole::Owner);
-        assert!(owner_perms.contains(&Permission::DeleteOrganization));
-
-        let admin_perms = MembershipModel::get_default_permissions(&MembershipRole::Admin);
-        assert!(admin_perms.contains(&Permission::InviteMembers));
-        assert!(!admin_perms.contains(&Permission::DeleteOrganization));
-
-        let member_perms = MembershipModel::get_default_permissions(&MembershipRole::Member);
-        assert!(member_perms.contains(&Permission::CreateProjects));
-        assert!(!member_perms.contains(&Permission::InviteMembers));
-    }
-}

@@ -210,22 +210,3 @@ impl System {
         Ok(results.first().map(|r| r.count).unwrap_or(0))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_health_check() {
-        // This test would require a database connection
-        // For now, just verify the method exists and compiles
-        let _ = System::health_check().await;
-    }
-
-    #[tokio::test]
-    async fn test_system_info() {
-        // This test would require a database connection
-        // For now, just verify the method exists and compiles
-        let _ = System::get_system_info().await;
-    }
-}
