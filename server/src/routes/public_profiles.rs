@@ -49,6 +49,7 @@ pub struct PublicProfileTemplate {
     pub organizations: Vec<OrganizationSummary>,
     pub social_links: Vec<SocialLinkDisplay>,
     pub involvements: Vec<crate::templates::InvolvementDisplay>,
+    pub base_url: String,
 }
 
 /// List of reserved routes that should not be treated as usernames
@@ -178,6 +179,7 @@ async fn user_profile(
         organizations,
         social_links,
         involvements,
+        base_url: crate::config::app_url(),
     };
 
     let html = template.render().map_err(|e| {

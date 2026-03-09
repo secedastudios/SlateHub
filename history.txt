@@ -15,3 +15,4 @@ SELECT id, out.release_date AS release_date, out.title AS production_title, role
 SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC;
 SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC, production_title ASC;
 SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC, production_title ASC, role ASC;
+SELECT username, profile.avatar FROM person WHERE username = 'chris';

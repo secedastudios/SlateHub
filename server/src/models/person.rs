@@ -446,6 +446,17 @@ impl Person {
         self.profile.as_ref().and_then(|p| p.avatar.clone())
     }
 
+    /// Get the avatar as an absolute URL (for OG tags / link unfurling)
+    pub fn get_absolute_avatar_url(&self) -> Option<String> {
+        self.get_avatar_url().map(|url| {
+            if url.starts_with("http://") || url.starts_with("https://") {
+                url
+            } else {
+                format!("{}{}", crate::config::app_url(), url)
+            }
+        })
+    }
+
     /// Get the display name for the person
     /// Priority: person.name -> profile.name -> username
     pub fn get_display_name(&self) -> String {
