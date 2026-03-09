@@ -1,7 +1,7 @@
-use axum::http::{Request, Response};
+use axum::http::{Request, Response, header};
 use axum::{Router, middleware, routing::get_service};
 use std::time::Duration;
-use tower_http::{compression::CompressionLayer, services::ServeDir, trace::TraceLayer};
+use tower_http::{compression::CompressionLayer, services::ServeDir, set_header::SetResponseHeaderLayer, trace::TraceLayer};
 use tracing::{Span, error, info};
 
 use crate::middleware::{
@@ -51,8 +51,16 @@ pub fn app() -> Router {
         .nest("/api", api::router())
         // Mount media routes under /api/media
         .nest("/api/media", media::router())
-        // Static files
-        .nest_service("/static", get_service(static_service))
+        // Static files with long cache (busted via ?v= query param)
+        .nest_service(
+            "/static",
+            get_service(static_service).layer(
+                SetResponseHeaderLayer::overriding(
+                    header::CACHE_CONTROL,
+                    header::HeaderValue::from_static("public, max-age=31536000, immutable"),
+                ),
+            ),
+        )
         // Mount public profiles last to handle /<username> routes
         // This must be last to avoid conflicts with other routes
         .merge(public_profiles::router())

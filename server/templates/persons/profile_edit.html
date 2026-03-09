@@ -2,8 +2,8 @@
 {% block title %}Edit Profile - {{ app_name }}{% endblock %}
 {% block page_name %}profile-edit{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="/static/css/pages/profile-edit.css" />
-<link rel="stylesheet" href="/static/css/components/image-upload.css" />
+<link rel="stylesheet" href="/static/css/pages/profile-edit.css?v={{ version }}" />
+<link rel="stylesheet" href="/static/css/components/image-upload.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
 <section id="profile-edit-main" data-component="profile-edit">
@@ -833,5 +833,5 @@ function updateSocialPlaceholder(select) {
     }
 }
 </script>
-<script src="/static/js/profile-image-upload.js"></script>
+<script src="/static/js/profile-image-upload.js?v={{ version }}"></script>
 {% endblock %}

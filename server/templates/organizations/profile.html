@@ -2,7 +2,7 @@
 {% block title %}{{ organization.name }} - {{ app_name }}{% endblock %}
 {% block page_name %}organization-profile{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="/static/css/pages/org-profile.css" />
+<link rel="stylesheet" href="/static/css/pages/org-profile.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
 <article id="org-profile" data-component="org-profile" data-org-slug="{{ organization.slug }}">

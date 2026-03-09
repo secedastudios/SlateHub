@@ -2,8 +2,8 @@
 {% block title %}Edit {{ organization.name }} - {{ app_name }}{% endblock %}
 {% block page_name %}edit-organization{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="/static/css/pages/orgs.css" />
-<link rel="stylesheet" href="/static/css/components/image-upload.css" />
+<link rel="stylesheet" href="/static/css/pages/orgs.css?v={{ version }}" />
+<link rel="stylesheet" href="/static/css/components/image-upload.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
 <section data-component="org-form-page">
@@ -124,7 +124,7 @@
     </section>
 </section>
 
-<script src="/static/js/organization-logo-upload.js"></script>
+<script src="/static/js/organization-logo-upload.js?v={{ version }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var deleteForm = document.getElementById('form-delete-org');
