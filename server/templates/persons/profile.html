@@ -1,16 +1,16 @@
 {% extends "_layout.html" %}
-{% block title %}{{ profile.name }} (@{{ profile.username }}) - {{ app_name }}{% endblock %}
+{% block title %}{{ profile.name }} (@{{ profile.username }}) — {% if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }} | {% endif %}{{ app_name }}{% endblock %}
 {% block page_name %}profile{% endblock %}
-{% block description %}{{ profile.name }} (@{{ profile.username }}) — {% if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}{% else %}Film & TV professional{% endif %} on {{ app_name }}{% endblock %}
+{% block description %}{{ profile.name }} (@{{ profile.username }}) — {% if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}{% else %}Film & TV professional{% endif %} on {{ app_name }}{% if profile.bio.is_some() %}. {{ profile.bio.as_ref().unwrap() }}{% endif %}{% endblock %}
 {% block og_type %}profile{% endblock %}
 {% block og_url %}<meta property="og:url" content="{{ "/"|abs_url }}{{ profile.username }}" />{% endblock %}
-{% block og_title %}{{ profile.name }} (@{{ profile.username }}) - {{ app_name }}{% endblock %}
-{% block og_description %}{% if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}{% else if profile.bio.is_some() %}{{ profile.bio.as_ref().unwrap() }}{% else %}Film & TV professional on {{ app_name }}{% endif %}{% endblock %}
-{% block og_image %}{% if profile.avatar.is_some() %}<meta property="og:image" content="{{ "/"|abs_url }}{{ profile.avatar.as_ref().unwrap().trim_start_matches('/') }}" />{% else %}<meta property="og:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
+{% block og_title %}{{ profile.name }}{% if profile.headline.is_some() %} — {{ profile.headline.as_ref().unwrap() }}{% endif %} | {{ app_name }}{% endblock %}
+{% block og_description %}{% if profile.bio.is_some() %}{{ profile.bio.as_ref().unwrap() }} — {% else if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}. {% endif %}{% if profile.location.is_some() %}Based in {{ profile.location.as_ref().unwrap() }}. {% endif %}Connect and collaborate with {{ profile.name }} on {{ app_name }}.{% endblock %}
+{% block og_image %}<meta property="og:image" content="{{ "/api/og/profile/"|abs_url }}{{ profile.username }}" />{% endblock %}
 {% block og_extra %}<meta property="profile:username" content="{{ profile.username }}" />{% endblock %}
-{% block twitter_title %}{{ profile.name }} (@{{ profile.username }}) - {{ app_name }}{% endblock %}
-{% block twitter_description %}{% if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}{% else if profile.bio.is_some() %}{{ profile.bio.as_ref().unwrap() }}{% else %}Film & TV professional on {{ app_name }}{% endif %}{% endblock %}
-{% block twitter_image %}{% if profile.avatar.is_some() %}<meta name="twitter:image" content="{{ "/"|abs_url }}{{ profile.avatar.as_ref().unwrap().trim_start_matches('/') }}" />{% else %}<meta name="twitter:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
+{% block twitter_title %}{{ profile.name }}{% if profile.headline.is_some() %} — {{ profile.headline.as_ref().unwrap() }}{% endif %} | {{ app_name }}{% endblock %}
+{% block twitter_description %}{% if profile.bio.is_some() %}{{ profile.bio.as_ref().unwrap() }} — {% else if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}. {% endif %}{% if profile.location.is_some() %}Based in {{ profile.location.as_ref().unwrap() }}. {% endif %}Connect and collaborate with {{ profile.name }} on {{ app_name }}.{% endblock %}
+{% block twitter_image %}<meta name="twitter:image" content="{{ "/api/og/profile/"|abs_url }}{{ profile.username }}" />{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/profile.css?v={{ version }}" />
 {% endblock %}

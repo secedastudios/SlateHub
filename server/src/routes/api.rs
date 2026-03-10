@@ -35,6 +35,7 @@ pub fn router() -> Router {
         .route("/involvements/{id}/reject", post(reject_involvement))
         .route("/feedback", post(submit_feedback))
         .route("/check-username", get(check_username))
+        .route("/og/profile/{username}", get(og_profile_image))
 }
 
 #[axum::debug_handler]
@@ -920,4 +921,145 @@ async fn check_username(
         Ok(None) => Json(serde_json::json!({ "available": true, "error": null })),
         Err(_) => Json(serde_json::json!({ "available": false, "error": "Unable to check username" })),
     }
+}
+
+// -----------------------------------------------------------------------------
+// Dynamic OG Profile Image (1200x630)
+// -----------------------------------------------------------------------------
+
+/// Generates a branded 1200x630 PNG for social media link previews.
+/// Embeds the person's avatar, name, headline, and a CTA.
+#[axum::debug_handler]
+async fn og_profile_image(
+    Path(username): Path<String>,
+) -> Result<impl IntoResponse, (axum::http::StatusCode, String)> {
+    use crate::models::person::Person;
+
+    let person = Person::find_by_username(&username)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, "Not found".to_string()))?;
+
+    let profile = person.profile.as_ref();
+    let name = person.get_display_name();
+    let headline = profile
+        .and_then(|p| p.headline.clone())
+        .unwrap_or_default();
+    let at_username = format!("@{}", person.username);
+
+    // Fetch avatar bytes if available
+    let avatar_url = person.get_avatar_url();
+    let avatar_bytes: Option<Vec<u8>> = if let Some(ref url) = avatar_url {
+        // Resolve relative URLs to local file paths
+        if url.starts_with("/api/media/") {
+            // Read from the media storage directory
+            let path = url.trim_start_matches("/api/media/");
+            let full_path = format!("media/{}", path);
+            tokio::fs::read(&full_path).await.ok()
+        } else if url.starts_with("http") {
+            // External URL — skip to avoid latency
+            None
+        } else {
+            // Try as a local static path
+            let path = url.trim_start_matches('/');
+            tokio::fs::read(path).await.ok()
+        }
+    } else {
+        None
+    };
+
+    // Generate the SVG
+    let svg = build_og_svg(&name, &headline, &at_username, avatar_bytes.as_deref());
+
+    // Render SVG to PNG via resvg
+    let png_data = render_svg_to_png(&svg)
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+    Ok((
+        [
+            (axum::http::header::CONTENT_TYPE, "image/png"),
+            (axum::http::header::CACHE_CONTROL, "public, max-age=3600"),
+        ],
+        png_data,
+    ))
+}
+
+fn build_og_svg(name: &str, headline: &str, username: &str, avatar_bytes: Option<&[u8]>) -> String {
+    use base64::Engine;
+
+    // Escape XML special chars
+    let name = name.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+    let headline = headline.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+    let username = username.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+
+    // Truncate long text
+    let name_display = if name.len() > 40 { format!("{}...", &name[..37]) } else { name.clone() };
+    let headline_display = if headline.len() > 80 { format!("{}...", &headline[..77]) } else { headline.clone() };
+
+    // Build avatar circle as embedded base64 image or initials
+    let avatar_element = if let Some(bytes) = avatar_bytes {
+        let b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+        // Detect MIME type from magic bytes
+        let mime = if bytes.starts_with(&[0x89, 0x50, 0x4e, 0x47]) {
+            "image/png"
+        } else if bytes.starts_with(&[0xff, 0xd8]) {
+            "image/jpeg"
+        } else if bytes.starts_with(b"RIFF") {
+            "image/webp"
+        } else {
+            "image/jpeg"
+        };
+        format!(
+            r##"<clipPath id="avatar-clip"><circle cx="200" cy="315" r="130"/></clipPath>
+            <image href="data:{mime};base64,{b64}" x="70" y="185" width="260" height="260" clip-path="url(#avatar-clip)" preserveAspectRatio="xMidYMid slice"/>"##
+        )
+    } else {
+        // Initials fallback
+        let initials: String = name.split_whitespace()
+            .filter_map(|w| w.chars().next())
+            .take(2)
+            .collect::<String>()
+            .to_uppercase();
+        format!(
+            r##"<circle cx="200" cy="315" r="130" fill="#2a2d2b"/>
+            <text x="200" y="330" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="700" fill="#9ca39e">{initials}</text>"##
+        )
+    };
+
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#141614"/>
+      <stop offset="100%" stop-color="#1a1d1b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg-grad)"/>
+  <rect x="0" y="0" width="1200" height="4" fill="#eb5437"/>
+  {avatar_element}
+  <text x="400" y="250" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="700" fill="#d6d8ca">{name_display}</text>
+  <text x="400" y="310" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#9ca39e">{username}</text>
+  <text x="400" y="370" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#b8bab0">{headline_display}</text>
+  <rect x="400" y="420" width="280" height="48" rx="8" fill="#eb5437"/>
+  <text x="540" y="452" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="600" fill="#ffffff">Work with me</text>
+  <text x="1160" y="600" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#eb5437">SlateHub</text>
+</svg>"##
+    )
+}
+
+fn render_svg_to_png(svg_str: &str) -> Result<Vec<u8>, String> {
+    let opts = resvg::usvg::Options::default();
+    let tree = resvg::usvg::Tree::from_str(svg_str, &opts)
+        .map_err(|e| format!("SVG parse error: {}", e))?;
+
+    let size = tree.size();
+    let width = size.width() as u32;
+    let height = size.height() as u32;
+
+    let mut pixmap = tiny_skia::Pixmap::new(width, height)
+        .ok_or_else(|| "Failed to create pixmap".to_string())?;
+
+    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+
+    pixmap.encode_png().map_err(|e| format!("PNG encode error: {}", e))
 }
