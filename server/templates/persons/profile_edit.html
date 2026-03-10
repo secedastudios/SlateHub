@@ -616,7 +616,9 @@ function importSelectedCredits() {
             if (data.imported === 0) return;
         }
         closeTmdbImport();
-        location.reload();
+        if (data.credits) {
+            data.credits.forEach(function(c) { appendCreditCard(c); });
+        }
     })
     .catch(function(err) { alert('Import failed: ' + err.message); });
 }
@@ -689,6 +691,8 @@ function submitManualCredit() {
 
     if (!role) { alert('Please enter a role.'); return; }
 
+    var productionTitle = document.getElementById('input-production-search').value.trim();
+
     if (productionId) {
         // Add involvement to existing production
         fetch('/api/involvements', {
@@ -706,7 +710,15 @@ function submitManualCredit() {
         .then(function(data) {
             if (data.error) { alert(data.error); return; }
             closeManualAdd();
-            location.reload();
+            appendCreditCard({
+                involvement_id: data.involvement_id,
+                role: role,
+                relation_type: relationType,
+                production_title: productionTitle,
+                production_slug: null,
+                production_type: '',
+                verification_status: 'self_asserted'
+            });
         })
         .catch(function(err) { alert('Failed: ' + err.message); });
     } else {
@@ -731,10 +743,67 @@ function submitManualCredit() {
         .then(function(data) {
             if (data.error) { alert(data.error); return; }
             closeManualAdd();
-            location.reload();
+            appendCreditCard({
+                involvement_id: data.involvement_id,
+                role: role,
+                relation_type: relationType,
+                production_title: title,
+                production_slug: data.production_slug,
+                production_type: data.production_type || prodType,
+                verification_status: 'self_asserted'
+            });
         })
         .catch(function(err) { alert('Failed: ' + err.message); });
     }
+}
+
+function appendCreditCard(credit) {
+    var container = document.getElementById('credits-container');
+    // Remove the "no credits yet" empty state if present
+    var empty = container.querySelector('[data-state="empty"]');
+    if (empty) empty.remove();
+
+    var article = document.createElement('article');
+    article.setAttribute('data-component', 'credit-edit-card');
+    article.setAttribute('data-involvement-id', credit.involvement_id);
+    if (credit.poster_url) article.setAttribute('data-has-poster', '');
+
+    var html = '';
+    if (credit.poster_url) {
+        html += '<div data-role="credit-poster"><img src="' + credit.poster_url + '" alt="" loading="lazy" /></div>';
+    }
+    html += '<div data-role="credit-details">';
+    html += '<h3>' + (credit.role || credit.relation_type || '') + '</h3>';
+    html += '<p data-role="production-name">';
+    if (credit.production_slug) {
+        html += '<a href="/productions/' + credit.production_slug + '">' + credit.production_title + '</a>';
+    } else {
+        html += credit.production_title;
+    }
+    html += '</p>';
+    if (credit.release_date) {
+        html += '<p data-role="release-date">' + credit.release_date + '</p>';
+    }
+    html += '<div data-role="credit-badges">';
+    html += '<span data-role="credit-type-badge">' + (credit.production_type || '') + '</span>';
+    var vs = credit.verification_status || 'self_asserted';
+    if (vs === 'verified') {
+        html += '<span data-role="verification-badge" data-status="verified">Verified</span>';
+    } else if (vs === 'externally_sourced') {
+        html += '<span data-role="verification-badge" data-status="external">TMDb</span>';
+    } else if (vs === 'self_asserted') {
+        html += '<span data-role="verification-badge" data-status="pending">Pending</span>';
+    }
+    html += '</div></div>';
+    html += '<div data-role="credit-actions">';
+    if (credit.tmdb_url) {
+        html += '<a href="' + credit.tmdb_url + '" target="_blank" rel="noopener noreferrer" data-role="tmdb-link">TMDb</a>';
+    }
+    html += '<button type="button" data-action="remove-credit" onclick="removeCredit(\'' + credit.involvement_id + '\', this)">Remove</button>';
+    html += '</div>';
+
+    article.innerHTML = html;
+    container.appendChild(article);
 }
 
 function removeCredit(involvementId, btn) {

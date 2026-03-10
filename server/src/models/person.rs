@@ -46,6 +46,8 @@ fn default_verification_status() -> String {
 /// Represents the detailed profile of a person.
 /// Corresponds to the flexible `profile` object in the `person` table.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, SurrealValue)]
+#[serde(default)]
+#[surreal(default)]
 pub struct Profile {
     pub name: Option<String>,
     pub avatar: Option<String>, // Direct URL to profile image
@@ -521,11 +523,27 @@ impl Person {
             }
         };
 
+        // If profile deserialization returned None (e.g. partial object from image upload),
+        // fetch the avatar URL directly from the DB to preserve it
+        let existing_avatar = if person.profile.is_none() {
+            let mut av_resp = DB
+                .query("SELECT VALUE profile.avatar FROM $id")
+                .bind(("id", person.id.clone()))
+                .await
+                .ok();
+            av_resp
+                .as_mut()
+                .and_then(|r| r.take::<Option<String>>(0).ok())
+                .flatten()
+        } else {
+            None
+        };
+
         // Initialize profile if it doesn't exist
         if person.profile.is_none() {
             person.profile = Some(Profile {
-                name: None, // Explicitly set to None to avoid database errors
-                avatar: None,
+                name: None,
+                avatar: existing_avatar, // Preserve avatar from image upload
                 headline: None,
                 bio: None,
                 location: None,
@@ -672,15 +690,19 @@ impl Person {
             return Err(Error::Conflict("Email already exists".to_string()));
         }
 
-        // Create the person record with unverified status
-        let sql = "CREATE person SET username = $username, email = $email, password = $password, name = $name, verification_status = $verification_status";
+        // Create the person record with unverified status and initialized profile
+        let sql = "CREATE person SET username = $username, email = $email, password = $password, name = $name, verification_status = $verification_status, profile = $profile";
         let mut response = DB
             .query(sql)
             .bind(("username", username.clone()))
             .bind(("email", email.clone()))
             .bind(("password", password_hash))
-            .bind(("name", None::<String>))
+            .bind(("name", username.clone()))
             .bind(("verification_status", "unverified"))
+            .bind(("profile", Profile {
+                name: Some(username.clone()),
+                ..Default::default()
+            }))
             .await?;
 
         // Get the created person

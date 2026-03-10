@@ -317,6 +317,7 @@ async fn tmdb_import(
     let mut imported = 0u32;
     let mut skipped = 0u32;
     let mut errors = Vec::new();
+    let mut imported_credits: Vec<serde_json::Value> = Vec::new();
 
     for credit in &payload.credits {
         // Determine relation_type and credit_type from role/department
@@ -361,7 +362,7 @@ async fn tmdb_import(
         }
 
         // Create involvement edge
-        if let Err(e) = InvolvementModel::create(
+        match InvolvementModel::create(
             person_id,
             &production.id,
             relation_type,
@@ -372,10 +373,25 @@ async fn tmdb_import(
         )
         .await
         {
-            error!("Failed to create involvement: {}", e);
-            errors.push(format!("{}: {}", credit.title, e));
-        } else {
-            imported += 1;
+            Ok(involvement_id) => {
+                imported += 1;
+                imported_credits.push(serde_json::json!({
+                    "involvement_id": involvement_id,
+                    "role": credit.role,
+                    "relation_type": relation_type,
+                    "production_title": credit.title,
+                    "production_slug": production.slug,
+                    "production_type": production.production_type,
+                    "poster_url": credit.poster_url,
+                    "tmdb_url": credit.tmdb_url,
+                    "release_date": credit.release_date,
+                    "verification_status": "externally_sourced",
+                }));
+            }
+            Err(e) => {
+                error!("Failed to create involvement: {}", e);
+                errors.push(format!("{}: {}", credit.title, e));
+            }
         }
     }
 
@@ -384,6 +400,7 @@ async fn tmdb_import(
         "imported": imported,
         "skipped": skipped,
         "errors": errors,
+        "credits": imported_credits,
     }))
 }
 
@@ -519,7 +536,11 @@ async fn create_involvement(
     )
     .await
     {
-        Ok(()) => Json(serde_json::json!({ "success": true })).into_response(),
+        Ok(involvement_id) => Json(serde_json::json!({
+            "success": true,
+            "involvement_id": involvement_id,
+        }))
+        .into_response(),
         Err(e) => {
             error!("Failed to create involvement: {}", e);
             Json(serde_json::json!({ "error": format!("Failed to create: {}", e) }))
@@ -581,10 +602,12 @@ async fn create_involvement_with_production(
     )
     .await
     {
-        Ok(()) => Json(serde_json::json!({
+        Ok(involvement_id) => Json(serde_json::json!({
             "success": true,
+            "involvement_id": involvement_id,
             "production_id": production.id.to_raw_string(),
             "production_slug": production.slug,
+            "production_type": production.production_type,
         }))
         .into_response(),
         Err(e) => {

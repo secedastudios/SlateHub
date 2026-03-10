@@ -66,7 +66,7 @@ impl InvolvementModel {
         department: Option<&str>,
         credit_type: Option<&str>,
         source: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<String, Error> {
         // Determine verification_status from source
         let verification_status = match source {
             "tmdb_import" => "externally_sourced",
@@ -86,17 +86,19 @@ impl InvolvementModel {
         let person_rid = to_record_id(person_id);
 
         let query = r#"
-            RELATE $person->involvement->$production SET
+            LET $created = (RELATE $person->involvement->$production SET
                 relation_type = $relation_type,
                 role = $role,
                 department = $department,
                 credit_type = $credit_type,
                 source = $source,
                 verification_status = $verification_status,
-                timestamp = time::now()
+                timestamp = time::now());
+            SELECT VALUE string::concat(meta::tb(id), ':', meta::id(id)) FROM $created;
         "#;
 
-        DB.query(query)
+        let mut resp = DB
+            .query(query)
             .bind(("person", person_rid))
             .bind(("production", production_id.clone()))
             .bind(("relation_type", relation_type.to_string()))
@@ -108,7 +110,12 @@ impl InvolvementModel {
             .await
             .map_err(|e| Error::Database(format!("Failed to create involvement: {}", e)))?;
 
-        Ok(())
+        // Statement 1 is the SELECT VALUE — returns the ID as a plain string
+        let involvement_id: Option<String> = resp
+            .take(1)
+            .map_err(|e| Error::Database(format!("Failed to read created involvement: {}", e)))?;
+
+        Ok(involvement_id.unwrap_or_default())
     }
 
     /// Get all involvements for a person with production details (graph traversal using out.*)
