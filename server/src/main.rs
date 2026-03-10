@@ -141,7 +141,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize embedding service for semantic search
     debug!("Initializing embedding service");
     match init_embedding_service().await {
-        Ok(_) => info!("Embedding service initialized successfully"),
+        Ok(_) => {
+            info!("Embedding service initialized successfully");
+            // Process any embeddings that were pending when the server last stopped
+            slatehub::services::embedding::backfill_pending_embeddings().await;
+        }
         Err(e) => {
             error!("Failed to initialize embedding service: {}", e);
             error!("Warning: Semantic search will not work without embedding service");

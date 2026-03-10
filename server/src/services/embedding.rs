@@ -1,7 +1,8 @@
 use anyhow::Result;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use std::sync::{Arc, LazyLock, Mutex};
-use tracing::{debug, info};
+use surrealdb::types::{RecordId, SurrealValue};
+use tracing::{debug, info, warn};
 
 /// Global embedding service instance
 /// Uses BGE-Large-EN-v1.5 for high-accuracy semantic search (1024 dimensions)
@@ -22,7 +23,7 @@ pub async fn init_embedding_service() -> Result<()> {
     Ok(())
 }
 
-/// Generate embedding for a single text
+/// Generate embedding for a single text (blocking — use generate_embedding_async from async contexts)
 pub fn generate_embedding(text: &str) -> Result<Vec<f32>> {
     let embedder = EMBEDDER.lock().unwrap();
 
@@ -39,6 +40,119 @@ pub fn generate_embedding(text: &str) -> Result<Vec<f32>> {
             "Embedding service not initialized. Call init_embedding_service() first."
         )),
     }
+}
+
+/// Async-safe embedding generation — runs on a blocking thread to avoid starving the async runtime
+pub async fn generate_embedding_async(text: &str) -> Result<Vec<f32>> {
+    let text = text.to_string();
+    tokio::task::spawn_blocking(move || generate_embedding(&text)).await?
+}
+
+/// Fire-and-forget: generate embedding and write it to the record in the background.
+/// Durable: writes a `pending_embedding` record before spawning, deletes it on completion.
+/// On server restart, `backfill_pending_embeddings()` re-processes any remaining records.
+pub fn spawn_embedding_update(record_id: RecordId, embedding_text: String) {
+    tokio::spawn(async move {
+        let db = &crate::db::DB;
+
+        // Write pending record for durability — if server crashes, this survives
+        if let Err(e) = db
+            .query("INSERT INTO pending_embedding (target, embedding_text) VALUES ($target, $text) ON DUPLICATE KEY UPDATE embedding_text = $text")
+            .bind(("target", record_id.clone()))
+            .bind(("text", embedding_text.clone()))
+            .await
+        {
+            warn!(record_id = ?record_id, error = %e, "Failed to write pending_embedding record");
+            // Still attempt the embedding — just won't be durable
+        }
+
+        process_single_embedding(db, record_id, embedding_text).await;
+    });
+}
+
+/// Process a single embedding: generate vector, update target record, remove pending record.
+async fn process_single_embedding(
+    db: &surrealdb::Surreal<surrealdb::engine::remote::ws::Client>,
+    record_id: RecordId,
+    embedding_text: String,
+) {
+    let text_clone = embedding_text.clone();
+    let rid_clone = record_id.clone();
+    let embedding = match tokio::task::spawn_blocking(move || generate_embedding(&text_clone))
+        .await
+    {
+        Ok(Ok(emb)) => emb,
+        Ok(Err(e)) => {
+            warn!(record_id = ?rid_clone, error = %e, "Background embedding failed");
+            return;
+        }
+        Err(e) => {
+            warn!(record_id = ?rid_clone, error = %e, "Background embedding task panicked");
+            return;
+        }
+    };
+
+    if let Err(e) = db
+        .query("UPDATE $id SET embedding = $embedding, embedding_text = $embedding_text")
+        .bind(("id", record_id.clone()))
+        .bind(("embedding", embedding))
+        .bind(("embedding_text", embedding_text))
+        .await
+    {
+        warn!(record_id = ?record_id, error = %e, "Background embedding DB update failed");
+        return;
+    }
+
+    // Success — remove the pending record
+    if let Err(e) = db
+        .query("DELETE FROM pending_embedding WHERE target = $target")
+        .bind(("target", record_id.clone()))
+        .await
+    {
+        warn!(record_id = ?record_id, error = %e, "Failed to delete pending_embedding record");
+    } else {
+        debug!(record_id = ?record_id, "Background embedding updated");
+    }
+}
+
+/// Process any pending embeddings left over from a previous server run.
+/// Call this once at startup after `init_embedding_service()`.
+pub async fn backfill_pending_embeddings() {
+    let db = &crate::db::DB;
+
+    #[derive(Debug, serde::Deserialize, SurrealValue)]
+    struct PendingRow {
+        target: RecordId,
+        embedding_text: String,
+    }
+
+    let mut resp = match db.query("SELECT target, embedding_text FROM pending_embedding").await {
+        Ok(r) => r,
+        Err(e) => {
+            warn!(error = %e, "Failed to query pending_embedding table");
+            return;
+        }
+    };
+
+    let rows: Vec<PendingRow> = match resp.take(0) {
+        Ok(r) => r,
+        Err(e) => {
+            warn!(error = %e, "Failed to deserialize pending_embedding rows");
+            return;
+        }
+    };
+
+    if rows.is_empty() {
+        info!("No pending embeddings to backfill");
+        return;
+    }
+
+    info!("Backfilling {} pending embeddings", rows.len());
+    for row in rows {
+        info!(target = ?row.target, "Processing pending embedding");
+        process_single_embedding(db, row.target, row.embedding_text).await;
+    }
+    info!("Pending embedding backfill complete");
 }
 
 /// Generate embeddings for multiple texts in batch (more efficient)

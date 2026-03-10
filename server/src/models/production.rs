@@ -1,11 +1,11 @@
 use crate::db::DB;
 use crate::error::Error;
 use crate::record_id_ext::RecordIdExt;
-use crate::services::embedding::{build_production_embedding_text, generate_embedding};
+use crate::services::embedding::build_production_embedding_text;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Production entity from the database
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
@@ -123,26 +123,7 @@ impl ProductionModel {
             .await
             .map_err(|e| Error::Database(format!("Failed to start transaction: {}", e)))?;
 
-        // Generate embedding for semantic search
-        let embedding_text = build_production_embedding_text(
-            &data.title,
-            &data.production_type,
-            &data.status,
-            data.description.as_deref(),
-            data.location.as_deref(),
-            data.start_date.as_deref(),
-            data.end_date.as_deref(),
-        );
-
-        let (embedding, embedding_text_opt) = match generate_embedding(&embedding_text) {
-            Ok(emb) => (Some(emb), Some(embedding_text)),
-            Err(e) => {
-                warn!("Failed to generate embedding for production: {}", e);
-                (None, None)
-            }
-        };
-
-        // Create the production
+        // Create the production (embedding generated in background)
         let query = r#"
             CREATE production CONTENT {
                 title: $title,
@@ -152,11 +133,19 @@ impl ProductionModel {
                 start_date: $start_date,
                 end_date: $end_date,
                 description: $description,
-                location: $location,
-                embedding: $embedding,
-                embedding_text: $embedding_text
+                location: $location
             } RETURN *;
         "#;
+
+        let embedding_text = build_production_embedding_text(
+            &data.title,
+            &data.production_type,
+            &data.status,
+            data.description.as_deref(),
+            data.location.as_deref(),
+            data.start_date.as_deref(),
+            data.end_date.as_deref(),
+        );
 
         let mut result = DB
             .query(query)
@@ -168,8 +157,6 @@ impl ProductionModel {
             .bind(("end_date", data.end_date))
             .bind(("description", data.description))
             .bind(("location", data.location))
-            .bind(("embedding", embedding))
-            .bind(("embedding_text", embedding_text_opt))
             .await
             .map_err(|e| Error::Database(format!("Failed to create production: {}", e)))?;
 
@@ -177,6 +164,9 @@ impl ProductionModel {
         let production = production.ok_or_else(|| {
             Error::Database("Failed to create production - no result returned".to_string())
         })?;
+
+        // Fire-and-forget embedding update
+        crate::services::embedding::spawn_embedding_update(production.id.clone(), embedding_text);
 
         // Create ownership relation
         let ownership_query = r#"
@@ -355,18 +345,6 @@ impl ProductionModel {
             end_date.map(|s| s.as_str()),
         );
 
-        let (embedding, embedding_text_opt) = match generate_embedding(&embedding_text) {
-            Ok(emb) => (Some(emb), Some(embedding_text)),
-            Err(e) => {
-                warn!("Failed to generate embedding for production: {}", e);
-                (None, None)
-            }
-        };
-
-        // Add embedding fields to update
-        update_fields.push("embedding = $embedding");
-        update_fields.push("embedding_text = $embedding_text");
-
         let query = format!(
             "UPDATE $production_id SET {} RETURN *",
             update_fields.join(", ")
@@ -398,16 +376,17 @@ impl ProductionModel {
             db_query = db_query.bind(("location", location));
         }
 
-        // Bind embedding fields
-        db_query = db_query.bind(("embedding", embedding));
-        db_query = db_query.bind(("embedding_text", embedding_text_opt));
-
         let mut result = db_query
             .await
             .map_err(|e| Error::Database(format!("Failed to update production: {}", e)))?;
 
         let production: Option<Production> = result.take(0)?;
-        production.ok_or_else(|| Error::NotFound)
+        let production = production.ok_or_else(|| Error::NotFound)?;
+
+        // Fire-and-forget embedding update
+        crate::services::embedding::spawn_embedding_update(production.id.clone(), embedding_text);
+
+        Ok(production)
     }
 
     /// Delete a production
@@ -670,7 +649,7 @@ impl ProductionModel {
         // Generate slug from title
         let slug = generate_slug(&title);
 
-        // Generate embedding
+        // Build embedding text for background update
         let embedding_text = build_production_embedding_text(
             &title,
             production_type,
@@ -680,14 +659,6 @@ impl ProductionModel {
             release_date.as_deref(),
             None,
         );
-
-        let (embedding, embedding_text_opt) = match generate_embedding(&embedding_text) {
-            Ok(emb) => (Some(emb), Some(embedding_text)),
-            Err(e) => {
-                warn!("Failed to generate embedding for TMDB production: {}", e);
-                (None, None)
-            }
-        };
 
         let query = r#"
             CREATE production CONTENT {
@@ -703,9 +674,7 @@ impl ProductionModel {
                 release_date: $release_date,
                 overview: $overview,
                 source: 'tmdb',
-                source_overrides: [],
-                embedding: $embedding,
-                embedding_text: $embedding_text
+                source_overrides: []
             } RETURN *;
         "#;
 
@@ -720,15 +689,18 @@ impl ProductionModel {
             .bind(("poster_url", poster_url))
             .bind(("tmdb_url", tmdb_url))
             .bind(("release_date", release_date))
-            .bind(("embedding", embedding))
-            .bind(("embedding_text", embedding_text_opt))
             .await
             .map_err(|e| Error::Database(format!("Failed to create TMDB production: {}", e)))?;
 
         let production: Option<Production> = result.take(0)?;
-        production.ok_or_else(|| {
+        let production = production.ok_or_else(|| {
             Error::Database("Failed to create TMDB production - no result returned".to_string())
-        })
+        })?;
+
+        // Fire-and-forget embedding update
+        crate::services::embedding::spawn_embedding_update(production.id.clone(), embedding_text);
+
+        Ok(production)
     }
 
     /// Search productions by title for dedup autocomplete

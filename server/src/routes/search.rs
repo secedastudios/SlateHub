@@ -13,7 +13,7 @@ use tracing::{debug, error};
 use crate::db::DB;
 use crate::error::Error;
 use crate::middleware::UserExtractor;
-use crate::services::embedding::generate_embedding;
+use crate::services::embedding::generate_embedding_async;
 use crate::templates::User;
 
 mod filters {
@@ -139,7 +139,7 @@ async fn search_page(
     debug!("Search query: {}", query);
 
     // Generate embedding for the search query (optional — text search works without it)
-    let query_embedding = match generate_embedding(query) {
+    let query_embedding = match generate_embedding_async(query).await {
         Ok(emb) => Some(emb),
         Err(e) => {
             debug!(

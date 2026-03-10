@@ -1,11 +1,11 @@
 use crate::db::DB;
 use crate::error::Error;
 use crate::record_id_ext::RecordIdExt;
-use crate::services::embedding::{build_location_embedding_text, generate_embedding};
+use crate::services::embedding::build_location_embedding_text;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Location entity from the database
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
@@ -105,7 +105,7 @@ impl LocationModel {
         let creator_id = RecordId::parse_simple(creator_id)
             .map_err(|e| Error::BadRequest(e.to_string()))?;
 
-        // Generate embedding for semantic search
+        // Build embedding text for background update
         let embedding_text = build_location_embedding_text(
             &data.name,
             data.description.as_deref(),
@@ -118,15 +118,7 @@ impl LocationModel {
             data.parking_info.as_deref(),
         );
 
-        let (embedding, embedding_text_opt) = match generate_embedding(&embedding_text) {
-            Ok(emb) => (Some(emb), Some(embedding_text)),
-            Err(e) => {
-                warn!("Failed to generate embedding for location: {}", e);
-                (None, None)
-            }
-        };
-
-        // Create the location
+        // Create the location (embedding generated in background)
         let query = r#"
             CREATE location CONTENT {
                 name: $name,
@@ -144,9 +136,7 @@ impl LocationModel {
                 restrictions: $restrictions,
                 parking_info: $parking_info,
                 max_capacity: $max_capacity,
-                created_by: $created_by,
-                embedding: $embedding,
-                embedding_text: $embedding_text
+                created_by: $created_by
             } RETURN *;
         "#;
 
@@ -168,8 +158,6 @@ impl LocationModel {
             .bind(("parking_info", data.parking_info))
             .bind(("max_capacity", data.max_capacity))
             .bind(("created_by", creator_id))
-            .bind(("embedding", embedding))
-            .bind(("embedding_text", embedding_text_opt))
             .await
             .map_err(|e| Error::Database(format!("Failed to create location: {}", e)))?;
 
@@ -177,6 +165,9 @@ impl LocationModel {
         let location = location.ok_or_else(|| {
             Error::Database("Failed to create location - no result returned".to_string())
         })?;
+
+        // Fire-and-forget embedding update
+        crate::services::embedding::spawn_embedding_update(location.id.clone(), embedding_text);
 
         debug!("Successfully created location: {}", location.id.display());
         Ok(location)
@@ -361,18 +352,6 @@ impl LocationModel {
             parking_info.map(|s| s.as_str()),
         );
 
-        let (embedding, embedding_text_opt) = match generate_embedding(&embedding_text) {
-            Ok(emb) => (Some(emb), Some(embedding_text)),
-            Err(e) => {
-                warn!("Failed to generate embedding for location: {}", e);
-                (None, None)
-            }
-        };
-
-        // Add embedding fields to update
-        update_fields.push("embedding = $embedding");
-        update_fields.push("embedding_text = $embedding_text");
-
         let query = format!(
             "UPDATE $location_id SET {} RETURN *",
             update_fields.join(", ")
@@ -441,16 +420,17 @@ impl LocationModel {
             db_query = db_query.bind(("max_capacity", max_capacity));
         }
 
-        // Bind embedding fields
-        db_query = db_query.bind(("embedding", embedding));
-        db_query = db_query.bind(("embedding_text", embedding_text_opt));
-
         let mut result = db_query
             .await
             .map_err(|e| Error::Database(format!("Failed to update location: {}", e)))?;
 
         let location: Option<Location> = result.take(0)?;
-        location.ok_or_else(|| Error::NotFound)
+        let location = location.ok_or_else(|| Error::NotFound)?;
+
+        // Fire-and-forget embedding update
+        crate::services::embedding::spawn_embedding_update(location.id.clone(), embedding_text);
+
+        Ok(location)
     }
 
     /// Delete a location and all its rates

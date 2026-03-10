@@ -651,6 +651,35 @@ INSERT INTO equipment_category (name, description) VALUES
 ("accessory", "Miscellaneous accessories"),
 ("other", "Other equipment");
 
+-- ------------------------------
+-- SCHEMA MIGRATION TRACKING
+-- Tracks which migrations have been applied to this database.
+-- Used by db/migrate.sh to skip already-applied migrations.
+-- ------------------------------
+
+DEFINE TABLE schema_migration TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD name ON schema_migration TYPE string PERMISSIONS FULL;
+DEFINE FIELD applied_at ON schema_migration TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE INDEX idx_schema_migration_name ON schema_migration FIELDS name UNIQUE;
+
+-- ------------------------------
+-- PENDING EMBEDDING QUEUE
+-- Durable queue for background embedding generation.
+-- Records are created before spawning the async task, deleted on completion.
+-- On startup, any remaining records are re-processed.
+-- ------------------------------
+
+DEFINE TABLE pending_embedding TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD target ON pending_embedding TYPE record PERMISSIONS FULL;
+DEFINE FIELD embedding_text ON pending_embedding TYPE string PERMISSIONS FULL;
+DEFINE FIELD created_at ON pending_embedding TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE INDEX idx_pending_embedding_target ON pending_embedding FIELDS target UNIQUE;
+
+-- Seed applied migrations (keep in sync with db/migrations/ files)
+-- This ensures a fresh db-init doesn't re-run migrations that are already in the schema.
+INSERT INTO schema_migration (name) VALUES
+('0001_pending_embedding');
+
 -- Seed Equipment Conditions
 INSERT INTO equipment_condition (name, description) VALUES
 ("new", "Brand new, unused"),

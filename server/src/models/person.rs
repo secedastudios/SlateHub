@@ -8,11 +8,11 @@ use crate::auth;
 use crate::db::DB;
 use crate::error::{Error, Result};
 use crate::record_id_ext::RecordIdExt;
-use crate::services::embedding::{build_person_embedding_text, generate_embedding};
+use crate::services::embedding::build_person_embedding_text;
 use crate::{db_span, log_error};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 // -----------------------------------------------------------------------------
 // Core Person Model
@@ -604,8 +604,24 @@ impl Person {
             }
         }
 
-        // Generate embedding for semantic search
-        let (embedding, embedding_text) = if let Some(profile) = &person.profile {
+        // Save profile to DB immediately (no embedding — that happens in background)
+        let query = "UPDATE $id MERGE { name: $name, profile: $profile } RETURN AFTER";
+
+        let mut response = DB
+            .query(query)
+            .bind(("id", person.id.clone()))
+            .bind(("name", person.name.clone()))
+            .bind(("profile", person.profile.clone()))
+            .await
+            .map_err(|e| {
+                log_error!(e, "Failed to update person profile");
+                Error::from(e)
+            })?;
+
+        let updated: Option<Person> = response.take(0)?;
+
+        // Generate embedding in the background (fire-and-forget)
+        if let Some(profile) = &person.profile {
             let embedding_text = build_person_embedding_text(
                 person.name.as_deref().unwrap_or(&person.username),
                 profile.headline.as_deref(),
@@ -623,36 +639,8 @@ impl Person {
                 &profile.unions,
                 &[], // experience descriptions removed - credits are now involvement edges
             );
-
-            match generate_embedding(&embedding_text) {
-                Ok(emb) => (Some(emb), Some(embedding_text)),
-                Err(e) => {
-                    warn!("Failed to generate embedding for person profile: {}", e);
-                    (None, None)
-                }
-            }
-        } else {
-            (None, None)
-        };
-
-        // Update the name, profile, and embedding fields in the database
-        // Use MERGE to update just these fields without affecting other fields like password
-        let query = "UPDATE $id MERGE { name: $name, profile: $profile, embedding: $embedding, embedding_text: $embedding_text } RETURN AFTER";
-
-        let mut response = DB
-            .query(query)
-            .bind(("id", person.id.clone()))
-            .bind(("name", person.name.clone()))
-            .bind(("profile", person.profile.clone()))
-            .bind(("embedding", embedding))
-            .bind(("embedding_text", embedding_text))
-            .await
-            .map_err(|e| {
-                log_error!(e, "Failed to update person profile");
-                Error::from(e)
-            })?;
-
-        let updated: Option<Person> = response.take(0)?;
+            crate::services::embedding::spawn_embedding_update(person.id.clone(), embedding_text);
+        }
 
         Ok(updated)
     }

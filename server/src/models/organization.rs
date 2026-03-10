@@ -8,7 +8,7 @@ use crate::{
     error::Error,
     models::membership::{MembershipModel, MembershipRole},
     record_id_ext::RecordIdExt,
-    services::embedding::{build_organization_embedding_text, generate_embedding},
+    services::embedding::build_organization_embedding_text,
 };
 
 // ============================
@@ -331,7 +331,7 @@ impl OrganizationModel {
         debug!("Updating organization: {}", id);
         let id: RecordId = RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
-        // Generate embedding for semantic search
+        // Build embedding text for background update
         let embedding_text = build_organization_embedding_text(
             &data.name,
             &data.org_type,
@@ -341,14 +341,6 @@ impl OrganizationModel {
             data.founded_year,
             data.employees_count,
         );
-
-        let (embedding, embedding_text_opt) = match generate_embedding(&embedding_text) {
-            Ok(emb) => (Some(emb), Some(embedding_text)),
-            Err(e) => {
-                warn!("Failed to generate embedding for organization: {}", e);
-                (None, None)
-            }
-        };
 
         let _: Option<Organization> = DB
             .query(
@@ -363,11 +355,9 @@ impl OrganizationModel {
                     services = $services,
                     founded_year = $founded_year,
                     employees_count = $employees_count,
-                    public = $public,
-                    embedding = $embedding,
-                    embedding_text = $embedding_text",
+                    public = $public",
             )
-            .bind(("id", id))
+            .bind(("id", id.clone()))
             .bind(("name", data.name))
             .bind(("org_type", data.org_type))
             .bind(("description", data.description))
@@ -379,10 +369,11 @@ impl OrganizationModel {
             .bind(("founded_year", data.founded_year))
             .bind(("employees_count", data.employees_count))
             .bind(("public", data.public))
-            .bind(("embedding", embedding))
-            .bind(("embedding_text", embedding_text_opt))
             .await?
             .take(0)?;
+
+        // Fire-and-forget embedding update
+        crate::services::embedding::spawn_embedding_update(id, embedding_text);
 
         Ok(())
     }
