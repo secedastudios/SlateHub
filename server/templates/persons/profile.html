@@ -53,7 +53,6 @@
                         {% endif %}
                     </div>
 
-                    {% if !profile.social_links.is_empty() || profile.website.is_some() %}
                     <nav id="profile-social-links" aria-label="External links">
                         {% for link in profile.social_links %}
                         <a
@@ -80,8 +79,24 @@
                             </svg>
                         </a>
                         {% endif %}
+                        <button
+                            type="button"
+                            data-role="social-link"
+                            data-action="open-qr"
+                            title="QR Code"
+                            aria-label="Show QR code for this profile"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="2" y="2" width="8" height="8" rx="1"/>
+                                <rect x="14" y="2" width="8" height="8" rx="1"/>
+                                <rect x="2" y="14" width="8" height="8" rx="1"/>
+                                <rect x="5" y="5" width="2" height="2"/>
+                                <rect x="17" y="5" width="2" height="2"/>
+                                <rect x="5" y="17" width="2" height="2"/>
+                                <path d="M14 14h2v2h-2zM20 14h2v2h-2zM14 20h2v2h-2zM20 20h2v2h-2zM17 17h2v2h-2z"/>
+                            </svg>
+                        </button>
                     </nav>
-                    {% endif %}
                 </div>
 
                 {% if profile.bio.is_some() || profile.headline.is_some() %}
@@ -128,6 +143,34 @@
             </div>
         </div>
     </header>
+
+    <dialog id="modal-qr-code" data-component="modal" aria-labelledby="modal-title-qr">
+        <div id="modal-qr-inner">
+            <header id="modal-qr-header">
+                <h2 id="modal-title-qr">QR Code</h2>
+                <button type="button" data-action="close-qr" aria-label="Close">&times;</button>
+            </header>
+            <div id="modal-qr-body">
+                <div id="qr-image-wrapper">
+                    <img
+                        id="qr-code-image"
+                        src="/api/qr/profile/{{ profile.username }}"
+                        alt="QR code linking to {{ profile.name }}'s profile"
+                        width="400"
+                        height="400"
+                    />
+                </div>
+                <p id="qr-profile-url">{{ "/"|abs_url }}{{ profile.username }}</p>
+                <a
+                    id="qr-save-link"
+                    href="/api/qr/profile/{{ profile.username }}"
+                    download="{{ profile.username }}-qr.png"
+                >
+                    Save Image
+                </a>
+            </div>
+        </div>
+    </dialog>
 
     {% if profile.bio.is_none() && profile.headline.is_none() &&
     profile.skills.is_empty() && profile.involvements.is_empty() &&
@@ -311,4 +354,20 @@
     </footer>
     {% endif %}
 </section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+    var qrBtn = document.querySelector('[data-action="open-qr"]');
+    var modal = document.getElementById('modal-qr-code');
+    if (!qrBtn || !modal) return;
+    qrBtn.addEventListener('click', function() { modal.showModal(); });
+    modal.querySelectorAll('[data-action="close-qr"]').forEach(function(b) {
+        b.addEventListener('click', function() { modal.close(); });
+    });
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) modal.close();
+    });
+})();
+</script>
 {% endblock %}

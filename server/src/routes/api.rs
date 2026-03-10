@@ -36,6 +36,7 @@ pub fn router() -> Router {
         .route("/feedback", post(submit_feedback))
         .route("/check-username", get(check_username))
         .route("/og/profile/{username}", get(og_profile_image))
+        .route("/qr/profile/{username}", get(qr_profile_image))
 }
 
 #[axum::debug_handler]
@@ -1052,4 +1053,58 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("JPEG encode error: {}", e))?;
 
     Ok(buf.into_inner())
+}
+
+/// Generates a QR code PNG for a user's profile URL.
+async fn qr_profile_image(
+    Path(username): Path<String>,
+) -> Result<impl IntoResponse, (axum::http::StatusCode, String)> {
+    use crate::models::person::Person;
+    use qrcode::QrCode;
+
+    // Verify user exists
+    Person::find_by_username(&username)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, "Not found".to_string()))?;
+
+    let profile_url = format!("{}/{}", crate::config::app_url(), username);
+    debug!("QR code: generating for {}", profile_url);
+
+    let code = QrCode::new(profile_url.as_bytes())
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("QR encode error: {}", e)))?;
+
+    // Render QR matrix to image manually (qrcode image feature needs image 0.25)
+    let matrix = code.to_colors();
+    let module_count = code.width() as u32;
+    let quiet_zone = 4_u32;
+    let total_modules = module_count + quiet_zone * 2;
+    let scale = (400 / total_modules).max(1);
+    let img_size = total_modules * scale;
+
+    let mut qr_image = image::GrayImage::from_pixel(img_size, img_size, image::Luma([255u8]));
+    for (i, color) in matrix.iter().enumerate() {
+        let x = (i as u32 % module_count) + quiet_zone;
+        let y = (i as u32 / module_count) + quiet_zone;
+        if *color == qrcode::Color::Dark {
+            for dy in 0..scale {
+                for dx in 0..scale {
+                    qr_image.put_pixel(x * scale + dx, y * scale + dy, image::Luma([0u8]));
+                }
+            }
+        }
+    }
+
+    let mut buf = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageLuma8(qr_image)
+        .write_to(&mut buf, image::ImageFormat::Png)
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("PNG encode error: {}", e)))?;
+
+    Ok((
+        [
+            (axum::http::header::CONTENT_TYPE, "image/png"),
+            (axum::http::header::CACHE_CONTROL, "public, max-age=86400"),
+        ],
+        buf.into_inner(),
+    ))
 }
