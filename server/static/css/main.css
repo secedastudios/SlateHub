@@ -568,7 +568,9 @@ ul[data-role="dropdown-menu"] a {
     text-decoration: none;
     font-size: var(--text-sm);
     font-weight: var(--font-weight-medium);
-    transition: background-color var(--transition-fast), color var(--transition-fast);
+    transition:
+        background-color var(--transition-fast),
+        color var(--transition-fast);
     white-space: nowrap;
     width: 100%;
     box-sizing: border-box;
@@ -612,7 +614,9 @@ ul[data-role="dropdown-menu"] a {
     font-size: var(--text-sm);
     font-weight: var(--font-weight-medium);
     cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
+    transition:
+        background-color var(--transition-fast),
+        color var(--transition-fast);
     text-transform: none;
     letter-spacing: normal;
     min-height: auto;
@@ -697,7 +701,9 @@ ul[data-role="dropdown-menu"] a {
     height: 2px;
     background-color: var(--color-text-primary);
     border-radius: 1px;
-    transition: transform 0.25s ease, opacity 0.25s ease;
+    transition:
+        transform 0.25s ease,
+        opacity 0.25s ease;
     transform-origin: center;
 }
 
@@ -719,15 +725,37 @@ ul[data-role="dropdown-menu"] a {
    ======================================== */
 
 #site-footer {
-    background: var(--color-bg-primary);
+    position: relative;
+    background: rgba(214, 216, 202, 0.03);
     margin-top: auto;
     padding: 0;
     color: var(--color-text-primary);
 }
 
+#site-footer::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(
+            ellipse 80% 60% at 50% 100%,
+            rgba(235, 84, 55, 0.08),
+            transparent 70%
+        ),
+        linear-gradient(0deg, rgba(23, 23, 23, 0) 0%, rgba(23, 23, 23, 1) 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+#site-footer > * {
+    position: relative;
+    z-index: 1;
+}
+
 /* Main footer content — 5-column grid */
 #footer-main {
     max-width: var(--container-wide);
+    background: rgba(214, 216, 202, 0.03);
     margin: 0 auto;
     padding: var(--space-4xl) var(--space-xl) var(--space-3xl);
     display: grid;
@@ -2281,7 +2309,7 @@ dd {
     }
 
     /* All cards get a top border except the first two */
-    [data-component="feature-card"]:nth-child(n+3) {
+    [data-component="feature-card"]:nth-child(n + 3) {
         border-top: 1px solid var(--color-border-dark);
     }
 
@@ -2403,7 +2431,7 @@ dd {
         border-left: none;
     }
 
-    [data-component="feature-card"]:nth-child(n+2) {
+    [data-component="feature-card"]:nth-child(n + 2) {
         border-top: 1px solid var(--color-border-dark);
     }
 }
@@ -2498,11 +2526,17 @@ dd {
 
     /* Show nav lists when hamburger is expanded
        Specificity must beat the hide rules above */
-    #site-header #main-nav [data-role="nav-toggle"][aria-expanded="true"] ~ #nav-primary {
+    #site-header
+        #main-nav
+        [data-role="nav-toggle"][aria-expanded="true"]
+        ~ #nav-primary {
         display: flex !important;
     }
 
-    #site-header #main-nav [data-role="nav-toggle"][aria-expanded="true"] ~ [data-role="nav-user"] {
+    #site-header
+        #main-nav
+        [data-role="nav-toggle"][aria-expanded="true"]
+        ~ [data-role="nav-user"] {
         display: flex !important;
     }
 
