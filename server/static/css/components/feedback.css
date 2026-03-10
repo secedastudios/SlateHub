@@ -1,0 +1,251 @@
+/* ========================================
+   Feedback Slide-out Tab + Panel
+   ======================================== */
+
+/* Tab — fixed on right edge, vertical text, orange bg.
+   When panel opens, tab slides left to stay attached to the panel edge. */
+#feedback-tab {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1002;
+    background: var(--color-accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    padding: var(--space-lg) var(--space-sm);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    cursor: pointer;
+    transition: right 300ms ease-in-out, background var(--transition-fast);
+}
+
+#feedback-tab:hover {
+    background: var(--color-accent-hover);
+}
+
+/* When open, slide the tab left by the panel width so it sits on the panel's left edge */
+#feedback-tab.open {
+    right: 360px;
+}
+
+/* Panel — slides in from right */
+#feedback-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 360px;
+    height: 100%;
+    z-index: 1001;
+    background: #1a1d1b;
+    border-left: 1px solid rgba(214, 216, 202, 0.1);
+    transform: translateX(100%);
+    transition: transform 300ms ease-in-out;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
+}
+
+#feedback-panel.open {
+    transform: translateX(0);
+}
+
+/* Backdrop */
+#feedback-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 300ms ease-in-out;
+}
+
+#feedback-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Panel header */
+#feedback-panel-header {
+    padding: var(--space-xl) var(--space-lg) var(--space-md);
+    border-bottom: 1px solid rgba(214, 216, 202, 0.08);
+}
+
+#feedback-panel-header h3 {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+#feedback-panel-header p {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin: var(--space-xs) 0 0;
+    line-height: 1.5;
+}
+
+/* Form */
+#feedback-form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-lg);
+    gap: var(--space-md);
+    overflow-y: auto;
+}
+
+#feedback-form label {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+}
+
+#feedback-form textarea {
+    width: 100%;
+    min-height: 160px;
+    padding: var(--space-sm) var(--space-md);
+    background: rgba(214, 216, 202, 0.05);
+    border: 1px solid rgba(214, 216, 202, 0.12);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color var(--transition-fast);
+    box-sizing: border-box;
+}
+
+#feedback-form textarea:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+#feedback-form textarea::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+}
+
+/* Character count */
+#feedback-char-count {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    text-align: right;
+    margin-top: calc(-1 * var(--space-xs));
+}
+
+#feedback-char-count.over-limit {
+    color: var(--color-accent);
+}
+
+/* Actions */
+#feedback-actions {
+    display: flex;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    border-top: 1px solid rgba(214, 216, 202, 0.08);
+}
+
+#feedback-submit-btn {
+    flex: 1;
+    padding: var(--space-sm) var(--space-lg);
+    background: var(--color-accent);
+    color: #fff;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+#feedback-submit-btn:hover {
+    background: var(--color-accent-hover);
+}
+
+#feedback-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#feedback-cancel-btn {
+    padding: var(--space-sm) var(--space-lg);
+    background: transparent;
+    color: var(--color-text-muted);
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+#feedback-cancel-btn:hover {
+    border-color: rgba(214, 216, 202, 0.3);
+    color: var(--color-text-primary);
+}
+
+/* Status message */
+#feedback-status {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    text-align: center;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    display: none;
+}
+
+#feedback-status.success {
+    display: block;
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+#feedback-status.error {
+    display: block;
+    background: rgba(235, 84, 55, 0.1);
+    color: var(--color-accent);
+    border: 1px solid rgba(235, 84, 55, 0.2);
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    #feedback-panel {
+        width: 100%;
+    }
+    #feedback-tab.open {
+        right: 100%;
+    }
+}
+
+/* Hide in print */
+@media print {
+    #feedback-tab,
+    #feedback-panel,
+    #feedback-backdrop {
+        display: none !important;
+    }
+}

@@ -1,15 +1,16 @@
 use axum::{
-    Json, Router,
+    Extension, Json, Router,
     extract::{Path, Query},
     response::{IntoResponse, Redirect},
     routing::{delete, get, post},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tracing::{debug, error, info};
 
 use crate::db::DB;
-use crate::middleware::AuthenticatedUser;
+use crate::middleware::{AuthenticatedUser, CurrentUser};
 use crate::models::involvement::InvolvementModel;
 use crate::models::production::ProductionModel;
 use crate::models::system::System;
@@ -32,6 +33,7 @@ pub fn router() -> Router {
         .route("/involvements/{id}", delete(delete_involvement))
         .route("/involvements/{id}/verify", post(verify_involvement))
         .route("/involvements/{id}/reject", post(reject_involvement))
+        .route("/feedback", post(submit_feedback))
 }
 
 #[axum::debug_handler]
@@ -785,6 +787,70 @@ async fn reject_involvement(
                 .into_response()
         }
     }
+}
+
+// --- Feedback ---
+
+#[derive(Debug, Deserialize)]
+struct FeedbackRequest {
+    page_url: String,
+    message: String,
+}
+
+#[axum::debug_handler]
+async fn submit_feedback(
+    user: Option<Extension<Arc<CurrentUser>>>,
+    Json(body): Json<FeedbackRequest>,
+) -> impl IntoResponse {
+    let message = body.message.trim().to_string();
+    if message.is_empty() {
+        return Json(serde_json::json!({ "error": "Message is required" }));
+    }
+    if message.len() > 2000 {
+        return Json(serde_json::json!({ "error": "Message must be 2000 characters or less" }));
+    }
+
+    let username = user
+        .map(|u| u.username.clone())
+        .unwrap_or_else(|| "anonymous".to_string());
+
+    let page_url = body.page_url;
+    debug!("Feedback from {} on {}", username, page_url);
+
+    let sql = "INSERT INTO feedback (username, page_url, message) VALUES ($username, $page_url, $message)";
+    if let Err(e) = DB
+        .query(sql)
+        .bind(("username", username.clone()))
+        .bind(("page_url", page_url.clone()))
+        .bind(("message", message.clone()))
+        .await
+    {
+        error!("Failed to save feedback: {}", e);
+        return Json(serde_json::json!({ "error": "Failed to save feedback" }));
+    }
+
+    // Fire-and-forget email notification
+    let username_owned = username.clone();
+    let page_url_owned = page_url.clone();
+    let message_owned = message.clone();
+    tokio::spawn(async move {
+        match crate::services::email::EmailService::from_env() {
+            Ok(email_service) => {
+                if let Err(e) = email_service
+                    .send_feedback_email(&username_owned, &page_url_owned, &message_owned)
+                    .await
+                {
+                    error!("Failed to send feedback email: {}", e);
+                }
+            }
+            Err(e) => {
+                debug!("Email service not configured, skipping feedback email: {}", e);
+            }
+        }
+    });
+
+    info!("Feedback saved from {} on {}", username, page_url);
+    Json(serde_json::json!({ "success": true }))
 }
 
 /// Fix avatar URLs by removing colons from paths (S3 path compatibility)

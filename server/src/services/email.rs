@@ -384,6 +384,62 @@ impl EmailService {
         self.send_email(to_email, None, &subject, Some(&text_body), Some(&html_body))
             .await
     }
+
+    /// Send feedback notification email
+    pub async fn send_feedback_email(
+        &self,
+        username: &str,
+        page_url: &str,
+        message: &str,
+    ) -> Result<()> {
+        let recipient = env::var("FEEDBACK_RECIPIENT_EMAIL")
+            .unwrap_or_else(|_| self.from_email.clone());
+
+        let subject = format!("SlateHub Feedback from {}", username);
+        let clean_message = ammonia::clean(message);
+
+        let text_body = format!(
+            "New feedback from SlateHub\n\n\
+            User: {}\n\
+            Page: {}\n\n\
+            Message:\n{}\n",
+            username, page_url, message
+        );
+
+        let html_body = format!(
+            r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #171717; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+        <h1 style="color: #d6d8ca; margin-top: 0;">New Feedback</h1>
+        <p style="font-size: 14px; color: #999; margin-bottom: 0;">From <strong style="color: #d6d8ca;">{}</strong> on <code style="color: #eb5437;">{}</code></p>
+    </div>
+
+    <div style="background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 30px;">
+        <p style="font-size: 16px; white-space: pre-wrap;">{}</p>
+    </div>
+
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #999; font-size: 12px;">
+        <p>&copy; 2024 SlateHub. All rights reserved.</p>
+    </div>
+</body>
+</html>"#,
+            username, page_url, clean_message
+        );
+
+        self.send_email(
+            &recipient,
+            None,
+            &subject,
+            Some(&text_body),
+            Some(&html_body),
+        )
+        .await
+    }
 }
 
 /// Initialize the global email service

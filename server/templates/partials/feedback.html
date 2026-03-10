@@ -1,0 +1,132 @@
+<!-- Feedback slide-out tab and panel -->
+<button type="button" id="feedback-tab">Feedback</button>
+<div id="feedback-backdrop"></div>
+
+<div id="feedback-panel" aria-hidden="true">
+    <div id="feedback-panel-header">
+        <h3>Send Feedback</h3>
+        <p>Help us improve SlateHub. Bug reports, feature requests, and general feedback are all welcome.</p>
+    </div>
+
+    <form id="feedback-form">
+        <div>
+            <label for="feedback-message">Message</label>
+            <textarea
+                id="feedback-message"
+                name="message"
+                placeholder="What's on your mind?"
+                maxlength="2000"
+                required
+            ></textarea>
+            <div id="feedback-char-count">0 / 2000</div>
+        </div>
+        <div id="feedback-status"></div>
+    </form>
+
+    <div id="feedback-actions">
+        <button type="button" id="feedback-cancel-btn">Cancel</button>
+        <button type="submit" id="feedback-submit-btn" form="feedback-form">Submit</button>
+    </div>
+</div>
+
+<script>
+(function() {
+    var tab = document.getElementById('feedback-tab');
+    var panel = document.getElementById('feedback-panel');
+    var backdrop = document.getElementById('feedback-backdrop');
+    var form = document.getElementById('feedback-form');
+    var textarea = document.getElementById('feedback-message');
+    var charCount = document.getElementById('feedback-char-count');
+    var status = document.getElementById('feedback-status');
+    var submitBtn = document.getElementById('feedback-submit-btn');
+    var cancelBtn = document.getElementById('feedback-cancel-btn');
+
+    function openPanel() {
+        panel.classList.add('open');
+        backdrop.classList.add('open');
+        tab.classList.add('open');
+        panel.setAttribute('aria-hidden', 'false');
+        textarea.focus();
+    }
+
+    function closePanel() {
+        panel.classList.remove('open');
+        backdrop.classList.remove('open');
+        tab.classList.remove('open');
+        panel.setAttribute('aria-hidden', 'true');
+        form.reset();
+        charCount.textContent = '0 / 2000';
+        charCount.classList.remove('over-limit');
+        status.className = '';
+        status.style.display = 'none';
+        status.textContent = '';
+        submitBtn.disabled = false;
+    }
+
+    tab.addEventListener('click', function() {
+        if (panel.classList.contains('open')) {
+            closePanel();
+        } else {
+            openPanel();
+        }
+    });
+    cancelBtn.addEventListener('click', closePanel);
+    backdrop.addEventListener('click', closePanel);
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && panel.classList.contains('open')) {
+            closePanel();
+        }
+    });
+
+    textarea.addEventListener('input', function() {
+        var len = textarea.value.length;
+        charCount.textContent = len + ' / 2000';
+        if (len > 2000) {
+            charCount.classList.add('over-limit');
+        } else {
+            charCount.classList.remove('over-limit');
+        }
+    });
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var message = textarea.value.trim();
+        if (!message) return;
+
+        submitBtn.disabled = true;
+        status.className = '';
+        status.style.display = 'none';
+
+        var userAttr = document.body.getAttribute('data-user');
+        var pageUrl = window.location.pathname;
+
+        fetch('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ page_url: pageUrl, message: message })
+        })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            if (data.success) {
+                status.textContent = 'Thank you for your feedback!';
+                status.className = 'success';
+                status.style.display = 'block';
+                setTimeout(closePanel, 1500);
+            } else {
+                status.textContent = data.error || 'Something went wrong.';
+                status.className = 'error';
+                status.style.display = 'block';
+                submitBtn.disabled = false;
+            }
+        })
+        .catch(function() {
+            status.textContent = 'Failed to send. Please try again.';
+            status.className = 'error';
+            status.style.display = 'block';
+            submitBtn.disabled = false;
+        });
+    });
+})();
+</script>

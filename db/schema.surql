@@ -669,6 +669,21 @@ DEFINE INDEX idx_schema_migration_name ON schema_migration FIELDS name UNIQUE;
 -- On startup, any remaining records are re-processed.
 -- ------------------------------
 
+-- ------------------------------
+-- TABLE: feedback (user feedback submissions)
+-- ------------------------------
+
+DEFINE TABLE feedback TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD username ON feedback TYPE string PERMISSIONS FULL;
+DEFINE FIELD page_url ON feedback TYPE string PERMISSIONS FULL;
+DEFINE FIELD message ON feedback TYPE string PERMISSIONS FULL;
+DEFINE FIELD created_at ON feedback TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE INDEX idx_feedback_created ON feedback FIELDS created_at;
+
+-- ------------------------------
+-- TABLE: pending_embedding
+-- ------------------------------
+
 DEFINE TABLE pending_embedding TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD target ON pending_embedding TYPE record PERMISSIONS FULL;
 DEFINE FIELD embedding_text ON pending_embedding TYPE string PERMISSIONS FULL;
@@ -678,7 +693,8 @@ DEFINE INDEX idx_pending_embedding_target ON pending_embedding FIELDS target UNI
 -- Seed applied migrations (keep in sync with db/migrations/ files)
 -- This ensures a fresh db-init doesn't re-run migrations that are already in the schema.
 INSERT INTO schema_migration (name) VALUES
-('0001_pending_embedding');
+('0001_pending_embedding'),
+('0002_feedback');
 
 -- Seed Equipment Conditions
 INSERT INTO equipment_condition (name, description) VALUES

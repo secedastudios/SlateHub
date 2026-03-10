@@ -724,6 +724,9 @@ ul[data-role="dropdown-menu"] a {
    6. FOOTER
    ======================================== */
 
+footer#site-footer {
+    background: rgba(214, 216, 202, 0.03);
+}
 #site-footer {
     position: relative;
     background: rgba(214, 216, 202, 0.03);
