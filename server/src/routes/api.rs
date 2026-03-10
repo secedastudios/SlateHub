@@ -1004,51 +1004,41 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
     // Create the output image
     let mut canvas = image::RgbaImage::new(W, H);
 
-    if let Some(avatar) = avatar_rgba {
-        // Cover-crop: scale to fill 1200x630 preserving aspect ratio, then center-crop
-        let src = avatar.to_rgba8();
-        let sw = src.width() as f32;
-        let sh = src.height() as f32;
-        let tw = W as f32;
-        let th = H as f32;
-        let scale = (tw / sw).max(th / sh);
-        let scaled_w = (sw * scale).round() as u32;
-        let scaled_h = (sh * scale).round() as u32;
-        let resized = image::imageops::resize(&src, scaled_w, scaled_h, image::imageops::FilterType::Lanczos3);
-        // Center-crop to 1200x630
-        let crop_x = (scaled_w.saturating_sub(W)) / 2;
-        let crop_y = (scaled_h.saturating_sub(H)) / 2;
-        let cropped = image::imageops::crop_imm(&resized, crop_x, crop_y, W, H).to_image();
-        image::imageops::overlay(&mut canvas, &cropped, 0, 0);
-    } else {
-        // Dark background fallback
-        for pixel in canvas.pixels_mut() {
-            *pixel = image::Rgba([26, 29, 27, 255]);
-        }
+    // Fill canvas with page background color rgb(24, 24, 24)
+    for pixel in canvas.pixels_mut() {
+        *pixel = image::Rgba([24, 24, 24, 255]);
     }
 
-    // Render the SlateHub logo SVG on top (bottom-right corner)
+    // Profile image: fit to height, left-aligned, preserve aspect ratio
+    let avatar_right_edge = if let Some(avatar) = avatar_rgba {
+        let src = avatar.to_rgba8();
+        let scale = H as f32 / src.height() as f32;
+        let scaled_w = (src.width() as f32 * scale).round() as u32;
+        let resized = image::imageops::resize(&src, scaled_w, H, image::imageops::FilterType::Lanczos3);
+        image::imageops::overlay(&mut canvas, &resized, 0, 0);
+        scaled_w
+    } else {
+        0
+    };
+
+    // SlateHub logo: vertically centered in the space to the right of the profile image
     {
-        let logo_svg = include_str!("../../static/images/logo.svg");
-        {
-            let logo_svg = logo_svg.to_string();
-            // Original color #D6D8CA (same as header)
-            // Scale up: original is 103x16, render at 2.4x = ~247x38
-            let scale = 2.4_f32;
-            let logo_w = (103.0 * scale) as u32;
-            let logo_h = (16.0 * scale) as u32;
-            let opts = resvg::usvg::Options::default();
-            if let Ok(tree) = resvg::usvg::Tree::from_str(&logo_svg, &opts) {
-                if let Some(mut logo_pixmap) = tiny_skia::Pixmap::new(logo_w, logo_h) {
-                    let transform = tiny_skia::Transform::from_scale(scale, scale);
-                    resvg::render(&tree, transform, &mut logo_pixmap.as_mut());
-                    let logo_img = image::RgbaImage::from_raw(logo_w, logo_h, logo_pixmap.data().to_vec());
-                    if let Some(logo_img) = logo_img {
-                        // Position: bottom-right, same right edge padding, more bottom padding
-                        let x = (W - logo_w - 80) as i64;
-                        let y = (H - logo_h - 32) as i64;
-                        image::imageops::overlay(&mut canvas, &logo_img, x, y);
-                    }
+        let logo_svg = include_str!("../../static/images/logo.svg").to_string();
+        let scale = 2.4_f32;
+        let logo_w = (103.0 * scale) as u32;
+        let logo_h = (16.0 * scale) as u32;
+        let opts = resvg::usvg::Options::default();
+        if let Ok(tree) = resvg::usvg::Tree::from_str(&logo_svg, &opts) {
+            if let Some(mut logo_pixmap) = tiny_skia::Pixmap::new(logo_w, logo_h) {
+                let transform = tiny_skia::Transform::from_scale(scale, scale);
+                resvg::render(&tree, transform, &mut logo_pixmap.as_mut());
+                if let Some(logo_img) = image::RgbaImage::from_raw(logo_w, logo_h, logo_pixmap.data().to_vec()) {
+                    // Center logo in the remaining space to the right
+                    let right_space_start = avatar_right_edge;
+                    let right_space_w = W - right_space_start;
+                    let x = (right_space_start + (right_space_w - logo_w) / 2) as i64;
+                    let y = ((H - logo_h) / 2) as i64;
+                    image::imageops::overlay(&mut canvas, &logo_img, x, y);
                 }
             }
         }
