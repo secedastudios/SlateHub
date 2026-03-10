@@ -940,13 +940,6 @@ async fn og_profile_image(
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, "Not found".to_string()))?;
 
-    let profile = person.profile.as_ref();
-    let name = person.get_display_name();
-    let headline = profile
-        .and_then(|p| p.headline.clone())
-        .unwrap_or_default();
-    let at_username = format!("@{}", person.username);
-
     // Fetch avatar bytes if available
     let avatar_url = person.get_avatar_url();
     let avatar_bytes: Option<Vec<u8>> = if let Some(ref url) = avatar_url {
@@ -968,11 +961,8 @@ async fn og_profile_image(
         None
     };
 
-    // Generate the SVG
-    let svg = build_og_svg(&name, &headline, &at_username, avatar_bytes.as_deref());
-
-    // Render SVG to PNG via resvg
-    let png_data = render_svg_to_png(&svg)
+    // Render profile image + logo to PNG
+    let png_data = render_og_png(avatar_bytes.as_deref())
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
     Ok((
@@ -984,76 +974,70 @@ async fn og_profile_image(
     ))
 }
 
-fn build_og_svg(name: &str, _headline: &str, _username: &str, avatar_bytes: Option<&[u8]>) -> String {
-    use base64::Engine;
+fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
+    const W: u32 = 1200;
+    const H: u32 = 630;
 
-    let name_esc = name.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
-    let name_display = if name_esc.len() > 40 { format!("{}...", &name_esc[..37]) } else { name_esc.clone() };
-
-    // Avatar: full-bleed background image, or dark bg with large initials
-    let avatar_element = if let Some(bytes) = avatar_bytes {
-        let b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
-        let mime = if bytes.starts_with(&[0x89, 0x50, 0x4e, 0x47]) {
-            "image/png"
-        } else if bytes.starts_with(&[0xff, 0xd8]) {
-            "image/jpeg"
-        } else if bytes.starts_with(b"RIFF") {
-            "image/webp"
-        } else {
-            "image/jpeg"
-        };
-        format!(
-            r##"<image href="data:{mime};base64,{b64}" x="0" y="0" width="1200" height="630" preserveAspectRatio="xMidYMid slice"/>"##
-        )
-    } else {
-        let initials: String = name_esc.split_whitespace()
-            .filter_map(|w| w.chars().next())
-            .take(2)
-            .collect::<String>()
-            .to_uppercase();
-        format!(
-            r##"<rect width="1200" height="630" fill="#1a1d1b"/>
-            <text x="600" y="340" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="160" font-weight="700" fill="#3a3d3b">{initials}</text>"##
-        )
-    };
-
-    format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630">
-  <!-- Profile image — full bleed -->
-  {avatar_element}
-
-  <!-- Dark gradient at bottom -->
-  <defs>
-    <linearGradient id="bottom-fade" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="40%" stop-color="#000000" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.92"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="250" width="1200" height="380" fill="url(#bottom-fade)"/>
-
-  <!-- Name -->
-  <text x="600" y="545" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="700" fill="#ffffff">{name_display}</text>
-
-  <!-- SLATEHUB logo — bottom center -->
-  <text x="600" y="600" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" letter-spacing="4" fill="#eb5437">SLATEHUB</text>
-</svg>"##
-    )
-}
-
-fn render_svg_to_png(svg_str: &str) -> Result<Vec<u8>, String> {
-    let opts = resvg::usvg::Options::default();
-    let tree = resvg::usvg::Tree::from_str(svg_str, &opts)
-        .map_err(|e| format!("SVG parse error: {}", e))?;
-
-    let size = tree.size();
-    let width = size.width() as u32;
-    let height = size.height() as u32;
-
-    let mut pixmap = tiny_skia::Pixmap::new(width, height)
+    let mut pixmap = tiny_skia::Pixmap::new(W, H)
         .ok_or_else(|| "Failed to create pixmap".to_string())?;
 
-    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+    // Dark background fallback
+    pixmap.fill(tiny_skia::Color::from_rgba8(26, 29, 27, 255));
+
+    // Draw avatar as full-bleed background
+    if let Some(bytes) = avatar_bytes {
+        if let Some(src) = decode_image_to_pixmap(bytes) {
+            let sw = src.width() as f32;
+            let sh = src.height() as f32;
+            let tw = W as f32;
+            let th = H as f32;
+            // "cover" scaling: scale to fill, crop overflow
+            let scale = (tw / sw).max(th / sh);
+            let scaled_w = sw * scale;
+            let scaled_h = sh * scale;
+            let offset_x = (tw - scaled_w) / 2.0;
+            let offset_y = (th - scaled_h) / 2.0;
+
+            let transform = tiny_skia::Transform::from_translate(offset_x, offset_y)
+                .post_scale(scale, scale);
+
+            let pattern = tiny_skia::Pattern::new(
+                src.as_ref(),
+                tiny_skia::SpreadMode::Pad,
+                tiny_skia::FilterQuality::Bilinear,
+                1.0,
+                transform,
+            );
+            let mut paint = tiny_skia::Paint::default();
+            paint.shader = pattern;
+
+            let rect = tiny_skia::Rect::from_xywh(0.0, 0.0, tw, th).unwrap();
+            pixmap.fill_rect(rect, &paint, tiny_skia::Transform::identity(), None);
+        }
+    }
+
+    // Render "SLATEHUB" logo SVG on top (bottom-center)
+    let logo_svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <text x="600" y="600" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="6" fill="#eb5437">SLATEHUB</text>
+</svg>"##;
+
+    let opts = resvg::usvg::Options::default();
+    if let Ok(tree) = resvg::usvg::Tree::from_str(logo_svg, &opts) {
+        resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+    }
 
     pixmap.encode_png().map_err(|e| format!("PNG encode error: {}", e))
+}
+
+fn decode_image_to_pixmap(bytes: &[u8]) -> Option<tiny_skia::Pixmap> {
+    // Try decoding as PNG first, then JPEG via image crate
+    if let Some(pm) = tiny_skia::Pixmap::decode_png(bytes).ok() {
+        return Some(pm);
+    }
+
+    // For JPEG/WebP, use the image crate to decode to RGBA
+    let img = image::load_from_memory(bytes).ok()?;
+    let rgba = img.to_rgba8();
+    let (w, h) = (rgba.width(), rgba.height());
+    tiny_skia::Pixmap::from_vec(rgba.into_raw(), tiny_skia::IntSize::from_wh(w, h)?)
 }
