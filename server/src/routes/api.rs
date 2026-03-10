@@ -1005,14 +1005,21 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
     let mut canvas = image::RgbaImage::new(W, H);
 
     if let Some(avatar) = avatar_rgba {
-        // Resize to cover 1200x630
-        let resized = image::imageops::resize(
-            &avatar.to_rgba8(),
-            W,
-            H,
-            image::imageops::FilterType::Lanczos3,
-        );
-        image::imageops::overlay(&mut canvas, &resized, 0, 0);
+        // Cover-crop: scale to fill 1200x630 preserving aspect ratio, then center-crop
+        let src = avatar.to_rgba8();
+        let sw = src.width() as f32;
+        let sh = src.height() as f32;
+        let tw = W as f32;
+        let th = H as f32;
+        let scale = (tw / sw).max(th / sh);
+        let scaled_w = (sw * scale).round() as u32;
+        let scaled_h = (sh * scale).round() as u32;
+        let resized = image::imageops::resize(&src, scaled_w, scaled_h, image::imageops::FilterType::Lanczos3);
+        // Center-crop to 1200x630
+        let crop_x = (scaled_w.saturating_sub(W)) / 2;
+        let crop_y = (scaled_h.saturating_sub(H)) / 2;
+        let cropped = image::imageops::crop_imm(&resized, crop_x, crop_y, W, H).to_image();
+        image::imageops::overlay(&mut canvas, &cropped, 0, 0);
     } else {
         // Dark background fallback
         for pixel in canvas.pixels_mut() {
@@ -1026,8 +1033,8 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
         {
             let logo_svg = logo_svg.to_string();
             // Original color #D6D8CA (same as header)
-            // Scale up: original is 103x16, render at 3x = ~309x48
-            let scale = 3.0_f32;
+            // Scale up: original is 103x16, render at 2x = ~206x32
+            let scale = 2.0_f32;
             let logo_w = (103.0 * scale) as u32;
             let logo_h = (16.0 * scale) as u32;
             let opts = resvg::usvg::Options::default();
@@ -1035,12 +1042,11 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
                 if let Some(mut logo_pixmap) = tiny_skia::Pixmap::new(logo_w, logo_h) {
                     let transform = tiny_skia::Transform::from_scale(scale, scale);
                     resvg::render(&tree, transform, &mut logo_pixmap.as_mut());
-                    // Convert to image::RgbaImage and overlay
                     let logo_img = image::RgbaImage::from_raw(logo_w, logo_h, logo_pixmap.data().to_vec());
                     if let Some(logo_img) = logo_img {
-                        // Position: bottom-right with some padding
-                        let x = (W - logo_w - 40) as i64;
-                        let y = (H - logo_h - 20) as i64;
+                        // Position: bottom-right with extra left padding
+                        let x = (W - logo_w - 80) as i64;
+                        let y = (H - logo_h - 24) as i64;
                         image::imageops::overlay(&mut canvas, &logo_img, x, y);
                     }
                 }
