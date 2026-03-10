@@ -35,7 +35,7 @@
             </div>
         </div>
         <nav id="profile-edit-nav" aria-label="Profile edit actions">
-            <a href="/profile/{{ profile.username }}" data-role="back-link">
+            <a href="/{{ profile.username }}" data-role="back-link">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M19 12H5M12 19l-7-7 7-7"/>
                 </svg>
@@ -495,7 +495,7 @@
 
         <footer id="profile-edit-footer" data-role="form-actions">
             <button type="submit" id="button-submit-profile" data-type="primary">Save Profile</button>
-            <a href="/profile/{{ profile.username }}" id="link-cancel-edit" role="button">Cancel</a>
+            <a href="/{{ profile.username }}" id="link-cancel-edit" role="button">Cancel</a>
         </footer>
     </form>
 </section>

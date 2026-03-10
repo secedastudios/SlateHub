@@ -5,7 +5,7 @@ use axum::{
     response::Html,
     routing::get,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing::{debug, error, info};
 
 use crate::{
@@ -16,7 +16,10 @@ use crate::{
     models::person::Person,
     record_id_ext::RecordIdExt,
     social_platforms,
-    templates::{BaseContext, InvolvementDisplay, PeopleTemplate, PersonCard, SocialLinkDisplay, User},
+    templates::{
+        BaseContext, DateRange, Education, InvolvementDisplay, PeopleTemplate, PersonCard,
+        ProfileData, ProfileTemplate, SocialLinkDisplay, User,
+    },
 };
 
 pub fn router() -> Router {
@@ -26,36 +29,6 @@ pub fn router() -> Router {
         .route("/{username}", get(user_profile))
 }
 
-mod filters {
-    pub fn abs_url(path: &str) -> askama::Result<String> {
-        Ok(format!("{}{}", crate::config::app_url(), path))
-    }
-}
-
-/// Organization summary for displaying user's organizations
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OrganizationSummary {
-    pub org_name: String,
-    pub org_slug: String,
-    pub org_type: String,
-    pub role: String,
-}
-
-/// Template structure for public profile page
-#[derive(Template)]
-#[template(path = "persons/public_profile.html")]
-pub struct PublicProfileTemplate {
-    pub app_name: String,
-    pub year: i32,
-    pub version: String,
-    pub active_page: String,
-    pub user: Option<User>,
-    pub person: Person,
-    pub is_own_profile: bool,
-    pub organizations: Vec<OrganizationSummary>,
-    pub social_links: Vec<SocialLinkDisplay>,
-    pub involvements: Vec<crate::templates::InvolvementDisplay>,
-}
 
 /// List of reserved routes that should not be treated as usernames
 const RESERVED_ROUTES: &[&str] = &[
@@ -84,7 +57,24 @@ const RESERVED_ROUTES: &[&str] = &[
     "privacy",
 ];
 
-/// Handler for viewing a user's public profile
+/// Convert stored social links to display format with platform metadata
+fn to_social_link_displays(links: &[crate::models::person::SocialLink]) -> Vec<SocialLinkDisplay> {
+    links
+        .iter()
+        .map(|link| {
+            let platform = social_platforms::find_platform(&link.platform);
+            SocialLinkDisplay {
+                platform: link.platform.clone(),
+                url: link.url.clone(),
+                name: platform.name.to_string(),
+                icon_svg: platform.icon_svg.to_string(),
+            }
+        })
+        .collect()
+}
+
+/// Handler for viewing a user's public profile at /{username}
+/// Uses the same ProfileTemplate as the authenticated profile view
 async fn user_profile(
     Path(username): Path<String>,
     request: Request,
@@ -105,7 +95,7 @@ async fn user_profile(
         .unwrap_or(false);
 
     // Fetch the user's profile data using the Person model
-    let person = match Person::find_by_username(&username).await? {
+    let profile_user = match Person::find_by_username(&username).await? {
         Some(p) => p,
         None => {
             info!("User profile not found for username: {}", username);
@@ -113,81 +103,88 @@ async fn user_profile(
         }
     };
 
-    // TODO: Fix organization query once we understand the SurrealDB syntax better
-    // The query should fetch organization memberships for the user
-    // For now, just use an empty list to bypass the organization query issue
-    let organizations: Vec<OrganizationSummary> = Vec::new();
-
-    // TODO: Fix organization query once we understand the SurrealDB syntax better
-    // The query should fetch organization memberships for the user
-
     // Build base context
-    let mut base = BaseContext::new().with_page("public-profile");
+    let mut base = BaseContext::new().with_page("profile");
     if let Some(ref user) = current_user {
         base = base.with_user(User::from_session_user(&user).await);
     }
 
-    // Build social link displays from person's stored links
-    let social_links: Vec<SocialLinkDisplay> = person
-        .profile
-        .as_ref()
-        .map(|p| &p.social_links)
-        .unwrap_or(&vec![])
-        .iter()
-        .map(|link| {
-            let platform = social_platforms::find_platform(&link.platform);
-            SocialLinkDisplay {
-                platform: link.platform.clone(),
-                url: link.url.clone(),
-                name: platform.name.to_string(),
-                icon_svg: platform.icon_svg.to_string(),
+    // Convert Person model to ProfileData (same structure as /profile/{username} used)
+    let profile = profile_user.profile.as_ref();
+    let profile_data = ProfileData {
+        id: profile_user.id.to_raw_string(),
+        name: profile_user.get_display_name(),
+        username: profile_user.username.clone(),
+        email: profile_user.email.clone(),
+        avatar: profile_user.get_avatar_url(),
+        initials: profile_user.get_initials(),
+        headline: profile.and_then(|p| p.headline.clone()),
+        bio: profile.and_then(|p| p.bio.clone()),
+        location: profile.and_then(|p| p.location.clone()),
+        website: profile.and_then(|p| p.website.clone()),
+        skills: profile.map(|p| p.skills.clone()).unwrap_or_default(),
+        languages: profile.map(|p| p.languages.clone()).unwrap_or_default(),
+        availability: profile.and_then(|p| p.availability.clone()),
+        involvements: {
+            let pid = profile_user.id.to_raw_string();
+            match InvolvementModel::get_for_person(&pid).await {
+                Ok(invs) => invs
+                    .into_iter()
+                    .map(|inv| InvolvementDisplay {
+                        involvement_id: inv.id.to_raw_string(),
+                        role: inv.role,
+                        relation_type: inv.relation_type,
+                        department: inv.department,
+                        verification_status: inv.verification_status,
+                        production_title: inv.production_title,
+                        production_slug: inv.production_slug,
+                        production_type: inv.production_type,
+                        poster_url: inv.poster_url,
+                        tmdb_url: inv.tmdb_url,
+                        release_date: inv.release_date,
+                        media_type: inv.media_type,
+                        is_claimed: inv.is_claimed,
+                    })
+                    .collect(),
+                Err(e) => {
+                    error!("Failed to fetch involvements for {}: {}", username, e);
+                    vec![]
+                }
             }
-        })
-        .collect();
-
-    // Fetch involvements via graph traversal
-    let person_id_str = person.id.to_raw_string();
-    let involvements: Vec<InvolvementDisplay> = match InvolvementModel::get_for_person(&person_id_str).await {
-        Ok(invs) => invs
+        },
+        education: profile
+            .map(|p| p.education.clone())
+            .unwrap_or_default()
             .into_iter()
-            .map(|inv| InvolvementDisplay {
-                involvement_id: inv.id.to_raw_string(),
-                role: inv.role,
-                relation_type: inv.relation_type,
-                department: inv.department,
-                verification_status: inv.verification_status,
-                production_title: inv.production_title,
-                production_slug: inv.production_slug,
-                production_type: inv.production_type,
-                poster_url: inv.poster_url,
-                tmdb_url: inv.tmdb_url,
-                release_date: inv.release_date,
-                media_type: inv.media_type,
-                is_claimed: inv.is_claimed,
+            .map(|e| Education {
+                institution: e.institution,
+                degree: e.degree,
+                field: e.field,
+                dates: e.dates.map(|d| DateRange {
+                    start: d.start,
+                    end: d.end,
+                }),
             })
             .collect(),
-        Err(e) => {
-            error!("Failed to fetch involvements for {}: {}", username, e);
-            vec![]
-        }
+        social_links: to_social_link_displays(
+            &profile.map(|p| p.social_links.clone()).unwrap_or_default(),
+        ),
+        is_own_profile,
+        is_public: profile.map(|p| p.is_public).unwrap_or(false),
     };
 
-    // Create and render template
-    let template = PublicProfileTemplate {
+    // Create and render template using the same ProfileTemplate
+    let template = ProfileTemplate {
         app_name: base.app_name,
         year: base.year,
         version: base.version,
         active_page: base.active_page,
         user: base.user,
-        person,
-        is_own_profile,
-        organizations,
-        social_links,
-        involvements,
+        profile: profile_data,
     };
 
     let html = template.render().map_err(|e| {
-        error!("Failed to render public profile template: {}", e);
+        error!("Failed to render profile template: {}", e);
         Error::template(e.to_string())
     })?;
 

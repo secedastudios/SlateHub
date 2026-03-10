@@ -60,7 +60,7 @@
         <div id="people-grid" data-role="card-grid">
             {% for person in people %}
             <article data-component="card" data-type="person">
-                <a href="/profile/{{ person.username }}" data-role="card-visual">
+                <a href="/{{ person.username }}" data-role="card-visual">
                     <img src="{{ person.avatar }}" alt="{{ person.name }}" loading="lazy" onerror="this.style.display='none'" />
                     <div data-role="overlay">
                         <h3>{{ person.name }}</h3>
@@ -82,7 +82,7 @@
                     <p data-role="skills">{% for skill in person.skills %}<span>{{ skill }}</span>{% endfor %}</p>
                     {% endif %}
                     <div data-role="actions">
-                        <a href="/profile/{{ person.username }}" data-role="btn-primary">Message</a>
+                        <a href="/{{ person.username }}" data-role="btn-primary">Message</a>
                         <button type="button" data-role="btn-icon-bare" aria-label="Save" onclick="sendMessage('{{ person.id }}')">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                         </button>

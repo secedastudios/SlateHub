@@ -17,7 +17,7 @@ use crate::{
     social_platforms::{self, SOCIAL_PLATFORMS},
     templates::{
         BaseContext, DateRange, Education, InvolvementDisplay, ProfileData,
-        ProfileEditTemplate, ProfileTemplate, SocialLinkDisplay, SocialPlatformOption, User,
+        ProfileEditTemplate, SocialLinkDisplay, SocialPlatformOption, User,
     },
 };
 
@@ -70,123 +70,15 @@ async fn own_profile(request: Request) -> Result<Response, Error> {
         }
     };
 
-    // Redirect to the user's profile page
-    Ok(Redirect::to(&format!("/profile/{}", current_user.username)).into_response())
+    // Redirect to the user's public profile page
+    Ok(Redirect::to(&format!("/{}", current_user.username)).into_response())
 }
 
-/// Handler for viewing a specific user's profile
+/// Handler for /profile/{username} — redirects to /{username}
 async fn user_profile(
     Path(username): Path<String>,
-    request: Request,
-) -> Result<Html<String>, Error> {
-    debug!(username = %username, "Handling user profile request");
-
-    // Get current user if authenticated
-    let current_user = request.get_user();
-    let is_own_profile = current_user
-        .as_ref()
-        .map(|u| u.username == username)
-        .unwrap_or(false);
-
-    // Fetch the profile user's data
-    let profile_user = match Person::find_by_username(&username).await {
-        Ok(Some(user)) => user,
-        Ok(None) => {
-            error!("Profile not found for username: {}", username);
-            return Err(Error::NotFound);
-        }
-        Err(e) => {
-            error!("Failed to fetch user profile: {}", e);
-            return Err(e);
-        }
-    };
-
-    // Build base context
-    let mut base = BaseContext::new().with_page("profile");
-    if let Some(ref user) = current_user {
-        base = base.with_user(User::from_session_user(&user).await);
-    }
-
-    // Convert Person model to ProfileData
-    let profile = profile_user.profile.as_ref();
-    let profile_data = ProfileData {
-        id: profile_user.id.to_raw_string(),
-        name: profile_user.get_display_name(),
-        username: profile_user.username.clone(),
-        email: profile_user.email.clone(),
-        avatar: profile_user.get_avatar_url(),
-        initials: profile_user.get_initials(),
-        headline: profile.and_then(|p| p.headline.clone()),
-        bio: profile.and_then(|p| p.bio.clone()),
-        location: profile.and_then(|p| p.location.clone()),
-        website: profile.and_then(|p| p.website.clone()),
-        skills: profile.map(|p| p.skills.clone()).unwrap_or_default(),
-        languages: profile.map(|p| p.languages.clone()).unwrap_or_default(),
-        availability: profile.and_then(|p| p.availability.clone()),
-        involvements: {
-            let pid = profile_user.id.to_raw_string();
-            match InvolvementModel::get_for_person(&pid).await {
-                Ok(invs) => invs
-                    .into_iter()
-                    .map(|inv| InvolvementDisplay {
-                        involvement_id: inv.id.to_raw_string(),
-                        role: inv.role,
-                        relation_type: inv.relation_type,
-                        department: inv.department,
-                        verification_status: inv.verification_status,
-                        production_title: inv.production_title,
-                        production_slug: inv.production_slug,
-                        production_type: inv.production_type,
-                        poster_url: inv.poster_url,
-                        tmdb_url: inv.tmdb_url,
-                        release_date: inv.release_date,
-                        media_type: inv.media_type,
-                        is_claimed: inv.is_claimed,
-                    })
-                    .collect(),
-                Err(e) => {
-                    tracing::error!("Failed to fetch involvements for profile: {}", e);
-                    vec![]
-                }
-            }
-        },
-        education: profile
-            .map(|p| p.education.clone())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|e| Education {
-                institution: e.institution,
-                degree: e.degree,
-                field: e.field,
-                dates: e.dates.map(|d| DateRange {
-                    start: d.start,
-                    end: d.end,
-                }),
-            })
-            .collect(),
-        social_links: to_social_link_displays(
-            &profile.map(|p| p.social_links.clone()).unwrap_or_default(),
-        ),
-        is_own_profile,
-        is_public: profile.map(|p| p.is_public).unwrap_or(false),
-    };
-
-    // Create and render template
-    let template = ProfileTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
-        profile: profile_data,
-    };
-
-    let html = template.render().map_err(|e| {
-        error!("Failed to render profile template: {}", e);
-        Error::template(e.to_string())
-    })?;
-
-    Ok(Html(html))
+) -> Response {
+    Redirect::permanent(&format!("/{}", username)).into_response()
 }
 
 /// Handler for displaying the profile edit form
@@ -383,7 +275,7 @@ async fn update_profile(
                 "Successfully updated profile for user: {}",
                 current_user.username
             );
-            Ok(Redirect::to(&format!("/profile/{}", current_user.username)).into_response())
+            Ok(Redirect::to(&format!("/{}", current_user.username)).into_response())
         }
         Ok(None) => {
             error!("Profile not found for user: {}", current_user.username);
