@@ -34,6 +34,7 @@ pub fn router() -> Router {
         .route("/involvements/{id}/verify", post(verify_involvement))
         .route("/involvements/{id}/reject", post(reject_involvement))
         .route("/feedback", post(submit_feedback))
+        .route("/check-username", get(check_username))
 }
 
 #[axum::debug_handler]
@@ -884,5 +885,39 @@ async fn fix_avatar_urls() -> impl IntoResponse {
                 "error": format!("Failed to fix avatar URLs: {}", e)
             }))
         }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Username Availability Check
+// -----------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+struct CheckUsernameQuery {
+    username: Option<String>,
+}
+
+#[axum::debug_handler]
+async fn check_username(
+    Query(params): Query<CheckUsernameQuery>,
+) -> impl IntoResponse {
+    use crate::models::person::{Person, validate_username};
+
+    let username = match params.username {
+        Some(u) => u,
+        None => return Json(serde_json::json!({ "available": false, "error": "Username is required" })),
+    };
+
+    // Validate format
+    let username = match validate_username(&username) {
+        Ok(u) => u,
+        Err(e) => return Json(serde_json::json!({ "available": false, "error": e.to_string() })),
+    };
+
+    // Check availability in DB
+    match Person::find_by_username(&username).await {
+        Ok(Some(_)) => Json(serde_json::json!({ "available": false, "error": "Username is already taken" })),
+        Ok(None) => Json(serde_json::json!({ "available": true, "error": null })),
+        Err(_) => Json(serde_json::json!({ "available": false, "error": "Unable to check username" })),
     }
 }

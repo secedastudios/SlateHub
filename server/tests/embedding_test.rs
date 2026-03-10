@@ -20,11 +20,12 @@ fn test_person_embedding_text() {
         &vec!["Broadway musical theater".to_string()],
     );
 
-    assert!(text.contains("John Doe"));
-    assert!(text.contains("Actor"));
+    // Embedding text is lowercased for case-insensitive matching
+    assert!(text.contains("john doe"));
+    assert!(text.contains("actor"));
     assert!(text.contains("male"));
     assert!(text.contains("25-35 years old"));
-    assert!(text.contains("Los Angeles"));
+    assert!(text.contains("los angeles"));
     assert!(text.contains("acting, singing"));
 }
 
@@ -42,8 +43,9 @@ fn test_location_embedding_text() {
         Some("Street parking available"),
     );
 
-    assert!(text.contains("Modern Office Space"));
-    assert!(text.contains("Los Angeles, CA"));
+    // Embedding text is lowercased for case-insensitive matching
+    assert!(text.contains("modern office space"));
+    assert!(text.contains("los angeles, ca"));
     assert!(text.contains("natural light"));
     assert!(text.contains("50 people"));
 }

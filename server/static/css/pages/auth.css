@@ -198,6 +198,31 @@
     line-height: 1.4;
 }
 
+/* Real-time validation feedback */
+.auth-field-feedback {
+    font-size: var(--text-xs);
+    line-height: 1.4;
+    min-height: 1.2em;
+    transition: color var(--transition-fast);
+}
+
+.auth-field-feedback:empty,
+.auth-field-feedback[data-state=""] {
+    display: none;
+}
+
+.auth-field-feedback[data-state="error"] {
+    color: #f6917f;
+}
+
+.auth-field-feedback[data-state="ok"] {
+    color: #8cc49a;
+}
+
+.auth-field-feedback[data-state="checking"] {
+    color: rgba(156, 163, 158, 0.5);
+}
+
 /* ----------------------------------------
    Checkbox Fields (remember me, terms)
    ---------------------------------------- */

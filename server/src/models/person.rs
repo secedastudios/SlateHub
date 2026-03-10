@@ -10,9 +10,55 @@ use crate::error::{Error, Result};
 use crate::record_id_ext::RecordIdExt;
 use crate::services::embedding::build_person_embedding_text;
 use crate::{db_span, log_error};
+use regex::Regex;
+use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
 use tracing::{debug, error, info};
+
+// -----------------------------------------------------------------------------
+// Username Validation
+// -----------------------------------------------------------------------------
+
+static USERNAME_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z0-9._]+$").unwrap());
+
+const RESERVED_USERNAMES: &[&str] = &[
+    "about", "admin", "api", "auth", "contact", "dashboard", "equipment",
+    "help", "home", "login", "logout", "notifications", "org", "orgs",
+    "people", "productions", "profile", "project", "projects", "search",
+    "settings", "signup", "static", "support", "terms", "privacy",
+];
+
+/// Validates and normalizes a username to Instagram-style handle rules.
+/// Allowed: lowercase letters, numbers, periods, underscores. 3–30 chars.
+/// Periods cannot be consecutive or at start/end.
+/// Returns the normalized (lowercased, trimmed) username or an error.
+pub fn validate_username(username: &str) -> Result<String> {
+    let username = username.trim().to_lowercase();
+
+    if username.len() < 3 {
+        return Err(Error::Validation("Username must be at least 3 characters".into()));
+    }
+    if username.len() > 30 {
+        return Err(Error::Validation("Username must be 30 characters or fewer".into()));
+    }
+    if !USERNAME_RE.is_match(&username) {
+        return Err(Error::Validation(
+            "Username can only contain letters, numbers, periods, and underscores".into(),
+        ));
+    }
+    if username.starts_with('.') || username.ends_with('.') {
+        return Err(Error::Validation("Username cannot start or end with a period".into()));
+    }
+    if username.contains("..") {
+        return Err(Error::Validation("Username cannot contain consecutive periods".into()));
+    }
+    if RESERVED_USERNAMES.contains(&username.as_str()) {
+        return Err(Error::Validation("This username is reserved".into()));
+    }
+
+    Ok(username)
+}
 
 // -----------------------------------------------------------------------------
 // Core Person Model
@@ -678,6 +724,9 @@ impl Person {
         use crate::auth;
         use crate::db::DB;
         use tracing::debug;
+
+        // Validate and normalize the username
+        let username = validate_username(&username)?;
 
         // Hash the password using SurrealDB-compatible Argon2id
         let password_hash = auth::hash_password(&password)?;

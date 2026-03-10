@@ -18,7 +18,7 @@
         {% when None %}
     {% endmatch %}
 
-    <form method="post" action="/signup">
+    <form method="post" action="/signup" id="signup-form">
         <fieldset>
             <legend hidden>Account Information</legend>
 
@@ -28,14 +28,22 @@
                     type="text"
                     id="input-username"
                     name="username"
-                    placeholder="Choose a username"
+                    placeholder="e.g. jane_doe"
                     required
                     autofocus
+                    minlength="3"
+                    maxlength="30"
+                    autocomplete="username"
+                    autocapitalize="none"
+                    spellcheck="false"
                     aria-required="true"
+                    aria-describedby="username-feedback"
+                    pattern="[a-z0-9._]+"
                     {% match error %}
                         {% when Some with (_) %}aria-invalid="true"{% when None %}{% endmatch %}
                 />
-                <small class="auth-help">Your unique username for {{ app_name }}</small>
+                <small id="username-feedback" class="auth-field-feedback" aria-live="polite"></small>
+                <small class="auth-help">Letters, numbers, periods, and underscores (3–30 characters)</small>
             </div>
 
             <div class="auth-field">
@@ -81,9 +89,11 @@
                     required
                     minlength="8"
                     aria-required="true"
+                    aria-describedby="password-feedback"
                     {% match error %}
                         {% when Some with (_) %}aria-invalid="true"{% when None %}{% endmatch %}
                 />
+                <small id="password-feedback" class="auth-field-feedback" aria-live="polite"></small>
             </div>
 
             <div class="auth-check">
@@ -106,4 +116,94 @@
         </nav>
     </form>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+    var usernameInput = document.getElementById('input-username');
+    var usernameFeedback = document.getElementById('username-feedback');
+    var passwordInput = document.getElementById('input-password');
+    var confirmInput = document.getElementById('input-confirm-password');
+    var passwordFeedback = document.getElementById('password-feedback');
+    var debounceTimer = null;
+
+    // Auto-normalize username on input: lowercase, strip invalid chars
+    usernameInput.addEventListener('input', function() {
+        var pos = usernameInput.selectionStart;
+        var original = usernameInput.value;
+        var normalized = original.toLowerCase().replace(/[^a-z0-9._]/g, '');
+        if (normalized !== original) {
+            usernameInput.value = normalized;
+            var diff = original.length - normalized.length;
+            usernameInput.setSelectionRange(pos - diff, pos - diff);
+        }
+
+        if (debounceTimer) clearTimeout(debounceTimer);
+
+        var username = usernameInput.value;
+
+        // Client-side format checks
+        if (username.length === 0) {
+            setFeedback(usernameFeedback, '', '');
+            return;
+        }
+        if (username.length < 3) {
+            setFeedback(usernameFeedback, 'Must be at least 3 characters', 'error');
+            return;
+        }
+        if (username.startsWith('.') || username.endsWith('.')) {
+            setFeedback(usernameFeedback, 'Cannot start or end with a period', 'error');
+            return;
+        }
+        if (username.indexOf('..') !== -1) {
+            setFeedback(usernameFeedback, 'Cannot contain consecutive periods', 'error');
+            return;
+        }
+
+        setFeedback(usernameFeedback, 'Checking...', 'checking');
+
+        // Debounced server check
+        debounceTimer = setTimeout(function() {
+            fetch('/api/check-username?username=' + encodeURIComponent(username))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    // Only update if input hasn't changed
+                    if (usernameInput.value !== username) return;
+                    if (data.available) {
+                        setFeedback(usernameFeedback, 'Available', 'ok');
+                    } else {
+                        setFeedback(usernameFeedback, data.error || 'Username is not available', 'error');
+                    }
+                })
+                .catch(function() {
+                    if (usernameInput.value !== username) return;
+                    setFeedback(usernameFeedback, '', '');
+                });
+        }, 400);
+    });
+
+    // Password match check
+    function checkPasswordMatch() {
+        if (!confirmInput.value) {
+            setFeedback(passwordFeedback, '', '');
+            return;
+        }
+        if (passwordInput.value === confirmInput.value) {
+            setFeedback(passwordFeedback, 'Passwords match', 'ok');
+        } else {
+            setFeedback(passwordFeedback, 'Passwords do not match', 'error');
+        }
+    }
+
+    confirmInput.addEventListener('input', checkPasswordMatch);
+    passwordInput.addEventListener('input', function() {
+        if (confirmInput.value) checkPasswordMatch();
+    });
+
+    function setFeedback(el, text, state) {
+        el.textContent = text;
+        el.setAttribute('data-state', state);
+    }
+})();
+</script>
 {% endblock %}
