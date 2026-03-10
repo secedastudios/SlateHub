@@ -976,7 +976,7 @@ async fn og_profile_image(
 
     Ok((
         [
-            (axum::http::header::CONTENT_TYPE, "image/png"),
+            (axum::http::header::CONTENT_TYPE, "image/jpeg"),
             (axum::http::header::CACHE_CONTROL, "public, max-age=3600"),
         ],
         png_data,
@@ -1033,8 +1033,8 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
         {
             let logo_svg = logo_svg.to_string();
             // Original color #D6D8CA (same as header)
-            // Scale up: original is 103x16, render at 2x = ~206x32
-            let scale = 2.0_f32;
+            // Scale up: original is 103x16, render at 2.4x = ~247x38
+            let scale = 2.4_f32;
             let logo_w = (103.0 * scale) as u32;
             let logo_h = (16.0 * scale) as u32;
             let opts = resvg::usvg::Options::default();
@@ -1044,9 +1044,9 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
                     resvg::render(&tree, transform, &mut logo_pixmap.as_mut());
                     let logo_img = image::RgbaImage::from_raw(logo_w, logo_h, logo_pixmap.data().to_vec());
                     if let Some(logo_img) = logo_img {
-                        // Position: bottom-right with extra left padding
+                        // Position: bottom-right, same right edge padding, more bottom padding
                         let x = (W - logo_w - 80) as i64;
-                        let y = (H - logo_h - 24) as i64;
+                        let y = (H - logo_h - 32) as i64;
                         image::imageops::overlay(&mut canvas, &logo_img, x, y);
                     }
                 }
@@ -1054,11 +1054,12 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
         }
     }
 
-    // Encode to PNG
+    // Encode to JPEG at 80% quality (keeps it well under 600KB)
+    let rgb = image::DynamicImage::ImageRgba8(canvas).into_rgb8();
     let mut buf = std::io::Cursor::new(Vec::new());
-    canvas
-        .write_to(&mut buf, image::ImageFormat::Png)
-        .map_err(|e| format!("PNG encode error: {}", e))?;
+    let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, 80);
+    rgb.write_with_encoder(encoder)
+        .map_err(|e| format!("JPEG encode error: {}", e))?;
 
     Ok(buf.into_inner())
 }
