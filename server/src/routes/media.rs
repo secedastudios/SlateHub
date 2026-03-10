@@ -18,6 +18,7 @@ use crate::{db::DB, error::Error, middleware::AuthenticatedUser, services::s3::s
 pub fn router() -> Router {
     Router::new()
         .route("/upload/profile-image", post(upload_profile_image))
+        .route("/delete/profile-image", post(delete_profile_image))
         .route("/profile-image/{person_id}", get(get_profile_image_url))
         .route("/upload/organization-logo", post(upload_organization_logo))
         .route(
@@ -176,6 +177,27 @@ async fn upload_profile_image(
         url: main_url,
         thumbnail_url: Some(thumb_url),
     }))
+}
+
+/// Delete the authenticated user's profile image
+async fn delete_profile_image(
+    AuthenticatedUser(user): AuthenticatedUser,
+) -> Result<Json<serde_json::Value>, Error> {
+    let person_id = if user.id.starts_with("person:") {
+        user.id.clone()
+    } else {
+        format!("person:{}", user.id)
+    };
+
+    let update_sql = format!("UPDATE {} SET profile.avatar = NONE RETURN NONE", person_id);
+
+    DB.query(&update_sql)
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to delete profile avatar: {}", e)))?;
+
+    info!("Profile image deleted for user {}", user.username);
+
+    Ok(Json(serde_json::json!({ "success": true })))
 }
 
 /// Process and crop the profile image

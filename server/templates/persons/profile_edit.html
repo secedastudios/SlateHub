@@ -3,7 +3,6 @@
 {% block page_name %}profile-edit{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/profile-edit.css?v={{ version }}" />
-<link rel="stylesheet" href="/static/css/components/image-upload.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
 <section id="profile-edit-main" data-component="profile-edit">
@@ -15,12 +14,20 @@
                     src="{{ profile.avatar.as_ref().unwrap() }}"
                     alt="{{ profile.name }}'s profile photo"
                     data-role="avatar"
+                    id="edit-avatar-img"
                 />
                 {% else %}
-                <div data-role="avatar-initials">
+                <div data-role="avatar-initials" id="edit-avatar-initials">
                     {{ profile.initials }}
                 </div>
                 {% endif %}
+                <div data-role="avatar-overlay" id="avatar-overlay" title="Change photo">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                </div>
+                <button type="button" id="avatar-delete-btn" data-role="avatar-delete" title="Remove photo"{% if profile.avatar.is_none() %} style="display:none"{% endif %}>&times;</button>
             </div>
             <div id="profile-edit-title">
                 <h1 id="heading-profile-edit">Edit Profile</h1>
@@ -48,11 +55,6 @@
         {{ success.as_ref().unwrap() }}
     </div>
     {% endif %}
-
-    <section id="section-profile-image" data-section="profile-image" aria-labelledby="heading-profile-image">
-        <h2 id="heading-profile-image">Profile Photo</h2>
-        <div id="profile-image-upload" data-component="image-upload" data-state="ready"></div>
-    </section>
 
     <form id="form-profile-edit" method="post" action="/profile/edit" data-component="form">
         <section id="section-basic-info" data-section="basic-info" aria-labelledby="heading-basic-info">
@@ -498,6 +500,57 @@
     </form>
 </section>
 
+<!-- Avatar Upload Modal -->
+<div id="avatar-modal" data-component="modal" aria-hidden="true" role="dialog" aria-label="Update profile photo">
+    <div data-role="modal-backdrop" id="avatar-modal-backdrop"></div>
+    <div data-role="modal-panel">
+        <header data-role="modal-header">
+            <h2>Update Profile Photo</h2>
+            <button type="button" id="avatar-modal-close" data-action="close" aria-label="Close">&times;</button>
+        </header>
+        <div data-role="modal-body">
+            <!-- Step 1: File selection -->
+            <div id="avatar-step-select" data-step="select">
+                <div id="avatar-dropzone" data-role="dropzone">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <p>Drag and drop your image here or</p>
+                    <button type="button" id="avatar-browse-btn" data-action="browse">Browse Files</button>
+                    <small>JPEG, PNG, or WebP — Max 10MB</small>
+                </div>
+                <input type="file" id="avatar-modal-file" accept="image/jpeg,image/png,image/webp" hidden />
+            </div>
+            <!-- Step 2: Crop & zoom -->
+            <div id="avatar-step-crop" data-step="crop" style="display:none">
+                <div id="avatar-crop-preview" data-role="crop-preview">
+                    <img id="avatar-crop-img" src="" alt="Preview" />
+                    <div data-role="crop-ring"></div>
+                </div>
+                <div data-role="crop-controls">
+                    <label for="avatar-zoom-slider">Zoom</label>
+                    <input type="range" id="avatar-zoom-slider" min="1" max="3" step="0.05" value="1" />
+                    <span id="avatar-zoom-value">1.0x</span>
+                </div>
+                <small data-role="crop-hint">Drag image to reposition</small>
+            </div>
+            <!-- Step 3: Uploading -->
+            <div id="avatar-step-upload" data-step="upload" style="display:none">
+                <div data-role="upload-progress">
+                    <div data-role="spinner"></div>
+                    <p>Uploading...</p>
+                </div>
+            </div>
+        </div>
+        <footer data-role="modal-footer">
+            <button type="button" id="avatar-modal-cancel" data-action="cancel">Cancel</button>
+            <button type="button" id="avatar-modal-save" data-action="save" disabled>Upload</button>
+        </footer>
+    </div>
+</div>
+
 <script>
 /* ---- TMDB Import (API-driven) ---- */
 function openTmdbImport() {
@@ -901,6 +954,281 @@ function updateSocialPlaceholder(select) {
         input.placeholder = placeholder;
     }
 }
+/* ---- Avatar Modal Upload/Crop ---- */
+(function() {
+    var overlay = document.getElementById('avatar-overlay');
+    var deleteBtn = document.getElementById('avatar-delete-btn');
+    var avatarContainer = document.getElementById('profile-edit-avatar');
+    var initials = '{{ profile.initials }}';
+
+    // Modal elements
+    var modal = document.getElementById('avatar-modal');
+    var backdrop = document.getElementById('avatar-modal-backdrop');
+    var closeBtn = document.getElementById('avatar-modal-close');
+    var cancelBtn = document.getElementById('avatar-modal-cancel');
+    var saveBtn = document.getElementById('avatar-modal-save');
+    var fileInput = document.getElementById('avatar-modal-file');
+    var browseBtn = document.getElementById('avatar-browse-btn');
+    var dropzone = document.getElementById('avatar-dropzone');
+    var stepSelect = document.getElementById('avatar-step-select');
+    var stepCrop = document.getElementById('avatar-step-crop');
+    var stepUpload = document.getElementById('avatar-step-upload');
+    var cropImg = document.getElementById('avatar-crop-img');
+    var zoomSlider = document.getElementById('avatar-zoom-slider');
+    var zoomValue = document.getElementById('avatar-zoom-value');
+
+    var currentFile = null;
+    var cropData = { x: 0.5, y: 0.5, zoom: 1.0 };
+    var isDragging = false, dragStartX, dragStartY, dragStartCropX, dragStartCropY;
+    var imgNaturalW = 0, imgNaturalH = 0;
+
+    if (!overlay || !modal) return;
+
+    // Open modal from avatar overlay
+    overlay.addEventListener('click', function(e) { e.stopPropagation(); openModal(); });
+
+    // Also allow clicking the avatar container itself
+    avatarContainer.addEventListener('click', function() { openModal(); });
+
+    function openModal() {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        showStep('select');
+    }
+
+    function closeModal() {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        currentFile = null;
+        cropData = { x: 0.5, y: 0.5, zoom: 1.0 };
+        zoomSlider.value = '1';
+        zoomValue.textContent = '1.0x';
+        fileInput.value = '';
+        saveBtn.disabled = true;
+    }
+
+    function showStep(step) {
+        stepSelect.style.display = step === 'select' ? '' : 'none';
+        stepCrop.style.display = step === 'crop' ? '' : 'none';
+        stepUpload.style.display = step === 'upload' ? '' : 'none';
+        saveBtn.disabled = step !== 'crop';
+        saveBtn.textContent = step === 'upload' ? 'Uploading...' : 'Upload';
+    }
+
+    // Close handlers
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', closeModal);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+    });
+
+    // Browse button
+    browseBtn.addEventListener('click', function(e) { e.stopPropagation(); fileInput.click(); });
+
+    // Drag & drop on dropzone
+    dropzone.addEventListener('dragover', function(e) { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', function() { dropzone.classList.remove('dragover'); });
+    dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        var file = e.dataTransfer.files[0];
+        if (file && file.type.match(/^image\/(jpeg|png|webp)$/)) handleFile(file);
+    });
+
+    // File input change
+    fileInput.addEventListener('change', function() {
+        if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    });
+
+    function handleFile(file) {
+        if (file.size > 10 * 1024 * 1024) { alert('File must be under 10MB.'); return; }
+        var valid = ['image/jpeg', 'image/png', 'image/webp'];
+        if (valid.indexOf(file.type) === -1) { alert('Please select a JPEG, PNG, or WebP image.'); return; }
+        currentFile = file;
+        cropData = { x: 0.5, y: 0.5, zoom: 1.0 };
+        zoomSlider.value = '1';
+        zoomValue.textContent = '1.0x';
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            cropImg.src = e.target.result;
+            cropImg.onload = function() {
+                imgNaturalW = cropImg.naturalWidth;
+                imgNaturalH = cropImg.naturalHeight;
+                showStep('crop');
+                updateCropPreview();
+            };
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Zoom
+    zoomSlider.addEventListener('input', function() {
+        cropData.zoom = parseFloat(zoomSlider.value);
+        zoomValue.textContent = cropData.zoom.toFixed(1) + 'x';
+        updateCropPreview();
+    });
+
+    // Drag to reposition (mouse)
+    var previewBox = document.getElementById('avatar-crop-preview');
+    cropImg.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        isDragging = true;
+        dragStartX = e.clientX; dragStartY = e.clientY;
+        dragStartCropX = cropData.x; dragStartCropY = cropData.y;
+        cropImg.style.cursor = 'grabbing';
+    });
+    document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        var boxSize = previewBox.offsetWidth;
+        var minDim = Math.min(imgNaturalW, imgNaturalH);
+        var displayScale = (boxSize * cropData.zoom) / minDim;
+        var maxOffsetX = imgNaturalW * displayScale - boxSize;
+        var maxOffsetY = imgNaturalH * displayScale - boxSize;
+        // Convert pixel drag to crop_x/y delta
+        var dx = maxOffsetX > 0 ? (e.clientX - dragStartX) / maxOffsetX : 0;
+        var dy = maxOffsetY > 0 ? (e.clientY - dragStartY) / maxOffsetY : 0;
+        cropData.x = Math.max(0, Math.min(1, dragStartCropX - dx));
+        cropData.y = Math.max(0, Math.min(1, dragStartCropY - dy));
+        updateCropPreview();
+    });
+    document.addEventListener('mouseup', function() {
+        if (isDragging) { isDragging = false; cropImg.style.cursor = 'grab'; }
+    });
+
+    // Touch drag
+    cropImg.addEventListener('touchstart', function(e) {
+        var t = e.touches[0];
+        isDragging = true;
+        dragStartX = t.clientX; dragStartY = t.clientY;
+        dragStartCropX = cropData.x; dragStartCropY = cropData.y;
+    });
+    cropImg.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+        var t = e.touches[0];
+        var boxSize = previewBox.offsetWidth;
+        var minDim = Math.min(imgNaturalW, imgNaturalH);
+        var displayScale = (boxSize * cropData.zoom) / minDim;
+        var maxOffsetX = imgNaturalW * displayScale - boxSize;
+        var maxOffsetY = imgNaturalH * displayScale - boxSize;
+        var dx = maxOffsetX > 0 ? (t.clientX - dragStartX) / maxOffsetX : 0;
+        var dy = maxOffsetY > 0 ? (t.clientY - dragStartY) / maxOffsetY : 0;
+        cropData.x = Math.max(0, Math.min(1, dragStartCropX - dx));
+        cropData.y = Math.max(0, Math.min(1, dragStartCropY - dy));
+        updateCropPreview();
+    });
+    cropImg.addEventListener('touchend', function() { isDragging = false; });
+
+    // Mirror the server's crop logic exactly in the preview.
+    // Server: crop_size = min(w,h)/zoom, crop_x_px = crop_x * (w - crop_size), crop_y_px = crop_y * (h - crop_size)
+    // Preview: the 280px box represents the crop_size region. We scale the image
+    // so that its shorter side maps to box_size * zoom, then offset to show the crop region.
+    function updateCropPreview() {
+        var boxSize = previewBox.offsetWidth;
+        var nw = imgNaturalW, nh = imgNaturalH;
+        if (!nw || !nh) return;
+
+        var z = cropData.zoom;
+        // The crop_size in natural pixels = min(nw,nh) / zoom
+        // The image must be scaled so crop_size natural pixels = boxSize display pixels
+        // displayScale = boxSize / crop_size = boxSize * zoom / min(nw,nh)
+        var minDim = Math.min(nw, nh);
+        var displayScale = (boxSize * z) / minDim;
+
+        var imgDisplayW = nw * displayScale;
+        var imgDisplayH = nh * displayScale;
+
+        cropImg.style.width = imgDisplayW + 'px';
+        cropImg.style.height = imgDisplayH + 'px';
+
+        // Movable range in display pixels
+        var maxOffsetX = imgDisplayW - boxSize;
+        var maxOffsetY = imgDisplayH - boxSize;
+
+        // crop_x=0 → left edge, crop_x=1 → right edge, 0.5 → center
+        var tx = -cropData.x * maxOffsetX;
+        var ty = -cropData.y * maxOffsetY;
+
+        cropImg.style.transform = 'translate(' + tx + 'px, ' + ty + 'px)';
+    }
+
+    // Upload
+    saveBtn.addEventListener('click', function() {
+        if (!currentFile) return;
+        showStep('upload');
+
+        var formData = new FormData();
+        formData.append('image', currentFile);
+        var params = new URLSearchParams({
+            crop_x: cropData.x, crop_y: cropData.y, crop_zoom: cropData.zoom
+        });
+
+        fetch('/api/media/upload/profile-image?' + params, { method: 'POST', body: formData, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) return r.json().then(function(e) { throw new Error(e.error || 'Upload failed'); });
+                return r.json();
+            })
+            .then(function(data) {
+                var url = data.url;
+                // Update edit avatar
+                var existing = document.getElementById('edit-avatar-img');
+                if (existing) {
+                    existing.src = url;
+                } else {
+                    var el = document.getElementById('edit-avatar-initials');
+                    var img = document.createElement('img');
+                    img.src = url; img.alt = 'Profile photo';
+                    img.setAttribute('data-role', 'avatar'); img.id = 'edit-avatar-img';
+                    if (el) el.replaceWith(img); else avatarContainer.insertBefore(img, overlay);
+                }
+                // Update nav avatar
+                var navImg = document.getElementById('nav-user-avatar');
+                if (navImg) {
+                    navImg.src = url;
+                } else {
+                    var navEl = document.getElementById('nav-user-initials');
+                    if (navEl) {
+                        var ni = document.createElement('img');
+                        ni.src = url; ni.alt = 'Avatar'; ni.id = 'nav-user-avatar';
+                        ni.setAttribute('data-role', 'avatar'); ni.width = 32; ni.height = 32;
+                        navEl.replaceWith(ni);
+                    }
+                }
+                deleteBtn.style.display = '';
+                closeModal();
+            })
+            .catch(function(err) { alert('Upload failed: ' + err.message); showStep('crop'); });
+    });
+
+    // Delete avatar
+    deleteBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (!confirm('Remove your profile photo?')) return;
+        fetch('/api/media/delete/profile-image', { method: 'POST', credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) { alert(data.error); return; }
+                var img = document.getElementById('edit-avatar-img');
+                if (img) {
+                    var div = document.createElement('div');
+                    div.setAttribute('data-role', 'avatar-initials');
+                    div.id = 'edit-avatar-initials'; div.textContent = initials;
+                    img.replaceWith(div);
+                }
+                var navImg = document.getElementById('nav-user-avatar');
+                if (navImg) {
+                    var navDiv = document.createElement('div');
+                    navDiv.id = 'nav-user-initials';
+                    navDiv.setAttribute('data-role', 'avatar-initials');
+                    navDiv.textContent = initials;
+                    navImg.replaceWith(navDiv);
+                }
+                deleteBtn.style.display = 'none';
+            })
+            .catch(function(err) { alert('Failed: ' + err.message); });
+    });
+})();
 </script>
-<script src="/static/js/profile-image-upload.js?v={{ version }}"></script>
 {% endblock %}

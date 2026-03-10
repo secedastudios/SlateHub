@@ -80,6 +80,7 @@ async fn signup(Form(form): Form<CreateUser>) -> Result<Response, Error> {
     debug!("Processing signup for email: {}", form.email);
 
     // Try to create the user
+    let email = form.email.clone();
     match Person::signup(form.username, form.email, form.password).await {
         Ok(token) => {
             info!("User created successfully");
@@ -95,7 +96,7 @@ async fn signup(Form(form): Form<CreateUser>) -> Result<Response, Error> {
             // Redirect to email verification page
             Ok((
                 CookieJar::new().add(cookie),
-                response::redirect("/verify-email"),
+                response::redirect(&format!("/verify-email?email={}", urlencoding::encode(&email))),
             )
                 .into_response())
         }
@@ -214,7 +215,10 @@ async fn logout(jar: CookieJar) -> Response {
 
 // Email Verification Routes
 
-async fn verify_email_form(request: Request) -> Result<Html<String>, Error> {
+async fn verify_email_form(
+    Query(params): Query<std::collections::HashMap<String, String>>,
+    request: Request,
+) -> Result<Html<String>, Error> {
     debug!("Rendering email verification page");
 
     let mut base = BaseContext::new().with_page("verify-email");
@@ -224,7 +228,8 @@ async fn verify_email_form(request: Request) -> Result<Html<String>, Error> {
         base = base.with_user(User::from_session_user(&user).await);
     }
 
-    let template = EmailVerificationTemplate::new(base);
+    let mut template = EmailVerificationTemplate::new(base);
+    template.email = params.get("email").cloned();
 
     let html = template.render().map_err(|e| {
         error!("Failed to render email verification template: {}", e);
