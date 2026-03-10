@@ -940,41 +940,32 @@ async fn og_profile_image(
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, "Not found".to_string()))?;
 
-    // Fetch avatar bytes if available
-    let avatar_url = person.get_avatar_url();
+    // Fetch avatar bytes — resolve to absolute URL and fetch via HTTP
+    let avatar_url = person.get_absolute_avatar_url();
     debug!("OG image: avatar_url = {:?}", avatar_url);
     let avatar_bytes: Option<Vec<u8>> = if let Some(ref url) = avatar_url {
-        if url.starts_with("/api/media/") {
-            let path = url.trim_start_matches("/api/media/");
-            let full_path = format!("media/{}", path);
-            debug!("OG image: reading local file {}", full_path);
-            tokio::fs::read(&full_path).await.ok()
-        } else if url.starts_with("http") {
-            // Fetch external URL
-            debug!("OG image: fetching external URL {}", url);
-            match reqwest::get(url).await {
-                Ok(resp) => match resp.bytes().await {
+        debug!("OG image: fetching {}", url);
+        match reqwest::get(url).await {
+            Ok(resp) => {
+                debug!("OG image: response status {}", resp.status());
+                match resp.bytes().await {
                     Ok(b) => {
                         debug!("OG image: fetched {} bytes", b.len());
-                        Some(b.to_vec())
+                        if b.is_empty() { None } else { Some(b.to_vec()) }
                     }
                     Err(e) => {
                         error!("OG image: failed to read response bytes: {}", e);
                         None
                     }
-                },
-                Err(e) => {
-                    error!("OG image: failed to fetch avatar URL: {}", e);
-                    None
                 }
             }
-        } else {
-            let path = url.trim_start_matches('/');
-            debug!("OG image: reading static file {}", path);
-            tokio::fs::read(path).await.ok()
+            Err(e) => {
+                error!("OG image: failed to fetch avatar: {}", e);
+                None
+            }
         }
     } else {
-        debug!("OG image: no avatar URL");
+        debug!("OG image: no avatar URL set");
         None
     };
     debug!("OG image: avatar_bytes len = {:?}", avatar_bytes.as_ref().map(|b| b.len()));
@@ -1030,11 +1021,11 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
     }
 
     // Render the SlateHub logo SVG on top (bottom-right corner)
-    // Read the logo SVG from disk, recolor to accent red, scale up, and composite
-    if let Ok(logo_svg_bytes) = std::fs::read("static/images/logo.svg") {
-        if let Ok(mut logo_svg) = String::from_utf8(logo_svg_bytes) {
-            // Recolor from #D6D8CA to accent red #eb5437
-            logo_svg = logo_svg.replace("#D6D8CA", "#eb5437");
+    {
+        let logo_svg = include_str!("../../static/images/logo.svg");
+        {
+            let logo_svg = logo_svg.to_string();
+            // Original color #D6D8CA (same as header)
             // Scale up: original is 103x16, render at 3x = ~309x48
             let scale = 3.0_f32;
             let logo_w = (103.0 * scale) as u32;
