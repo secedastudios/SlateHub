@@ -1,7 +1,7 @@
 use askama::Template;
 use axum::{
     Router,
-    extract::{Path, Request},
+    extract::{Path, Query, Request},
     response::Html,
     routing::get,
 };
@@ -194,8 +194,17 @@ async fn user_profile(
     Ok(Html(html))
 }
 
-async fn people(request: Request) -> Result<Html<String>, Error> {
-    debug!("Rendering people page");
+#[derive(Deserialize)]
+struct PeopleQuery {
+    filter: Option<String>,
+}
+
+async fn people(
+    Query(params): Query<PeopleQuery>,
+    request: Request,
+) -> Result<Html<String>, Error> {
+    let filter = params.filter.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty());
+    debug!("Rendering people page, filter: {:?}", filter);
 
     let mut base = BaseContext::new().with_page("people");
 
@@ -205,6 +214,7 @@ async fn people(request: Request) -> Result<Html<String>, Error> {
     }
 
     let mut template = PeopleTemplate::new(base);
+    template.filter = filter.map(|s| s.to_string());
 
     // Add specialties list (in production, fetch from database)
     template.specialties = vec![
@@ -218,27 +228,59 @@ async fn people(request: Request) -> Result<Html<String>, Error> {
         "Composer".to_string(),
     ];
 
-    // Fetch all profiles from the database ordered by created_at descending
-    // Note: Since Person model doesn't have a created_at field exposed, we'll use the database query directly
-    let query = r#"
-        SELECT * FROM person
-        WHERE profile.name IS NOT NULL
-           OR profile.headline IS NOT NULL
-           OR profile.bio IS NOT NULL
-        ORDER BY created_at DESC
-    "#;
-
-    let persons = match DB.query(query).await {
-        Ok(mut result) => match result.take::<Vec<Person>>(0) {
-            Ok(persons) => persons,
+    // Fetch profiles from the database, optionally filtered
+    let persons = if let Some(filter_text) = filter {
+        let filter_lower = filter_text.to_lowercase();
+        let query = r#"
+            SELECT * FROM person
+            WHERE (profile.name IS NOT NULL
+               OR profile.headline IS NOT NULL
+               OR profile.bio IS NOT NULL)
+              AND (
+                string::lowercase(name ?? '') CONTAINS $filter
+                OR string::lowercase(username ?? '') CONTAINS $filter
+                OR string::lowercase(profile.name ?? '') CONTAINS $filter
+                OR string::lowercase(profile.headline ?? '') CONTAINS $filter
+                OR string::lowercase(profile.bio ?? '') CONTAINS $filter
+                OR string::lowercase(profile.location ?? '') CONTAINS $filter
+                OR $filter IN profile.skills.map(|$v| string::lowercase($v))
+                OR $filter IN profile.languages.map(|$v| string::lowercase($v))
+              )
+            ORDER BY created_at DESC
+        "#;
+        match DB.query(query).bind(("filter", filter_lower)).await {
+            Ok(mut result) => match result.take::<Vec<Person>>(0) {
+                Ok(persons) => persons,
+                Err(e) => {
+                    error!("Failed to fetch filtered persons: {}", e);
+                    vec![]
+                }
+            },
             Err(e) => {
-                error!("Failed to fetch persons from database: {}", e);
+                error!("Failed to query filtered persons: {}", e);
                 vec![]
             }
-        },
-        Err(e) => {
-            error!("Failed to query persons from database: {}", e);
-            vec![]
+        }
+    } else {
+        let query = r#"
+            SELECT * FROM person
+            WHERE profile.name IS NOT NULL
+               OR profile.headline IS NOT NULL
+               OR profile.bio IS NOT NULL
+            ORDER BY created_at DESC
+        "#;
+        match DB.query(query).await {
+            Ok(mut result) => match result.take::<Vec<Person>>(0) {
+                Ok(persons) => persons,
+                Err(e) => {
+                    error!("Failed to fetch persons from database: {}", e);
+                    vec![]
+                }
+            },
+            Err(e) => {
+                error!("Failed to query persons from database: {}", e);
+                vec![]
+            }
         }
     };
 

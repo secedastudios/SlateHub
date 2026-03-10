@@ -259,7 +259,7 @@ pub fn build_person_embedding_text(
         parts.push(format!("Experience: {}", experience.join(". ")));
     }
 
-    parts.join(". ")
+    parts.join(". ").to_lowercase()
 }
 
 /// Build optimized text for organization embedding
@@ -311,7 +311,7 @@ pub fn build_organization_embedding_text(
         parts.push(format!("Description: {}", desc));
     }
 
-    parts.join(". ")
+    parts.join(". ").to_lowercase()
 }
 
 /// Build optimized text for location embedding
@@ -358,7 +358,7 @@ pub fn build_location_embedding_text(
         parts.push(format!("Restrictions: {}", restrictions.join(", ")));
     }
 
-    parts.join(". ")
+    parts.join(". ").to_lowercase()
 }
 
 /// Build optimized text for production embedding
@@ -398,5 +398,5 @@ pub fn build_production_embedding_text(
         parts.push(format!("Description: {}", desc));
     }
 
-    parts.join(". ")
+    parts.join(". ").to_lowercase()
 }
