@@ -51,13 +51,13 @@ pub fn app() -> Router {
         .nest("/api", api::router())
         // Mount media routes under /api/media
         .nest("/api/media", media::router())
-        // Static files with long cache (busted via ?v= query param)
+        // Static files — no cache during development (change back to long cache for production)
         .nest_service(
             "/static",
             get_service(static_service).layer(
                 SetResponseHeaderLayer::overriding(
                     header::CACHE_CONTROL,
-                    header::HeaderValue::from_static("public, max-age=31536000, immutable"),
+                    header::HeaderValue::from_static("no-cache, no-store, must-revalidate"),
                 ),
             ),
         )
