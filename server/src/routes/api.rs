@@ -942,24 +942,42 @@ async fn og_profile_image(
 
     // Fetch avatar bytes if available
     let avatar_url = person.get_avatar_url();
+    debug!("OG image: avatar_url = {:?}", avatar_url);
     let avatar_bytes: Option<Vec<u8>> = if let Some(ref url) = avatar_url {
-        // Resolve relative URLs to local file paths
         if url.starts_with("/api/media/") {
-            // Read from the media storage directory
             let path = url.trim_start_matches("/api/media/");
             let full_path = format!("media/{}", path);
+            debug!("OG image: reading local file {}", full_path);
             tokio::fs::read(&full_path).await.ok()
         } else if url.starts_with("http") {
-            // External URL — skip to avoid latency
-            None
+            // Fetch external URL
+            debug!("OG image: fetching external URL {}", url);
+            match reqwest::get(url).await {
+                Ok(resp) => match resp.bytes().await {
+                    Ok(b) => {
+                        debug!("OG image: fetched {} bytes", b.len());
+                        Some(b.to_vec())
+                    }
+                    Err(e) => {
+                        error!("OG image: failed to read response bytes: {}", e);
+                        None
+                    }
+                },
+                Err(e) => {
+                    error!("OG image: failed to fetch avatar URL: {}", e);
+                    None
+                }
+            }
         } else {
-            // Try as a local static path
             let path = url.trim_start_matches('/');
+            debug!("OG image: reading static file {}", path);
             tokio::fs::read(path).await.ok()
         }
     } else {
+        debug!("OG image: no avatar URL");
         None
     };
+    debug!("OG image: avatar_bytes len = {:?}", avatar_bytes.as_ref().map(|b| b.len()));
 
     // Render profile image + logo to PNG
     let png_data = render_og_png(avatar_bytes.as_deref())
@@ -978,66 +996,72 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
     const W: u32 = 1200;
     const H: u32 = 630;
 
-    let mut pixmap = tiny_skia::Pixmap::new(W, H)
-        .ok_or_else(|| "Failed to create pixmap".to_string())?;
+    // Decode avatar into an RGBA buffer
+    let avatar_rgba = avatar_bytes.and_then(|bytes| {
+        match image::load_from_memory(bytes) {
+            Ok(img) => {
+                tracing::debug!("OG image: decoded avatar {}x{}", img.width(), img.height());
+                Some(img)
+            }
+            Err(e) => {
+                tracing::error!("OG image: failed to decode avatar: {}", e);
+                None
+            }
+        }
+    });
 
-    // Dark background fallback
-    pixmap.fill(tiny_skia::Color::from_rgba8(26, 29, 27, 255));
+    // Create the output image
+    let mut canvas = image::RgbaImage::new(W, H);
 
-    // Draw avatar as full-bleed background
-    if let Some(bytes) = avatar_bytes {
-        if let Some(src) = decode_image_to_pixmap(bytes) {
-            let sw = src.width() as f32;
-            let sh = src.height() as f32;
-            let tw = W as f32;
-            let th = H as f32;
-            // "cover" scaling: scale to fill, crop overflow
-            let scale = (tw / sw).max(th / sh);
-            let scaled_w = sw * scale;
-            let scaled_h = sh * scale;
-            let offset_x = (tw - scaled_w) / 2.0;
-            let offset_y = (th - scaled_h) / 2.0;
-
-            let transform = tiny_skia::Transform::from_translate(offset_x, offset_y)
-                .post_scale(scale, scale);
-
-            let pattern = tiny_skia::Pattern::new(
-                src.as_ref(),
-                tiny_skia::SpreadMode::Pad,
-                tiny_skia::FilterQuality::Bilinear,
-                1.0,
-                transform,
-            );
-            let mut paint = tiny_skia::Paint::default();
-            paint.shader = pattern;
-
-            let rect = tiny_skia::Rect::from_xywh(0.0, 0.0, tw, th).unwrap();
-            pixmap.fill_rect(rect, &paint, tiny_skia::Transform::identity(), None);
+    if let Some(avatar) = avatar_rgba {
+        // Resize to cover 1200x630
+        let resized = image::imageops::resize(
+            &avatar.to_rgba8(),
+            W,
+            H,
+            image::imageops::FilterType::Lanczos3,
+        );
+        image::imageops::overlay(&mut canvas, &resized, 0, 0);
+    } else {
+        // Dark background fallback
+        for pixel in canvas.pixels_mut() {
+            *pixel = image::Rgba([26, 29, 27, 255]);
         }
     }
 
-    // Render "SLATEHUB" logo SVG on top (bottom-center)
-    let logo_svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <text x="600" y="600" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="6" fill="#eb5437">SLATEHUB</text>
-</svg>"##;
-
-    let opts = resvg::usvg::Options::default();
-    if let Ok(tree) = resvg::usvg::Tree::from_str(logo_svg, &opts) {
-        resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+    // Render the SlateHub logo SVG on top (bottom-right corner)
+    // Read the logo SVG from disk, recolor to accent red, scale up, and composite
+    if let Ok(logo_svg_bytes) = std::fs::read("static/images/logo.svg") {
+        if let Ok(mut logo_svg) = String::from_utf8(logo_svg_bytes) {
+            // Recolor from #D6D8CA to accent red #eb5437
+            logo_svg = logo_svg.replace("#D6D8CA", "#eb5437");
+            // Scale up: original is 103x16, render at 3x = ~309x48
+            let scale = 3.0_f32;
+            let logo_w = (103.0 * scale) as u32;
+            let logo_h = (16.0 * scale) as u32;
+            let opts = resvg::usvg::Options::default();
+            if let Ok(tree) = resvg::usvg::Tree::from_str(&logo_svg, &opts) {
+                if let Some(mut logo_pixmap) = tiny_skia::Pixmap::new(logo_w, logo_h) {
+                    let transform = tiny_skia::Transform::from_scale(scale, scale);
+                    resvg::render(&tree, transform, &mut logo_pixmap.as_mut());
+                    // Convert to image::RgbaImage and overlay
+                    let logo_img = image::RgbaImage::from_raw(logo_w, logo_h, logo_pixmap.data().to_vec());
+                    if let Some(logo_img) = logo_img {
+                        // Position: bottom-right with some padding
+                        let x = (W - logo_w - 40) as i64;
+                        let y = (H - logo_h - 20) as i64;
+                        image::imageops::overlay(&mut canvas, &logo_img, x, y);
+                    }
+                }
+            }
+        }
     }
 
-    pixmap.encode_png().map_err(|e| format!("PNG encode error: {}", e))
-}
+    // Encode to PNG
+    let mut buf = std::io::Cursor::new(Vec::new());
+    canvas
+        .write_to(&mut buf, image::ImageFormat::Png)
+        .map_err(|e| format!("PNG encode error: {}", e))?;
 
-fn decode_image_to_pixmap(bytes: &[u8]) -> Option<tiny_skia::Pixmap> {
-    // Try decoding as PNG first, then JPEG via image crate
-    if let Some(pm) = tiny_skia::Pixmap::decode_png(bytes).ok() {
-        return Some(pm);
-    }
-
-    // For JPEG/WebP, use the image crate to decode to RGBA
-    let img = image::load_from_memory(bytes).ok()?;
-    let rgba = img.to_rgba8();
-    let (w, h) = (rgba.width(), rgba.height());
-    tiny_skia::Pixmap::from_vec(rgba.into_raw(), tiny_skia::IntSize::from_wh(w, h)?)
+    Ok(buf.into_inner())
 }
