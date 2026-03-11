@@ -561,6 +561,237 @@
 }
 
 /* ----------------------------------------
+   Reels Section (Video Carousel)
+   ---------------------------------------- */
+
+#section-reels {
+    border-top: 1px solid rgba(214, 216, 202, 0.12);
+    padding-top: var(--space-2xl);
+    margin-top: var(--space-md);
+}
+
+[data-component="profile"] #section-reels h2 {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-primary, #d6d8ca);
+    margin: 0 0 var(--space-lg) 0;
+}
+
+#reels-carousel {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+#reels-track {
+    display: flex;
+    gap: var(--space-md);
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: var(--space-xs) 0;
+    flex: 1;
+}
+
+#reels-track::-webkit-scrollbar {
+    display: none;
+}
+
+/* Scroll buttons */
+#reels-scroll-left,
+#reels-scroll-right {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(23, 23, 23, 0.8);
+    border: 1px solid rgba(214, 216, 202, 0.2);
+    border-radius: var(--radius-md, 4px);
+    color: var(--color-text-primary, #d6d8ca);
+    cursor: pointer;
+    padding: 0;
+    transition: all var(--transition-fast);
+}
+
+#reels-scroll-left:hover:not(:disabled),
+#reels-scroll-right:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+#reels-scroll-left:disabled,
+#reels-scroll-right:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* Reel cards */
+[data-component="reel-card"] {
+    flex-shrink: 0;
+    width: 220px;
+    overflow: hidden;
+    border-radius: var(--radius-sm, 4px);
+    border: 1px solid rgba(214, 216, 202, 0.1);
+    cursor: pointer;
+    background: #0a0a0a;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    transition: border-color var(--transition-fast);
+}
+
+[data-component="reel-card"]:hover {
+    border-color: var(--color-accent);
+}
+
+[data-component="reel-card"] [data-role="reel-thumb-wrap"] {
+    position: relative;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+}
+
+[data-component="reel-card"] img[data-role="reel-thumbnail"] {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+[data-component="reel-card"] [data-role="reel-placeholder"] {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a1a18 0%, #2a2a28 100%);
+    color: var(--color-text-muted, #9ca39e);
+}
+
+[data-component="reel-card"] [data-role="reel-overlay"] {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+[data-component="reel-card"]:hover [data-role="reel-overlay"] {
+    opacity: 1;
+}
+
+[data-component="reel-card"] [data-role="reel-info"] {
+    padding: var(--space-xs) var(--space-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+[data-component="reel-card"] [data-role="reel-title"] {
+    font-family: var(--font-body);
+    font-size: 0.625rem;
+    line-height: 1.3;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary, #d6d8ca);
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+[data-component="reel-card"] [data-role="reel-platform"] {
+    font-family: var(--font-body);
+    font-size: 0.625rem;
+    color: var(--color-text-muted, #9ca39e);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ----------------------------------------
+   Video Modal
+   ---------------------------------------- */
+
+#modal-video {
+    background: #1a1a18;
+    border: 1px solid rgba(214, 216, 202, 0.1);
+    border-radius: 12px;
+    color: var(--color-text-primary, #d6d8ca);
+    padding: 0;
+    max-width: 900px;
+    width: 90%;
+}
+
+#modal-video::backdrop {
+    background: rgba(0, 0, 0, 0.85);
+}
+
+#modal-video-inner {
+    padding: 1.25rem;
+}
+
+#modal-video-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+#modal-video-header h2 {
+    font-family: var(--font-display);
+    font-size: var(--text-lg, 1.125rem);
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#modal-video-header button {
+    background: none;
+    border: none;
+    color: rgba(214, 216, 202, 0.5);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+#modal-video-header button:hover {
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+#modal-video-body {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #000;
+    border-radius: var(--radius-sm, 4px);
+    overflow: hidden;
+}
+
+#video-embed-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* ----------------------------------------
    Education Section
    ---------------------------------------- */
 
@@ -834,6 +1065,15 @@
     #education-grid {
         grid-template-columns: 1fr 1fr;
     }
+
+    [data-component="reel-card"] {
+        width: 180px;
+    }
+
+    #reels-scroll-left,
+    #reels-scroll-right {
+        display: none;
+    }
 }
 
 /* ----------------------------------------
@@ -865,6 +1105,14 @@
     #experience-grid,
     #education-grid {
         grid-template-columns: 1fr;
+    }
+
+    [data-component="reel-card"] {
+        width: 160px;
+    }
+
+    #modal-video {
+        width: 95%;
     }
 
     #profile-details-list [data-role="detail-row"] {

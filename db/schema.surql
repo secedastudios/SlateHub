@@ -244,7 +244,11 @@ DEFINE FIELD profile.nationality ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.is_public ON person TYPE bool DEFAULT false PERMISSIONS FULL;
 DEFINE FIELD profile.media_other ON person TYPE array<record<media>> PERMISSIONS FULL;
 
-DEFINE FIELD profile.reels ON person TYPE array<record<media>> PERMISSIONS FULL;  -- Demo reels/videos
+DEFINE FIELD profile.reels ON person TYPE array<object> FLEXIBLE PERMISSIONS FULL;  -- Video links (YouTube, Vimeo, etc.)
+DEFINE FIELD profile.reels[*].url ON person TYPE string PERMISSIONS FULL;
+DEFINE FIELD profile.reels[*].title ON person TYPE string PERMISSIONS FULL;
+DEFINE FIELD profile.reels[*].platform ON person TYPE string PERMISSIONS FULL;
+DEFINE FIELD profile.reels[*].video_id ON person TYPE string PERMISSIONS FULL;
 
 DEFINE FIELD profile.name ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.skills ON person TYPE array<string> PERMISSIONS FULL;
@@ -713,7 +717,8 @@ DEFINE INDEX idx_pending_embedding_target ON pending_embedding FIELDS target UNI
 INSERT INTO schema_migration (name) VALUES
 ('0001_pending_embedding'),
 ('0002_feedback'),
-('0003_physical_attributes');
+('0003_physical_attributes'),
+('0004_profile_reels');
 
 -- Seed Equipment Conditions
 INSERT INTO equipment_condition (name, description) VALUES

@@ -437,6 +437,76 @@
             </div>
         </section>
 
+        <section id="section-reels" data-section="reels" aria-labelledby="heading-reels">
+            <div id="reels-section-header" data-role="section-header-row">
+                <h2 id="heading-reels">Video Reels</h2>
+                <button type="button" id="button-add-reel" data-action="add" data-target="reels" onclick="addReel()">
+                    + Add
+                </button>
+            </div>
+            <p data-role="section-help">Paste links from YouTube, Vimeo, TikTok, or Dailymotion.</p>
+
+            <div id="reels-container" data-role="dynamic-container" data-items="reels">
+                {% for reel in profile.reels %}
+                <fieldset id="fieldset-reel-{{ loop.index }}" data-role="reel-item" data-index="{{ loop.index }}">
+                    <legend hidden>Reel {{ loop.index }}</legend>
+
+                    <div data-role="field-grid">
+                        <div data-field="url">
+                            <label for="input-reel-url-{{ loop.index }}">Video URL</label>
+                            <input
+                                type="url"
+                                id="input-reel-url-{{ loop.index }}"
+                                name="reels[{{ loop.index0 }}][url]"
+                                value="{{ reel.url }}"
+                                placeholder="https://youtube.com/watch?v=..."
+                            />
+                        </div>
+
+                        <div data-field="title">
+                            <label for="input-reel-title-{{ loop.index }}">Title</label>
+                            <input
+                                type="text"
+                                id="input-reel-title-{{ loop.index }}"
+                                name="reels[{{ loop.index0 }}][title]"
+                                value="{{ reel.title }}"
+                                placeholder="My Demo Reel"
+                            />
+                        </div>
+                    </div>
+
+                    <div data-role="item-footer">
+                        <span data-role="reel-platform-badge">{{ reel.platform_name }}</span>
+                        <button type="button" data-action="remove" onclick="removeItem(this)">Remove</button>
+                    </div>
+                </fieldset>
+                {% endfor %}
+
+                {% if profile.reels.is_empty() %}
+                <fieldset id="fieldset-reel-1" data-role="reel-item" data-index="1">
+                    <legend hidden>Reel 1</legend>
+
+                    <div data-role="field-grid">
+                        <div data-field="url">
+                            <label for="input-reel-url-1">Video URL</label>
+                            <input type="url" id="input-reel-url-1" name="reels[0][url]" placeholder="https://youtube.com/watch?v=..." />
+                        </div>
+
+                        <div data-field="title">
+                            <label for="input-reel-title-1">Title</label>
+                            <input type="text" id="input-reel-title-1" name="reels[0][title]" placeholder="My Demo Reel" />
+                        </div>
+                    </div>
+
+                    <div data-role="item-footer">
+                        <span></span>
+                        <button type="button" data-action="remove" onclick="removeItem(this)">Remove</button>
+                    </div>
+                </fieldset>
+                {% endif %}
+            </div>
+        </section>
+
         <section id="section-credits" data-section="credits" aria-labelledby="heading-credits">
             <div id="credits-section-header" data-role="section-header-row">
                 <h2 id="heading-credits">Credits</h2>
@@ -1216,6 +1286,32 @@ function addSocialLink() {
 
     container.appendChild(fieldset);
     updateSocialPlaceholder(fieldset.querySelector('select'));
+}
+
+function addReel() {
+    const container = document.getElementById('reels-container');
+    const items = container.querySelectorAll('[data-role="reel-item"]');
+    const newIndex = items.length + 1;
+    const arrayIndex = items.length;
+
+    const fieldset = document.createElement('fieldset');
+    fieldset.id = 'fieldset-reel-' + newIndex;
+    fieldset.setAttribute('data-role', 'reel-item');
+    fieldset.setAttribute('data-index', newIndex);
+
+    fieldset.innerHTML =
+        '<legend hidden>Reel ' + newIndex + '</legend>' +
+        '<div data-role="field-grid">' +
+            '<div data-field="url"><label for="input-reel-url-' + newIndex + '">Video URL</label>' +
+            '<input type="url" id="input-reel-url-' + newIndex + '" name="reels[' + arrayIndex + '][url]" placeholder="https://youtube.com/watch?v=..." /></div>' +
+            '<div data-field="title"><label for="input-reel-title-' + newIndex + '">Title</label>' +
+            '<input type="text" id="input-reel-title-' + newIndex + '" name="reels[' + arrayIndex + '][title]" placeholder="My Demo Reel" /></div>' +
+        '</div>' +
+        '<div data-role="item-footer"><span></span>' +
+            '<button type="button" data-action="remove" onclick="removeItem(this)">Remove</button>' +
+        '</div>';
+
+    container.appendChild(fieldset);
 }
 
 function updateSocialPlaceholder(select) {

@@ -18,8 +18,9 @@ use crate::{
     social_platforms,
     templates::{
         BaseContext, DateRange, Education, InvolvementDisplay, PeopleTemplate, PersonCard,
-        ProfileData, ProfileTemplate, SocialLinkDisplay, User,
+        ProfileData, ProfileTemplate, ReelDisplay, SocialLinkDisplay, User,
     },
+    video_platforms,
 };
 
 pub fn router() -> Router {
@@ -56,6 +57,22 @@ const RESERVED_ROUTES: &[&str] = &[
     "terms",
     "privacy",
 ];
+
+/// Convert stored reels to display format with computed URLs
+fn to_reel_displays(reels: &[crate::models::person::Reel]) -> Vec<ReelDisplay> {
+    reels
+        .iter()
+        .map(|reel| ReelDisplay {
+            url: reel.url.clone(),
+            title: reel.title.clone(),
+            platform: reel.platform.clone(),
+            video_id: reel.video_id.clone(),
+            thumbnail_url: video_platforms::thumbnail_url(&reel.platform, &reel.video_id),
+            embed_url: video_platforms::embed_url(&reel.platform, &reel.video_id),
+            platform_name: video_platforms::platform_name(&reel.platform).to_string(),
+        })
+        .collect()
+}
 
 /// Convert stored social links to display format with platform metadata
 fn to_social_link_displays(links: &[crate::models::person::SocialLink]) -> Vec<SocialLinkDisplay> {
@@ -168,6 +185,9 @@ async fn user_profile(
             .collect(),
         social_links: to_social_link_displays(
             &profile.map(|p| p.social_links.clone()).unwrap_or_default(),
+        ),
+        reels: to_reel_displays(
+            &profile.map(|p| p.reels.clone()).unwrap_or_default(),
         ),
         is_own_profile,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),

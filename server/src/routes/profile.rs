@@ -12,13 +12,14 @@ use crate::{
     error::Error,
     middleware::{AuthenticatedUser, UserExtractor},
     models::involvement::InvolvementModel,
-    models::person::{Person, SocialLink},
+    models::person::{Person, Reel, SocialLink},
     record_id_ext::RecordIdExt,
     social_platforms::{self, SOCIAL_PLATFORMS},
     templates::{
         BaseContext, DateRange, Education, InvolvementDisplay, ProfileData,
-        ProfileEditTemplate, SocialLinkDisplay, SocialPlatformOption, User,
+        ProfileEditTemplate, ReelDisplay, SocialLinkDisplay, SocialPlatformOption, User,
     },
+    video_platforms,
 };
 
 pub fn router() -> Router {
@@ -53,6 +54,22 @@ fn platform_options() -> Vec<SocialPlatformOption> {
             name: p.name.to_string(),
             placeholder: p.placeholder.to_string(),
             base_url: p.base_url.map(|s| s.to_string()),
+        })
+        .collect()
+}
+
+/// Convert stored reels to display format with computed URLs
+fn to_reel_displays(reels: &[Reel]) -> Vec<ReelDisplay> {
+    reels
+        .iter()
+        .map(|reel| ReelDisplay {
+            url: reel.url.clone(),
+            title: reel.title.clone(),
+            platform: reel.platform.clone(),
+            video_id: reel.video_id.clone(),
+            thumbnail_url: video_platforms::thumbnail_url(&reel.platform, &reel.video_id),
+            embed_url: video_platforms::embed_url(&reel.platform, &reel.video_id),
+            platform_name: video_platforms::platform_name(&reel.platform).to_string(),
         })
         .collect()
 }
@@ -174,6 +191,9 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
             .collect(),
         social_links: to_social_link_displays(
             &profile.map(|p| p.social_links.clone()).unwrap_or_default(),
+        ),
+        reels: to_reel_displays(
+            &profile.map(|p| p.reels.clone()).unwrap_or_default(),
         ),
         is_own_profile: true,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
@@ -300,6 +320,66 @@ fn parse_weight_kg(form: &HashMap<String, String>) -> Option<i32> {
     }
 }
 
+/// Parse reel form fields from the flat form data.
+/// Form fields come as `reels[0][url]`, `reels[0][title]`, etc.
+/// When a title is empty, fetches the video title from the platform's oEmbed API.
+async fn parse_reels(form: &HashMap<String, String>) -> Vec<Reel> {
+    let mut reels: HashMap<usize, (Option<String>, Option<String>)> = HashMap::new();
+
+    for (key, value) in form {
+        if let Some(rest) = key.strip_prefix("reels[") {
+            if let Some(bracket_pos) = rest.find(']') {
+                if let Ok(idx) = rest[..bracket_pos].parse::<usize>() {
+                    let field = rest[bracket_pos + 1..]
+                        .trim_start_matches('[')
+                        .trim_end_matches(']');
+                    let entry = reels.entry(idx).or_insert((None, None));
+                    match field {
+                        "url" => entry.0 = Some(value.clone()),
+                        "title" => entry.1 = Some(value.clone()),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    let mut sorted: Vec<_> = reels.into_iter().collect();
+    sorted.sort_by_key(|(idx, _)| *idx);
+
+    let mut result = Vec::new();
+    for (_, (url, title)) in sorted {
+        let url = match url {
+            Some(u) => u.trim().to_string(),
+            None => continue,
+        };
+        let title = title.unwrap_or_default().trim().to_string();
+        if url.is_empty() {
+            continue;
+        }
+        let info = match video_platforms::parse_video_url(&url) {
+            Some(i) => i,
+            None => continue,
+        };
+        let title = if title.is_empty() {
+            video_platforms::fetch_video_title(info.platform, &url)
+                .await
+                .unwrap_or_else(|| {
+                    format!("{} Video", video_platforms::platform_name(info.platform))
+                })
+        } else {
+            title
+        };
+        result.push(Reel {
+            url,
+            title,
+            platform: info.platform.to_string(),
+            video_id: info.video_id,
+        });
+    }
+    result
+}
+
 /// Handler for updating the user's profile
 async fn update_profile(
     AuthenticatedUser(current_user): AuthenticatedUser,
@@ -308,6 +388,7 @@ async fn update_profile(
     debug!("Handling profile update request");
 
     let social_links = parse_social_links(&form);
+    let reels = parse_reels(&form).await;
 
     // Parse physical attribute fields
     let height_mm = parse_height_mm(&form);
@@ -327,6 +408,7 @@ async fn update_profile(
         form.get("languages").cloned(),
         form.get("availability").cloned(),
         Some(social_links),
+        Some(reels),
         form.get("gender").cloned(),
         form.get("birthday").cloned(),
         height_mm,

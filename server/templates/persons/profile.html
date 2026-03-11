@@ -172,11 +172,78 @@
         </div>
     </dialog>
 
+    {% if !profile.reels.is_empty() %}
+    <section id="section-reels" data-section="reels" aria-labelledby="heading-reels">
+        <h2 id="heading-reels">Reels</h2>
+        <div id="reels-carousel" data-role="reels-carousel">
+            <button type="button" id="reels-scroll-left" data-action="scroll-reels-left" aria-label="Scroll left" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div id="reels-track" data-role="reels-track">
+                {% for reel in profile.reels %}
+                <button
+                    type="button"
+                    data-component="reel-card"
+                    data-action="play-reel"
+                    data-embed-url="{{ reel.embed_url }}"
+                    data-reel-title="{{ reel.title }}"
+                    aria-label="Play {{ reel.title }}"
+                >
+                    <div data-role="reel-thumb-wrap">
+                        {% if !reel.thumbnail_url.is_empty() %}
+                        <img
+                            src="{{ reel.thumbnail_url }}"
+                            alt="{{ reel.title }}"
+                            loading="lazy"
+                            data-role="reel-thumbnail"
+                        />
+                        {% else %}
+                        <div data-role="reel-placeholder">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </div>
+                        {% endif %}
+                        <div data-role="reel-overlay">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </div>
+                    </div>
+                    <div data-role="reel-info">
+                        <span data-role="reel-title">{{ reel.title }}</span>
+                        <span data-role="reel-platform">{{ reel.platform_name }}</span>
+                    </div>
+                </button>
+                {% endfor %}
+            </div>
+            <button type="button" id="reels-scroll-right" data-action="scroll-reels-right" aria-label="Scroll right">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </div>
+    </section>
+    {% endif %}
+
+    <dialog id="modal-video" data-component="modal" aria-labelledby="modal-title-video">
+        <div id="modal-video-inner">
+            <header id="modal-video-header">
+                <h2 id="modal-title-video">Video</h2>
+                <button type="button" data-action="close-video" aria-label="Close">&times;</button>
+            </header>
+            <div id="modal-video-body">
+                <iframe
+                    id="video-embed-frame"
+                    src=""
+                    frameborder="0"
+                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                    allowfullscreen
+                    title="Video player"
+                ></iframe>
+            </div>
+        </div>
+    </dialog>
+
     {% if profile.bio.is_none() && profile.headline.is_none() &&
     profile.skills.is_empty() && profile.involvements.is_empty() &&
     profile.education.is_empty() && profile.location.is_none() &&
     profile.languages.is_empty() && profile.availability.is_none() &&
-    profile.website.is_none() %}
+    profile.website.is_none() && profile.reels.is_empty() %}
     <section id="section-empty-profile" data-role="empty-state" data-state="empty">
         <div id="empty-profile-content">
             <h2 id="heading-empty-profile">Profile Not Set Up</h2>
@@ -442,6 +509,58 @@
     modal.addEventListener('click', function(e) {
         if (e.target === modal) modal.close();
     });
+})();
+(function() {
+    var videoModal = document.getElementById('modal-video');
+    var videoFrame = document.getElementById('video-embed-frame');
+    var videoTitle = document.getElementById('modal-title-video');
+    if (!videoModal || !videoFrame) return;
+
+    document.querySelectorAll('[data-action="play-reel"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var embedUrl = btn.getAttribute('data-embed-url');
+            var title = btn.getAttribute('data-reel-title') || 'Video';
+            videoTitle.textContent = title;
+            videoFrame.src = embedUrl;
+            videoModal.showModal();
+        });
+    });
+
+    videoModal.querySelectorAll('[data-action="close-video"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+            videoModal.close();
+            videoFrame.src = '';
+        });
+    });
+    videoModal.addEventListener('click', function(e) {
+        if (e.target === videoModal) {
+            videoModal.close();
+            videoFrame.src = '';
+        }
+    });
+    videoModal.addEventListener('close', function() {
+        videoFrame.src = '';
+    });
+
+    // Carousel scroll buttons
+    var track = document.getElementById('reels-track');
+    var leftBtn = document.getElementById('reels-scroll-left');
+    var rightBtn = document.getElementById('reels-scroll-right');
+    if (track && leftBtn && rightBtn) {
+        var scrollAmount = 300;
+        function updateScrollButtons() {
+            leftBtn.disabled = track.scrollLeft <= 0;
+            rightBtn.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
+        }
+        leftBtn.addEventListener('click', function() {
+            track.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+        });
+        rightBtn.addEventListener('click', function() {
+            track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        });
+        track.addEventListener('scroll', updateScrollButtons);
+        updateScrollButtons();
+    }
 })();
 (function() {
     var imperialLocales = ['en-US', 'en-LR', 'en-MM'];

@@ -257,6 +257,7 @@ pub struct ProfileData {
     pub involvements: Vec<InvolvementDisplay>,
     pub education: Vec<Education>,
     pub social_links: Vec<SocialLinkDisplay>,
+    pub reels: Vec<ReelDisplay>,
     pub is_own_profile: bool,
     pub is_public: bool,
     // Physical attributes
@@ -280,6 +281,17 @@ pub struct SocialLinkDisplay {
     pub url: String,
     pub name: String,
     pub icon_svg: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReelDisplay {
+    pub url: String,
+    pub title: String,
+    pub platform: String,
+    pub video_id: String,
+    pub thumbnail_url: String,
+    pub embed_url: String,
+    pub platform_name: String,
 }
 
 /// Display struct for involvement-based credits (graph traversal)

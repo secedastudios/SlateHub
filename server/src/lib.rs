@@ -13,3 +13,4 @@ pub mod serde_utils;
 pub mod services;
 pub mod social_platforms;
 pub mod templates;
+pub mod video_platforms;

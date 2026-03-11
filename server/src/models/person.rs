@@ -127,7 +127,7 @@ pub struct Profile {
     pub awards: Vec<Award>,
 
     // Media
-    pub reels: Vec<RecordId>,       // Record links to 'media' table
+    pub reels: Vec<Reel>,           // Video links (YouTube, Vimeo, etc.)
     pub media_other: Vec<RecordId>, // Record links to 'media' table
     pub resume: Option<RecordId>,   // Record link to 'media' table
     pub social_links: Vec<SocialLink>,
@@ -147,6 +147,14 @@ pub struct AgeRange {
 pub struct SocialLink {
     pub platform: String,
     pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+pub struct Reel {
+    pub url: String,
+    pub title: String,
+    pub platform: String,
+    pub video_id: String,
 }
 
 
@@ -545,6 +553,7 @@ impl Person {
         languages: Option<String>,
         availability: Option<String>,
         social_links: Option<Vec<SocialLink>>,
+        reels: Option<Vec<Reel>>,
         // Physical attributes
         gender: Option<String>,
         birthday: Option<String>,
@@ -687,6 +696,9 @@ impl Person {
             }
             if let Some(links) = social_links {
                 profile.social_links = links;
+            }
+            if let Some(r) = reels {
+                profile.reels = r;
             }
 
             // Physical attributes
