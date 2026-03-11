@@ -113,6 +113,10 @@ pub struct Profile {
     pub gender: Option<String>,
     pub ethnicity: Vec<String>,
     pub age_range: Option<AgeRange>,
+    pub birthday: Option<String>,
+    pub acting_age_range: Option<AgeRange>,
+    pub acting_ethnicities: Vec<String>,
+    pub nationality: Option<String>,
 
     // Professional Details
     pub skills: Vec<String>,
@@ -529,6 +533,7 @@ impl Person {
     ///
     /// # Returns
     /// * `Result<Option<Person>>` - The updated person record if successful
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_profile(
         user_id: &str,
         name: Option<String>,
@@ -540,6 +545,19 @@ impl Person {
         languages: Option<String>,
         availability: Option<String>,
         social_links: Option<Vec<SocialLink>>,
+        // Physical attributes
+        gender: Option<String>,
+        birthday: Option<String>,
+        height_mm: Option<i32>,
+        weight_kg: Option<i32>,
+        body_type: Option<String>,
+        hair_color: Option<String>,
+        eye_color: Option<String>,
+        ethnicity: Option<String>,
+        acting_age_range_min: Option<i32>,
+        acting_age_range_max: Option<i32>,
+        acting_ethnicities: Option<String>,
+        nationality: Option<String>,
     ) -> Result<Option<Self>> {
         let _span = db_span!("Person::update_profile", user_id);
 
@@ -604,6 +622,10 @@ impl Person {
                 gender: None,
                 ethnicity: Vec::new(),
                 age_range: None,
+                birthday: None,
+                acting_age_range: None,
+                acting_ethnicities: Vec::new(),
+                nationality: None,
                 skills: Vec::new(),
                 unions: Vec::new(),
                 languages: Vec::new(),
@@ -666,6 +688,61 @@ impl Person {
             if let Some(links) = social_links {
                 profile.social_links = links;
             }
+
+            // Physical attributes
+            if let Some(g) = gender {
+                profile.gender = if g.is_empty() { None } else { Some(g) };
+            }
+            if let Some(b) = birthday {
+                profile.birthday = if b.is_empty() { None } else { Some(b) };
+            }
+            if let Some(h) = height_mm {
+                profile.height_mm = if h == 0 { None } else { Some(h) };
+            }
+            if let Some(w) = weight_kg {
+                profile.weight_kg = if w == 0 { None } else { Some(w) };
+            }
+            if let Some(bt) = body_type {
+                profile.body_type = if bt.is_empty() { None } else { Some(bt) };
+            }
+            if let Some(hc) = hair_color {
+                profile.hair_color = if hc.is_empty() { None } else { Some(hc) };
+            }
+            if let Some(ec) = eye_color {
+                profile.eye_color = if ec.is_empty() { None } else { Some(ec) };
+            }
+            if let Some(eth) = ethnicity {
+                profile.ethnicity = if eth.is_empty() {
+                    Vec::new()
+                } else {
+                    eth.split(',')
+                        .map(|e| e.trim().to_string())
+                        .filter(|e| !e.is_empty())
+                        .collect()
+                };
+            }
+            if acting_age_range_min.is_some() || acting_age_range_max.is_some() {
+                let min = acting_age_range_min.unwrap_or(0);
+                let max = acting_age_range_max.unwrap_or(0);
+                if min > 0 && max > 0 {
+                    profile.acting_age_range = Some(AgeRange { min, max });
+                } else {
+                    profile.acting_age_range = None;
+                }
+            }
+            if let Some(ae) = acting_ethnicities {
+                profile.acting_ethnicities = if ae.is_empty() {
+                    Vec::new()
+                } else {
+                    ae.split(',')
+                        .map(|e| e.trim().to_string())
+                        .filter(|e| !e.is_empty())
+                        .collect()
+                };
+            }
+            if let Some(n) = nationality {
+                profile.nationality = if n.is_empty() { None } else { Some(n) };
+            }
         }
 
         // Save profile to DB immediately (no embedding — that happens in background)
@@ -702,6 +779,9 @@ impl Person {
                 &profile.languages,
                 &profile.unions,
                 &[], // experience descriptions removed - credits are now involvement edges
+                profile.acting_age_range.as_ref().map(|r| (r.min, r.max)),
+                &profile.acting_ethnicities,
+                profile.nationality.as_deref(),
             );
             crate::services::embedding::spawn_embedding_update(person.id.clone(), embedding_text);
         }

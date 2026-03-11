@@ -177,6 +177,18 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         ),
         is_own_profile: true,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
+        gender: profile.and_then(|p| p.gender.clone()),
+        birthday: profile.and_then(|p| p.birthday.clone()),
+        height_mm: profile.and_then(|p| p.height_mm),
+        weight_kg: profile.and_then(|p| p.weight_kg),
+        body_type: profile.and_then(|p| p.body_type.clone()),
+        hair_color: profile.and_then(|p| p.hair_color.clone()),
+        eye_color: profile.and_then(|p| p.eye_color.clone()),
+        ethnicity: profile.map(|p| p.ethnicity.clone()).unwrap_or_default(),
+        acting_age_range_min: profile.and_then(|p| p.acting_age_range.as_ref().map(|r| r.min)),
+        acting_age_range_max: profile.and_then(|p| p.acting_age_range.as_ref().map(|r| r.max)),
+        acting_ethnicities: profile.map(|p| p.acting_ethnicities.clone()).unwrap_or_default(),
+        nationality: profile.and_then(|p| p.nationality.clone()),
     };
 
     // Create and render template
@@ -246,6 +258,48 @@ fn parse_social_links(form: &HashMap<String, String>) -> Vec<SocialLink> {
         .collect()
 }
 
+/// Parse height from form fields, converting to mm.
+/// Supports metric (cm) and imperial (ft + in).
+fn parse_height_mm(form: &HashMap<String, String>) -> Option<i32> {
+    let unit = form.get("height_unit").map(|s| s.as_str()).unwrap_or("metric");
+    match unit {
+        "imperial" => {
+            let feet: i32 = form.get("height_feet").and_then(|v| v.parse().ok()).unwrap_or(0);
+            let inches: i32 = form.get("height_inches").and_then(|v| v.parse().ok()).unwrap_or(0);
+            let total_inches = feet * 12 + inches;
+            if total_inches > 0 {
+                Some((total_inches as f64 * 25.4).round() as i32)
+            } else {
+                Some(0)
+            }
+        }
+        _ => {
+            let cm: i32 = form.get("height_cm").and_then(|v| v.parse().ok()).unwrap_or(0);
+            if cm > 0 { Some(cm * 10) } else { Some(0) }
+        }
+    }
+}
+
+/// Parse weight from form fields, converting to kg.
+/// Supports metric (kg) and imperial (lbs).
+fn parse_weight_kg(form: &HashMap<String, String>) -> Option<i32> {
+    let unit = form.get("weight_unit").map(|s| s.as_str()).unwrap_or("metric");
+    match unit {
+        "imperial" => {
+            let lbs: f64 = form.get("weight_lbs").and_then(|v| v.parse().ok()).unwrap_or(0.0);
+            if lbs > 0.0 {
+                Some((lbs * 0.453592).round() as i32)
+            } else {
+                Some(0)
+            }
+        }
+        _ => {
+            let kg: i32 = form.get("weight_kg").and_then(|v| v.parse().ok()).unwrap_or(0);
+            Some(kg)
+        }
+    }
+}
+
 /// Handler for updating the user's profile
 async fn update_profile(
     AuthenticatedUser(current_user): AuthenticatedUser,
@@ -254,6 +308,12 @@ async fn update_profile(
     debug!("Handling profile update request");
 
     let social_links = parse_social_links(&form);
+
+    // Parse physical attribute fields
+    let height_mm = parse_height_mm(&form);
+    let weight_kg = parse_weight_kg(&form);
+    let acting_age_min: Option<i32> = form.get("acting_age_range_min").and_then(|v| v.parse().ok());
+    let acting_age_max: Option<i32> = form.get("acting_age_range_max").and_then(|v| v.parse().ok());
 
     // Update the profile in the database
     match Person::update_profile(
@@ -267,6 +327,18 @@ async fn update_profile(
         form.get("languages").cloned(),
         form.get("availability").cloned(),
         Some(social_links),
+        form.get("gender").cloned(),
+        form.get("birthday").cloned(),
+        height_mm,
+        weight_kg,
+        form.get("body_type").cloned(),
+        form.get("hair_color").cloned(),
+        form.get("eye_color").cloned(),
+        form.get("ethnicity").cloned(),
+        acting_age_min,
+        acting_age_max,
+        form.get("acting_ethnicities").cloned(),
+        form.get("nationality").cloned(),
     )
     .await
     {

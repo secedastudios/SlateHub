@@ -10,6 +10,8 @@ use serde::Deserialize;
 use surrealdb::types::SurrealValue;
 use tracing::{debug, error};
 
+use regex::Regex;
+
 use crate::db::DB;
 use crate::error::Error;
 use crate::middleware::UserExtractor;
@@ -182,6 +184,47 @@ async fn search_page(
     Ok(Html(html))
 }
 
+/// Parse structured filters from a natural-language casting query.
+/// Returns (gender_filter, age_min, age_max, location_filter, cleaned_query).
+fn parse_structured_filters(query: &str) -> (Option<String>, Option<i32>, Option<i32>, Option<String>, String) {
+    let mut cleaned = query.to_string();
+    let mut gender = None;
+    let mut age_min = None;
+    let mut age_max = None;
+    let mut location = None;
+
+    // Gender: match "male", "female", "non-binary" as standalone words
+    let gender_re = Regex::new(r"(?i)\b(male|female|non[- ]?binary)\b").unwrap();
+    if let Some(m) = gender_re.find(&cleaned) {
+        let g = m.as_str().to_lowercase();
+        gender = Some(match g.as_str() {
+            "male" => "Male".to_string(),
+            "female" => "Female".to_string(),
+            _ => "Non-Binary".to_string(),
+        });
+    }
+
+    // Age range: "age(s) 35-40", "ages 20 to 30"
+    let age_re = Regex::new(r"(?i)ages?\s+(\d+)\s*[-–to]+\s*(\d+)").unwrap();
+    if let Some(caps) = age_re.captures(&cleaned) {
+        age_min = caps.get(1).and_then(|m| m.as_str().parse().ok());
+        age_max = caps.get(2).and_then(|m| m.as_str().parse().ok());
+        cleaned = age_re.replace(&cleaned, "").to_string();
+    }
+
+    // Location: "in <city/region>" at end of query
+    let loc_re = Regex::new(r"(?i)\bin\s+(.+)$").unwrap();
+    if let Some(caps) = loc_re.captures(&cleaned) {
+        location = caps.get(1).map(|m| m.as_str().trim().to_string());
+        cleaned = loc_re.replace(&cleaned, "").to_string();
+    }
+
+    // Clean up extra whitespace
+    cleaned = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+
+    (gender, age_min, age_max, location, cleaned)
+}
+
 async fn search_people(
     query: &str,
     query_embedding: Option<Vec<f32>>,
@@ -202,40 +245,69 @@ async fn search_people(
     let query_lower = query.to_lowercase();
     let empty_embedding: Vec<f32> = vec![];
 
-    let mut response = DB
-        .query(
-            "SELECT
-                <string> id AS id,
-                name,
-                username,
-                profile.headline AS headline,
-                profile.bio AS bio,
-                profile.location AS location,
-                profile.skills AS skills,
-                profile.avatar AS avatar_url,
-                (
-                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(username ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(profile.headline ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
-                    + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
-                        ELSE 0
-                    END)
-                ) AS score
-            FROM person
-            WHERE
+    // Parse structured filters from query
+    let (gender_filter, age_min, age_max, location_filter, _cleaned) =
+        parse_structured_filters(query);
+
+    // Build dynamic WHERE clauses for structured filters
+    let mut extra_where = String::new();
+    if gender_filter.is_some() {
+        extra_where.push_str(" AND string::lowercase(profile.gender ?? '') = string::lowercase($gender_filter)");
+    }
+    if age_min.is_some() && age_max.is_some() {
+        extra_where.push_str(" AND profile.acting_age_range.min <= $age_max AND profile.acting_age_range.max >= $age_min");
+    }
+    if location_filter.is_some() {
+        extra_where.push_str(" AND string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter)");
+    }
+
+    let sql = format!(
+        "SELECT
+            <string> id AS id,
+            name,
+            username,
+            profile.headline AS headline,
+            profile.bio AS bio,
+            profile.location AS location,
+            profile.skills AS skills,
+            profile.avatar AS avatar_url,
+            (
+                (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
+                + (IF string::lowercase(username ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
+                + (IF string::lowercase(profile.headline ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                + (IF string::lowercase(profile.location ?? '') CONTAINS $query_lower THEN 10 ELSE 0 END)
+                + (IF string::lowercase(profile.gender ?? '') CONTAINS $query_lower THEN 10 ELSE 0 END)
+                + (IF embedding IS NOT NONE AND $has_embedding = true
+                    THEN vector::similarity::cosine(embedding, $query_embedding) * 50
+                    ELSE 0
+                END)
+            ) AS score
+        FROM person
+        WHERE
+            (
                 string::lowercase(name ?? '') CONTAINS $query_lower
                 OR string::lowercase(username ?? '') CONTAINS $query_lower
                 OR string::lowercase(profile.headline ?? '') CONTAINS $query_lower
                 OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower
+                OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
+                OR string::lowercase(profile.gender ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
-            ORDER BY score DESC
-            LIMIT 10",
-        )
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.5)
+            )
+            {extra_where}
+        ORDER BY score DESC
+        LIMIT 20"
+    );
+
+    let mut response = DB
+        .query(&sql)
         .bind(("query_lower", query_lower))
         .bind(("has_embedding", query_embedding.is_some()))
         .bind(("query_embedding", query_embedding.unwrap_or(empty_embedding)))
+        .bind(("gender_filter", gender_filter.unwrap_or_default()))
+        .bind(("age_min", age_min.unwrap_or(0)))
+        .bind(("age_max", age_max.unwrap_or(0)))
+        .bind(("location_filter", location_filter.unwrap_or_default()))
         .await
         .map_err(|e| {
             error!(error = %e, table = "person", "Database error during search");

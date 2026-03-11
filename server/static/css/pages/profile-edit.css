@@ -1144,6 +1144,108 @@ button[data-action="remove"]:hover {
 }
 
 /* ----------------------------------------
+   Physical Attributes Section
+   ---------------------------------------- */
+
+.section-description {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+    margin: calc(-1 * var(--space-md)) 0 var(--space-xl) 0;
+}
+
+[data-component="profile-edit"] input[type="date"] {
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: var(--color-text-primary, #d6d8ca);
+    background-color: rgba(214, 216, 202, 0.05);
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    border-radius: var(--radius-sm);
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+    color-scheme: dark;
+}
+
+[data-component="profile-edit"] input[type="date"]:focus {
+    outline: none;
+    border-color: var(--color-accent, #eb5437);
+    background-color: rgba(214, 216, 202, 0.08);
+}
+
+[data-role="range-inputs"] {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+[data-role="range-inputs"] input {
+    flex: 1;
+}
+
+.range-separator {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+    flex-shrink: 0;
+}
+
+[data-role="unit-input-group"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+[data-role="unit-toggle"] {
+    display: inline-flex;
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    align-self: flex-start;
+}
+
+.unit-btn {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted, #9ca39e);
+    background: transparent;
+    border: none;
+    padding: var(--space-2xs) var(--space-md);
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    transition: all var(--transition-fast);
+}
+
+.unit-btn.active {
+    background: var(--color-accent, #eb5437);
+    color: var(--color-text-light, #d6d8ca);
+}
+
+.unit-btn:not(.active):hover {
+    background: rgba(214, 216, 202, 0.08);
+}
+
+[data-role="imperial-inputs"],
+[data-role="metric-inputs"] {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+[data-role="imperial-inputs"] input,
+[data-role="metric-inputs"] input {
+    width: 80px;
+}
+
+.unit-label {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted, #9ca39e);
+    flex-shrink: 0;
+}
+
+/* ----------------------------------------
    Form Footer (Save / Cancel)
    ---------------------------------------- */
 

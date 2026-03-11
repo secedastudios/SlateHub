@@ -173,6 +173,7 @@ pub fn generate_embeddings_batch(texts: Vec<String>) -> Result<Vec<Vec<f32>>> {
 
 /// Build optimized text for person/actor embedding
 /// Focuses on: role type, skills, physical attributes, location, experience
+#[allow(clippy::too_many_arguments)]
 pub fn build_person_embedding_text(
     name: &str,
     headline: Option<&str>,
@@ -189,6 +190,9 @@ pub fn build_person_embedding_text(
     languages: &[String],
     unions: &[String],
     experience: &[String], // descriptions of past work
+    acting_age_range: Option<(i32, i32)>,
+    acting_ethnicities: &[String],
+    nationality: Option<&str>,
 ) -> String {
     let mut parts = Vec::new();
 
@@ -207,8 +211,20 @@ pub fn build_person_embedding_text(
         parts.push(format!("Age range: {}-{} years old", min, max));
     }
 
+    if let Some((min, max)) = acting_age_range {
+        parts.push(format!("Can play ages: {}-{}", min, max));
+    }
+
     if !ethnicity.is_empty() {
         parts.push(format!("Ethnicity: {}", ethnicity.join(", ")));
+    }
+
+    if !acting_ethnicities.is_empty() {
+        parts.push(format!("Can portray: {}", acting_ethnicities.join(", ")));
+    }
+
+    if let Some(nat) = nationality {
+        parts.push(format!("Nationality: {}", nat));
     }
 
     if let Some(height) = height_cm {

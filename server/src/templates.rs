@@ -259,6 +259,19 @@ pub struct ProfileData {
     pub social_links: Vec<SocialLinkDisplay>,
     pub is_own_profile: bool,
     pub is_public: bool,
+    // Physical attributes
+    pub gender: Option<String>,
+    pub birthday: Option<String>,
+    pub height_mm: Option<i32>,
+    pub weight_kg: Option<i32>,
+    pub body_type: Option<String>,
+    pub hair_color: Option<String>,
+    pub eye_color: Option<String>,
+    pub ethnicity: Vec<String>,
+    pub acting_age_range_min: Option<i32>,
+    pub acting_age_range_max: Option<i32>,
+    pub acting_ethnicities: Vec<String>,
+    pub nationality: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

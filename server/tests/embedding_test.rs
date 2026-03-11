@@ -18,6 +18,9 @@ fn test_person_embedding_text() {
         &vec!["English".to_string(), "Spanish".to_string()],
         &vec!["SAG-AFTRA".to_string()],
         &vec!["Broadway musical theater".to_string()],
+        Some((30, 40)),
+        &vec!["latino".to_string(), "mediterranean".to_string()],
+        Some("american"),
     );
 
     // Embedding text is lowercased for case-insensitive matching

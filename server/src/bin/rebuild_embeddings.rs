@@ -42,6 +42,9 @@ struct PersonProfileRow {
     eye_color: Option<String>,
     languages: Option<Vec<String>>,
     unions: Option<Vec<String>>,
+    acting_age_range: Option<AgeRangeRow>,
+    acting_ethnicities: Option<Vec<String>>,
+    nationality: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, SurrealValue)]
@@ -173,11 +176,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &profile.languages.clone().unwrap_or_default(),
                     &profile.unions.clone().unwrap_or_default(),
                     &[],
+                    profile.acting_age_range.as_ref().map(|ar| (ar.min, ar.max)),
+                    &profile.acting_ethnicities.clone().unwrap_or_default(),
+                    profile.nationality.as_deref(),
                 )
             } else {
                 build_person_embedding_text(
                     &display_name,
                     None, None, &[], None, None, None, &[], None, None, None, None, &[], &[], &[],
+                    None, &[], None,
                 )
             };
 

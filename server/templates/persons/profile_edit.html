@@ -134,6 +134,198 @@
             </div>
         </section>
 
+        <section id="section-physical" data-section="physical" aria-labelledby="heading-physical">
+            <h2 id="heading-physical">Physical Attributes</h2>
+            <p class="section-description">Optional — used for casting searches</p>
+
+            <div id="edit-fields-physical" data-role="field-grid">
+                <div id="field-gender" data-field="gender">
+                    <label for="select-gender">Gender</label>
+                    <select id="select-gender" name="gender">
+                        <option value="">Select</option>
+                        <option value="Male" {% if profile.gender == Some("Male".to_string()) %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if profile.gender == Some("Female".to_string()) %}selected{% endif %}>Female</option>
+                        <option value="Non-Binary" {% if profile.gender == Some("Non-Binary".to_string()) %}selected{% endif %}>Non-Binary</option>
+                        <option value="Prefer Not To Say" {% if profile.gender == Some("Prefer Not To Say".to_string()) %}selected{% endif %}>Prefer Not To Say</option>
+                        <option value="Other" {% if profile.gender == Some("Other".to_string()) %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+
+                <div id="field-birthday" data-field="birthday">
+                    <label for="input-birthday">Birthday</label>
+                    <input
+                        type="date"
+                        id="input-birthday"
+                        name="birthday"
+                        value="{% if profile.birthday.is_some() %}{{ profile.birthday.as_ref().unwrap() }}{% endif %}"
+                    />
+                </div>
+
+                <div id="field-acting-age-range" data-field="acting-age-range">
+                    <label>Acting Age Range</label>
+                    <div data-role="range-inputs">
+                        <input
+                            type="number"
+                            id="input-acting-age-min"
+                            name="acting_age_range_min"
+                            placeholder="Min"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value="{% if profile.acting_age_range_min.is_some() %}{{ profile.acting_age_range_min.unwrap() }}{% endif %}"
+                        />
+                        <span class="range-separator">to</span>
+                        <input
+                            type="number"
+                            id="input-acting-age-max"
+                            name="acting_age_range_max"
+                            placeholder="Max"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value="{% if profile.acting_age_range_max.is_some() %}{{ profile.acting_age_range_max.unwrap() }}{% endif %}"
+                        />
+                    </div>
+                    <small data-role="help-text">Age range you can portray</small>
+                </div>
+
+                <div id="field-nationality" data-field="nationality">
+                    <label for="input-nationality">Nationality</label>
+                    <input
+                        type="text"
+                        id="input-nationality"
+                        name="nationality"
+                        value="{% if profile.nationality.is_some() %}{{ profile.nationality.as_ref().unwrap() }}{% endif %}"
+                        placeholder="e.g., American, British, German"
+                        list="nationality-list"
+                    />
+                    <datalist id="nationality-list">
+                        <option value="American"><option value="Australian"><option value="Brazilian">
+                        <option value="British"><option value="Canadian"><option value="Chinese">
+                        <option value="French"><option value="German"><option value="Indian">
+                        <option value="Irish"><option value="Italian"><option value="Japanese">
+                        <option value="Korean"><option value="Mexican"><option value="Nigerian">
+                        <option value="Russian"><option value="South African"><option value="Spanish">
+                        <option value="Swedish"><option value="Turkish">
+                    </datalist>
+                </div>
+
+                <div id="field-height" data-field="height">
+                    <label>Height</label>
+                    <div data-role="unit-input-group">
+                        <div data-role="unit-toggle" id="height-toggle">
+                            <button type="button" class="unit-btn active" data-unit="imperial" onclick="switchHeightUnit('imperial')">ft/in</button>
+                            <button type="button" class="unit-btn" data-unit="metric" onclick="switchHeightUnit('metric')">cm</button>
+                        </div>
+                        <div data-role="imperial-inputs" id="height-imperial">
+                            <input type="number" id="input-height-feet" placeholder="ft" min="0" max="8" />
+                            <span class="unit-label">ft</span>
+                            <input type="number" id="input-height-inches" placeholder="in" min="0" max="11" />
+                            <span class="unit-label">in</span>
+                        </div>
+                        <div data-role="metric-inputs" id="height-metric" style="display:none">
+                            <input type="number" id="input-height-cm" placeholder="cm" min="0" max="300" />
+                            <span class="unit-label">cm</span>
+                        </div>
+                    </div>
+                    <input type="hidden" name="height_unit" id="height-unit-value" value="imperial" />
+                    <input type="hidden" name="height_feet" id="height-feet-value" />
+                    <input type="hidden" name="height_inches" id="height-inches-value" />
+                    <input type="hidden" name="height_cm" id="height-cm-value" />
+                </div>
+
+                <div id="field-weight" data-field="weight">
+                    <label>Weight</label>
+                    <div data-role="unit-input-group">
+                        <div data-role="unit-toggle" id="weight-toggle">
+                            <button type="button" class="unit-btn active" data-unit="imperial" onclick="switchWeightUnit('imperial')">lbs</button>
+                            <button type="button" class="unit-btn" data-unit="metric" onclick="switchWeightUnit('metric')">kg</button>
+                        </div>
+                        <div data-role="imperial-inputs" id="weight-imperial">
+                            <input type="number" id="input-weight-lbs" placeholder="lbs" min="0" max="1000" />
+                            <span class="unit-label">lbs</span>
+                        </div>
+                        <div data-role="metric-inputs" id="weight-metric" style="display:none">
+                            <input type="number" id="input-weight-kg" placeholder="kg" min="0" max="500" />
+                            <span class="unit-label">kg</span>
+                        </div>
+                    </div>
+                    <input type="hidden" name="weight_unit" id="weight-unit-value" value="imperial" />
+                    <input type="hidden" name="weight_lbs" id="weight-lbs-value" />
+                    <input type="hidden" name="weight_kg" id="weight-kg-value" />
+                </div>
+
+                <div id="field-body-type" data-field="body-type">
+                    <label for="select-body-type">Body Type</label>
+                    <select id="select-body-type" name="body_type">
+                        <option value="">Select</option>
+                        <option value="Athletic" {% if profile.body_type == Some("Athletic".to_string()) %}selected{% endif %}>Athletic</option>
+                        <option value="Average" {% if profile.body_type == Some("Average".to_string()) %}selected{% endif %}>Average</option>
+                        <option value="Curvy" {% if profile.body_type == Some("Curvy".to_string()) %}selected{% endif %}>Curvy</option>
+                        <option value="Muscular" {% if profile.body_type == Some("Muscular".to_string()) %}selected{% endif %}>Muscular</option>
+                        <option value="Petite" {% if profile.body_type == Some("Petite".to_string()) %}selected{% endif %}>Petite</option>
+                        <option value="Plus Size" {% if profile.body_type == Some("Plus Size".to_string()) %}selected{% endif %}>Plus Size</option>
+                        <option value="Slender" {% if profile.body_type == Some("Slender".to_string()) %}selected{% endif %}>Slender</option>
+                        <option value="Tall" {% if profile.body_type == Some("Tall".to_string()) %}selected{% endif %}>Tall</option>
+                        <option value="Other" {% if profile.body_type == Some("Other".to_string()) %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+
+                <div id="field-hair-color" data-field="hair-color">
+                    <label for="select-hair-color">Hair Color</label>
+                    <select id="select-hair-color" name="hair_color">
+                        <option value="">Select</option>
+                        <option value="Black" {% if profile.hair_color == Some("Black".to_string()) %}selected{% endif %}>Black</option>
+                        <option value="Brown" {% if profile.hair_color == Some("Brown".to_string()) %}selected{% endif %}>Brown</option>
+                        <option value="Blonde" {% if profile.hair_color == Some("Blonde".to_string()) %}selected{% endif %}>Blonde</option>
+                        <option value="Red" {% if profile.hair_color == Some("Red".to_string()) %}selected{% endif %}>Red</option>
+                        <option value="Gray" {% if profile.hair_color == Some("Gray".to_string()) %}selected{% endif %}>Gray</option>
+                        <option value="White" {% if profile.hair_color == Some("White".to_string()) %}selected{% endif %}>White</option>
+                        <option value="Bald" {% if profile.hair_color == Some("Bald".to_string()) %}selected{% endif %}>Bald</option>
+                        <option value="Other" {% if profile.hair_color == Some("Other".to_string()) %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+
+                <div id="field-eye-color" data-field="eye-color">
+                    <label for="select-eye-color">Eye Color</label>
+                    <select id="select-eye-color" name="eye_color">
+                        <option value="">Select</option>
+                        <option value="Brown" {% if profile.eye_color == Some("Brown".to_string()) %}selected{% endif %}>Brown</option>
+                        <option value="Blue" {% if profile.eye_color == Some("Blue".to_string()) %}selected{% endif %}>Blue</option>
+                        <option value="Green" {% if profile.eye_color == Some("Green".to_string()) %}selected{% endif %}>Green</option>
+                        <option value="Hazel" {% if profile.eye_color == Some("Hazel".to_string()) %}selected{% endif %}>Hazel</option>
+                        <option value="Gray" {% if profile.eye_color == Some("Gray".to_string()) %}selected{% endif %}>Gray</option>
+                        <option value="Black" {% if profile.eye_color == Some("Black".to_string()) %}selected{% endif %}>Black</option>
+                        <option value="Other" {% if profile.eye_color == Some("Other".to_string()) %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+
+                <div id="field-ethnicity" data-field="ethnicity" data-span="full">
+                    <label for="input-ethnicity">Ethnicity</label>
+                    <input
+                        type="text"
+                        id="input-ethnicity"
+                        name="ethnicity"
+                        value="{% if !profile.ethnicity.is_empty() %}{{ profile.ethnicity.join(", ") }}{% endif %}"
+                        placeholder="Comma-separated, e.g., African/Black, Mixed/Multiracial"
+                    />
+                    <small data-role="help-text">Your actual ethnicity/ethnicities</small>
+                </div>
+
+                <div id="field-acting-ethnicities" data-field="acting-ethnicities" data-span="full">
+                    <label for="input-acting-ethnicities">Acting Ethnicities</label>
+                    <input
+                        type="text"
+                        id="input-acting-ethnicities"
+                        name="acting_ethnicities"
+                        value="{% if !profile.acting_ethnicities.is_empty() %}{{ profile.acting_ethnicities.join(", ") }}{% endif %}"
+                        placeholder="Comma-separated, e.g., Hispanic/Latino, Middle Eastern"
+                    />
+                    <small data-role="help-text">Ethnicities you can convincingly portray for casting</small>
+                </div>
+            </div>
+        </section>
+
         <section id="section-skills-languages" data-section="skills" aria-labelledby="heading-skills">
             <h2 id="heading-skills">Skills & Languages</h2>
 
@@ -552,6 +744,87 @@
 </div>
 
 <script>
+/* ---- Physical Attributes: Height/Weight Unit Toggling ---- */
+(function() {
+    const heightMm = {{ profile.height_mm.unwrap_or(0) }};
+    const weightKg = {{ profile.weight_kg.unwrap_or(0) }};
+
+    // Initialize height fields from stored mm value
+    if (heightMm > 0) {
+        const totalInches = Math.round(heightMm / 25.4);
+        const feet = Math.floor(totalInches / 12);
+        const inches = totalInches % 12;
+        const cm = Math.round(heightMm / 10);
+        document.getElementById('input-height-feet').value = feet;
+        document.getElementById('input-height-inches').value = inches;
+        document.getElementById('input-height-cm').value = cm;
+        document.getElementById('height-feet-value').value = feet;
+        document.getElementById('height-inches-value').value = inches;
+        document.getElementById('height-cm-value').value = cm;
+    }
+
+    // Initialize weight fields from stored kg value
+    if (weightKg > 0) {
+        const lbs = Math.round(weightKg / 0.453592);
+        document.getElementById('input-weight-lbs').value = lbs;
+        document.getElementById('input-weight-kg').value = weightKg;
+        document.getElementById('weight-lbs-value').value = lbs;
+        document.getElementById('weight-kg-value').value = weightKg;
+    }
+
+    // Sync visible inputs to hidden fields on change
+    ['input-height-feet', 'input-height-inches'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', function() {
+            document.getElementById('height-feet-value').value = document.getElementById('input-height-feet').value;
+            document.getElementById('height-inches-value').value = document.getElementById('input-height-inches').value;
+        });
+    });
+    var cmEl = document.getElementById('input-height-cm');
+    if (cmEl) cmEl.addEventListener('input', function() {
+        document.getElementById('height-cm-value').value = this.value;
+    });
+    var lbsEl = document.getElementById('input-weight-lbs');
+    if (lbsEl) lbsEl.addEventListener('input', function() {
+        document.getElementById('weight-lbs-value').value = this.value;
+    });
+    var kgEl = document.getElementById('input-weight-kg');
+    if (kgEl) kgEl.addEventListener('input', function() {
+        document.getElementById('weight-kg-value').value = this.value;
+    });
+
+})();
+
+function switchHeightUnit(unit) {
+    document.getElementById('height-unit-value').value = unit;
+    document.getElementById('height-imperial').style.display = unit === 'imperial' ? '' : 'none';
+    document.getElementById('height-metric').style.display = unit === 'metric' ? '' : 'none';
+    document.querySelectorAll('#height-toggle .unit-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.dataset.unit === unit);
+    });
+}
+
+function switchWeightUnit(unit) {
+    document.getElementById('weight-unit-value').value = unit;
+    document.getElementById('weight-imperial').style.display = unit === 'imperial' ? '' : 'none';
+    document.getElementById('weight-metric').style.display = unit === 'metric' ? '' : 'none';
+    document.querySelectorAll('#weight-toggle .unit-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.dataset.unit === unit);
+    });
+}
+
+/* ---- Locale-based unit defaults ---- */
+(function() {
+    var imperialLocales = ['en-US', 'en-LR', 'en-MM'];
+    var lang = navigator.language || navigator.userLanguage || 'en';
+    var useImperial = imperialLocales.some(function(l) { return lang.indexOf(l) === 0; })
+        || (lang === 'en' && typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone.indexOf('America') === 0);
+    if (!useImperial) {
+        switchHeightUnit('metric');
+        switchWeightUnit('metric');
+    }
+})();
+
 /* ---- TMDB Import (API-driven) ---- */
 function openTmdbImport() {
     document.getElementById('tmdb-import-panel').hidden = false;

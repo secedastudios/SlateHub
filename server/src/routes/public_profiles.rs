@@ -171,6 +171,18 @@ async fn user_profile(
         ),
         is_own_profile,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
+        gender: profile.and_then(|p| p.gender.clone()),
+        birthday: profile.and_then(|p| p.birthday.clone()),
+        height_mm: profile.and_then(|p| p.height_mm),
+        weight_kg: profile.and_then(|p| p.weight_kg),
+        body_type: profile.and_then(|p| p.body_type.clone()),
+        hair_color: profile.and_then(|p| p.hair_color.clone()),
+        eye_color: profile.and_then(|p| p.eye_color.clone()),
+        ethnicity: profile.map(|p| p.ethnicity.clone()).unwrap_or_default(),
+        acting_age_range_min: profile.and_then(|p| p.acting_age_range.as_ref().map(|r| r.min)),
+        acting_age_range_max: profile.and_then(|p| p.acting_age_range.as_ref().map(|r| r.max)),
+        acting_ethnicities: profile.map(|p| p.acting_ethnicities.clone()).unwrap_or_default(),
+        nationality: profile.and_then(|p| p.nationality.clone()),
     };
 
     // Create and render template using the same ProfileTemplate

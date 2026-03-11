@@ -201,7 +201,7 @@
         <section id="section-about" data-section="about" aria-labelledby="heading-about">
             <h2 id="heading-about">Details</h2>
 
-            {% if profile.location.is_some() || profile.availability.is_some() || !profile.languages.is_empty() || profile.website.is_some() || profile.is_own_profile %}
+            {% if profile.location.is_some() || profile.availability.is_some() || !profile.languages.is_empty() || profile.website.is_some() || profile.gender.is_some() || profile.nationality.is_some() || (profile.height_mm.is_some() && profile.height_mm.unwrap() > 0) || (profile.weight_kg.is_some() && profile.weight_kg.unwrap() > 0) || profile.body_type.is_some() || profile.hair_color.is_some() || profile.eye_color.is_some() || !profile.ethnicity.is_empty() || profile.acting_age_range_min.is_some() || !profile.acting_ethnicities.is_empty() || profile.is_own_profile %}
             <dl id="profile-details-list" data-role="details-list">
                 {% if profile.location.is_some() %}
                 <div data-role="detail-row">
@@ -243,6 +243,80 @@
                 <div data-role="detail-row">
                     <dt>Email</dt>
                     <dd data-private="true">{{ profile.email }}</dd>
+                </div>
+                {% endif %}
+
+                {% if profile.gender.is_some() %}
+                <div data-role="detail-row">
+                    <dt>Gender</dt>
+                    <dd>{{ profile.gender.as_ref().unwrap() }}</dd>
+                </div>
+                {% endif %}
+
+                {% if profile.nationality.is_some() %}
+                <div data-role="detail-row">
+                    <dt>Nationality</dt>
+                    <dd>{{ profile.nationality.as_ref().unwrap() }}</dd>
+                </div>
+                {% endif %}
+
+                {% if profile.height_mm.is_some() && profile.height_mm.unwrap() > 0 %}
+                <div data-role="detail-row">
+                    <dt>Height</dt>
+                    <dd data-role="height-value" data-mm="{{ profile.height_mm.unwrap() }}">
+                        {{ profile.height_mm.unwrap() / 10 }} cm
+                    </dd>
+                </div>
+                {% endif %}
+
+                {% if profile.weight_kg.is_some() && profile.weight_kg.unwrap() > 0 %}
+                <div data-role="detail-row">
+                    <dt>Weight</dt>
+                    <dd data-role="weight-value" data-kg="{{ profile.weight_kg.unwrap() }}">
+                        {{ profile.weight_kg.unwrap() }} kg
+                    </dd>
+                </div>
+                {% endif %}
+
+                {% if profile.body_type.is_some() %}
+                <div data-role="detail-row">
+                    <dt>Body Type</dt>
+                    <dd>{{ profile.body_type.as_ref().unwrap() }}</dd>
+                </div>
+                {% endif %}
+
+                {% if profile.hair_color.is_some() %}
+                <div data-role="detail-row">
+                    <dt>Hair</dt>
+                    <dd>{{ profile.hair_color.as_ref().unwrap() }}</dd>
+                </div>
+                {% endif %}
+
+                {% if profile.eye_color.is_some() %}
+                <div data-role="detail-row">
+                    <dt>Eyes</dt>
+                    <dd>{{ profile.eye_color.as_ref().unwrap() }}</dd>
+                </div>
+                {% endif %}
+
+                {% if !profile.ethnicity.is_empty() %}
+                <div data-role="detail-row">
+                    <dt>Ethnicity</dt>
+                    <dd>{{ profile.ethnicity.join(", ") }}</dd>
+                </div>
+                {% endif %}
+
+                {% if profile.acting_age_range_min.is_some() && profile.acting_age_range_max.is_some() %}
+                <div data-role="detail-row">
+                    <dt>Playing Age</dt>
+                    <dd>{{ profile.acting_age_range_min.unwrap() }}–{{ profile.acting_age_range_max.unwrap() }}</dd>
+                </div>
+                {% endif %}
+
+                {% if !profile.acting_ethnicities.is_empty() %}
+                <div data-role="detail-row">
+                    <dt>Can Portray</dt>
+                    <dd>{{ profile.acting_ethnicities.join(", ") }}</dd>
                 </div>
                 {% endif %}
             </dl>
@@ -368,6 +442,26 @@
     modal.addEventListener('click', function(e) {
         if (e.target === modal) modal.close();
     });
+})();
+(function() {
+    var imperialLocales = ['en-US', 'en-LR', 'en-MM'];
+    var lang = navigator.language || navigator.userLanguage || 'en';
+    var useImperial = imperialLocales.some(function(l) { return lang.indexOf(l) === 0; })
+        || (lang === 'en' && Intl.DateTimeFormat().resolvedOptions().timeZone.indexOf('America') === 0);
+    if (!useImperial) return;
+    var h = document.querySelector('[data-role="height-value"]');
+    if (h) {
+        var mm = parseInt(h.getAttribute('data-mm'), 10);
+        var totalIn = Math.round(mm / 25.4);
+        var ft = Math.floor(totalIn / 12);
+        var inches = totalIn % 12;
+        h.textContent = ft + "'" + inches + '"';
+    }
+    var w = document.querySelector('[data-role="weight-value"]');
+    if (w) {
+        var kg = parseInt(w.getAttribute('data-kg'), 10);
+        w.textContent = Math.round(kg * 2.20462) + ' lbs';
+    }
 })();
 </script>
 {% endblock %}

@@ -84,6 +84,11 @@ DEFINE TABLE body_type TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
 DEFINE FIELD name ON body_type TYPE string;
 DEFINE INDEX idx_body_type_name ON body_type FIELDS name UNIQUE;
 
+-- Acting Ethnicities (ethnicities a person can portray)
+DEFINE TABLE acting_ethnicity TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
+DEFINE FIELD name ON acting_ethnicity TYPE string;
+DEFINE INDEX idx_acting_ethnicity_name ON acting_ethnicity FIELDS name UNIQUE;
+
 -- Unions
 DEFINE TABLE union TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
 DEFINE FIELD name ON union TYPE string;
@@ -230,6 +235,13 @@ DEFINE FIELD profile.ethnicity ON person TYPE array<string> PERMISSIONS FULL;  -
 DEFINE FIELD profile.age_range ON person TYPE option<object> PERMISSIONS FULL;
 DEFINE FIELD profile.age_range.min ON person TYPE int;
 DEFINE FIELD profile.age_range.max ON person TYPE int;
+DEFINE FIELD profile.birthday ON person TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD profile.acting_age_range ON person TYPE option<object> PERMISSIONS FULL;
+DEFINE FIELD profile.acting_age_range.min ON person TYPE int;
+DEFINE FIELD profile.acting_age_range.max ON person TYPE int;
+DEFINE FIELD profile.acting_ethnicities ON person TYPE array<string> DEFAULT [] PERMISSIONS FULL;
+DEFINE FIELD profile.nationality ON person TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD profile.is_public ON person TYPE bool DEFAULT false PERMISSIONS FULL;
 DEFINE FIELD profile.media_other ON person TYPE array<record<media>> PERMISSIONS FULL;
 
 DEFINE FIELD profile.reels ON person TYPE array<record<media>> PERMISSIONS FULL;  -- Demo reels/videos
@@ -529,7 +541,13 @@ INSERT INTO eye_color (name) VALUES
 
 -- Body Types
 INSERT INTO body_type (name) VALUES
-("Athletic"), ("Average"), ("Slim"), ("Curvy"), ("Muscular"), ("Petite"), ("Tall"), ("Other");
+("Athletic"), ("Average"), ("Slim"), ("Slender"), ("Curvy"), ("Muscular"), ("Petite"), ("Plus Size"), ("Tall"), ("Other");
+
+-- Acting Ethnicities
+INSERT INTO acting_ethnicity (name) VALUES
+("African/Black"), ("Asian"), ("Caucasian/White"), ("East Asian"), ("Hispanic/Latino"),
+("Indigenous"), ("Middle Eastern"), ("Mixed/Multiracial"), ("Pacific Islander"),
+("South Asian"), ("Southeast Asian"), ("Other");
 
 -- Unions
 INSERT INTO union (name) VALUES
@@ -694,7 +712,8 @@ DEFINE INDEX idx_pending_embedding_target ON pending_embedding FIELDS target UNI
 -- This ensures a fresh db-init doesn't re-run migrations that are already in the schema.
 INSERT INTO schema_migration (name) VALUES
 ('0001_pending_embedding'),
-('0002_feedback');
+('0002_feedback'),
+('0003_physical_attributes');
 
 -- Seed Equipment Conditions
 INSERT INTO equipment_condition (name, description) VALUES
