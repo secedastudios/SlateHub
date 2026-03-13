@@ -13,4 +13,5 @@ pub mod serde_utils;
 pub mod services;
 pub mod social_platforms;
 pub mod templates;
+pub mod verification_limits;
 pub mod video_platforms;

@@ -42,6 +42,8 @@ pub struct InvolvementWithPerson {
     pub person_name: Option<String>,
     pub person_username: String,
     pub person_avatar: Option<String>,
+    #[serde(default)]
+    pub person_verification_status: Option<String>,
 }
 
 pub struct InvolvementModel;
@@ -180,7 +182,8 @@ impl InvolvementModel {
                 in.id AS person_id,
                 in.name AS person_name,
                 in.username AS person_username,
-                in.profile.avatar AS person_avatar
+                in.profile.avatar AS person_avatar,
+                in.verification_status AS person_verification_status
             FROM involvement
             WHERE out = $production_id
                 AND verification_status != 'rejected'
@@ -219,7 +222,8 @@ impl InvolvementModel {
                 in.id AS person_id,
                 in.name AS person_name,
                 in.username AS person_username,
-                in.profile.avatar AS person_avatar
+                in.profile.avatar AS person_avatar,
+                in.verification_status AS person_verification_status
             FROM involvement
             WHERE out = $production_id
                 AND verification_status IN ['self_asserted', 'pending_verification']

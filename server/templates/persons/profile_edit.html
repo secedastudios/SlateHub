@@ -440,10 +440,24 @@
         <section id="section-photos" data-section="photos" aria-labelledby="heading-photos">
             <div id="photos-section-header" data-role="section-header-row">
                 <h2 id="heading-photos">Photos</h2>
+                <span data-role="usage-count">{{ photo_count }}{% if photo_limit.is_some() %}/{{ photo_limit.unwrap() }}{% else %}/Unlimited{% endif %}</span>
+                <button type="button" data-role="limits-info-btn" data-action="show-limits-info" title="Upload limits info" aria-label="Upload limits info">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                </button>
+                {% if photo_limit.is_none() || photo_count < photo_limit.unwrap() %}
                 <label for="photo-upload-input" data-role="upload-button">+ Upload</label>
                 <input type="file" id="photo-upload-input" accept="image/jpeg,image/png,image/webp" multiple style="display:none" />
+                {% else %}
+                <span data-role="upload-button" data-disabled="true" title="Limit reached">+ Upload</span>
+                {% endif %}
             </div>
-            <p data-role="section-help">Upload up to 20 photos. JPEG, PNG, or WebP (max 10MB each).</p>
+            <p data-role="section-help">
+                {% if is_identity_verified %}
+                Upload up to 20 photos. JPEG, PNG, or WebP (max 10MB each).
+                {% else %}
+                Upload up to 3 photos. <a href="/get-verified">Get Verified</a> to upload up to 20.
+                {% endif %}
+            </p>
 
             <div id="photos-container" data-role="photos-grid">
                 {% for photo in profile.photos %}
@@ -470,11 +484,25 @@
         <section id="section-reels" data-section="reels" aria-labelledby="heading-reels">
             <div id="reels-section-header" data-role="section-header-row">
                 <h2 id="heading-reels">Video Reels</h2>
+                <span data-role="usage-count">{{ reel_count }}{% if reel_limit.is_some() %}/{{ reel_limit.unwrap() }}{% else %}/Unlimited{% endif %}</span>
+                <button type="button" data-role="limits-info-btn" data-action="show-limits-info" title="Upload limits info" aria-label="Upload limits info">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                </button>
+                {% if reel_limit.is_none() || reel_count < reel_limit.unwrap() %}
                 <button type="button" id="button-add-reel" data-action="add" data-target="reels" onclick="addReel()">
                     + Add
                 </button>
+                {% else %}
+                <span data-role="upload-button" data-disabled="true" title="Limit reached">+ Add</span>
+                {% endif %}
             </div>
-            <p data-role="section-help">Paste links from YouTube, Vimeo, TikTok, or Dailymotion.</p>
+            <p data-role="section-help">
+                {% if is_identity_verified %}
+                Paste links from YouTube, Vimeo, TikTok, or Dailymotion.
+                {% else %}
+                Add up to 3 video reels. <a href="/get-verified">Get Verified</a> for unlimited reels.
+                {% endif %}
+            </p>
 
             <div id="reels-container" data-role="dynamic-container" data-items="reels">
                 {% for reel in profile.reels %}
@@ -1713,5 +1741,40 @@ function updateSocialPlaceholder(select) {
             .catch(function(err) { alert('Failed: ' + err.message); });
     });
 })();
+
+// Limits info dialog
+(function() {
+    var dialog = document.getElementById('dialog-limits-info');
+    if (!dialog) return;
+    document.querySelectorAll('[data-action="show-limits-info"]').forEach(function(btn) {
+        btn.addEventListener('click', function() { dialog.showModal(); });
+    });
+    dialog.querySelector('[data-action="close-limits-info"]').addEventListener('click', function() { dialog.close(); });
+    dialog.addEventListener('click', function(e) { if (e.target === dialog) dialog.close(); });
+})();
 </script>
+
+<dialog id="dialog-limits-info" data-component="modal" aria-labelledby="limits-info-title">
+    <div data-role="modal-inner">
+        <header data-role="modal-header">
+            <h2 id="limits-info-title">Upload Limits</h2>
+            <button type="button" data-action="close-limits-info" aria-label="Close">&times;</button>
+        </header>
+        <div data-role="modal-body">
+            <table data-role="limits-table">
+                <thead>
+                    <tr><th></th><th>Free</th><th>Verified</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Photos</td><td>3</td><td>20</td></tr>
+                    <tr><td>Video Reels</td><td>3</td><td>Unlimited</td></tr>
+                </tbody>
+            </table>
+            <p data-role="limits-desc">Identity verification unlocks higher limits and adds a verified badge to your profile.</p>
+            {% if !is_identity_verified %}
+            <a href="/get-verified" data-role="cta-button">Get Verified</a>
+            {% endif %}
+        </div>
+    </div>
+</dialog>
 {% endblock %}

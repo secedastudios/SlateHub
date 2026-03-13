@@ -163,6 +163,11 @@ async fn view_production(
             role: inv.role.clone(),
             department: inv.department.clone(),
             verification_status: inv.verification_status.clone(),
+            person_is_identity_verified: inv
+                .person_verification_status
+                .as_deref()
+                .map(|s| s == "identity")
+                .unwrap_or(false),
         };
         if inv.relation_type == "cast" {
             cast.push(member);
@@ -177,14 +182,22 @@ async fn view_production(
             .await
             .unwrap_or_default()
             .into_iter()
-            .map(|inv| CastCrewMember {
-                involvement_id: inv.id.to_raw_string(),
-                person_name: inv.person_name,
-                person_username: inv.person_username,
-                person_avatar: inv.person_avatar,
-                role: inv.role,
-                department: inv.department,
-                verification_status: inv.verification_status,
+            .map(|inv| {
+                let is_verified = inv
+                    .person_verification_status
+                    .as_deref()
+                    .map(|s| s == "identity")
+                    .unwrap_or(false);
+                CastCrewMember {
+                    involvement_id: inv.id.to_raw_string(),
+                    person_name: inv.person_name,
+                    person_username: inv.person_username,
+                    person_avatar: inv.person_avatar,
+                    role: inv.role,
+                    department: inv.department,
+                    verification_status: inv.verification_status,
+                    person_is_identity_verified: is_verified,
+                }
             })
             .collect()
     } else {

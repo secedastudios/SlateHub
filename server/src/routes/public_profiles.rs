@@ -39,6 +39,7 @@ const RESERVED_ROUTES: &[&str] = &[
     "auth",
     "contact",
     "dashboard",
+    "get-verified",
     "help",
     "home",
     "login",
@@ -206,6 +207,7 @@ async fn user_profile(
         ),
         is_own_profile,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
+        verification_status: profile_user.verification_status.clone(),
         gender: profile.and_then(|p| p.gender.clone()),
         birthday: profile.and_then(|p| p.birthday.clone()),
         height_mm: profile.and_then(|p| p.height_mm),
@@ -350,6 +352,7 @@ async fn people(
                             .avatar
                             .clone()
                             .unwrap_or_else(|| format!("/static/images/default-avatar.png")),
+                        is_identity_verified: person.verification_status == "identity",
                     })
                 } else {
                     None

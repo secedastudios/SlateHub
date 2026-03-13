@@ -27,6 +27,7 @@ pub struct User {
     pub avatar_url: Option<String>, // Actual profile image URL if exists
     pub initials: String,           // Fallback initials from username/name
     pub notification_count: u32,    // Unread notification count
+    pub is_identity_verified: bool, // Whether user has identity verification
 }
 
 impl User {
@@ -35,8 +36,9 @@ impl User {
         // Generate initials from name or username
         let initials = Self::generate_initials(&session_user.name);
 
-        // Try to fetch the avatar URL from the database
-        let avatar_url = Self::fetch_avatar_url(&session_user.id).await;
+        // Try to fetch the avatar URL and verification status from the database
+        let (avatar_url, is_identity_verified) =
+            Self::fetch_avatar_and_verification(&session_user.id).await;
 
         // Fetch unread notification count
         let notification_count = NotificationModel::new()
@@ -57,6 +59,7 @@ impl User {
             avatar_url,
             initials,
             notification_count,
+            is_identity_verified,
         }
     }
 
@@ -84,8 +87,8 @@ impl User {
         }
     }
 
-    /// Fetch avatar URL from the database
-    async fn fetch_avatar_url(person_id: &str) -> Option<String> {
+    /// Fetch avatar URL and verification status from the database
+    async fn fetch_avatar_and_verification(person_id: &str) -> (Option<String>, bool) {
         // Ensure we have full record ID
         let person_record = if person_id.starts_with("person:") {
             person_id.to_string()
@@ -93,24 +96,31 @@ impl User {
             format!("person:{}", person_id)
         };
 
-        // Query for the person's avatar URL
-        let sql = format!("SELECT profile.avatar FROM {} LIMIT 1", person_record);
+        // Query for the person's avatar URL and verification status
+        let sql = format!(
+            "SELECT profile.avatar, verification_status FROM {} LIMIT 1",
+            person_record
+        );
 
         if let Ok(mut response) = DB.query(&sql).await {
             if let Ok(result) = response.take::<Option<serde_json::Value>>(0) {
                 if let Some(data) = result {
-                    if let Some(avatar_url) = data
+                    let avatar_url = data
                         .get("profile")
                         .and_then(|p| p.get("avatar"))
                         .and_then(|a| a.as_str())
-                    {
-                        return Some(avatar_url.to_string());
-                    }
+                        .map(|s| s.to_string());
+                    let is_verified = data
+                        .get("verification_status")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s == "identity")
+                        .unwrap_or(false);
+                    return (avatar_url, is_verified);
                 }
             }
         }
 
-        None
+        (None, false)
     }
 }
 
@@ -261,6 +271,7 @@ pub struct ProfileData {
     pub photos: Vec<PhotoDisplay>,
     pub is_own_profile: bool,
     pub is_public: bool,
+    pub verification_status: String,
     // Physical attributes
     pub gender: Option<String>,
     pub birthday: Option<String>,
@@ -347,6 +358,11 @@ pub struct ProfileEditTemplate {
     pub platforms: Vec<SocialPlatformOption>,
     pub error: Option<String>,
     pub success: Option<String>,
+    pub photo_count: usize,
+    pub photo_limit: Option<usize>,
+    pub reel_count: usize,
+    pub reel_limit: Option<usize>,
+    pub is_identity_verified: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -432,6 +448,7 @@ pub struct CastCrewMember {
     pub role: Option<String>,
     pub department: Option<String>,
     pub verification_status: String,
+    pub person_is_identity_verified: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -630,6 +647,7 @@ pub struct PersonCard {
     pub location: Option<String>,
     pub skills: Vec<String>,
     pub avatar: String,
+    pub is_identity_verified: bool,
 }
 
 /// About page template
@@ -656,6 +674,17 @@ pub struct TermsTemplate {
 #[derive(Template)]
 #[template(path = "privacy/index.html")]
 pub struct PrivacyTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+}
+
+/// Get Verified page template
+#[derive(Template)]
+#[template(path = "verification/get_verified.html")]
+pub struct GetVerifiedTemplate {
     pub app_name: String,
     pub year: i32,
     pub version: String,

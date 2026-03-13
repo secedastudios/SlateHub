@@ -20,6 +20,7 @@ mod productions;
 mod profile;
 mod public_profiles;
 mod search;
+mod verification;
 
 pub fn app() -> Router {
     // Static file service
@@ -47,6 +48,8 @@ pub fn app() -> Router {
         .merge(equipment::router())
         // Mount profile routes
         .merge(profile::router())
+        // Mount verification routes
+        .merge(verification::router())
         // Mount API routes under /api
         .nest("/api", api::router())
         // Mount media routes under /api/media

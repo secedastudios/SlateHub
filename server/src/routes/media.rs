@@ -13,7 +13,7 @@ use std::io::Cursor;
 use tracing::{debug, info};
 use ulid::Ulid;
 
-use crate::{db::DB, error::Error, middleware::AuthenticatedUser, services::s3::s3};
+use crate::{db::DB, error::Error, middleware::AuthenticatedUser, services::s3::s3, verification_limits};
 
 pub fn router() -> Router {
     Router::new()
@@ -205,7 +205,6 @@ async fn delete_profile_image(
 /// Photo dimensions
 const PHOTO_MAX_WIDTH: u32 = 1200;
 const PHOTO_THUMB_WIDTH: u32 = 300;
-const MAX_PHOTOS: usize = 20;
 
 /// Upload a profile photo
 async fn upload_profile_photo(
@@ -255,7 +254,7 @@ async fn upload_profile_photo(
     let (_content_type, data) =
         image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
 
-    // Check current photo count
+    // Check current photo count and verification-based limits
     let sanitized_user_id = user.id.strip_prefix("person:").unwrap_or(&user.id);
     let person_id = if user.id.starts_with("person:") {
         user.id.clone()
@@ -263,17 +262,33 @@ async fn upload_profile_photo(
         format!("person:{}", user.id)
     };
 
-    let count_sql = format!("SELECT VALUE array::len(profile.photos) FROM {}", person_id);
-    let mut count_resp = DB
-        .query(&count_sql)
+    let info_sql = format!(
+        "SELECT array::len(profile.photos) AS photo_count, verification_status FROM {}",
+        person_id
+    );
+    let mut info_resp = DB
+        .query(&info_sql)
         .await
         .map_err(|e| Error::Internal(format!("Failed to check photo count: {}", e)))?;
-    let photo_count: Option<i64> = count_resp.take(0).ok().and_then(|v| v);
-    if photo_count.unwrap_or(0) >= MAX_PHOTOS as i64 {
-        return Err(Error::bad_request(format!(
-            "Maximum of {} photos allowed",
-            MAX_PHOTOS
-        )));
+    let info: Option<serde_json::Value> = info_resp.take(0).ok().and_then(|v| v);
+    let photo_count = info
+        .as_ref()
+        .and_then(|v| v.get("photo_count"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    let verification_status = info
+        .as_ref()
+        .and_then(|v| v.get("verification_status"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("unverified");
+    let limits = verification_limits::limits_for_status(verification_status);
+    if let Some(max) = limits.max_photos {
+        if photo_count >= max as i64 {
+            return Err(Error::bad_request(format!(
+                "Maximum of {} photos allowed for your account. Get verified for more uploads.",
+                max
+            )));
+        }
     }
 
     // Process the image (resize, maintain aspect ratio)

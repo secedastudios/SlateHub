@@ -19,6 +19,7 @@ use crate::{
         BaseContext, DateRange, Education, InvolvementDisplay, PhotoDisplay, ProfileData,
         ProfileEditTemplate, ReelDisplay, SocialLinkDisplay, SocialPlatformOption, User,
     },
+    verification_limits,
     video_platforms,
 };
 
@@ -212,6 +213,7 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         ),
         is_own_profile: true,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
+        verification_status: profile_user.verification_status.clone(),
         gender: profile.and_then(|p| p.gender.clone()),
         birthday: profile.and_then(|p| p.birthday.clone()),
         height_mm: profile.and_then(|p| p.height_mm),
@@ -226,6 +228,10 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         nationality: profile.and_then(|p| p.nationality.clone()),
     };
 
+    // Compute upload limits based on verification status
+    let limits = verification_limits::limits_for_status(&profile_user.verification_status);
+    let is_verified = verification_limits::is_identity_verified(&profile_user.verification_status);
+
     // Create and render template
     let template = ProfileEditTemplate {
         app_name: base.app_name,
@@ -233,6 +239,11 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         version: base.version,
         active_page: base.active_page,
         user: base.user,
+        photo_count: profile_data.photos.len(),
+        reel_count: profile_data.reels.len(),
+        photo_limit: limits.max_photos,
+        reel_limit: limits.max_reels,
+        is_identity_verified: is_verified,
         profile: profile_data,
         platforms: platform_options(),
         error: None,
@@ -450,6 +461,20 @@ async fn update_profile(
     let social_links = parse_social_links(&form);
     let reels = parse_reels(&form).await;
     let photos = parse_photos(&form);
+
+    // Enforce verification-based limits on reels and photos
+    let person = Person::find_by_id(&current_user.id).await?.ok_or(Error::NotFound)?;
+    let limits = verification_limits::limits_for_status(&person.verification_status);
+    if let Some(max) = limits.max_reels {
+        if reels.len() > max {
+            return Err(Error::bad_request(format!("Maximum of {} reels allowed. Get verified to remove this limit.", max)));
+        }
+    }
+    if let Some(max) = limits.max_photos {
+        if photos.len() > max {
+            return Err(Error::bad_request(format!("Maximum of {} photos allowed. Get verified for more uploads.", max)));
+        }
+    }
 
     // Parse physical attribute fields
     let height_mm = parse_height_mm(&form);

@@ -578,6 +578,120 @@
     border-color: var(--color-accent, #eb5437);
 }
 
+[data-role="upload-button"][data-disabled="true"] {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Usage count pill */
+[data-role="usage-count"] {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted, #9ca39e);
+    background: rgba(214, 216, 202, 0.08);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    margin-left: auto;
+    margin-right: var(--space-sm);
+}
+
+/* Limits info icon button */
+[data-role="limits-info-btn"] {
+    background: none;
+    border: none;
+    color: var(--color-text-muted, #9ca39e);
+    cursor: pointer;
+    padding: 2px;
+    margin-right: var(--space-sm);
+    display: flex;
+    align-items: center;
+    transition: color var(--transition-fast);
+}
+
+[data-role="limits-info-btn"]:hover {
+    color: #1d9bf0;
+}
+
+/* Limits info dialog */
+#dialog-limits-info {
+    max-width: 380px;
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--color-surface, #1a1a1a);
+    color: var(--color-text-primary);
+    padding: 0;
+}
+
+#dialog-limits-info::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+#dialog-limits-info [data-role="modal-inner"] {
+    padding: var(--space-lg);
+}
+
+#dialog-limits-info [data-role="modal-header"] {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-md);
+}
+
+#dialog-limits-info [data-role="modal-header"] h2 {
+    margin: 0;
+    font-size: var(--text-md);
+}
+
+#dialog-limits-info [data-role="modal-header"] button {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+#dialog-limits-info [data-role="limits-table"] {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: var(--space-md);
+    font-size: var(--text-sm);
+}
+
+#dialog-limits-info [data-role="limits-table"] th,
+#dialog-limits-info [data-role="limits-table"] td {
+    padding: var(--space-xs) var(--space-sm);
+    text-align: left;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.1);
+}
+
+#dialog-limits-info [data-role="limits-table"] th {
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+#dialog-limits-info [data-role="limits-desc"] {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin: 0 0 var(--space-md);
+}
+
+#dialog-limits-info [data-role="cta-button"] {
+    display: inline-block;
+    padding: var(--space-xs) var(--space-md);
+    background: #1d9bf0;
+    color: #fff;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+#dialog-limits-info [data-role="cta-button"]:hover {
+    background: #1a8cd8;
+}
+
 [data-role="photos-grid"] {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
