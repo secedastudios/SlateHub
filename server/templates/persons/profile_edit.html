@@ -437,6 +437,36 @@
             </div>
         </section>
 
+        <section id="section-photos" data-section="photos" aria-labelledby="heading-photos">
+            <div id="photos-section-header" data-role="section-header-row">
+                <h2 id="heading-photos">Photos</h2>
+                <label for="photo-upload-input" data-role="upload-button">+ Upload</label>
+                <input type="file" id="photo-upload-input" accept="image/jpeg,image/png,image/webp" multiple style="display:none" />
+            </div>
+            <p data-role="section-help">Upload up to 20 photos. JPEG, PNG, or WebP (max 10MB each).</p>
+
+            <div id="photos-container" data-role="photos-grid">
+                {% for photo in profile.photos %}
+                <div data-role="photo-edit-item" data-index="{{ loop.index }}">
+                    <div data-role="photo-edit-thumb">
+                        <img src="{{ photo.thumbnail_url }}" alt="{{ photo.caption }}" />
+                        <button type="button" data-action="remove-photo" onclick="removePhoto(this)" aria-label="Remove photo">&times;</button>
+                    </div>
+                    <input type="hidden" name="photos[{{ loop.index0 }}][url]" value="{{ photo.url }}" />
+                    <input type="hidden" name="photos[{{ loop.index0 }}][thumbnail_url]" value="{{ photo.thumbnail_url }}" />
+                    <input
+                        type="text"
+                        name="photos[{{ loop.index0 }}][caption]"
+                        value="{{ photo.caption }}"
+                        placeholder="Caption (optional)"
+                        data-role="photo-caption-input"
+                    />
+                </div>
+                {% endfor %}
+            </div>
+            <div id="photo-upload-status" data-role="upload-status" style="display:none"></div>
+        </section>
+
         <section id="section-reels" data-section="reels" aria-labelledby="heading-reels">
             <div id="reels-section-header" data-role="section-header-row">
                 <h2 id="heading-reels">Video Reels</h2>
@@ -1313,6 +1343,90 @@ function addReel() {
 
     container.appendChild(fieldset);
 }
+
+function removePhoto(button) {
+    var item = button.closest('[data-role="photo-edit-item"]');
+    item.remove();
+    reindexPhotos();
+}
+
+function reindexPhotos() {
+    var container = document.getElementById('photos-container');
+    var items = container.querySelectorAll('[data-role="photo-edit-item"]');
+    items.forEach(function(item, i) {
+        item.setAttribute('data-index', i + 1);
+        var inputs = item.querySelectorAll('input[name]');
+        inputs.forEach(function(input) {
+            input.name = input.name.replace(/photos\[\d+\]/, 'photos[' + i + ']');
+        });
+    });
+}
+
+(function() {
+    var uploadInput = document.getElementById('photo-upload-input');
+    var container = document.getElementById('photos-container');
+    var status = document.getElementById('photo-upload-status');
+
+    if (!uploadInput) return;
+
+    uploadInput.addEventListener('change', function() {
+        var files = Array.from(uploadInput.files);
+        if (!files.length) return;
+
+        var existing = container.querySelectorAll('[data-role="photo-edit-item"]').length;
+        if (existing + files.length > 20) {
+            alert('Maximum of 20 photos allowed. You can add ' + (20 - existing) + ' more.');
+            files = files.slice(0, 20 - existing);
+        }
+
+        status.style.display = '';
+        var completed = 0;
+        status.textContent = 'Uploading ' + files.length + ' photo(s)...';
+
+        files.forEach(function(file) {
+            var formData = new FormData();
+            formData.append('image', file);
+
+            fetch('/api/media/upload/profile-photo', {
+                method: 'POST',
+                body: formData
+            })
+            .then(function(resp) {
+                if (!resp.ok) throw new Error('Upload failed');
+                return resp.json();
+            })
+            .then(function(data) {
+                var idx = container.querySelectorAll('[data-role="photo-edit-item"]').length;
+                var div = document.createElement('div');
+                div.setAttribute('data-role', 'photo-edit-item');
+                div.setAttribute('data-index', idx + 1);
+                div.innerHTML =
+                    '<div data-role="photo-edit-thumb">' +
+                        '<img src="' + data.thumbnail_url + '" alt="" />' +
+                        '<button type="button" data-action="remove-photo" onclick="removePhoto(this)" aria-label="Remove photo">&times;</button>' +
+                    '</div>' +
+                    '<input type="hidden" name="photos[' + idx + '][url]" value="' + data.url + '" />' +
+                    '<input type="hidden" name="photos[' + idx + '][thumbnail_url]" value="' + data.thumbnail_url + '" />' +
+                    '<input type="text" name="photos[' + idx + '][caption]" value="" placeholder="Caption (optional)" data-role="photo-caption-input" />';
+                container.appendChild(div);
+
+                completed++;
+                if (completed >= files.length) {
+                    status.textContent = 'Upload complete!';
+                    setTimeout(function() { status.style.display = 'none'; }, 2000);
+                } else {
+                    status.textContent = 'Uploading... (' + completed + '/' + files.length + ')';
+                }
+            })
+            .catch(function(err) {
+                completed++;
+                status.textContent = 'Error uploading photo: ' + err.message;
+            });
+        });
+
+        uploadInput.value = '';
+    });
+})();
 
 function updateSocialPlaceholder(select) {
     var selected = select.options[select.selectedIndex];

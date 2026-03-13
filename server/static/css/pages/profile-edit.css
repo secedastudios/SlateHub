@@ -560,6 +560,99 @@
     letter-spacing: 0.02em;
 }
 
+/* Photo upload section */
+[data-role="upload-button"] {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    padding: var(--space-xs) var(--space-sm);
+    background: none;
+    border: 1px solid rgba(214, 216, 202, 0.3);
+    color: var(--color-accent, #eb5437);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border-radius: var(--radius-sm);
+}
+
+[data-role="upload-button"]:hover {
+    background: rgba(235, 84, 55, 0.1);
+    border-color: var(--color-accent, #eb5437);
+}
+
+[data-role="photos-grid"] {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: var(--space-sm);
+}
+
+[data-role="photo-edit-item"] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+[data-role="photo-edit-thumb"] {
+    position: relative;
+    aspect-ratio: 3/4;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid rgba(214, 216, 202, 0.1);
+}
+
+[data-role="photo-edit-thumb"] img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+[data-role="photo-edit-thumb"] button[data-action="remove-photo"] {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    padding: 0;
+    line-height: 1;
+}
+
+[data-role="photo-edit-item"]:hover [data-action="remove-photo"] {
+    opacity: 1;
+}
+
+[data-role="photo-caption-input"] {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    padding: var(--space-xs);
+    background: var(--color-surface, #1a1a18);
+    border: 1px solid rgba(214, 216, 202, 0.2);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary, #d6d8ca);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+[data-role="photo-caption-input"]::placeholder {
+    color: var(--color-text-muted, #9ca39e);
+}
+
+[data-role="upload-status"] {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-accent, #eb5437);
+    margin-top: var(--space-sm);
+}
+
 [data-role="reel-platform-badge"] {
     font-family: var(--font-body);
     font-size: 0.625rem;

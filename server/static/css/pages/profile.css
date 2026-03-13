@@ -721,6 +721,209 @@
 }
 
 /* ----------------------------------------
+   Photo Carousel
+   ---------------------------------------- */
+
+#section-photos {
+    margin-top: var(--space-lg);
+}
+
+#section-photos h2 {
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary, #d6d8ca);
+    margin-bottom: var(--space-md);
+}
+
+[data-role="photos-carousel"] {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+[data-role="photos-track"] {
+    display: flex;
+    gap: var(--space-sm);
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    flex: 1;
+    min-width: 0;
+}
+
+[data-role="photos-track"]::-webkit-scrollbar {
+    display: none;
+}
+
+#photos-scroll-left,
+#photos-scroll-right {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(23, 23, 23, 0.8);
+    border: 1px solid rgba(214, 216, 202, 0.2);
+    border-radius: var(--radius-md, 4px);
+    color: var(--color-text-primary, #d6d8ca);
+    cursor: pointer;
+    padding: 0;
+    transition: all var(--transition-fast);
+}
+
+#photos-scroll-left:hover:not(:disabled),
+#photos-scroll-right:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+#photos-scroll-left:disabled,
+#photos-scroll-right:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* Photo cards */
+[data-component="photo-card"] {
+    flex-shrink: 0;
+    width: 180px;
+    overflow: hidden;
+    border-radius: var(--radius-sm, 4px);
+    border: 1px solid rgba(214, 216, 202, 0.1);
+    cursor: pointer;
+    background: #0a0a0a;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    transition: border-color var(--transition-fast);
+}
+
+[data-component="photo-card"]:hover {
+    border-color: var(--color-accent);
+}
+
+[data-component="photo-card"] [data-role="photo-thumb-wrap"] {
+    position: relative;
+    aspect-ratio: 3/4;
+    overflow: hidden;
+}
+
+[data-component="photo-card"] img[data-role="photo-thumbnail"] {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+[data-component="photo-card"] [data-role="photo-info"] {
+    padding: var(--space-xs) var(--space-sm);
+}
+
+[data-component="photo-card"] [data-role="photo-caption"] {
+    font-family: var(--font-body);
+    font-size: 0.625rem;
+    line-height: 1.3;
+    color: var(--color-text-primary, #d6d8ca);
+    overflow-wrap: break-word;
+}
+
+/* ----------------------------------------
+   Photo Lightbox
+   ---------------------------------------- */
+
+#modal-photo {
+    background: #1a1a18;
+    border: 1px solid rgba(214, 216, 202, 0.1);
+    border-radius: 12px;
+    color: var(--color-text-primary, #d6d8ca);
+    padding: 0;
+    max-width: 1000px;
+    width: 95%;
+}
+
+#modal-photo::backdrop {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+#modal-photo-inner {
+    padding: 1.25rem;
+}
+
+#modal-photo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-sm);
+}
+
+#modal-photo-header h2 {
+    font-family: var(--font-heading);
+    font-size: var(--text-md);
+    font-weight: var(--font-weight-medium);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+#modal-photo-header button {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 1.5rem;
+    padding: 0 var(--space-xs);
+    flex-shrink: 0;
+}
+
+#modal-photo-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+}
+
+#photo-lightbox-img {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: var(--radius-sm);
+    object-fit: contain;
+}
+
+#photo-prev,
+#photo-next {
+    background: rgba(23, 23, 23, 0.8);
+    border: 1px solid rgba(214, 216, 202, 0.2);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    padding: var(--space-xs);
+    flex-shrink: 0;
+}
+
+#photo-prev:hover,
+#photo-next:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+#photo-lightbox-caption {
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin: var(--space-sm) 0 0;
+    padding: 0;
+}
+
+/* ----------------------------------------
    Video Modal
    ---------------------------------------- */
 

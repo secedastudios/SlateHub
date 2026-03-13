@@ -18,7 +18,7 @@ use crate::{
     social_platforms,
     templates::{
         BaseContext, DateRange, Education, InvolvementDisplay, PeopleTemplate, PersonCard,
-        ProfileData, ProfileTemplate, ReelDisplay, SocialLinkDisplay, User,
+        PhotoDisplay, ProfileData, ProfileTemplate, ReelDisplay, SocialLinkDisplay, User,
     },
     video_platforms,
 };
@@ -57,6 +57,18 @@ const RESERVED_ROUTES: &[&str] = &[
     "terms",
     "privacy",
 ];
+
+/// Convert stored photos to display format
+fn to_photo_displays(photos: &[crate::models::person::Photo]) -> Vec<PhotoDisplay> {
+    photos
+        .iter()
+        .map(|photo| PhotoDisplay {
+            url: photo.url.clone(),
+            thumbnail_url: photo.thumbnail_url.clone(),
+            caption: photo.caption.clone(),
+        })
+        .collect()
+}
 
 /// Convert stored reels to display format with computed URLs
 fn to_reel_displays(reels: &[crate::models::person::Reel]) -> Vec<ReelDisplay> {
@@ -188,6 +200,9 @@ async fn user_profile(
         ),
         reels: to_reel_displays(
             &profile.map(|p| p.reels.clone()).unwrap_or_default(),
+        ),
+        photos: to_photo_displays(
+            &profile.map(|p| p.photos.clone()).unwrap_or_default(),
         ),
         is_own_profile,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),

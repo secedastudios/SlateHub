@@ -258,6 +258,7 @@ pub struct ProfileData {
     pub education: Vec<Education>,
     pub social_links: Vec<SocialLinkDisplay>,
     pub reels: Vec<ReelDisplay>,
+    pub photos: Vec<PhotoDisplay>,
     pub is_own_profile: bool,
     pub is_public: bool,
     // Physical attributes
@@ -292,6 +293,13 @@ pub struct ReelDisplay {
     pub thumbnail_url: String,
     pub embed_url: String,
     pub platform_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhotoDisplay {
+    pub url: String,
+    pub thumbnail_url: String,
+    pub caption: String,
 }
 
 /// Display struct for involvement-based credits (graph traversal)

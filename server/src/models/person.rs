@@ -128,6 +128,7 @@ pub struct Profile {
 
     // Media
     pub reels: Vec<Reel>,           // Video links (YouTube, Vimeo, etc.)
+    pub photos: Vec<Photo>,         // Uploaded profile photos
     pub media_other: Vec<RecordId>, // Record links to 'media' table
     pub resume: Option<RecordId>,   // Record link to 'media' table
     pub social_links: Vec<SocialLink>,
@@ -155,6 +156,13 @@ pub struct Reel {
     pub title: String,
     pub platform: String,
     pub video_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+pub struct Photo {
+    pub url: String,
+    pub thumbnail_url: String,
+    pub caption: String,
 }
 
 
@@ -554,6 +562,7 @@ impl Person {
         availability: Option<String>,
         social_links: Option<Vec<SocialLink>>,
         reels: Option<Vec<Reel>>,
+        photos: Option<Vec<Photo>>,
         // Physical attributes
         gender: Option<String>,
         birthday: Option<String>,
@@ -642,6 +651,7 @@ impl Person {
                 education: Vec::new(),
                 awards: Vec::new(),
                 reels: Vec::new(),
+                photos: Vec::new(),
                 media_other: Vec::new(),
                 resume: None,
                 social_links: Vec::new(),
@@ -699,6 +709,9 @@ impl Person {
             }
             if let Some(r) = reels {
                 profile.reels = r;
+            }
+            if let Some(p) = photos {
+                profile.photos = p;
             }
 
             // Physical attributes

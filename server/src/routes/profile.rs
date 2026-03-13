@@ -12,11 +12,11 @@ use crate::{
     error::Error,
     middleware::{AuthenticatedUser, UserExtractor},
     models::involvement::InvolvementModel,
-    models::person::{Person, Reel, SocialLink},
+    models::person::{Person, Photo, Reel, SocialLink},
     record_id_ext::RecordIdExt,
     social_platforms::{self, SOCIAL_PLATFORMS},
     templates::{
-        BaseContext, DateRange, Education, InvolvementDisplay, ProfileData,
+        BaseContext, DateRange, Education, InvolvementDisplay, PhotoDisplay, ProfileData,
         ProfileEditTemplate, ReelDisplay, SocialLinkDisplay, SocialPlatformOption, User,
     },
     video_platforms,
@@ -54,6 +54,18 @@ fn platform_options() -> Vec<SocialPlatformOption> {
             name: p.name.to_string(),
             placeholder: p.placeholder.to_string(),
             base_url: p.base_url.map(|s| s.to_string()),
+        })
+        .collect()
+}
+
+/// Convert stored photos to display format
+fn to_photo_displays(photos: &[Photo]) -> Vec<PhotoDisplay> {
+    photos
+        .iter()
+        .map(|photo| PhotoDisplay {
+            url: photo.url.clone(),
+            thumbnail_url: photo.thumbnail_url.clone(),
+            caption: photo.caption.clone(),
         })
         .collect()
 }
@@ -194,6 +206,9 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         ),
         reels: to_reel_displays(
             &profile.map(|p| p.reels.clone()).unwrap_or_default(),
+        ),
+        photos: to_photo_displays(
+            &profile.map(|p| p.photos.clone()).unwrap_or_default(),
         ),
         is_own_profile: true,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
@@ -380,6 +395,51 @@ async fn parse_reels(form: &HashMap<String, String>) -> Vec<Reel> {
     result
 }
 
+/// Parse photo form fields from the flat form data.
+/// Form fields come as `photos[0][url]`, `photos[0][thumbnail_url]`, `photos[0][caption]`.
+fn parse_photos(form: &HashMap<String, String>) -> Vec<Photo> {
+    let mut photos: HashMap<usize, (Option<String>, Option<String>, Option<String>)> =
+        HashMap::new();
+
+    for (key, value) in form {
+        if let Some(rest) = key.strip_prefix("photos[") {
+            if let Some(bracket_pos) = rest.find(']') {
+                if let Ok(idx) = rest[..bracket_pos].parse::<usize>() {
+                    let field = rest[bracket_pos + 1..]
+                        .trim_start_matches('[')
+                        .trim_end_matches(']');
+                    let entry = photos.entry(idx).or_insert((None, None, None));
+                    match field {
+                        "url" => entry.0 = Some(value.clone()),
+                        "thumbnail_url" => entry.1 = Some(value.clone()),
+                        "caption" => entry.2 = Some(value.clone()),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    let mut sorted: Vec<_> = photos.into_iter().collect();
+    sorted.sort_by_key(|(idx, _)| *idx);
+
+    sorted
+        .into_iter()
+        .filter_map(|(_, (url, thumbnail_url, caption))| {
+            let url = url?.trim().to_string();
+            let thumbnail_url = thumbnail_url.unwrap_or_default().trim().to_string();
+            if url.is_empty() {
+                return None;
+            }
+            Some(Photo {
+                url,
+                thumbnail_url,
+                caption: caption.unwrap_or_default().trim().to_string(),
+            })
+        })
+        .collect()
+}
+
 /// Handler for updating the user's profile
 async fn update_profile(
     AuthenticatedUser(current_user): AuthenticatedUser,
@@ -389,6 +449,7 @@ async fn update_profile(
 
     let social_links = parse_social_links(&form);
     let reels = parse_reels(&form).await;
+    let photos = parse_photos(&form);
 
     // Parse physical attribute fields
     let height_mm = parse_height_mm(&form);
@@ -409,6 +470,7 @@ async fn update_profile(
         form.get("availability").cloned(),
         Some(social_links),
         Some(reels),
+        Some(photos),
         form.get("gender").cloned(),
         form.get("birthday").cloned(),
         height_mm,

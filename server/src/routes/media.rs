@@ -20,6 +20,8 @@ pub fn router() -> Router {
         .route("/upload/profile-image", post(upload_profile_image))
         .route("/delete/profile-image", post(delete_profile_image))
         .route("/profile-image/{person_id}", get(get_profile_image_url))
+        .route("/upload/profile-photo", post(upload_profile_photo))
+        .route("/delete/profile-photo", post(delete_profile_photo))
         .route("/upload/organization-logo", post(upload_organization_logo))
         .route(
             "/upload/organization-logo/{org_slug}",
@@ -198,6 +200,205 @@ async fn delete_profile_image(
     info!("Profile image deleted for user {}", user.username);
 
     Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// Photo dimensions
+const PHOTO_MAX_WIDTH: u32 = 1200;
+const PHOTO_THUMB_WIDTH: u32 = 300;
+const MAX_PHOTOS: usize = 20;
+
+/// Upload a profile photo
+async fn upload_profile_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    mut multipart: Multipart,
+) -> Result<Json<UploadResponse>, Error> {
+    debug!("User {} uploading profile photo", user.username);
+
+    // Extract the image from multipart
+    let mut image_data: Option<(String, Bytes)> = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))?
+    {
+        let name = field.name().unwrap_or("").to_string();
+        if name != "image" {
+            continue;
+        }
+
+        let content_type = field
+            .content_type()
+            .unwrap_or("application/octet-stream")
+            .to_string();
+
+        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
+            return Err(Error::bad_request(format!(
+                "Invalid file type: {}. Allowed types: JPEG, PNG, WebP",
+                content_type
+            )));
+        }
+
+        let data = field
+            .bytes()
+            .await
+            .map_err(|e| Error::bad_request(format!("Failed to read file data: {}", e)))?;
+
+        if data.len() > MAX_FILE_SIZE {
+            return Err(Error::bad_request("File too large. Maximum size is 10MB"));
+        }
+
+        image_data = Some((content_type, data));
+        break;
+    }
+
+    let (_content_type, data) =
+        image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
+
+    // Check current photo count
+    let sanitized_user_id = user.id.strip_prefix("person:").unwrap_or(&user.id);
+    let person_id = if user.id.starts_with("person:") {
+        user.id.clone()
+    } else {
+        format!("person:{}", user.id)
+    };
+
+    let count_sql = format!("SELECT VALUE array::len(profile.photos) FROM {}", person_id);
+    let mut count_resp = DB
+        .query(&count_sql)
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to check photo count: {}", e)))?;
+    let photo_count: Option<i64> = count_resp.take(0).ok().and_then(|v| v);
+    if photo_count.unwrap_or(0) >= MAX_PHOTOS as i64 {
+        return Err(Error::bad_request(format!(
+            "Maximum of {} photos allowed",
+            MAX_PHOTOS
+        )));
+    }
+
+    // Process the image (resize, maintain aspect ratio)
+    let (processed, thumbnail) = process_photo(&data)?;
+
+    // Upload to S3
+    let image_id = Ulid::new().to_string();
+    let main_key = format!("profiles/{}/photos/{}.jpg", sanitized_user_id, image_id);
+    let thumb_key = format!(
+        "profiles/{}/photos/thumb_{}.jpg",
+        sanitized_user_id, image_id
+    );
+
+    let s3_service = s3()?;
+    s3_service
+        .upload_file(&main_key, processed, "image/jpeg")
+        .await?;
+    s3_service
+        .upload_file(&thumb_key, thumbnail, "image/jpeg")
+        .await?;
+
+    let main_url = format!("/api/media/{}", main_key);
+    let thumb_url = format!("/api/media/{}", thumb_key);
+
+    // Append photo to profile.photos array
+    let update_sql = format!(
+        "UPDATE {} SET profile.photos += $photo RETURN NONE",
+        person_id
+    );
+    DB.query(&update_sql)
+        .bind((
+            "photo",
+            serde_json::json!({
+                "url": main_url,
+                "thumbnail_url": thumb_url,
+                "caption": ""
+            }),
+        ))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to update profile photos: {}", e)))?;
+
+    info!(
+        "Profile photo uploaded successfully for user {}",
+        user.username
+    );
+
+    Ok(Json(UploadResponse {
+        media_id: image_id,
+        url: main_url,
+        thumbnail_url: Some(thumb_url),
+    }))
+}
+
+/// Delete a profile photo
+async fn delete_profile_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, Error> {
+    let url = body
+        .get("url")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| Error::bad_request("Missing 'url' field"))?;
+
+    let person_id = if user.id.starts_with("person:") {
+        user.id.clone()
+    } else {
+        format!("person:{}", user.id)
+    };
+
+    // Remove the photo with matching URL from the array
+    let update_sql = format!(
+        "UPDATE {} SET profile.photos = profile.photos[WHERE url != $url] RETURN NONE",
+        person_id
+    );
+
+    DB.query(&update_sql)
+        .bind(("url", url.to_string()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to delete profile photo: {}", e)))?;
+
+    info!("Profile photo deleted for user {}", user.username);
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// Process a photo: resize maintaining aspect ratio, create thumbnail
+fn process_photo(image_data: &[u8]) -> Result<(Bytes, Bytes), Error> {
+    let img = image::load_from_memory(image_data)
+        .map_err(|e| Error::bad_request(format!("Invalid image file: {}", e)))?;
+
+    // Resize to max width, maintaining aspect ratio
+    let full = if img.width() > PHOTO_MAX_WIDTH {
+        img.resize(
+            PHOTO_MAX_WIDTH,
+            u32::MAX,
+            image::imageops::FilterType::Lanczos3,
+        )
+    } else {
+        img.clone()
+    };
+
+    // Create thumbnail
+    let thumb = if img.width() > PHOTO_THUMB_WIDTH {
+        img.resize(
+            PHOTO_THUMB_WIDTH,
+            u32::MAX,
+            image::imageops::FilterType::Lanczos3,
+        )
+    } else {
+        img
+    };
+
+    let mut full_bytes = Cursor::new(Vec::new());
+    full.write_to(&mut full_bytes, ImageFormat::Jpeg)
+        .map_err(|e| Error::Internal(format!("Failed to encode photo: {}", e)))?;
+
+    let mut thumb_bytes = Cursor::new(Vec::new());
+    thumb
+        .write_to(&mut thumb_bytes, ImageFormat::Jpeg)
+        .map_err(|e| Error::Internal(format!("Failed to encode thumbnail: {}", e)))?;
+
+    Ok((
+        Bytes::from(full_bytes.into_inner()),
+        Bytes::from(thumb_bytes.into_inner()),
+    ))
 }
 
 /// Process and crop the profile image

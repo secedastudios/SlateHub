@@ -250,6 +250,11 @@ DEFINE FIELD profile.reels[*].title ON person TYPE string PERMISSIONS FULL;
 DEFINE FIELD profile.reels[*].platform ON person TYPE string PERMISSIONS FULL;
 DEFINE FIELD profile.reels[*].video_id ON person TYPE string PERMISSIONS FULL;
 
+DEFINE FIELD profile.photos ON person TYPE array<object> FLEXIBLE DEFAULT [] PERMISSIONS FULL;  -- Uploaded profile photos
+DEFINE FIELD profile.photos[*].url ON person TYPE string PERMISSIONS FULL;
+DEFINE FIELD profile.photos[*].thumbnail_url ON person TYPE string PERMISSIONS FULL;
+DEFINE FIELD profile.photos[*].caption ON person TYPE string PERMISSIONS FULL;
+
 DEFINE FIELD profile.name ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.skills ON person TYPE array<string> PERMISSIONS FULL;
 DEFINE FIELD profile.bio ON person TYPE option<string> PERMISSIONS FULL;  -- For semantic search (detailed description)
@@ -718,7 +723,8 @@ INSERT INTO schema_migration (name) VALUES
 ('0001_pending_embedding'),
 ('0002_feedback'),
 ('0003_physical_attributes'),
-('0004_profile_reels');
+('0004_profile_reels'),
+('0005_profile_photos');
 
 -- Seed Equipment Conditions
 INSERT INTO equipment_condition (name, description) VALUES

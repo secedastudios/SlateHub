@@ -172,6 +172,47 @@
         </div>
     </dialog>
 
+    {% if !profile.photos.is_empty() %}
+    <section id="section-photos" data-section="photos" aria-labelledby="heading-photos">
+        <h2 id="heading-photos">Photos</h2>
+        <div id="photos-carousel" data-role="photos-carousel">
+            <button type="button" id="photos-scroll-left" data-action="scroll-photos-left" aria-label="Scroll left" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div id="photos-track" data-role="photos-track">
+                {% for photo in profile.photos %}
+                <button
+                    type="button"
+                    data-component="photo-card"
+                    data-action="view-photo"
+                    data-photo-url="{{ photo.url }}"
+                    data-photo-caption="{{ photo.caption }}"
+                    data-photo-index="{{ loop.index0 }}"
+                    aria-label="{% if !photo.caption.is_empty() %}{{ photo.caption }}{% else %}Photo {{ loop.index }}{% endif %}"
+                >
+                    <div data-role="photo-thumb-wrap">
+                        <img
+                            src="{{ photo.thumbnail_url }}"
+                            alt="{% if !photo.caption.is_empty() %}{{ photo.caption }}{% else %}Photo {{ loop.index }}{% endif %}"
+                            loading="lazy"
+                            data-role="photo-thumbnail"
+                        />
+                    </div>
+                    {% if !photo.caption.is_empty() %}
+                    <div data-role="photo-info">
+                        <span data-role="photo-caption">{{ photo.caption }}</span>
+                    </div>
+                    {% endif %}
+                </button>
+                {% endfor %}
+            </div>
+            <button type="button" id="photos-scroll-right" data-action="scroll-photos-right" aria-label="Scroll right">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </div>
+    </section>
+    {% endif %}
+
     {% if !profile.reels.is_empty() %}
     <section id="section-reels" data-section="reels" aria-labelledby="heading-reels">
         <h2 id="heading-reels">Reels</h2>
@@ -239,11 +280,31 @@
         </div>
     </dialog>
 
+    <dialog id="modal-photo" data-component="modal" aria-labelledby="modal-title-photo">
+        <div id="modal-photo-inner">
+            <header id="modal-photo-header">
+                <h2 id="modal-title-photo">Photo</h2>
+                <button type="button" data-action="close-photo" aria-label="Close">&times;</button>
+            </header>
+            <div id="modal-photo-body">
+                <button type="button" id="photo-prev" data-action="photo-prev" aria-label="Previous photo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <img id="photo-lightbox-img" src="" alt="" />
+                <button type="button" id="photo-next" data-action="photo-next" aria-label="Next photo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+            <p id="photo-lightbox-caption"></p>
+        </div>
+    </dialog>
+
     {% if profile.bio.is_none() && profile.headline.is_none() &&
     profile.skills.is_empty() && profile.involvements.is_empty() &&
     profile.education.is_empty() && profile.location.is_none() &&
     profile.languages.is_empty() && profile.availability.is_none() &&
-    profile.website.is_none() && profile.reels.is_empty() %}
+    profile.website.is_none() && profile.reels.is_empty() &&
+    profile.photos.is_empty() %}
     <section id="section-empty-profile" data-role="empty-state" data-state="empty">
         <div id="empty-profile-content">
             <h2 id="heading-empty-profile">Profile Not Set Up</h2>
@@ -560,6 +621,81 @@
         });
         track.addEventListener('scroll', updateScrollButtons);
         updateScrollButtons();
+    }
+
+    // Photo carousel scroll
+    var pTrack = document.getElementById('photos-track');
+    var pLeft = document.getElementById('photos-scroll-left');
+    var pRight = document.getElementById('photos-scroll-right');
+    if (pTrack && pLeft && pRight) {
+        var pScroll = 300;
+        function updatePhotoButtons() {
+            pLeft.disabled = pTrack.scrollLeft <= 0;
+            pRight.disabled = pTrack.scrollLeft + pTrack.clientWidth >= pTrack.scrollWidth - 1;
+        }
+        pLeft.addEventListener('click', function() {
+            pTrack.scrollBy({ left: -pScroll, behavior: 'smooth' });
+        });
+        pRight.addEventListener('click', function() {
+            pTrack.scrollBy({ left: pScroll, behavior: 'smooth' });
+        });
+        pTrack.addEventListener('scroll', updatePhotoButtons);
+        updatePhotoButtons();
+    }
+
+    // Photo lightbox
+    var photoModal = document.getElementById('modal-photo');
+    var photoImg = document.getElementById('photo-lightbox-img');
+    var photoCaption = document.getElementById('photo-lightbox-caption');
+    var photoCards = document.querySelectorAll('[data-action="view-photo"]');
+    var currentPhotoIndex = 0;
+    var photoData = [];
+
+    photoCards.forEach(function(btn) {
+        photoData.push({
+            url: btn.getAttribute('data-photo-url'),
+            caption: btn.getAttribute('data-photo-caption') || ''
+        });
+    });
+
+    function showPhoto(index) {
+        if (index < 0 || index >= photoData.length) return;
+        currentPhotoIndex = index;
+        photoImg.src = photoData[index].url;
+        photoImg.alt = photoData[index].caption || 'Photo';
+        var titleEl = document.getElementById('modal-title-photo');
+        titleEl.textContent = photoData[index].caption || 'Photo';
+        photoCaption.textContent = photoData[index].caption;
+        photoCaption.style.display = photoData[index].caption ? '' : 'none';
+        document.getElementById('photo-prev').style.display = index > 0 ? '' : 'none';
+        document.getElementById('photo-next').style.display = index < photoData.length - 1 ? '' : 'none';
+    }
+
+    photoCards.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var idx = parseInt(btn.getAttribute('data-photo-index'), 10);
+            showPhoto(idx);
+            photoModal.showModal();
+        });
+    });
+
+    if (photoModal) {
+        document.getElementById('photo-prev').addEventListener('click', function() {
+            showPhoto(currentPhotoIndex - 1);
+        });
+        document.getElementById('photo-next').addEventListener('click', function() {
+            showPhoto(currentPhotoIndex + 1);
+        });
+        photoModal.querySelectorAll('[data-action="close-photo"]').forEach(function(b) {
+            b.addEventListener('click', function() { photoModal.close(); });
+        });
+        photoModal.addEventListener('click', function(e) {
+            if (e.target === photoModal) photoModal.close();
+        });
+        photoModal.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') showPhoto(currentPhotoIndex - 1);
+            else if (e.key === 'ArrowRight') showPhoto(currentPhotoIndex + 1);
+        });
     }
 })();
 (function() {
