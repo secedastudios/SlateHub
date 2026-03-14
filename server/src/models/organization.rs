@@ -330,6 +330,8 @@ impl OrganizationModel {
     pub async fn update(&self, id: &str, data: UpdateOrganizationData) -> Result<(), Error> {
         debug!("Updating organization: {}", id);
         let id: RecordId = RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_type_id: RecordId = RecordId::parse_simple(&data.org_type)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
 
         // Build embedding text for background update
         let embedding_text = build_organization_embedding_text(
@@ -342,8 +344,7 @@ impl OrganizationModel {
             data.employees_count,
         );
 
-        let _: Option<Organization> = DB
-            .query(
+        DB.query(
                 "UPDATE $id SET
                     name = $name,
                     `type` = $org_type,
@@ -359,7 +360,7 @@ impl OrganizationModel {
             )
             .bind(("id", id.clone()))
             .bind(("name", data.name))
-            .bind(("org_type", data.org_type))
+            .bind(("org_type", org_type_id))
             .bind(("description", data.description))
             .bind(("location", data.location))
             .bind(("website", data.website))
@@ -369,8 +370,7 @@ impl OrganizationModel {
             .bind(("founded_year", data.founded_year))
             .bind(("employees_count", data.employees_count))
             .bind(("public", data.public))
-            .await?
-            .take(0)?;
+            .await?;
 
         // Fire-and-forget embedding update
         crate::services::embedding::spawn_embedding_update(id, embedding_text);
