@@ -9,6 +9,7 @@
 {% block twitter_image %}{% if production.poster_url.is_some() %}<meta name="twitter:image" content="{{ production.poster_url.as_ref().unwrap() }}" />{% else %}<meta name="twitter:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
+<link rel="stylesheet" href="/static/css/components/invite-search.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
 <div id="prod-detail">
@@ -193,9 +194,18 @@
                             <legend>Add Team Member</legend>
                             <div class="prod-form-grid">
                                 <div>
-                                    <label for="input-member-id">Member ID</label>
-                                    <input type="text" id="input-member-id" name="member_id" required
-                                           placeholder="e.g., person:abc123 or organization:xyz789" />
+                                    <label for="input-prod-member-search">Find a person</label>
+                                    <div class="invite-search-wrap" id="prod-search-wrap">
+                                        <div id="prod-selected-user" class="invite-selected-user" hidden>
+                                            <img id="prod-sel-avatar" src="" alt="" class="invite-sel-avatar" />
+                                            <span id="prod-sel-name"></span>
+                                            <button type="button" id="prod-sel-clear" class="invite-sel-clear" aria-label="Clear selection">&times;</button>
+                                        </div>
+                                        <input type="text" id="input-prod-member-search" autocomplete="off"
+                                               placeholder="Search by name, username, or email..." />
+                                        <input type="hidden" id="input-member-id" name="member_id" required />
+                                        <div id="prod-search-results" class="invite-search-results" hidden></div>
+                                    </div>
                                 </div>
                                 <div>
                                     <label for="select-member-role">Role</label>
@@ -322,12 +332,101 @@
 <script>
 function showAddMemberForm() {
     const c = document.getElementById('add-member-form-container');
-    if (c) { c.removeAttribute('hidden'); document.getElementById('input-member-id').focus(); }
+    if (c) {
+        c.removeAttribute('hidden');
+        resetProdSearch();
+        document.getElementById('input-prod-member-search').focus();
+    }
 }
 function hideAddMemberForm() {
     const c = document.getElementById('add-member-form-container');
-    if (c) { c.setAttribute('hidden', ''); document.getElementById('prod-add-member-form').reset(); }
+    if (c) { c.setAttribute('hidden', ''); document.getElementById('prod-add-member-form').reset(); resetProdSearch(); }
 }
+
+function resetProdSearch() {
+    var s = document.getElementById('input-prod-member-search');
+    var h = document.getElementById('input-member-id');
+    var r = document.getElementById('prod-search-results');
+    var sel = document.getElementById('prod-selected-user');
+    if (s) { s.value = ''; s.style.display = ''; }
+    if (h) h.value = '';
+    if (r) { r.innerHTML = ''; r.hidden = true; }
+    if (sel) sel.hidden = true;
+}
+
+(function() {
+    var searchInput = document.getElementById('input-prod-member-search');
+    var hiddenInput = document.getElementById('input-member-id');
+    var resultsBox = document.getElementById('prod-search-results');
+    var selectedBox = document.getElementById('prod-selected-user');
+    var selAvatar = document.getElementById('prod-sel-avatar');
+    var selName = document.getElementById('prod-sel-name');
+    var selClear = document.getElementById('prod-sel-clear');
+    if (!searchInput) return;
+    var debounceTimer = null;
+
+    function selectUser(person) {
+        hiddenInput.value = person.id;
+        selName.textContent = person.name + ' (@' + person.username + ')';
+        if (person.avatar_url) { selAvatar.src = person.avatar_url; selAvatar.style.display = ''; }
+        else { selAvatar.style.display = 'none'; }
+        selectedBox.hidden = false;
+        searchInput.style.display = 'none';
+        resultsBox.hidden = true;
+    }
+
+    selClear.addEventListener('click', function() { resetProdSearch(); searchInput.focus(); });
+
+    searchInput.addEventListener('input', function() {
+        var q = searchInput.value.trim();
+        clearTimeout(debounceTimer);
+        if (q.length < 2) { resultsBox.innerHTML = ''; resultsBox.hidden = true; hiddenInput.value = ''; return; }
+        debounceTimer = setTimeout(function() {
+            fetch('/api/people/search?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    resultsBox.innerHTML = '';
+                    var results = data.results || [];
+                    if (results.length === 0) {
+                        resultsBox.innerHTML = '<div class="invite-search-empty">No users found.</div>';
+                        resultsBox.hidden = false;
+                        return;
+                    }
+                    results.forEach(function(person) {
+                        var item = document.createElement('div');
+                        item.className = 'invite-search-item';
+                        item.tabIndex = 0;
+                        var avatarHtml = person.avatar_url
+                            ? '<img src="' + person.avatar_url + '" alt="" class="invite-search-avatar" />'
+                            : '<span class="invite-search-initials">' + person.initials + '</span>';
+                        item.innerHTML = avatarHtml +
+                            '<span class="invite-search-info"><strong>' + person.name + '</strong><small>@' + person.username + '</small></span>';
+                        item.addEventListener('click', function() { selectUser(person); });
+                        item.addEventListener('keydown', function(e) { if (e.key === 'Enter') selectUser(person); });
+                        resultsBox.appendChild(item);
+                    });
+                    resultsBox.hidden = false;
+                })
+                .catch(function() { resultsBox.hidden = true; });
+        }, 250);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!document.getElementById('prod-search-wrap').contains(e.target)) resultsBox.hidden = true;
+    });
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowDown' && !resultsBox.hidden) {
+            e.preventDefault();
+            var first = resultsBox.querySelector('.invite-search-item');
+            if (first) first.focus();
+        }
+    });
+    resultsBox.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); var n = document.activeElement.nextElementSibling; if (n && n.classList.contains('invite-search-item')) n.focus(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); var p = document.activeElement.previousElementSibling; if (p && p.classList.contains('invite-search-item')) p.focus(); else searchInput.focus(); }
+        else if (e.key === 'Escape') { resultsBox.hidden = true; searchInput.focus(); }
+    });
+})();
 
 function claimProduction() {
     if (!confirm('Claim this production? You will become the owner and can manage credits.')) return;

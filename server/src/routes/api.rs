@@ -35,6 +35,7 @@ pub fn router() -> Router {
         .route("/involvements/{id}/reject", post(reject_involvement))
         .route("/feedback", post(submit_feedback))
         .route("/check-username", get(check_username))
+        .route("/people/search", get(people_search))
         .route("/og/profile/{username}", get(og_profile_image))
         .route("/qr/profile/{username}", get(qr_profile_image))
 }
@@ -888,6 +889,85 @@ async fn fix_avatar_urls() -> impl IntoResponse {
             }))
         }
     }
+}
+
+// -----------------------------------------------------------------------------
+// People Search (for invite autocomplete)
+// -----------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+struct PeopleSearchQuery {
+    q: Option<String>,
+}
+
+/// Lightweight people search for invite autocomplete.
+/// Returns up to 8 matches by name, username, or email.
+#[axum::debug_handler]
+async fn people_search(
+    _user: AuthenticatedUser,
+    Query(params): Query<PeopleSearchQuery>,
+) -> impl IntoResponse {
+    use surrealdb::types::SurrealValue;
+
+    let query = match params.q.filter(|q| q.len() >= 2) {
+        Some(q) => q,
+        None => return Json(serde_json::json!({ "results": [] })),
+    };
+
+    let query_lower = query.to_lowercase();
+
+    #[derive(Debug, Deserialize, SurrealValue)]
+    struct PersonHit {
+        id: String,
+        name: Option<String>,
+        username: String,
+        email: String,
+        avatar_url: Option<String>,
+    }
+
+    let sql = "SELECT
+            <string> id AS id,
+            name,
+            username,
+            email,
+            profile.avatar AS avatar_url
+        FROM person
+        WHERE
+            string::lowercase(name ?? '') CONTAINS $q
+            OR string::lowercase(username ?? '') CONTAINS $q
+            OR string::lowercase(email ?? '') CONTAINS $q
+        LIMIT 8";
+
+    let results: Vec<PersonHit> = match DB.query(sql).bind(("q", query_lower)).await {
+        Ok(mut resp) => resp.take(0).unwrap_or_default(),
+        Err(e) => {
+            error!("People search failed: {}", e);
+            return Json(serde_json::json!({ "results": [] }));
+        }
+    };
+
+    let items: Vec<serde_json::Value> = results
+        .into_iter()
+        .map(|p| {
+            let display_name = p.name.unwrap_or_else(|| p.username.clone());
+            let initials = display_name
+                .split_whitespace()
+                .filter_map(|w| w.chars().next())
+                .take(2)
+                .collect::<String>()
+                .to_uppercase();
+            serde_json::json!({
+                "id": p.id,
+                "username": p.username,
+                "email": p.email,
+                "name": display_name,
+                "initials": initials,
+                "avatar_url": p.avatar_url,
+            })
+        })
+        .collect();
+
+    Json(serde_json::json!({ "results": items }))
 }
 
 // -----------------------------------------------------------------------------
