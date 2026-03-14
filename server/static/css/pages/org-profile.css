@@ -551,6 +551,29 @@ button.org-btn-danger:hover:not(:disabled) {
 .org-member-role[data-value="owner"] { color: #7ee8a0; }
 .org-member-role[data-value="admin"] { color: #8bb4e8; }
 
+.org-member-pending {
+    opacity: 0.55;
+    border-style: dashed;
+}
+
+.org-member-status-pending {
+    color: rgba(235, 178, 55, 0.7);
+    font-style: italic;
+}
+
+.org-member-initials {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: rgba(214, 216, 202, 0.4);
+    background: linear-gradient(160deg, #2b2822 0%, #181816 60%, #1e1c18 100%);
+}
+
 /* Admin management */
 #org-member-admin { margin-top: 0.5rem; }
 

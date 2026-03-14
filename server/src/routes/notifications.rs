@@ -65,6 +65,8 @@ pub fn router() -> Router {
         .route("/notifications", get(list_notifications))
         .route("/notifications/mark-read", post(mark_read))
         .route("/notifications/read-all", post(mark_all_read))
+        .route("/notifications/delete", post(delete_notification))
+        .route("/notifications/clear-all", post(clear_all_notifications))
         .route("/invitations/accept", post(accept_invitation))
         .route("/invitations/decline", post(decline_invitation))
 }
@@ -151,18 +153,12 @@ async fn accept_invitation(
     // Find the membership for this user + org
     if let Some(membership) = membership_model.find_by_person_and_org(&user.id, &form.org_id).await? {
         let membership_id = membership.id.to_raw_string();
-        // Remove the "member_of:" prefix if present for the accept call
-        let id_key = if membership_id.starts_with("member_of:") {
-            membership_id.strip_prefix("member_of:").unwrap().to_string()
-        } else {
-            membership_id
-        };
-        membership_model.accept_invitation(&id_key).await?;
+        membership_model.accept_invitation(&membership_id).await?;
         info!("User {} accepted invitation to org {}", user.id, form.org_id);
     }
 
-    // Mark the notification as read
-    notification_model.mark_read(&form.notification_id).await?;
+    // Delete the notification
+    notification_model.delete(&form.notification_id).await?;
 
     // Redirect to the org
     let org_slug = get_org_slug(&form.org_id).await;
@@ -181,17 +177,35 @@ async fn decline_invitation(
     // Find the membership for this user + org
     if let Some(membership) = membership_model.find_by_person_and_org(&user.id, &form.org_id).await? {
         let membership_id = membership.id.to_raw_string();
-        let id_key = if membership_id.starts_with("member_of:") {
-            membership_id.strip_prefix("member_of:").unwrap().to_string()
-        } else {
-            membership_id
-        };
-        membership_model.decline_invitation(&id_key).await?;
+        membership_model.decline_invitation(&membership_id).await?;
         info!("User {} declined invitation to org {}", user.id, form.org_id);
     }
 
-    // Mark the notification as read
-    notification_model.mark_read(&form.notification_id).await?;
+    // Delete the notification
+    notification_model.delete(&form.notification_id).await?;
+
+    Ok(Redirect::to("/notifications"))
+}
+
+async fn delete_notification(
+    AuthenticatedUser(_user): AuthenticatedUser,
+    Form(form): Form<MarkReadForm>,
+) -> Result<Redirect, Error> {
+    debug!("Deleting notification: {}", form.notification_id);
+
+    let notification_model = NotificationModel::new();
+    notification_model.delete(&form.notification_id).await?;
+
+    Ok(Redirect::to("/notifications"))
+}
+
+async fn clear_all_notifications(
+    AuthenticatedUser(user): AuthenticatedUser,
+) -> Result<Redirect, Error> {
+    debug!("Clearing all notifications for user: {}", user.id);
+
+    let notification_model = NotificationModel::new();
+    notification_model.delete_all(&user.id).await?;
 
     Ok(Redirect::to("/notifications"))
 }

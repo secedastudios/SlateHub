@@ -102,13 +102,24 @@
                 {% else %}
                 <div id="org-members-grid">
                     {% for member in members %}
-                    <a href="/{{ member.person_username }}" class="org-member" data-role-type="{{ member.role }}">
+                    <a href="/{{ member.person_username }}" class="org-member{% if member.invitation_status == "pending" %} org-member-pending{% endif %}" data-role-type="{{ member.role }}">
                         <div class="org-member-avatar">
-                            <img src="/api/avatar?id={{ member.person_id.display() }}" alt="{{ member.person_username }}" onerror="this.style.display='none'" />
+                            {% match member.person_avatar %}
+                                {% when Some with (url) %}
+                                <img src="{{ url }}" alt="{{ member.person_username }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+                                <span class="org-member-initials" style="display:none">{{ member.person_username.chars().next().unwrap_or('?') }}</span>
+                                {% when None %}
+                                <img src="/api/avatar?id={{ member.person_id.display() }}" alt="{{ member.person_username }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+                                <span class="org-member-initials" style="display:none">{{ member.person_username.chars().next().unwrap_or('?') }}</span>
+                            {% endmatch %}
                         </div>
                         <div class="org-member-info">
                             <span class="org-member-name">{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}@{{ member.person_username }}{% endif %}</span>
+                            {% if member.invitation_status == "pending" %}
+                            <span class="org-member-role org-member-status-pending">invited</span>
+                            {% else %}
                             <span class="org-member-role" data-value="{{ member.role }}">{{ member.role }}</span>
+                            {% endif %}
                         </div>
                     </a>
                     {% endfor %}

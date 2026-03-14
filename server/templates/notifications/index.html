@@ -17,6 +17,10 @@
 .notifications-header h1 {
     margin: 0;
 }
+.notifications-header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
 .notification-item {
     border: 1px solid var(--border-color, #333);
     border-radius: 6px;
@@ -24,6 +28,7 @@
     margin-bottom: 0.75rem;
     background: var(--surface-color, #1a1a1a);
     transition: background 0.15s;
+    position: relative;
 }
 .notification-item[data-unread="true"] {
     border-left: 3px solid var(--accent-color, #eb5437);
@@ -48,6 +53,7 @@
     display: flex;
     gap: 0.5rem;
     margin-top: 0.75rem;
+    align-items: center;
 }
 .notification-actions form {
     display: inline;
@@ -67,6 +73,38 @@
 .notification-actions button[data-action="decline"] {
     background: transparent;
 }
+.btn-clear-all {
+    background: var(--accent-color, #eb5437);
+    color: white;
+    border: 1px solid var(--accent-color, #eb5437);
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.btn-clear-all:hover { opacity: 0.85; }
+.btn-mark-read-all {
+    background: transparent;
+    color: var(--text-secondary, #aaa);
+    border: 1px solid var(--border-color, #333);
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.btn-dismiss {
+    all: unset;
+    cursor: pointer;
+    color: var(--text-muted, #888);
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.15rem 0.3rem;
+    border-radius: 3px;
+    margin-left: auto;
+    transition: color 0.15s;
+}
+.btn-dismiss:hover { color: var(--accent-color, #eb5437); }
 .empty-state {
     text-align: center;
     padding: 3rem 1rem;
@@ -79,9 +117,14 @@
     <div class="notifications-header">
         <h1>Notifications</h1>
         {% if !notifications.is_empty() %}
-        <form method="post" action="/notifications/read-all">
-            <button type="submit">Mark all read</button>
-        </form>
+        <div class="notifications-header-actions">
+            <form method="post" action="/notifications/read-all">
+                <button type="submit" class="btn-mark-read-all">Mark all read</button>
+            </form>
+            <form method="post" action="/notifications/clear-all">
+                <button type="submit" class="btn-clear-all">Clear all</button>
+            </form>
+        </div>
         {% endif %}
     </div>
 
@@ -126,6 +169,10 @@
                     {% when None %}
                 {% endmatch %}
             {% endif %}
+            <form method="post" action="/notifications/delete" class="btn-dismiss-form">
+                <input type="hidden" name="notification_id" value="{{ notification.id }}" />
+                <button type="submit" class="btn-dismiss" title="Dismiss">&times;</button>
+            </form>
         </div>
     </div>
     {% endfor %}

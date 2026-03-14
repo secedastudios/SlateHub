@@ -127,4 +127,29 @@ impl NotificationModel {
 
         Ok(())
     }
+
+    pub async fn delete(&self, id: &str) -> Result<(), Error> {
+        debug!("Deleting notification: {}", id);
+
+        let id = RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
+
+        DB.query("DELETE $id")
+            .bind(("id", id))
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn delete_all(&self, person_id: &str) -> Result<(), Error> {
+        debug!("Deleting all notifications for person: {}", person_id);
+
+        let person_id =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
+
+        DB.query("DELETE notification WHERE person_id = $person_id")
+            .bind(("person_id", person_id))
+            .await?;
+
+        Ok(())
+    }
 }

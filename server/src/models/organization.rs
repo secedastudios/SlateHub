@@ -59,6 +59,7 @@ pub struct OrganizationMember {
     pub person_id: RecordId,
     pub person_username: String,
     pub person_name: Option<String>,
+    pub person_avatar: Option<String>,
     pub role: String,
     pub joined_at: DateTime<Utc>,
     pub invitation_status: String,
@@ -467,6 +468,9 @@ impl OrganizationModel {
     pub async fn get_members(&self, org_id: &str) -> Result<Vec<OrganizationMember>, Error> {
         debug!("Fetching members for organization: {}", org_id);
 
+        let org_record_id = RecordId::parse_simple(org_id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+
         let result: Vec<OrganizationMember> = DB
             .query(
                 "SELECT
@@ -474,16 +478,17 @@ impl OrganizationModel {
                     in as person_id,
                     in.username as person_username,
                     in.profile.name as person_name,
+                    in.profile.avatar as person_avatar,
                     role,
                     joined_at,
                     invitation_status
                 FROM member_of
-                WHERE out = type::record('organization', $org_id)
+                WHERE out = $org_id
                 ORDER BY
                     role DESC,
                     person_name ASC",
             )
-            .bind(("org_id", org_id.to_string()))
+            .bind(("org_id", org_record_id))
             .await?
             .take(0)
             .unwrap_or_default();

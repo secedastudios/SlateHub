@@ -197,7 +197,7 @@ impl MembershipModel {
             .bind(("status", data.invitation_status.as_str().to_string()))
             .bind(("inviter", data.invited_by.clone()))
             .await?
-            .take("AFTER")?;
+            .take(0)?;
 
         result.ok_or_else(|| {
             error!("Membership creation returned no record");
@@ -277,48 +277,57 @@ impl MembershipModel {
             query_builder = query_builder.bind((key, value.to_string()));
         }
 
-        let result: Option<Membership> = query_builder.await?.take("AFTER")?;
+        let result: Option<Membership> = query_builder.await?.take(0)?;
 
         result.ok_or(Error::NotFound)
     }
 
     /// Accept a membership invitation
-    pub async fn accept_invitation(&self, id: &str) -> Result<Membership, Error> {
+    /// `id` should be the full record ID string, e.g. "member_of:xxx"
+    pub async fn accept_invitation(&self, id: &str) -> Result<(), Error> {
         debug!("Accepting membership invitation: {}", id);
 
-        let query = "UPDATE member_of:$id SET
+        let record_id = RecordId::parse_simple(id)
+            .map_err(|e| Error::BadRequest(format!("Invalid membership ID '{}': {}", id, e)))?;
+
+        let query = "UPDATE $id SET
                      invitation_status = 'accepted',
-                     joined_at = time::now()
-                     RETURN AFTER";
+                     joined_at = time::now()";
 
-        let result: Option<Membership> = DB
-            .query(query)
-            .bind(("id", id.to_string()))
-            .await?
-            .take("AFTER")?;
+        DB.query(query)
+            .bind(("id", record_id))
+            .await?;
 
-        result.ok_or(Error::NotFound)
+        Ok(())
     }
 
     /// Decline a membership invitation
+    /// `id` should be the full record ID string, e.g. "member_of:xxx"
     pub async fn decline_invitation(&self, id: &str) -> Result<(), Error> {
         debug!("Declining membership invitation: {}", id);
 
-        let query = "UPDATE member_of:$id SET
+        let record_id = RecordId::parse_simple(id)
+            .map_err(|e| Error::BadRequest(format!("Invalid membership ID '{}': {}", id, e)))?;
+
+        let query = "UPDATE $id SET
                      invitation_status = 'declined'";
 
-        DB.query(query).bind(("id", id.to_string())).await?;
+        DB.query(query).bind(("id", record_id)).await?;
 
         Ok(())
     }
 
     /// Delete a membership
+    /// `id` should be the full record ID string, e.g. "member_of:xxx"
     pub async fn delete(&self, id: &str) -> Result<(), Error> {
         debug!("Deleting membership: {}", id);
 
-        let query = "DELETE member_of:$id";
+        let record_id = RecordId::parse_simple(id)
+            .map_err(|e| Error::BadRequest(format!("Invalid membership ID '{}': {}", id, e)))?;
 
-        DB.query(query).bind(("id", id.to_string())).await?;
+        let query = "DELETE $id";
+
+        DB.query(query).bind(("id", record_id)).await?;
 
         Ok(())
     }
@@ -330,6 +339,9 @@ impl MembershipModel {
     ) -> Result<Vec<Membership>, Error> {
         debug!("Fetching memberships for organization: {}", org_id);
 
+        let org_record_id = RecordId::parse_simple(org_id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+
         let query = "SELECT
                         id,
                         in as person_id,
@@ -341,12 +353,12 @@ impl MembershipModel {
                         invited_by,
                         invited_at
                      FROM member_of
-                     WHERE out = organization:$org
+                     WHERE out = $org
                      ORDER BY joined_at DESC";
 
         let result: Vec<Membership> = DB
             .query(query)
-            .bind(("org", org_id.to_string()))
+            .bind(("org", org_record_id))
             .await?
             .take(0)
             .unwrap_or_default();
@@ -358,6 +370,9 @@ impl MembershipModel {
     pub async fn get_person_memberships(&self, person_id: &str) -> Result<Vec<Membership>, Error> {
         debug!("Fetching memberships for person: {}", person_id);
 
+        let person_record_id = RecordId::parse_simple(person_id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+
         let query = "SELECT
                         id,
                         in as person_id,
@@ -369,13 +384,13 @@ impl MembershipModel {
                         invited_by,
                         invited_at
                      FROM member_of
-                     WHERE in = person:$person
+                     WHERE in = $person
                      AND invitation_status = 'accepted'
                      ORDER BY joined_at DESC";
 
         let result: Vec<Membership> = DB
             .query(query)
-            .bind(("person", person_id.to_string()))
+            .bind(("person", person_record_id))
             .await?
             .take(0)
             .unwrap_or_default();
