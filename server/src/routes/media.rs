@@ -13,7 +13,7 @@ use std::io::Cursor;
 use tracing::{debug, info};
 use ulid::Ulid;
 
-use crate::{db::DB, error::Error, middleware::AuthenticatedUser, services::s3::s3, verification_limits};
+use crate::{db::DB, error::Error, middleware::AuthenticatedUser, models::organization::OrganizationModel, record_id_ext::RecordIdExt, services::s3::s3, verification_limits};
 
 pub fn router() -> Router {
     Router::new()
@@ -30,6 +30,10 @@ pub fn router() -> Router {
         .route(
             "/organization-logo/{org_slug}",
             get(get_organization_logo_url),
+        )
+        .route(
+            "/delete/organization-logo/{org_slug}",
+            post(delete_organization_logo),
         )
         .route("/debug/list-uploads", get(debug_list_uploads))
         // Media proxy endpoint - catches all media/* paths
@@ -620,19 +624,13 @@ async fn upload_organization_logo(
     );
 
     // Check if user has permission to upload logo for this organization
-    let check_sql = format!(
-        "SELECT * FROM membership WHERE person = person:{} AND organization.slug = '{}' AND role IN ['owner', 'admin'] LIMIT 1",
-        user.id.strip_prefix("person:").unwrap_or(&user.id),
-        org_slug
-    );
-
-    let mut check_response = DB
-        .query(&check_sql)
-        .await
-        .map_err(|e| Error::Internal(format!("Permission check failed: {}", e)))?;
-
-    let membership: Vec<serde_json::Value> = check_response.take(0).unwrap_or_default();
-    if membership.is_empty() {
+    // Check permission using OrganizationModel
+    let model = OrganizationModel::new();
+    let organization = model.get_by_slug(&org_slug).await?;
+    let role = model
+        .get_member_role(&organization.id.to_raw_string(), &user.id)
+        .await?;
+    if role != Some("owner".to_string()) && role != Some("admin".to_string()) {
         return Err(Error::Forbidden);
     }
 
@@ -793,6 +791,41 @@ async fn get_organization_logo_url(
     })))
 }
 
+/// Delete organization logo
+async fn delete_organization_logo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(org_slug): Path<String>,
+) -> Result<Json<serde_json::Value>, Error> {
+    debug!(
+        "User {} deleting organization logo for {}",
+        user.username, org_slug
+    );
+
+    // Check permission using OrganizationModel
+    let model = OrganizationModel::new();
+    let organization = model.get_by_slug(&org_slug).await?;
+    let role = model
+        .get_member_role(&organization.id.to_raw_string(), &user.id)
+        .await?;
+    if role != Some("owner".to_string()) && role != Some("admin".to_string()) {
+        return Err(Error::Forbidden);
+    }
+
+    // Clear the logo field
+    let update_sql = format!(
+        "UPDATE organization SET logo = NONE WHERE slug = '{}'",
+        org_slug
+    );
+
+    DB.query(&update_sql)
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to delete organization logo: {}", e)))?;
+
+    info!("Organization logo deleted for {}", org_slug);
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
 /// Upload organization logo with slug in path
 async fn upload_organization_logo_with_slug(
     AuthenticatedUser(user): AuthenticatedUser,
@@ -858,19 +891,13 @@ async fn upload_organization_logo_with_slug(
     );
 
     // Check if user has permission to upload logo for this organization
-    let check_sql = format!(
-        "SELECT * FROM membership WHERE person = person:{} AND organization.slug = '{}' AND role IN ['owner', 'admin'] LIMIT 1",
-        user.id.strip_prefix("person:").unwrap_or(&user.id),
-        org_slug
-    );
-
-    let mut check_response = DB
-        .query(&check_sql)
-        .await
-        .map_err(|e| Error::Internal(format!("Permission check failed: {}", e)))?;
-
-    let membership: Vec<serde_json::Value> = check_response.take(0).unwrap_or_default();
-    if membership.is_empty() {
+    // Check permission using OrganizationModel
+    let model = OrganizationModel::new();
+    let organization = model.get_by_slug(&org_slug).await?;
+    let role = model
+        .get_member_role(&organization.id.to_raw_string(), &user.id)
+        .await?;
+    if role != Some("owner".to_string()) && role != Some("admin".to_string()) {
         return Err(Error::Forbidden);
     }
 

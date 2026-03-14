@@ -3,7 +3,6 @@
 {% block page_name %}edit-organization{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/orgs.css?v={{ version }}" />
-<link rel="stylesheet" href="/static/css/components/image-upload.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
 <section data-component="org-form-page">
@@ -46,14 +45,26 @@
         <fieldset>
             <legend>Logo</legend>
             <div data-field="logo-upload">
-                {% if organization.logo.is_some() %}
-                <div data-role="logo-preview" style="margin-bottom:1rem;">
-                    <img src="{{ organization.logo.as_ref().unwrap() }}" alt="{{ organization.name }} logo" style="width:80px; height:80px; border-radius:10px; object-fit:cover;" />
-                    <small>Current logo</small>
+                <div id="org-logo-container" data-role="logo-edit-container">
+                    {% if organization.logo.is_some() %}
+                    <img
+                        src="{{ organization.logo.as_ref().unwrap() }}"
+                        alt="{{ organization.name }} logo"
+                        data-role="logo-img"
+                        id="edit-logo-img"
+                    />
+                    {% else %}
+                    <div data-role="logo-initials" id="edit-logo-initials">{{ organization.name.chars().next().unwrap_or('?') }}</div>
+                    {% endif %}
+                    <div data-role="logo-overlay" id="logo-overlay" title="Change logo">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                    </div>
+                    <button type="button" id="logo-delete-btn" data-role="logo-delete" title="Remove logo"{% if organization.logo.is_none() %} style="display:none"{% endif %}>&times;</button>
                 </div>
-                {% endif %}
-                <div id="organization-logo-upload" data-component="image-upload" data-state="ready"></div>
-                <small>Recommended: Square image, at least 400x400 pixels. Supports JPG, PNG, WebP, and SVG.</small>
+                <small>Recommended: Square image, at least 400&times;400 pixels. JPG, PNG, WebP, or SVG.</small>
             </div>
         </fieldset>
 
@@ -124,19 +135,322 @@
     </section>
 </section>
 
-<script src="/static/js/organization-logo-upload.js?v={{ version }}"></script>
+<!-- Logo Upload Modal -->
+<div id="logo-modal" data-component="modal" aria-hidden="true" role="dialog" aria-label="Update organization logo">
+    <div data-role="modal-backdrop" id="logo-modal-backdrop"></div>
+    <div data-role="modal-panel">
+        <header data-role="modal-header">
+            <h2>Update Logo</h2>
+            <button type="button" id="logo-modal-close" data-action="close" aria-label="Close">&times;</button>
+        </header>
+        <div data-role="modal-body">
+            <!-- Step 1: File selection -->
+            <div id="logo-step-select" data-step="select">
+                <div id="logo-dropzone" data-role="dropzone">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <p>Drag and drop your logo here or</p>
+                    <button type="button" id="logo-browse-btn" data-action="browse">Browse Files</button>
+                    <small>JPEG, PNG, WebP, or SVG &mdash; Max 10MB</small>
+                </div>
+                <input type="file" id="logo-modal-file" accept="image/jpeg,image/png,image/webp,image/svg+xml" hidden />
+            </div>
+            <!-- Step 2: Crop & zoom -->
+            <div id="logo-step-crop" data-step="crop" style="display:none">
+                <div id="logo-crop-preview" data-role="crop-preview">
+                    <img id="logo-crop-img" src="" alt="Preview" />
+                    <div data-role="crop-ring"></div>
+                </div>
+                <div id="logo-crop-controls-wrap" data-role="crop-controls">
+                    <label for="logo-zoom-slider">Zoom</label>
+                    <input type="range" id="logo-zoom-slider" min="1" max="3" step="0.05" value="1" />
+                    <span id="logo-zoom-value">1.0x</span>
+                </div>
+                <small data-role="crop-hint">Drag image to reposition</small>
+            </div>
+            <!-- Step 3: Uploading -->
+            <div id="logo-step-upload" data-step="upload" style="display:none">
+                <div data-role="upload-progress">
+                    <div data-role="spinner"></div>
+                    <p>Uploading...</p>
+                </div>
+            </div>
+        </div>
+        <footer data-role="modal-footer">
+            <button type="button" id="logo-modal-cancel" data-action="cancel">Cancel</button>
+            <button type="button" id="logo-modal-save" data-action="save" disabled>Upload</button>
+        </footer>
+    </div>
+</div>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+// Delete org confirmation
+(function() {
     var deleteForm = document.getElementById('form-delete-org');
     if (deleteForm) {
         deleteForm.addEventListener('submit', function(e) {
             if (!confirm('Are you sure you want to delete this organization? This action cannot be undone.')) e.preventDefault();
         });
     }
-    var logoUploadContainer = document.getElementById('organization-logo-upload');
-    if (logoUploadContainer) {
-        new OrganizationLogoUploader('organization-logo-upload', '{{ organization.slug }}');
+})();
+
+/* ---- Logo Modal Upload/Crop ---- */
+(function() {
+    var overlay = document.getElementById('logo-overlay');
+    var deleteBtn = document.getElementById('logo-delete-btn');
+    var logoContainer = document.getElementById('org-logo-container');
+    var orgSlug = '{{ organization.slug }}';
+    var orgInitial = '{{ organization.name.chars().next().unwrap_or('?') }}';
+
+    var modal = document.getElementById('logo-modal');
+    var backdrop = document.getElementById('logo-modal-backdrop');
+    var closeBtn = document.getElementById('logo-modal-close');
+    var cancelBtn = document.getElementById('logo-modal-cancel');
+    var saveBtn = document.getElementById('logo-modal-save');
+    var fileInput = document.getElementById('logo-modal-file');
+    var browseBtn = document.getElementById('logo-browse-btn');
+    var dropzone = document.getElementById('logo-dropzone');
+    var stepSelect = document.getElementById('logo-step-select');
+    var stepCrop = document.getElementById('logo-step-crop');
+    var stepUpload = document.getElementById('logo-step-upload');
+    var cropImg = document.getElementById('logo-crop-img');
+    var zoomSlider = document.getElementById('logo-zoom-slider');
+    var zoomValue = document.getElementById('logo-zoom-value');
+    var cropControls = document.getElementById('logo-crop-controls-wrap');
+
+    var currentFile = null;
+    var isSvg = false;
+    var cropData = { x: 0.5, y: 0.5, zoom: 1.0 };
+    var isDragging = false, dragStartX, dragStartY, dragStartCropX, dragStartCropY;
+    var imgNaturalW = 0, imgNaturalH = 0;
+
+    if (!overlay || !modal) return;
+
+    overlay.addEventListener('click', function(e) { e.stopPropagation(); openModal(); });
+    logoContainer.addEventListener('click', function() { openModal(); });
+
+    function openModal() {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        showStep('select');
     }
-});
+
+    function closeModal() {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        currentFile = null;
+        isSvg = false;
+        cropData = { x: 0.5, y: 0.5, zoom: 1.0 };
+        zoomSlider.value = '1';
+        zoomValue.textContent = '1.0x';
+        fileInput.value = '';
+        saveBtn.disabled = true;
+    }
+
+    function showStep(step) {
+        stepSelect.style.display = step === 'select' ? '' : 'none';
+        stepCrop.style.display = step === 'crop' ? '' : 'none';
+        stepUpload.style.display = step === 'upload' ? '' : 'none';
+        saveBtn.disabled = step !== 'crop';
+        saveBtn.textContent = step === 'upload' ? 'Uploading...' : 'Upload';
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', closeModal);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+    });
+
+    browseBtn.addEventListener('click', function(e) { e.stopPropagation(); fileInput.click(); });
+
+    dropzone.addEventListener('dragover', function(e) { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', function() { dropzone.classList.remove('dragover'); });
+    dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        var file = e.dataTransfer.files[0];
+        if (file && (file.type.startsWith('image/') || file.type === 'image/svg+xml')) handleFile(file);
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    });
+
+    function handleFile(file) {
+        if (file.size > 10 * 1024 * 1024) { alert('File must be under 10MB.'); return; }
+        var valid = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+        if (valid.indexOf(file.type) === -1) { alert('Please select a JPEG, PNG, WebP, or SVG image.'); return; }
+        currentFile = file;
+        isSvg = file.type === 'image/svg+xml';
+        cropData = { x: 0.5, y: 0.5, zoom: 1.0 };
+        zoomSlider.value = '1';
+        zoomValue.textContent = '1.0x';
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            cropImg.src = e.target.result;
+            cropImg.onload = function() {
+                imgNaturalW = cropImg.naturalWidth;
+                imgNaturalH = cropImg.naturalHeight;
+                showStep('crop');
+                if (isSvg) {
+                    cropControls.style.display = 'none';
+                    cropImg.style.cursor = 'default';
+                    cropImg.style.width = '100%';
+                    cropImg.style.height = '100%';
+                    cropImg.style.transform = 'none';
+                } else {
+                    cropControls.style.display = '';
+                    cropImg.style.cursor = 'grab';
+                    updateCropPreview();
+                }
+            };
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Zoom
+    zoomSlider.addEventListener('input', function() {
+        if (isSvg) return;
+        cropData.zoom = parseFloat(zoomSlider.value);
+        zoomValue.textContent = cropData.zoom.toFixed(1) + 'x';
+        updateCropPreview();
+    });
+
+    // Drag to reposition (mouse)
+    var previewBox = document.getElementById('logo-crop-preview');
+    cropImg.addEventListener('mousedown', function(e) {
+        if (isSvg) return;
+        e.preventDefault();
+        isDragging = true;
+        dragStartX = e.clientX; dragStartY = e.clientY;
+        dragStartCropX = cropData.x; dragStartCropY = cropData.y;
+        cropImg.style.cursor = 'grabbing';
+    });
+    document.addEventListener('mousemove', function(e) {
+        if (!isDragging || isSvg) return;
+        var boxSize = previewBox.offsetWidth;
+        var minDim = Math.min(imgNaturalW, imgNaturalH);
+        var displayScale = (boxSize * cropData.zoom) / minDim;
+        var maxOffsetX = imgNaturalW * displayScale - boxSize;
+        var maxOffsetY = imgNaturalH * displayScale - boxSize;
+        var dx = maxOffsetX > 0 ? (e.clientX - dragStartX) / maxOffsetX : 0;
+        var dy = maxOffsetY > 0 ? (e.clientY - dragStartY) / maxOffsetY : 0;
+        cropData.x = Math.max(0, Math.min(1, dragStartCropX - dx));
+        cropData.y = Math.max(0, Math.min(1, dragStartCropY - dy));
+        updateCropPreview();
+    });
+    document.addEventListener('mouseup', function() {
+        if (isDragging) { isDragging = false; if (!isSvg) cropImg.style.cursor = 'grab'; }
+    });
+
+    // Touch drag
+    cropImg.addEventListener('touchstart', function(e) {
+        if (isSvg) return;
+        var t = e.touches[0];
+        isDragging = true;
+        dragStartX = t.clientX; dragStartY = t.clientY;
+        dragStartCropX = cropData.x; dragStartCropY = cropData.y;
+    });
+    cropImg.addEventListener('touchmove', function(e) {
+        if (isSvg) return;
+        e.preventDefault();
+        var t = e.touches[0];
+        var boxSize = previewBox.offsetWidth;
+        var minDim = Math.min(imgNaturalW, imgNaturalH);
+        var displayScale = (boxSize * cropData.zoom) / minDim;
+        var maxOffsetX = imgNaturalW * displayScale - boxSize;
+        var maxOffsetY = imgNaturalH * displayScale - boxSize;
+        var dx = maxOffsetX > 0 ? (t.clientX - dragStartX) / maxOffsetX : 0;
+        var dy = maxOffsetY > 0 ? (t.clientY - dragStartY) / maxOffsetY : 0;
+        cropData.x = Math.max(0, Math.min(1, dragStartCropX - dx));
+        cropData.y = Math.max(0, Math.min(1, dragStartCropY - dy));
+        updateCropPreview();
+    });
+    cropImg.addEventListener('touchend', function() { isDragging = false; });
+
+    function updateCropPreview() {
+        var boxSize = previewBox.offsetWidth;
+        var nw = imgNaturalW, nh = imgNaturalH;
+        if (!nw || !nh) return;
+        var z = cropData.zoom;
+        var minDim = Math.min(nw, nh);
+        var displayScale = (boxSize * z) / minDim;
+        var imgDisplayW = nw * displayScale;
+        var imgDisplayH = nh * displayScale;
+        cropImg.style.width = imgDisplayW + 'px';
+        cropImg.style.height = imgDisplayH + 'px';
+        var maxOffsetX = imgDisplayW - boxSize;
+        var maxOffsetY = imgDisplayH - boxSize;
+        var tx = -cropData.x * maxOffsetX;
+        var ty = -cropData.y * maxOffsetY;
+        cropImg.style.transform = 'translate(' + tx + 'px, ' + ty + 'px)';
+    }
+
+    // Upload
+    saveBtn.addEventListener('click', function() {
+        if (!currentFile) return;
+        showStep('upload');
+
+        var formData = new FormData();
+        formData.append('image', currentFile);
+        var queryParams = '';
+        if (!isSvg) {
+            var params = new URLSearchParams({
+                crop_x: cropData.x, crop_y: cropData.y, crop_zoom: cropData.zoom
+            });
+            queryParams = '?' + params;
+        }
+
+        fetch('/api/media/upload/organization-logo/' + orgSlug + queryParams, { method: 'POST', body: formData, credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) return r.json().then(function(e) { throw new Error(e.error || 'Upload failed'); });
+                return r.json();
+            })
+            .then(function(data) {
+                var url = data.url;
+                var existing = document.getElementById('edit-logo-img');
+                if (existing) {
+                    existing.src = url;
+                } else {
+                    var el = document.getElementById('edit-logo-initials');
+                    var img = document.createElement('img');
+                    img.src = url; img.alt = 'Organization logo';
+                    img.setAttribute('data-role', 'logo-img'); img.id = 'edit-logo-img';
+                    if (el) el.replaceWith(img);
+                    else logoContainer.insertBefore(img, overlay);
+                }
+                deleteBtn.style.display = '';
+                closeModal();
+            })
+            .catch(function(err) { alert('Upload failed: ' + err.message); showStep('crop'); });
+    });
+
+    // Delete logo
+    deleteBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (!confirm('Remove the organization logo?')) return;
+        fetch('/api/media/delete/organization-logo/' + orgSlug, { method: 'POST', credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) { alert(data.error); return; }
+                var img = document.getElementById('edit-logo-img');
+                if (img) {
+                    var div = document.createElement('div');
+                    div.setAttribute('data-role', 'logo-initials');
+                    div.id = 'edit-logo-initials';
+                    div.textContent = orgInitial;
+                    img.replaceWith(div);
+                }
+                deleteBtn.style.display = 'none';
+            })
+            .catch(function(err) { alert('Failed: ' + err.message); });
+    });
+})();
 </script>
 {% endblock %}
