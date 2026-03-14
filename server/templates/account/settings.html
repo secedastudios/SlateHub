@@ -1,0 +1,89 @@
+{% extends "_layout.html" %}
+{% block title %}Account Settings - {{ app_name }}{% endblock %}
+{% block page_name %}account{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/account.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section id="account-main" data-component="account-settings">
+    <header id="account-header">
+        <h1 id="heading-account">Account Settings</h1>
+        <p id="account-subtitle">Manage your login credentials and account</p>
+    </header>
+
+    {% if error.is_some() %}
+    <div class="auth-alert" data-type="error" role="alert">{{ error.as_ref().unwrap() }}</div>
+    {% endif %}
+    {% if success.is_some() %}
+    <div class="auth-alert" data-type="success" role="status">{{ success.as_ref().unwrap() }}</div>
+    {% endif %}
+
+    <div id="account-sections">
+        <!-- Change Password -->
+        <section id="section-password" data-section="password">
+            <h2>Change Password</h2>
+            <form method="post" action="/account/change-password" data-component="form" autocomplete="off">
+                <div class="auth-field">
+                    <label for="input-current-password">Current Password</label>
+                    <input type="password" id="input-current-password" name="current_password" required autocomplete="current-password" />
+                </div>
+                <div class="auth-field">
+                    <label for="input-new-password">New Password</label>
+                    <input type="password" id="input-new-password" name="new_password" required minlength="8" autocomplete="new-password" />
+                    <span class="auth-help">Minimum 8 characters</span>
+                </div>
+                <div class="auth-field">
+                    <label for="input-confirm-password">Confirm New Password</label>
+                    <input type="password" id="input-confirm-password" name="confirm_password" required minlength="8" autocomplete="new-password" />
+                </div>
+                <button type="submit" data-role="btn-primary">Change Password</button>
+            </form>
+        </section>
+
+        <!-- Change Username -->
+        <section id="section-username" data-section="username">
+            <h2>Change Username</h2>
+            <p data-role="current-value">Current username: <strong>{{ username }}</strong></p>
+            <form method="post" action="/account/change-username" data-component="form" autocomplete="off">
+                <div class="auth-field">
+                    <label for="input-new-username">New Username</label>
+                    <input type="text" id="input-new-username" name="new_username" required minlength="3" maxlength="30" pattern="[a-z0-9._]+" placeholder="new.username" autocomplete="off" />
+                    <span class="auth-help">3-30 characters. Letters, numbers, periods, and underscores only.</span>
+                </div>
+                <div class="auth-field">
+                    <label for="input-username-password">Password</label>
+                    <input type="password" id="input-username-password" name="password" required autocomplete="current-password" />
+                    <span class="auth-help">Enter your password to confirm this change</span>
+                </div>
+                <button type="submit" data-role="btn-primary">Change Username</button>
+            </form>
+        </section>
+
+        <!-- Delete Account -->
+        <section id="section-delete" data-section="delete">
+            <h2>Delete Account</h2>
+            <div id="delete-warning" data-role="warning-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <div>
+                    <strong>This action is permanent and cannot be undone.</strong>
+                    <p>Deleting your account will permanently remove your profile, photos, reels, credits, and all associated data. This cannot be reversed.</p>
+                </div>
+            </div>
+            <form method="post" action="/account/delete" data-component="form" autocomplete="off">
+                <div class="auth-field">
+                    <label for="input-delete-password">Password</label>
+                    <input type="password" id="input-delete-password" name="password" required autocomplete="current-password" />
+                </div>
+                <div class="auth-field">
+                    <label for="input-confirm-delete">Type <strong>DELETE</strong> to confirm</label>
+                    <input type="text" id="input-confirm-delete" name="confirm_delete" required pattern="DELETE" placeholder="DELETE" autocomplete="off" />
+                </div>
+                <button type="submit" data-role="btn-danger" onclick="return confirm('Are you absolutely sure you want to delete your account? This cannot be undone.')">Delete My Account</button>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}

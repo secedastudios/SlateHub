@@ -23,7 +23,7 @@ use tracing::{debug, error, info};
 static USERNAME_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z0-9._]+$").unwrap());
 
 const RESERVED_USERNAMES: &[&str] = &[
-    "about", "admin", "api", "auth", "contact", "dashboard", "equipment",
+    "about", "account", "admin", "api", "auth", "contact", "dashboard", "equipment",
     "help", "home", "login", "logout", "notifications", "org", "orgs",
     "people", "productions", "profile", "project", "projects", "search",
     "settings", "signup", "static", "support", "terms", "privacy",

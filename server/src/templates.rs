@@ -692,6 +692,21 @@ pub struct GetVerifiedTemplate {
     pub user: Option<User>,
 }
 
+/// Account settings page template
+#[derive(Template)]
+#[template(path = "account/settings.html")]
+pub struct AccountSettingsTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub username: String,
+    pub email: String,
+    pub error: Option<String>,
+    pub success: Option<String>,
+}
+
 // ============================
 // Equipment Templates
 // ============================
@@ -1051,6 +1066,22 @@ impl PrivacyTemplate {
             version: base.version,
             active_page: base.active_page,
             user: base.user,
+        }
+    }
+}
+
+impl AccountSettingsTemplate {
+    pub fn new(base: BaseContext) -> Self {
+        Self {
+            app_name: base.app_name,
+            year: base.year,
+            version: base.version,
+            active_page: base.active_page,
+            user: base.user,
+            username: String::new(),
+            email: String::new(),
+            error: None,
+            success: None,
         }
     }
 }

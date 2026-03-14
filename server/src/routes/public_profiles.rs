@@ -34,6 +34,7 @@ pub fn router() -> Router {
 /// List of reserved routes that should not be treated as usernames
 const RESERVED_ROUTES: &[&str] = &[
     "about",
+    "account",
     "admin",
     "api",
     "auth",

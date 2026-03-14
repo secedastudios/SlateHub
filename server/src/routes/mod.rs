@@ -8,6 +8,7 @@ use crate::middleware::{
     RequestIdExt, auth_middleware, error_response_middleware, request_id_middleware,
 };
 
+mod account;
 mod api;
 mod auth;
 mod equipment;
@@ -50,6 +51,8 @@ pub fn app() -> Router {
         .merge(profile::router())
         // Mount verification routes
         .merge(verification::router())
+        // Mount account settings routes
+        .merge(account::router())
         // Mount API routes under /api
         .nest("/api", api::router())
         // Mount media routes under /api/media
