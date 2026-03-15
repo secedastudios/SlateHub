@@ -3,6 +3,7 @@ pub mod involvement;
 pub mod location;
 pub mod media;
 pub mod membership;
+pub mod messaging;
 pub mod notification;
 pub mod organization;
 pub mod pending_invitation;

@@ -226,6 +226,7 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         acting_age_range_max: profile.and_then(|p| p.acting_age_range.as_ref().map(|r| r.max)),
         acting_ethnicities: profile.map(|p| p.acting_ethnicities.clone()).unwrap_or_default(),
         nationality: profile.and_then(|p| p.nationality.clone()),
+        messaging_preference: profile_user.messaging_preference.clone(),
     };
 
     // Compute upload limits based on verification status

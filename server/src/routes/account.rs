@@ -26,6 +26,7 @@ pub fn router() -> Router {
         .route("/account", get(account_settings_page))
         .route("/account/change-password", post(change_password))
         .route("/account/change-username", post(change_username))
+        .route("/account/messaging-preference", post(change_messaging_preference))
         .route("/account/delete", post(delete_account))
 }
 
@@ -48,6 +49,7 @@ async fn account_settings_page(
     let mut template = AccountSettingsTemplate::new(base);
     template.username = person.username;
     template.email = person.email;
+    template.messaging_preference = person.messaging_preference;
     template.success = query.success;
 
     let html = template.render().map_err(|e| {
@@ -177,6 +179,37 @@ async fn change_username(
         .into_response())
 }
 
+// -- Messaging Preference --
+
+#[derive(Debug, Deserialize)]
+struct MessagingPreferenceForm {
+    messaging_preference: String,
+}
+
+async fn change_messaging_preference(
+    AuthenticatedUser(current_user): AuthenticatedUser,
+    Form(form): Form<MessagingPreferenceForm>,
+) -> Result<Response, Error> {
+    let pref = form.messaging_preference.as_str();
+    if !["nobody", "verified", "anyone"].contains(&pref) {
+        return render_settings_with_error(&current_user.id, "Invalid messaging preference.").await;
+    }
+
+    let person = Person::find_by_id(&current_user.id)
+        .await?
+        .ok_or(Error::NotFound)?;
+
+    DB.query("UPDATE $id SET messaging_preference = $pref")
+        .bind(("id", person.id.clone()))
+        .bind(("pref", pref.to_string()))
+        .await
+        .map_err(|e| Error::Database(e.to_string()))?;
+
+    info!("Messaging preference changed to '{}' for user: {}", pref, current_user.username);
+
+    render_settings_with_success(&current_user.id, "Messaging preference updated.").await
+}
+
 // -- Delete Account --
 
 #[derive(Debug, Deserialize)]
@@ -256,6 +289,7 @@ async fn render_settings_with_error(person_id: &str, error_msg: &str) -> Result<
     let mut template = AccountSettingsTemplate::new(base);
     template.username = person.username;
     template.email = person.email;
+    template.messaging_preference = person.messaging_preference;
     template.error = Some(error_msg.to_string());
 
     let html = template.render().map_err(|e| {
@@ -283,6 +317,7 @@ async fn render_settings_with_success(
     let mut template = AccountSettingsTemplate::new(base);
     template.username = person.username;
     template.email = person.email;
+    template.messaging_preference = person.messaging_preference;
     template.success = Some(success_msg.to_string());
 
     let html = template.render().map_err(|e| {

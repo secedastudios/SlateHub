@@ -166,7 +166,7 @@ DEFINE INDEX idx_member_of_unique ON member_of FIELDS in, out UNIQUE;
 DEFINE TABLE notification TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD person_id ON notification TYPE record<person> PERMISSIONS FULL;
-DEFINE FIELD notification_type ON notification TYPE string ASSERT $value IN ['invitation', 'invitation_accepted', 'member_joined', 'general'] PERMISSIONS FULL;
+DEFINE FIELD notification_type ON notification TYPE string ASSERT $value IN ['invitation', 'invitation_accepted', 'member_joined', 'general', 'message'] PERMISSIONS FULL;
 DEFINE FIELD title ON notification TYPE string PERMISSIONS FULL;
 DEFINE FIELD message ON notification TYPE string PERMISSIONS FULL;
 DEFINE FIELD link ON notification TYPE option<string> PERMISSIONS FULL;
@@ -275,6 +275,7 @@ DEFINE FIELD profile.awards ON person TYPE array<object> FLEXIBLE PERMISSIONS FU
 DEFINE FIELD profile.resume ON person TYPE option<record<media>> PERMISSIONS FULL;  -- PDF resume upload
 DEFINE FIELD profile.website ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.phone ON person TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD messaging_preference ON person TYPE string DEFAULT 'anyone' ASSERT $value IN ['nobody', 'verified', 'anyone'] PERMISSIONS FULL;
 DEFINE FIELD username ON person TYPE string VALUE string::lowercase($value) PERMISSIONS FULL;
 DEFINE FIELD name ON person TYPE option<string> PERMISSIONS FULL;  -- Optional display name
 DEFINE FIELD is_admin ON person TYPE bool DEFAULT false PERMISSIONS FULL;  -- System administrator flag
@@ -575,11 +576,43 @@ INSERT INTO reserved_names (name) VALUES
 ("about"), ("help"), ("support"), ("contact"), ("privacy"), ("terms"),
 ("blog"), ("news"), ("events"), ("jobs"), ("careers"),
 ("search"), ("explore"), ("discover"), ("trending"),
-("dashboard"), ("home"), ("index"), ("app"),
+("dashboard"), ("home"), ("index"), ("app"), ("messages"), ("notifications"),
 ("static"), ("assets"), ("media"), ("upload"), ("uploads"),
 ("css"), ("js"), ("images"), ("img"), ("docs"), ("documentation"),
 ("www"), ("mail"), ("ftp"), ("ssh"), ("git"),
 ("test"), ("testing"), ("dev"), ("development"), ("staging"), ("prod");
+
+-- ------------------------------
+-- TABLE: conversation (direct messaging)
+-- ------------------------------
+
+DEFINE TABLE conversation TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD participant_a ON conversation TYPE record<person> PERMISSIONS FULL;  -- Canonical: smaller ID
+DEFINE FIELD participant_b ON conversation TYPE record<person> PERMISSIONS FULL;  -- Canonical: larger ID
+DEFINE FIELD last_message_at ON conversation TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON conversation TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_conversation_participants ON conversation FIELDS participant_a, participant_b UNIQUE;
+DEFINE INDEX idx_conversation_participant_a ON conversation FIELDS participant_a;
+DEFINE INDEX idx_conversation_participant_b ON conversation FIELDS participant_b;
+DEFINE INDEX idx_conversation_last_message ON conversation FIELDS last_message_at;
+
+-- ------------------------------
+-- TABLE: direct_message
+-- ------------------------------
+
+DEFINE TABLE direct_message TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD conversation ON direct_message TYPE record<conversation> PERMISSIONS FULL;
+DEFINE FIELD sender ON direct_message TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD body ON direct_message TYPE string PERMISSIONS FULL;
+DEFINE FIELD read ON direct_message TYPE bool DEFAULT false PERMISSIONS FULL;
+DEFINE FIELD created_at ON direct_message TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_dm_conversation ON direct_message FIELDS conversation;
+DEFINE INDEX idx_dm_sender ON direct_message FIELDS sender;
+DEFINE INDEX idx_dm_conversation_created ON direct_message FIELDS conversation, created_at;
 
 -- ------------------------------
 -- EQUIPMENT TRACKING TABLES

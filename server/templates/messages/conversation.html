@@ -1,0 +1,194 @@
+{% extends "_layout.html" %}
+{% block title %}Chat with {{ other_person_name }} - {{ app_name }}{% endblock %}
+{% block page_name %}messages{% endblock %}
+{% block head %}
+<style>
+.chat-page {
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 200px);
+}
+.chat-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color, #333);
+}
+.chat-header a.back-link {
+    color: var(--text-muted, #888);
+    text-decoration: none;
+    font-size: 1.25rem;
+    margin-right: 0.25rem;
+}
+.chat-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.chat-avatar-initials {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--border-color, #333);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.chat-header-info h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+.chat-header-info a {
+    font-size: 0.85rem;
+    color: var(--text-muted, #888);
+    text-decoration: none;
+}
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding: 0.5rem 0;
+}
+.msg {
+    max-width: 75%;
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+.msg[data-own="true"] {
+    align-self: flex-end;
+    background: var(--accent-color, #eb5437);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+.msg[data-own="false"] {
+    align-self: flex-start;
+    background: var(--surface-color, #1a1a1a);
+    border: 1px solid var(--border-color, #333);
+    border-bottom-left-radius: 4px;
+}
+.msg-time {
+    font-size: 0.7rem;
+    color: var(--text-muted, #888);
+    margin-top: 0.2rem;
+}
+.msg[data-own="true"] .msg-time {
+    color: rgba(255,255,255,0.7);
+    text-align: right;
+}
+.chat-input {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color, #333);
+}
+.chat-input textarea {
+    flex: 1;
+    padding: 0.6rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #333);
+    background: var(--surface-color, #1a1a1a);
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.95rem;
+    resize: none;
+    min-height: 42px;
+    max-height: 120px;
+}
+.chat-input textarea:focus {
+    outline: none;
+    border-color: var(--accent-color, #eb5437);
+}
+.chat-input button {
+    padding: 0.6rem 1.25rem;
+    background: var(--accent-color, #eb5437);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    align-self: flex-end;
+}
+.chat-input button:hover {
+    opacity: 0.9;
+}
+.empty-chat {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted, #888);
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="chat-page">
+    <div class="chat-header">
+        <a href="/messages" class="back-link" title="Back to messages">&larr;</a>
+        {% match other_person_avatar %}
+            {% when Some with (url) %}
+            <img src="{{ url }}" alt="" class="chat-avatar" />
+            {% when None %}
+            <div class="chat-avatar-initials">{{ other_person_initials }}</div>
+        {% endmatch %}
+        <div class="chat-header-info">
+            <h2>{{ other_person_name }}</h2>
+            <a href="/{{ other_person_username }}">@{{ other_person_username }}</a>
+        </div>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+        {% if messages.is_empty() %}
+        <div class="empty-chat">
+            <p>No messages yet. Say hello!</p>
+        </div>
+        {% else %}
+        {% for msg in messages %}
+        <div class="msg" data-own="{{ msg.is_own }}">
+            <div class="msg-body">{{ msg.body }}</div>
+            <div class="msg-time">{{ msg.created_at }}</div>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <form method="post" action="/messages/{{ conversation_id }}/reply" class="chat-input">
+        <textarea name="body" placeholder="Type a message..." rows="1" required maxlength="5000"></textarea>
+        <button type="submit">Send</button>
+    </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+    var container = document.getElementById('chat-messages');
+    if (container) container.scrollTop = container.scrollHeight;
+
+    var textarea = document.querySelector('.chat-input textarea');
+    if (textarea) {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+        textarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.closest('form').submit();
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

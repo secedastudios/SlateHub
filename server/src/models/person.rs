@@ -24,7 +24,7 @@ static USERNAME_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z0-9._]+
 
 const RESERVED_USERNAMES: &[&str] = &[
     "about", "account", "admin", "api", "auth", "contact", "dashboard", "equipment",
-    "help", "home", "login", "logout", "notifications", "org", "orgs",
+    "help", "home", "login", "logout", "messages", "notifications", "org", "orgs",
     "people", "productions", "profile", "project", "projects", "search",
     "settings", "signup", "static", "support", "terms", "privacy",
 ];
@@ -83,10 +83,18 @@ pub struct Person {
     #[serde(default)]
     #[surreal(default)]
     pub profile: Option<Profile>,
+    /// Who can send direct messages: "nobody", "verified", "anyone"
+    #[serde(default = "default_messaging_preference")]
+    #[surreal(default = "default_messaging_preference")]
+    pub messaging_preference: String,
 }
 
 fn default_verification_status() -> String {
     "unverified".to_string()
+}
+
+fn default_messaging_preference() -> String {
+    "anyone".to_string()
 }
 
 /// Represents the detailed profile of a person.

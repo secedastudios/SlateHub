@@ -59,6 +59,24 @@
             </form>
         </section>
 
+        <!-- Messaging Preference -->
+        <section id="section-messaging" data-section="messaging">
+            <h2>Direct Messages</h2>
+            <p data-role="current-value">Control who can send you direct messages.</p>
+            <form method="post" action="/account/messaging-preference" data-component="form">
+                <div class="auth-field">
+                    <label for="select-messaging-preference">Accept messages from</label>
+                    <select id="select-messaging-preference" name="messaging_preference" style="width:100%;padding:0.5rem 0.75rem;border-radius:4px;border:1px solid var(--border-color,#333);background:var(--surface-color,#1a1a1a);color:inherit;font-size:0.95rem;">
+                        <option value="anyone" {% if messaging_preference == "anyone" %}selected{% endif %}>Anyone</option>
+                        <option value="verified" {% if messaging_preference == "verified" %}selected{% endif %}>Verified accounts only</option>
+                        <option value="nobody" {% if messaging_preference == "nobody" %}selected{% endif %}>Nobody</option>
+                    </select>
+                    <span class="auth-help">When set to "Nobody", the message button will be hidden on your profile.</span>
+                </div>
+                <button type="submit" data-role="btn-primary">Save Preference</button>
+            </form>
+        </section>
+
         <!-- Delete Account -->
         <section id="section-delete" data-section="delete">
             <h2>Delete Account</h2>

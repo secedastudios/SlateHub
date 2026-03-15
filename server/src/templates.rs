@@ -294,6 +294,7 @@ pub struct ProfileData {
     pub acting_age_range_max: Option<i32>,
     pub acting_ethnicities: Vec<String>,
     pub nationality: Option<String>,
+    pub messaging_preference: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -712,6 +713,7 @@ pub struct AccountSettingsTemplate {
     pub user: Option<User>,
     pub username: String,
     pub email: String,
+    pub messaging_preference: String,
     pub error: Option<String>,
     pub success: Option<String>,
 }
@@ -1089,6 +1091,7 @@ impl AccountSettingsTemplate {
             user: base.user,
             username: String::new(),
             email: String::new(),
+            messaging_preference: "anyone".to_string(),
             error: None,
             success: None,
         }

@@ -385,6 +385,19 @@ impl EmailService {
             .await
     }
 
+    /// Send a generic notification email (e.g., new message notification)
+    pub async fn send_notification_email(
+        &self,
+        to_email: &str,
+        to_name: Option<&str>,
+        subject: &str,
+        text_body: &str,
+        html_body: &str,
+    ) -> Result<()> {
+        self.send_email(to_email, to_name, subject, Some(text_body), Some(html_body))
+            .await
+    }
+
     /// Send feedback notification email
     pub async fn send_feedback_email(
         &self,

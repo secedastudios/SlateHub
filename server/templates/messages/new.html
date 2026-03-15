@@ -1,0 +1,126 @@
+{% extends "_layout.html" %}
+{% block title %}Message {{ recipient_name }} - {{ app_name }}{% endblock %}
+{% block page_name %}messages{% endblock %}
+{% block head %}
+<style>
+.new-message-page {
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+.new-message-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color, #333);
+}
+.new-message-header a.back-link {
+    color: var(--text-muted, #888);
+    text-decoration: none;
+    font-size: 1.25rem;
+    margin-right: 0.25rem;
+}
+.nm-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.nm-avatar-initials {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--border-color, #333);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+}
+.nm-recipient-info h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+.nm-recipient-info a {
+    font-size: 0.85rem;
+    color: var(--text-muted, #888);
+    text-decoration: none;
+}
+.nm-error {
+    background: rgba(235, 84, 55, 0.1);
+    border: 1px solid var(--accent-color, #eb5437);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    color: var(--accent-color, #eb5437);
+}
+.nm-form textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #333);
+    background: var(--surface-color, #1a1a1a);
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.95rem;
+    resize: vertical;
+    min-height: 100px;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+}
+.nm-form textarea:focus {
+    outline: none;
+    border-color: var(--accent-color, #eb5437);
+}
+.nm-form button {
+    padding: 0.6rem 1.5rem;
+    background: var(--accent-color, #eb5437);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.nm-form button:hover {
+    opacity: 0.9;
+}
+.nm-form button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="new-message-page">
+    <div class="new-message-header">
+        <a href="/{{ recipient_username }}" class="back-link" title="Back to profile">&larr;</a>
+        {% match recipient_avatar %}
+            {% when Some with (url) %}
+            <img src="{{ url }}" alt="" class="nm-avatar" />
+            {% when None %}
+            <div class="nm-avatar-initials">{{ recipient_initials }}</div>
+        {% endmatch %}
+        <div class="nm-recipient-info">
+            <h2>Message {{ recipient_name }}</h2>
+            <a href="/{{ recipient_username }}">@{{ recipient_username }}</a>
+        </div>
+    </div>
+
+    {% match error %}
+        {% when Some with (err) %}
+        <div class="nm-error">{{ err }}</div>
+        {% when None %}
+    {% endmatch %}
+
+    {% if error.is_none() %}
+    <form method="post" action="/messages/send" class="nm-form">
+        <input type="hidden" name="recipient_username" value="{{ recipient_username }}" />
+        <textarea name="body" placeholder="Write your message..." required maxlength="5000"></textarea>
+        <button type="submit">Send Message</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

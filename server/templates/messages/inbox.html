@@ -1,0 +1,117 @@
+{% extends "_layout.html" %}
+{% block title %}Messages - {{ app_name }}{% endblock %}
+{% block page_name %}messages{% endblock %}
+{% block head %}
+<style>
+.messages-page {
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+.messages-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.messages-header h1 {
+    margin: 0;
+}
+.conversation-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid var(--border-color, #333);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    background: var(--surface-color, #1a1a1a);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s;
+}
+.conversation-item:hover {
+    background: var(--surface-hover, #222);
+}
+.conversation-item[data-unread="true"] {
+    border-left: 3px solid var(--accent-color, #eb5437);
+}
+.conv-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.conv-avatar-initials {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--border-color, #333);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.conv-info {
+    flex: 1;
+    min-width: 0;
+}
+.conv-name {
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+}
+.conv-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted, #888);
+}
+.conv-badge {
+    background: var(--accent-color, #eb5437);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted, #888);
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="messages-page">
+    <div class="messages-header">
+        <h1>Messages</h1>
+    </div>
+
+    {% if conversations.is_empty() %}
+    <div class="empty-state">
+        <p>No messages yet.</p>
+        <p>Visit someone's profile and send them a message to start a conversation.</p>
+    </div>
+    {% else %}
+    {% for conv in conversations %}
+    <a href="/messages/{{ conv.id }}" class="conversation-item" data-unread="{{ conv.unread_count > 0 }}">
+        {% match conv.other_person_avatar %}
+            {% when Some with (url) %}
+            <img src="{{ url }}" alt="" class="conv-avatar" />
+            {% when None %}
+            <div class="conv-avatar-initials">{{ conv.other_person_initials }}</div>
+        {% endmatch %}
+        <div class="conv-info">
+            <div class="conv-name">{{ conv.other_person_name }}</div>
+            <div class="conv-meta">@{{ conv.other_person_username }} &middot; {{ conv.last_message_at }}</div>
+        </div>
+        {% if conv.unread_count > 0 %}
+        <span class="conv-badge">{{ conv.unread_count }}</span>
+        {% endif %}
+    </a>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

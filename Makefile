@@ -1,4 +1,4 @@
-.PHONY: all help start stop services services-start services-stop server server-start server-stop dev dev-start dev-stop logs logs-services logs-server build clean purge shell check-env db-init dirs wait-db rebuild-embeddings
+.PHONY: all help start stop services services-start services-stop server server-start server-stop dev dev-start dev-stop logs logs-services logs-server build clean purge shell check-env db-init db-seed dirs wait-db rebuild-embeddings
 
 # Default target
 all: help
@@ -45,6 +45,7 @@ help:
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-init           - Initialize database schema"
+	@echo "  make db-seed           - Seed database with test users"
 	@echo "  make db-drop           - Drop database (delete all data)"
 	@echo ""
 	@echo "Search:"
@@ -170,6 +171,54 @@ db-init: wait-db
 rebuild-embeddings:
 	@echo "Rebuilding all vector embeddings for semantic search..."
 	@cd server && cargo run --bin rebuild-embeddings
+
+db-seed: wait-db
+	@echo "Seeding test users..."
+	@docker exec -i slatehub-surrealdb /surreal sql --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main --pretty <<< " \
+		CREATE person SET \
+			username = 'kevin', \
+			email = 'kevin@example.com', \
+			password = crypto::argon2::generate('pass123'), \
+			name = 'Kevin Smith', \
+			verification_status = 'email', \
+			profile = { \
+				name: 'Kevin Smith', \
+				headline: 'Director', \
+				location: 'Los Angeles', \
+				is_public: true, \
+				ethnicity: [], \
+				media_other: [], \
+				reels: [], \
+				skills: [], \
+				social_links: [], \
+				unions: [], \
+				languages: [], \
+				education: [], \
+				awards: [] \
+			}; \
+		CREATE person SET \
+			username = 'chris', \
+			email = 'chris@example.com', \
+			password = crypto::argon2::generate('pass123'), \
+			name = 'Chris Pacino', \
+			verification_status = 'email', \
+			profile = { \
+				name: 'Chris Pacino', \
+				headline: 'Actor', \
+				location: 'Berlin', \
+				is_public: true, \
+				ethnicity: [], \
+				media_other: [], \
+				reels: [], \
+				skills: [], \
+				social_links: [], \
+				unions: [], \
+				languages: [], \
+				education: [], \
+				awards: [] \
+			}; \
+	"
+	@echo "✅ Seeded users: kevin (pass123), chris (pass123)"
 
 db-drop:
 	@echo "⚠️  WARNING: This will delete the entire database!"
