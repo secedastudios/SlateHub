@@ -429,13 +429,15 @@ impl OrganizationModel {
         };
 
         let query = if let Some(inviter) = invited_by {
+            let inviter_rid = RecordId::parse_simple(inviter)
+                .map_err(|e| Error::BadRequest(e.to_string()))?;
             DB.query(
                 "RELATE $person->member_of->$org SET
                         role = $role,
                         invitation_status = $status,
                         invited_by = $inviter",
             )
-            .bind(("inviter", inviter.to_string()))
+            .bind(("inviter", inviter_rid))
         } else {
             DB.query(
                 "RELATE $person->member_of->$org SET
@@ -486,7 +488,7 @@ impl OrganizationModel {
                 WHERE out = $org_id
                 ORDER BY
                     role DESC,
-                    person_name ASC",
+                    in.profile.name ASC",
             )
             .bind(("org_id", org_record_id))
             .await?

@@ -190,12 +190,19 @@ impl MembershipModel {
             .map(|p| serde_json::to_string(p).unwrap_or_default().trim_matches('"').to_string())
             .collect();
 
+        let inviter_rid: Option<RecordId> = data
+            .invited_by
+            .as_deref()
+            .map(|id| RecordId::parse_simple(id))
+            .transpose()
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+
         let result: Option<Membership> = DB
             .query(query)
             .bind(("role", data.role.as_str().to_string()))
             .bind(("permissions", permissions_strs))
             .bind(("status", data.invitation_status.as_str().to_string()))
-            .bind(("inviter", data.invited_by.clone()))
+            .bind(("inviter", inviter_rid))
             .await?
             .take(0)?;
 
