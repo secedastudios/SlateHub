@@ -1,0 +1,62 @@
+{% extends "_layout.html" %}
+{% block title %}Organizations - Admin - {{ app_name }}{% endblock %}
+{% block page_name %}admin{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/admin.css" />
+{% endblock %}
+{% block content %}
+<div class="admin-page">
+    <div class="admin-header">
+        <h1>Organizations</h1>
+    </div>
+
+    <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-item">Dashboard</a>
+        <a href="/admin/feedback" class="admin-nav-item">Feedback</a>
+        <a href="/admin/people" class="admin-nav-item">People</a>
+        <a href="/admin/productions" class="admin-nav-item">Productions</a>
+        <a href="/admin/organizations" class="admin-nav-item active">Organizations</a>
+        <a href="/admin/locations" class="admin-nav-item">Locations</a>
+    </nav>
+
+    <form method="get" action="/admin/organizations" class="admin-search-form">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search by name or slug..." class="admin-search-input" />
+        <button type="submit" class="admin-btn">Search</button>
+    </form>
+
+    {% if organizations.is_empty() %}
+    <div class="admin-empty">No organizations found.</div>
+    {% else %}
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th>Type</th>
+                    <th>Public</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for org in organizations %}
+                <tr>
+                    <td><a href="/orgs/{{ org.slug }}">{{ org.name }}</a></td>
+                    <td>{{ org.slug }}</td>
+                    <td>{{ org.org_type }}</td>
+                    <td>{% if org.is_public %}Yes{% else %}No{% endif %}</td>
+                    <td class="admin-cell-nowrap">{{ org.created_at }}</td>
+                    <td>
+                        <form method="post" action="/admin/organizations/{{ org.id }}/delete" onsubmit="return confirm('Permanently delete organization {{ org.name }}?')">
+                            <button type="submit" class="admin-btn-danger-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -127,7 +127,7 @@ DEFINE FIELD type ON organization TYPE record<organization_type> PERMISSIONS FUL
 DEFINE FIELD description ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD location ON organization TYPE option<string> PERMISSIONS FULL;  -- e.g., "Los Angeles, CA" for search
 DEFINE FIELD website ON organization TYPE option<string> PERMISSIONS FULL;
-DEFINE FIELD social_links ON organization TYPE array<object> PERMISSIONS FULL;
+DEFINE FIELD social_links ON organization TYPE array<object> FLEXIBLE PERMISSIONS FULL;
 
 DEFINE FIELD logo ON organization TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD contact_email ON organization TYPE option<string> PERMISSIONS FULL;
@@ -136,7 +136,7 @@ DEFINE FIELD services ON organization TYPE array<string> PERMISSIONS FULL;  -- e
 DEFINE FIELD founded_year ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD employees_count ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD public ON organization TYPE bool DEFAULT false PERMISSIONS FULL;  -- Whether the organization profile is public
-DEFINE FIELD created_at ON organization TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON organization TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON organization TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD embedding ON organization TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)
 DEFINE FIELD embedding_text ON organization TYPE option<string> PERMISSIONS FULL;  -- Cached text used to generate embedding
@@ -151,10 +151,10 @@ DEFINE TABLE member_of TYPE RELATION FROM person|organization TO organization|pr
 
 DEFINE FIELD role ON member_of TYPE string PERMISSIONS FULL;  -- "owner", "admin", "member"
 DEFINE FIELD permissions ON member_of TYPE array<string> DEFAULT [] PERMISSIONS FULL;  -- Array of permission strings
-DEFINE FIELD joined_at ON member_of TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD joined_at ON member_of TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD invitation_status ON member_of TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined"
 DEFINE FIELD invited_by ON member_of TYPE option<record<person>> PERMISSIONS FULL;
-DEFINE FIELD invited_at ON member_of TYPE option<datetime> DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD invited_at ON member_of TYPE option<datetime> VALUE $value OR time::now() PERMISSIONS FULL;
 
 DEFINE INDEX idx_member_of_unique ON member_of FIELDS in, out UNIQUE;
 
@@ -172,7 +172,7 @@ DEFINE FIELD message ON notification TYPE string PERMISSIONS FULL;
 DEFINE FIELD link ON notification TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD read ON notification TYPE bool DEFAULT false PERMISSIONS FULL;
 DEFINE FIELD related_id ON notification TYPE option<string> PERMISSIONS FULL;
-DEFINE FIELD created_at ON notification TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON notification TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 
 DEFINE INDEX idx_notification_person ON notification FIELDS person_id;
 DEFINE INDEX idx_notification_person_read ON notification FIELDS person_id, read;
@@ -191,7 +191,7 @@ DEFINE FIELD target_slug ON pending_invitation TYPE string PERMISSIONS FULL;
 DEFINE FIELD role ON pending_invitation TYPE string DEFAULT 'member' PERMISSIONS FULL;
 DEFINE FIELD invited_by ON pending_invitation TYPE record<person> PERMISSIONS FULL;
 DEFINE FIELD status ON pending_invitation TYPE string DEFAULT 'pending' ASSERT $value IN ['pending', 'accepted', 'expired'] PERMISSIONS FULL;
-DEFINE FIELD created_at ON pending_invitation TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON pending_invitation TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD expires_at ON pending_invitation TYPE option<datetime> PERMISSIONS FULL;
 
 DEFINE INDEX idx_pending_invitation_email ON pending_invitation FIELDS email;
@@ -208,7 +208,7 @@ DEFINE FIELD code ON verification_codes TYPE string PERMISSIONS FULL;
 DEFINE FIELD code_type ON verification_codes TYPE string ASSERT $value IN ['email_verification', 'password_reset'] PERMISSIONS FULL;
 DEFINE FIELD expires_at ON verification_codes TYPE datetime PERMISSIONS FULL;
 DEFINE FIELD used ON verification_codes TYPE bool DEFAULT false PERMISSIONS FULL;
-DEFINE FIELD created_at ON verification_codes TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON verification_codes TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 
 DEFINE INDEX idx_verification_codes_person ON verification_codes FIELDS person_id;
 DEFINE INDEX idx_verification_codes_code ON verification_codes FIELDS code;
@@ -268,20 +268,23 @@ DEFINE FIELD profile.languages ON person TYPE array<string> PERMISSIONS FULL;  -
 DEFINE FIELD profile.availability ON person TYPE option<string> PERMISSIONS FULL;  -- e.g., "full-time", "freelance", dates
 -- Experience is now modeled via involvement graph edges (person->involvement->production)
 
-DEFINE FIELD profile.education ON person TYPE array<object> PERMISSIONS FULL;  -- Training/schools
+DEFINE FIELD profile.education ON person TYPE array<object> FLEXIBLE PERMISSIONS FULL;  -- Training/schools
 
-DEFINE FIELD profile.awards ON person TYPE array<object> PERMISSIONS FULL;
+DEFINE FIELD profile.awards ON person TYPE array<object> FLEXIBLE PERMISSIONS FULL;
 
 DEFINE FIELD profile.resume ON person TYPE option<record<media>> PERMISSIONS FULL;  -- PDF resume upload
 DEFINE FIELD profile.website ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.phone ON person TYPE option<string> PERMISSIONS FULL;
-DEFINE FIELD username ON person TYPE string VALUE string::lowercase($value) PERMISSIONS FOR select, update FULL, FOR create WHERE FULL;
+DEFINE FIELD username ON person TYPE string VALUE string::lowercase($value) PERMISSIONS FULL;
 DEFINE FIELD name ON person TYPE option<string> PERMISSIONS FULL;  -- Optional display name
+DEFINE FIELD is_admin ON person TYPE bool DEFAULT false PERMISSIONS FULL;  -- System administrator flag
+DEFINE FIELD created_at ON person TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON person TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD embedding ON person TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)
 DEFINE FIELD embedding_text ON person TYPE option<string> PERMISSIONS FULL;  -- Cached text used to generate embedding
 
 DEFINE INDEX person_username_unique ON person FIELDS username UNIQUE;
-DEFINE INDEX person_email_unique ON person FIELDS email;
+DEFINE INDEX person_email_unique ON person FIELDS email UNIQUE;
 DEFINE INDEX idx_person_location ON person FIELDS profile.location;  -- For search
 DEFINE INDEX idx_person_skills ON person FIELDS profile.skills;
 
@@ -299,7 +302,7 @@ DEFINE FIELD start_date ON production TYPE option<datetime> PERMISSIONS FULL;
 DEFINE FIELD end_date ON production TYPE option<datetime> PERMISSIONS FULL;
 DEFINE FIELD description ON production TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD location ON production TYPE option<string> PERMISSIONS FULL;  -- For job-related search
-DEFINE FIELD created_at ON production TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON production TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON production TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD embedding ON production TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)
 DEFINE FIELD embedding_text ON production TYPE option<string> PERMISSIONS FULL;  -- Cached text used to generate embedding
@@ -337,7 +340,7 @@ DEFINE FIELD amenities ON location TYPE option<array<string>> PERMISSIONS FULL;
 DEFINE FIELD restrictions ON location TYPE option<array<string>> PERMISSIONS FULL;
 DEFINE FIELD parking_info ON location TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD max_capacity ON location TYPE option<int> PERMISSIONS FULL;
-DEFINE FIELD created_at ON location TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON location TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON location TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD created_by ON location TYPE record<person|organization> PERMISSIONS FULL;  -- Owner
 DEFINE FIELD embedding ON location TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)
@@ -355,7 +358,7 @@ DEFINE FIELD amount ON location_rate TYPE decimal ASSERT $value >= 0 PERMISSIONS
 DEFINE FIELD currency ON location_rate TYPE string DEFAULT "USD" PERMISSIONS FULL;
 DEFINE FIELD minimum_duration ON location_rate TYPE option<int> PERMISSIONS FULL;  -- Minimum hours/days/weeks/months
 DEFINE FIELD description ON location_rate TYPE option<string> PERMISSIONS FULL;  -- e.g., "Includes lighting equipment"
-DEFINE FIELD created_at ON location_rate TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON location_rate TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 
 -- ------------------------------
 -- RELATION: part_of (for production hierarchy, e.g., episode part_of season, season part_of series)
@@ -363,7 +366,7 @@ DEFINE FIELD created_at ON location_rate TYPE datetime DEFAULT time::now() PERMI
 
 DEFINE TABLE part_of TYPE RELATION FROM production TO production SCHEMAFULL PERMISSIONS NONE;
 
-DEFINE FIELD timestamp ON part_of TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD timestamp ON part_of TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 
 -- ------------------------------
 -- RELATION: involvement (generic for person/organization to production)
@@ -378,8 +381,8 @@ DEFINE FIELD phase ON involvement TYPE option<string> PERMISSIONS FULL;  -- From
 DEFINE FIELD credit_type ON involvement TYPE option<string> PERMISSIONS FULL;  -- "cast", "crew", "above_the_line", "below_the_line"
 DEFINE FIELD status ON involvement TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD description ON involvement TYPE option<string> PERMISSIONS FULL;  -- Additional role notes
-DEFINE FIELD dates ON involvement TYPE option<object> PERMISSIONS FULL; -- {start, end}
-DEFINE FIELD timestamp ON involvement TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD dates ON involvement TYPE option<object> FLEXIBLE PERMISSIONS FULL; -- {start, end}
+DEFINE FIELD timestamp ON involvement TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 
 -- Verification lifecycle: self_asserted → pending_verification → verified / rejected
 -- TMDB imports start as "externally_sourced" (soft-verified)
@@ -405,7 +408,7 @@ DEFINE FIELD end_date ON job_posting TYPE option<datetime> PERMISSIONS FULL;
 DEFINE FIELD posted_by ON job_posting TYPE record<person|organization> PERMISSIONS FULL;  -- Who posted
 DEFINE FIELD related_production ON job_posting TYPE option<record<production>> PERMISSIONS FULL;
 DEFINE FIELD status ON job_posting TYPE string DEFAULT "open" ASSERT $value IN ["open", "closed", "filled"] PERMISSIONS FULL;
-DEFINE FIELD created_at ON job_posting TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON job_posting TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 
 DEFINE INDEX idx_job_location ON job_posting FIELDS location;
 DEFINE INDEX idx_job_type ON job_posting FIELDS job_type;
@@ -418,7 +421,7 @@ DEFINE TABLE application TYPE RELATION FROM person TO job_posting SCHEMAFULL PER
 
 DEFINE FIELD cover_letter ON application TYPE option<string> PERMISSIONS FULL;  -- Application text
 DEFINE FIELD status ON application TYPE string DEFAULT "submitted" ASSERT $value IN ["submitted", "reviewed", "interviewed", "hired", "rejected"] PERMISSIONS FULL;
-DEFINE FIELD applied_at ON application TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD applied_at ON application TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 
 -- ------------------------------
 -- INDEXES (for performance, including semantic prep)
@@ -614,8 +617,8 @@ DEFINE FIELD is_kit_item ON equipment TYPE bool DEFAULT false; -- True if this i
 DEFINE FIELD parent_kit ON equipment TYPE option<record<equipment_kit>>; -- Reference to parent kit if applicable
 DEFINE FIELD is_available ON equipment TYPE bool DEFAULT true;
 DEFINE FIELD current_location ON equipment TYPE option<string>;
-DEFINE FIELD created_at ON equipment TYPE datetime DEFAULT time::now();
-DEFINE FIELD updated_at ON equipment TYPE datetime DEFAULT time::now();
+DEFINE FIELD created_at ON equipment TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON equipment TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE INDEX idx_equipment_serial ON equipment FIELDS serial_number;
 DEFINE INDEX idx_equipment_qr ON equipment FIELDS qr_code UNIQUE;
 DEFINE INDEX idx_equipment_owner_person ON equipment FIELDS owner_person;
@@ -632,8 +635,8 @@ DEFINE FIELD owner_person ON equipment_kit TYPE option<record<person>>;
 DEFINE FIELD owner_organization ON equipment_kit TYPE option<record<organization>>;
 DEFINE FIELD is_available ON equipment_kit TYPE bool DEFAULT true;
 DEFINE FIELD notes ON equipment_kit TYPE option<string>;
-DEFINE FIELD created_at ON equipment_kit TYPE datetime DEFAULT time::now();
-DEFINE FIELD updated_at ON equipment_kit TYPE datetime DEFAULT time::now();
+DEFINE FIELD created_at ON equipment_kit TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON equipment_kit TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE INDEX idx_kit_qr ON equipment_kit FIELDS qr_code UNIQUE;
 DEFINE INDEX idx_kit_owner_person ON equipment_kit FIELDS owner_person;
 DEFINE INDEX idx_kit_owner_org ON equipment_kit FIELDS owner_organization;
@@ -655,8 +658,8 @@ DEFINE FIELD return_notes ON equipment_rental TYPE option<string>;
 DEFINE FIELD checkout_by ON equipment_rental TYPE record<person>; -- Person who processed checkout
 DEFINE FIELD return_by ON equipment_rental TYPE option<record<person>>; -- Person who processed return
 DEFINE FIELD is_active ON equipment_rental TYPE bool DEFAULT true; -- False when returned
-DEFINE FIELD created_at ON equipment_rental TYPE datetime DEFAULT time::now();
-DEFINE FIELD updated_at ON equipment_rental TYPE datetime DEFAULT time::now();
+DEFINE FIELD created_at ON equipment_rental TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON equipment_rental TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE INDEX idx_rental_equipment ON equipment_rental FIELDS equipment_id;
 DEFINE INDEX idx_rental_kit ON equipment_rental FIELDS kit_id;
 DEFINE INDEX idx_rental_renter_person ON equipment_rental FIELDS renter_person;
@@ -679,17 +682,6 @@ INSERT INTO equipment_category (name, description) VALUES
 ("other", "Other equipment");
 
 -- ------------------------------
--- SCHEMA MIGRATION TRACKING
--- Tracks which migrations have been applied to this database.
--- Used by db/migrate.sh to skip already-applied migrations.
--- ------------------------------
-
-DEFINE TABLE schema_migration TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
-DEFINE FIELD name ON schema_migration TYPE string PERMISSIONS FULL;
-DEFINE FIELD applied_at ON schema_migration TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
-DEFINE INDEX idx_schema_migration_name ON schema_migration FIELDS name UNIQUE;
-
--- ------------------------------
 -- PENDING EMBEDDING QUEUE
 -- Durable queue for background embedding generation.
 -- Records are created before spawning the async task, deleted on completion.
@@ -704,7 +696,7 @@ DEFINE TABLE feedback TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD username ON feedback TYPE string PERMISSIONS FULL;
 DEFINE FIELD page_url ON feedback TYPE string PERMISSIONS FULL;
 DEFINE FIELD message ON feedback TYPE string PERMISSIONS FULL;
-DEFINE FIELD created_at ON feedback TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON feedback TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE INDEX idx_feedback_created ON feedback FIELDS created_at;
 
 -- ------------------------------
@@ -714,17 +706,8 @@ DEFINE INDEX idx_feedback_created ON feedback FIELDS created_at;
 DEFINE TABLE pending_embedding TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD target ON pending_embedding TYPE record PERMISSIONS FULL;
 DEFINE FIELD embedding_text ON pending_embedding TYPE string PERMISSIONS FULL;
-DEFINE FIELD created_at ON pending_embedding TYPE datetime DEFAULT time::now() PERMISSIONS FULL;
+DEFINE FIELD created_at ON pending_embedding TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE INDEX idx_pending_embedding_target ON pending_embedding FIELDS target UNIQUE;
-
--- Seed applied migrations (keep in sync with db/migrations/ files)
--- This ensures a fresh db-init doesn't re-run migrations that are already in the schema.
-INSERT INTO schema_migration (name) VALUES
-('0001_pending_embedding'),
-('0002_feedback'),
-('0003_physical_attributes'),
-('0004_profile_reels'),
-('0005_profile_photos');
 
 -- Seed Equipment Conditions
 INSERT INTO equipment_condition (name, description) VALUES

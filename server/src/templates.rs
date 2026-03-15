@@ -28,6 +28,7 @@ pub struct User {
     pub initials: String,           // Fallback initials from username/name
     pub notification_count: u32,    // Unread notification count
     pub is_identity_verified: bool, // Whether user has identity verification
+    pub is_admin: bool,             // Whether user is a system administrator
 }
 
 impl User {
@@ -36,8 +37,8 @@ impl User {
         // Generate initials from name or username
         let initials = Self::generate_initials(&session_user.name);
 
-        // Try to fetch the avatar URL and verification status from the database
-        let (avatar_url, is_identity_verified) =
+        // Try to fetch the avatar URL, verification status, and admin flag from the database
+        let (avatar_url, is_identity_verified, is_admin) =
             Self::fetch_avatar_and_verification(&session_user.id).await;
 
         // Fetch unread notification count
@@ -60,6 +61,7 @@ impl User {
             initials,
             notification_count,
             is_identity_verified,
+            is_admin,
         }
     }
 
@@ -87,22 +89,25 @@ impl User {
         }
     }
 
-    /// Fetch avatar URL and verification status from the database
-    async fn fetch_avatar_and_verification(person_id: &str) -> (Option<String>, bool) {
+    /// Fetch avatar URL, verification status, and admin flag from the database
+    async fn fetch_avatar_and_verification(person_id: &str) -> (Option<String>, bool, bool) {
         // Ensure we have full record ID
-        let person_record = if person_id.starts_with("person:") {
-            person_id.to_string()
+        let person_rid = if person_id.starts_with("person:") {
+            surrealdb::types::RecordId::parse_simple(person_id).ok()
         } else {
-            format!("person:{}", person_id)
+            Some(surrealdb::types::RecordId::new("person", person_id))
         };
 
-        // Query for the person's avatar URL and verification status
-        let sql = format!(
-            "SELECT profile.avatar, verification_status FROM {} LIMIT 1",
-            person_record
-        );
+        let Some(rid) = person_rid else {
+            return (None, false, false);
+        };
 
-        if let Ok(mut response) = DB.query(&sql).await {
+        // Query for the person's avatar URL, verification status, and admin flag
+        if let Ok(mut response) = DB
+            .query("SELECT profile.avatar, verification_status, is_admin FROM ONLY $pid LIMIT 1")
+            .bind(("pid", rid))
+            .await
+        {
             if let Ok(result) = response.take::<Option<serde_json::Value>>(0) {
                 if let Some(data) = result {
                     let avatar_url = data
@@ -115,12 +120,16 @@ impl User {
                         .and_then(|v| v.as_str())
                         .map(|s| s == "identity")
                         .unwrap_or(false);
-                    return (avatar_url, is_verified);
+                    let is_admin = data
+                        .get("is_admin")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    return (avatar_url, is_verified, is_admin);
                 }
             }
         }
 
-        (None, false)
+        (None, false, false)
     }
 }
 

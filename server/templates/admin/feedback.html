@@ -1,0 +1,55 @@
+{% extends "_layout.html" %}
+{% block title %}Feedback - Admin - {{ app_name }}{% endblock %}
+{% block page_name %}admin{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/admin.css" />
+{% endblock %}
+{% block content %}
+<div class="admin-page">
+    <div class="admin-header">
+        <h1>Feedback</h1>
+    </div>
+
+    <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-item">Dashboard</a>
+        <a href="/admin/feedback" class="admin-nav-item active">Feedback</a>
+        <a href="/admin/people" class="admin-nav-item">People</a>
+        <a href="/admin/productions" class="admin-nav-item">Productions</a>
+        <a href="/admin/organizations" class="admin-nav-item">Organizations</a>
+        <a href="/admin/locations" class="admin-nav-item">Locations</a>
+    </nav>
+
+    {% if feedback_items.is_empty() %}
+    <div class="admin-empty">No feedback yet.</div>
+    {% else %}
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Page</th>
+                    <th>Message</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in feedback_items %}
+                <tr>
+                    <td>{{ item.username }}</td>
+                    <td class="admin-cell-truncate" title="{{ item.page_url }}">{{ item.page_url }}</td>
+                    <td>{{ item.message }}</td>
+                    <td class="admin-cell-nowrap">{{ item.created_at }}</td>
+                    <td>
+                        <form method="post" action="/admin/feedback/{{ item.id }}/delete" onsubmit="return confirm('Delete this feedback?')">
+                            <button type="submit" class="admin-btn-danger-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

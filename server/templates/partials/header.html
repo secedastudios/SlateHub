@@ -144,6 +144,24 @@
                                 role="menuitem"
                             >Account Settings</a>
                             </li>
+                            {% if user.is_admin %}
+                            <li role="none">
+                                <hr data-role="divider" aria-hidden="true" />
+                            </li>
+                            <li role="none">
+                                <a
+                                href="/admin"
+                                id="link-menu-admin"
+                                role="menuitem"
+                                data-role="admin-item"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:middle;margin-right:4px">
+                                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                                </svg>
+                                Admin
+                            </a>
+                            </li>
+                            {% endif %}
                             <li role="none">
                                 <hr data-role="divider" aria-hidden="true" />
                             </li>

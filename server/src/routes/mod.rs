@@ -9,6 +9,7 @@ use crate::middleware::{
 };
 
 mod account;
+mod admin;
 mod api;
 mod auth;
 mod equipment;
@@ -53,6 +54,8 @@ pub fn app() -> Router {
         .merge(verification::router())
         // Mount account settings routes
         .merge(account::router())
+        // Mount admin routes
+        .merge(admin::router())
         // Mount API routes under /api
         .nest("/api", api::router())
         // Mount media routes under /api/media

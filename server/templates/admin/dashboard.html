@@ -1,0 +1,67 @@
+{% extends "_layout.html" %}
+{% block title %}Admin - {{ app_name }}{% endblock %}
+{% block page_name %}admin{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/admin.css" />
+{% endblock %}
+{% block content %}
+<div class="admin-page">
+    <div class="admin-header">
+        <h1>Admin Dashboard</h1>
+    </div>
+
+    <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-item active">Dashboard</a>
+        <a href="/admin/feedback" class="admin-nav-item">Feedback</a>
+        <a href="/admin/people" class="admin-nav-item">People</a>
+        <a href="/admin/productions" class="admin-nav-item">Productions</a>
+        <a href="/admin/organizations" class="admin-nav-item">Organizations</a>
+        <a href="/admin/locations" class="admin-nav-item">Locations</a>
+    </nav>
+
+    <div class="admin-stats-grid">
+        <div class="admin-stat-card">
+            <div class="admin-stat-number">{{ stats.person_count }}</div>
+            <div class="admin-stat-label">People</div>
+            <a href="/admin/people" class="admin-stat-link">Manage</a>
+        </div>
+        <div class="admin-stat-card">
+            <div class="admin-stat-number">{{ stats.production_count }}</div>
+            <div class="admin-stat-label">Productions</div>
+            <a href="/admin/productions" class="admin-stat-link">Manage</a>
+        </div>
+        <div class="admin-stat-card">
+            <div class="admin-stat-number">{{ stats.location_count }}</div>
+            <div class="admin-stat-label">Locations</div>
+            <a href="/admin/locations" class="admin-stat-link">Manage</a>
+        </div>
+        <div class="admin-stat-card">
+            <div class="admin-stat-number">{{ stats.organization_count }}</div>
+            <div class="admin-stat-label">Organizations</div>
+            <a href="/admin/organizations" class="admin-stat-link">Manage</a>
+        </div>
+        <div class="admin-stat-card">
+            <div class="admin-stat-number">{{ stats.feedback_count }}</div>
+            <div class="admin-stat-label">Feedback</div>
+            <a href="/admin/feedback" class="admin-stat-link">View</a>
+        </div>
+    </div>
+
+    <div class="admin-section" style="margin-top: 2rem;">
+        <h2 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary, #eee);">Tools</h2>
+        <div class="admin-stats-grid">
+            <div class="admin-stat-card" style="text-align: left;">
+                <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary, #eee); margin-bottom: 0.5rem;">Rebuild Embeddings</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted, #888); margin-bottom: 0.75rem;">Regenerate all vector embeddings for people, organizations, locations, and productions. This runs in the background.</div>
+                {% if embedding_rebuild_in_progress %}
+                <span class="admin-badge" style="background: #1a2a3a; color: #60a5fa;">Rebuild in progress...</span>
+                {% else %}
+                <form method="post" action="/admin/rebuild-embeddings" onsubmit="return confirm('This will rebuild all embeddings. It may take several minutes. Continue?')">
+                    <button type="submit" class="admin-btn">Rebuild All Embeddings</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,4 +1,4 @@
-.PHONY: all help start stop services services-start services-stop server server-start server-stop dev dev-start dev-stop logs logs-services logs-server build clean purge shell check-env db-init db-migrate db-migrate-status dirs wait-db rebuild-embeddings
+.PHONY: all help start stop services services-start services-stop server server-start server-stop dev dev-start dev-stop logs logs-services logs-server build clean purge shell check-env db-init dirs wait-db rebuild-embeddings
 
 # Default target
 all: help
@@ -45,8 +45,6 @@ help:
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-init           - Initialize database schema"
-	@echo "  make db-migrate        - Run all pending migrations"
-	@echo "  make db-migrate-status - Show applied vs available migrations"
 	@echo "  make db-drop           - Drop database (delete all data)"
 	@echo ""
 	@echo "Search:"
@@ -168,21 +166,6 @@ db-init: wait-db
 	else \
 		echo "Warning: db/schema.surql not found. Skipping initialization."; \
 	fi
-
-db-migrate: wait-db
-	@bash db/migrate.sh "$(DB_USER)" "$(DB_PASS)" slatehub main
-
-db-migrate-status: wait-db
-	@echo "Applied migrations:"
-	@echo "SELECT name, applied_at FROM schema_migration ORDER BY name;" | \
-		docker exec -i slatehub-surrealdb /surreal sql \
-		--endpoint http://localhost:8000 \
-		--username "$(DB_USER)" --password "$(DB_PASS)" \
-		--namespace slatehub --database main \
-		--hide-welcome 2>/dev/null || echo "  (none — schema_migration table may not exist yet)"
-	@echo ""
-	@echo "Available migration files:"
-	@ls -1 db/migrations/*.surql 2>/dev/null || echo "  (none)"
 
 rebuild-embeddings:
 	@echo "Rebuilding all vector embeddings for semantic search..."
