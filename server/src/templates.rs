@@ -295,6 +295,7 @@ pub struct ProfileData {
     pub acting_ethnicities: Vec<String>,
     pub nationality: Option<String>,
     pub messaging_preference: String,
+    pub phone: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -714,6 +715,7 @@ pub struct AccountSettingsTemplate {
     pub username: String,
     pub email: String,
     pub messaging_preference: String,
+    pub show_contact_info: bool,
     pub error: Option<String>,
     pub success: Option<String>,
 }
@@ -1092,6 +1094,7 @@ impl AccountSettingsTemplate {
             username: String::new(),
             email: String::new(),
             messaging_preference: "anyone".to_string(),
+            show_contact_info: false,
             error: None,
             success: None,
         }

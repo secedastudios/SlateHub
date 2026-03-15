@@ -389,10 +389,16 @@
                 </div>
                 {% endif %}
 
-                {% if profile.is_own_profile %}
+                {% if profile.is_own_profile || profile.is_public %}
                 <div data-role="detail-row">
                     <dt>Email</dt>
-                    <dd data-private="true">{{ profile.email }}</dd>
+                    <dd {% if profile.is_own_profile && !profile.is_public %}data-private="true"{% endif %}>{{ profile.email }}</dd>
+                </div>
+                {% endif %}
+                {% if profile.phone.is_some() && (profile.is_own_profile || profile.is_public) %}
+                <div data-role="detail-row">
+                    <dt>Phone</dt>
+                    <dd {% if profile.is_own_profile && !profile.is_public %}data-private="true"{% endif %}>{{ profile.phone.as_ref().unwrap() }}</dd>
                 </div>
                 {% endif %}
 

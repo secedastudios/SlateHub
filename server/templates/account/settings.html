@@ -77,6 +77,22 @@
             </form>
         </section>
 
+        <!-- Contact Visibility -->
+        <section id="section-contact" data-section="contact">
+            <h2>Contact Information</h2>
+            <p data-role="current-value">Choose whether to display your email and phone number on your public profile.</p>
+            <form method="post" action="/account/contact-visibility" data-component="form">
+                <div class="auth-field">
+                    <label for="checkbox-show-contact" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                        <input type="checkbox" id="checkbox-show-contact" name="show_contact_info" {% if show_contact_info %}checked{% endif %} style="width:auto;" />
+                        Show my email and phone number on my profile
+                    </label>
+                    <span class="auth-help">When disabled, your contact details are only visible to you.</span>
+                </div>
+                <button type="submit" data-role="btn-primary">Save</button>
+            </form>
+        </section>
+
         <!-- Delete Account -->
         <section id="section-delete" data-section="delete">
             <h2>Delete Account</h2>

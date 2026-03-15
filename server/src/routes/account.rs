@@ -27,6 +27,7 @@ pub fn router() -> Router {
         .route("/account/change-password", post(change_password))
         .route("/account/change-username", post(change_username))
         .route("/account/messaging-preference", post(change_messaging_preference))
+        .route("/account/contact-visibility", post(change_contact_visibility))
         .route("/account/delete", post(delete_account))
 }
 
@@ -50,6 +51,7 @@ async fn account_settings_page(
     template.username = person.username;
     template.email = person.email;
     template.messaging_preference = person.messaging_preference;
+    template.show_contact_info = person.profile.as_ref().map(|p| p.is_public).unwrap_or(false);
     template.success = query.success;
 
     let html = template.render().map_err(|e| {
@@ -210,6 +212,37 @@ async fn change_messaging_preference(
     render_settings_with_success(&current_user.id, "Messaging preference updated.").await
 }
 
+// -- Contact Visibility --
+
+#[derive(Debug, Deserialize)]
+struct ContactVisibilityForm {
+    show_contact_info: Option<String>,
+}
+
+async fn change_contact_visibility(
+    AuthenticatedUser(current_user): AuthenticatedUser,
+    Form(form): Form<ContactVisibilityForm>,
+) -> Result<Response, Error> {
+    let show = form.show_contact_info.as_deref() == Some("on");
+
+    let person = Person::find_by_id(&current_user.id)
+        .await?
+        .ok_or(Error::NotFound)?;
+
+    DB.query("UPDATE $id SET profile.is_public = $show")
+        .bind(("id", person.id.clone()))
+        .bind(("show", show))
+        .await
+        .map_err(|e| Error::Database(e.to_string()))?;
+
+    info!(
+        "Contact visibility changed to '{}' for user: {}",
+        show, current_user.username
+    );
+
+    render_settings_with_success(&current_user.id, "Contact visibility updated.").await
+}
+
 // -- Delete Account --
 
 #[derive(Debug, Deserialize)]
@@ -290,6 +323,7 @@ async fn render_settings_with_error(person_id: &str, error_msg: &str) -> Result<
     template.username = person.username;
     template.email = person.email;
     template.messaging_preference = person.messaging_preference;
+    template.show_contact_info = person.profile.as_ref().map(|p| p.is_public).unwrap_or(false);
     template.error = Some(error_msg.to_string());
 
     let html = template.render().map_err(|e| {
@@ -318,6 +352,7 @@ async fn render_settings_with_success(
     template.username = person.username;
     template.email = person.email;
     template.messaging_preference = person.messaging_preference;
+    template.show_contact_info = person.profile.as_ref().map(|p| p.is_public).unwrap_or(false);
     template.success = Some(success_msg.to_string());
 
     let html = template.render().map_err(|e| {

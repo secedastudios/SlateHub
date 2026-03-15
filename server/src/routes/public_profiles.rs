@@ -223,6 +223,7 @@ async fn user_profile(
         acting_ethnicities: profile.map(|p| p.acting_ethnicities.clone()).unwrap_or_default(),
         nationality: profile.and_then(|p| p.nationality.clone()),
         messaging_preference: profile_user.messaging_preference.clone(),
+        phone: profile.and_then(|p| p.phone.clone()),
     };
 
     // Create and render template using the same ProfileTemplate
