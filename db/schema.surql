@@ -592,6 +592,7 @@ DEFINE FIELD participant_a ON conversation TYPE record<person> PERMISSIONS FULL;
 DEFINE FIELD participant_b ON conversation TYPE record<person> PERMISSIONS FULL;  -- Canonical: larger ID
 DEFINE FIELD last_message_at ON conversation TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD created_at ON conversation TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD deleted_by ON conversation TYPE array<record<person>> DEFAULT [] PERMISSIONS FULL;
 
 DEFINE INDEX idx_conversation_participants ON conversation FIELDS participant_a, participant_b UNIQUE;
 DEFINE INDEX idx_conversation_participant_a ON conversation FIELDS participant_a;

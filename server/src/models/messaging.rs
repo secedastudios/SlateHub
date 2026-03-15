@@ -10,6 +10,8 @@ pub struct Conversation {
     pub participant_b: RecordId,
     pub last_message_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
+    #[serde(default)]
+    pub deleted_by: Vec<RecordId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
@@ -115,8 +117,8 @@ impl MessagingModel {
             .await?
             .take(0)?;
 
-        // Update conversation last_message_at
-        DB.query("UPDATE $conv SET last_message_at = time::now()")
+        // Update conversation last_message_at and clear deleted_by so it reappears for both
+        DB.query("UPDATE $conv SET last_message_at = time::now(), deleted_by = []")
             .bind(("conv", conv_rid))
             .await?;
 
@@ -134,7 +136,8 @@ impl MessagingModel {
         let conversations: Vec<Conversation> = DB
             .query(
                 "SELECT * FROM conversation
-                 WHERE participant_a = $pid OR participant_b = $pid
+                 WHERE (participant_a = $pid OR participant_b = $pid)
+                   AND $pid NOT IN deleted_by
                  ORDER BY last_message_at DESC",
             )
             .bind(("pid", rid))
@@ -201,7 +204,8 @@ impl MessagingModel {
                  WHERE sender != $pid AND read = false
                  AND conversation IN (
                      SELECT VALUE id FROM conversation
-                     WHERE participant_a = $pid OR participant_b = $pid
+                     WHERE (participant_a = $pid OR participant_b = $pid)
+                       AND $pid NOT IN deleted_by
                  )
                  GROUP ALL",
             )
@@ -210,6 +214,26 @@ impl MessagingModel {
             .take(0)?;
 
         Ok(result.map(|r| r.count).unwrap_or(0))
+    }
+
+    /// Soft-delete a conversation for a specific person.
+    /// The conversation remains visible to the other participant.
+    pub async fn delete_conversation(
+        &self,
+        conversation_id: &str,
+        person_id: &str,
+    ) -> Result<(), Error> {
+        let conv_rid = RecordId::parse_simple(conversation_id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let person_rid = RecordId::parse_simple(person_id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+
+        DB.query("UPDATE $conv SET deleted_by += $pid")
+            .bind(("conv", conv_rid))
+            .bind(("pid", person_rid))
+            .await?;
+
+        Ok(())
     }
 
     /// Get the other participant's person ID from a conversation.

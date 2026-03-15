@@ -1,10 +1,12 @@
 use askama::Template;
 use axum::{
-    Form, Router,
-    extract::Path,
+    Form, Json, Router,
+    extract::{Path, Query as AxumQuery},
+    http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use tracing::{debug, error};
 
@@ -72,6 +74,7 @@ struct ConversationTemplate {
     other_person_avatar: Option<String>,
     other_person_initials: String,
     messages: Vec<MessageView>,
+    last_message_time: String,
 }
 
 #[derive(Template)]
@@ -96,6 +99,50 @@ pub fn router() -> Router {
         .route("/messages/send", post(send_message))
         .route("/messages/{conversation_id}", get(view_conversation))
         .route("/messages/{conversation_id}/reply", post(reply_message))
+        .route(
+            "/messages/{conversation_id}/reply-sse",
+            post(reply_message_sse),
+        )
+        .route(
+            "/messages/{conversation_id}/new-messages",
+            get(poll_new_messages),
+        )
+        .route(
+            "/messages/{conversation_id}/delete",
+            post(delete_conversation),
+        )
+}
+
+// -- SSE helpers for Datastar --
+
+fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
+    let mut s = format!(
+        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
+        selector, mode
+    );
+    if !elements.is_empty() {
+        s += &format!("data: elements {}\n", elements.replace('\n', " "));
+    }
+    s += "\n";
+    s
+}
+
+fn sse_patch_signals(signals: &str) -> String {
+    format!(
+        "event: datastar-patch-signals\ndata: signals {}\n\n",
+        signals
+    )
+}
+
+fn sse_response(body: String) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "text/event-stream"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
 }
 
 // -- Handlers --
@@ -192,6 +239,10 @@ async fn view_conversation(
 
     // Get messages
     let raw_messages = model.get_messages(&conversation_id, 200).await?;
+    let last_message_time = raw_messages
+        .last()
+        .map(|m| m.created_at.to_rfc3339())
+        .unwrap_or_else(|| Utc::now().to_rfc3339());
     let messages: Vec<MessageView> = raw_messages
         .into_iter()
         .map(|m| {
@@ -220,6 +271,7 @@ async fn view_conversation(
         other_person_avatar: other_person.get_avatar_url(),
         other_person_initials: other_person.get_initials(),
         messages,
+        last_message_time,
     };
 
     let html = template.render().map_err(|e| {
@@ -376,6 +428,170 @@ async fn reply_message(
     }
 
     Ok(Redirect::to(&format!("/messages/{}", conversation_id)))
+}
+
+// -- Datastar SSE reply handler --
+
+#[derive(Debug, Deserialize)]
+struct ReplySsePayload {
+    body: String,
+}
+
+async fn reply_message_sse(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(conversation_id): Path<String>,
+    Json(payload): Json<ReplySsePayload>,
+) -> Result<Response, Error> {
+    let body = payload.body.trim();
+    if body.is_empty() {
+        return Err(Error::BadRequest("Message cannot be empty.".to_string()));
+    }
+    if body.len() > 5000 {
+        return Err(Error::BadRequest(
+            "Message is too long (max 5000 characters).".to_string(),
+        ));
+    }
+
+    let model = MessagingModel::new();
+
+    // Verify the user is a participant
+    let conversations = model.get_conversations(&user.id).await?;
+    let conv = conversations
+        .iter()
+        .find(|c| c.id.to_raw_string() == conversation_id)
+        .ok_or(Error::NotFound)?;
+
+    let sanitized_body = ammonia::clean(body);
+    model
+        .send_message(&conversation_id, &user.id, &sanitized_body)
+        .await?;
+
+    // Notify the other participant
+    let other_id = MessagingModel::get_other_participant(conv, &user.id);
+    if let Ok(Some(recipient)) = Person::find_by_id(&other_id).await {
+        send_new_message_notification(
+            &user.id,
+            &user.username,
+            &recipient,
+            &conversation_id,
+            &sanitized_body,
+        )
+        .await;
+    }
+
+    // Build SSE response
+    let now = Utc::now();
+    let time_str = now.format("%b %d, %H:%M").to_string();
+    let fragment = format!(
+        r#"<div class="msg" data-own="true"><div class="msg-body">{}</div><div class="msg-time">{}</div></div>"#,
+        sanitized_body, time_str
+    );
+
+    let mut sse = String::new();
+    // Remove empty chat placeholder if present
+    sse += &sse_patch_elements(".empty-chat", "remove", "");
+    // Append the new message bubble
+    sse += &sse_patch_elements("#chat-messages", "append", &fragment);
+    // Clear the body signal so the textarea resets
+    sse += &sse_patch_signals(r#"{body: ""}"#);
+
+    Ok(sse_response(sse))
+}
+
+// -- Poll for new messages --
+
+#[derive(Debug, Deserialize)]
+struct PollQuery {
+    after: Option<String>,
+}
+
+async fn poll_new_messages(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(conversation_id): Path<String>,
+    AxumQuery(query): AxumQuery<PollQuery>,
+) -> Result<Response, Error> {
+    let model = MessagingModel::new();
+
+    // Verify the user is a participant
+    let conversations = model.get_conversations(&user.id).await?;
+    conversations
+        .iter()
+        .find(|c| c.id.to_raw_string() == conversation_id)
+        .ok_or(Error::NotFound)?;
+
+    // Parse after timestamp
+    let after: Option<DateTime<Utc>> = query
+        .after
+        .as_ref()
+        .and_then(|s| s.parse::<DateTime<Utc>>().ok());
+
+    // Get messages and filter to new ones from the other person
+    let raw_messages = model.get_messages(&conversation_id, 500).await?;
+    let new_messages: Vec<_> = raw_messages
+        .into_iter()
+        .filter(|m| {
+            // Only messages from the other person (sender already sees their own via SSE)
+            if m.sender.to_raw_string() == user.id {
+                return false;
+            }
+            match after {
+                Some(ts) => m.created_at > ts,
+                None => false,
+            }
+        })
+        .collect();
+
+    if new_messages.is_empty() {
+        return Ok(axum::http::StatusCode::NO_CONTENT.into_response());
+    }
+
+    // Mark as read
+    model
+        .mark_conversation_read(&conversation_id, &user.id)
+        .await?;
+
+    // Build HTML fragments and track latest timestamp
+    let mut latest_ts = after.unwrap_or_else(Utc::now);
+    let mut html = String::new();
+    for m in &new_messages {
+        let time_str = m.created_at.format("%b %d, %H:%M").to_string();
+        html += &format!(
+            r#"<div class="msg" data-own="false"><div class="msg-body">{}</div><div class="msg-time">{}</div></div>"#,
+            m.body, time_str
+        );
+        if m.created_at > latest_ts {
+            latest_ts = m.created_at;
+        }
+    }
+
+    let ts_header = latest_ts.to_rfc3339();
+    let mut response = Html(html).into_response();
+    response
+        .headers_mut()
+        .insert("X-Last-Message-Time", ts_header.parse().unwrap());
+    Ok(response)
+}
+
+// -- Delete conversation --
+
+async fn delete_conversation(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(conversation_id): Path<String>,
+) -> Result<Redirect, Error> {
+    let model = MessagingModel::new();
+
+    // Verify the user is a participant
+    let conversations = model.get_conversations(&user.id).await?;
+    conversations
+        .iter()
+        .find(|c| c.id.to_raw_string() == conversation_id)
+        .ok_or(Error::NotFound)?;
+
+    model
+        .delete_conversation(&conversation_id, &user.id)
+        .await?;
+
+    Ok(Redirect::to("/messages"))
 }
 
 // -- Helpers --
