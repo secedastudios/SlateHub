@@ -256,6 +256,47 @@ impl S3Service {
         Ok(())
     }
 
+    /// List all object keys in the bucket
+    pub async fn list_all_objects(&self) -> Result<Vec<String>> {
+        let mut keys = Vec::new();
+        let mut continuation_token: Option<String> = None;
+
+        loop {
+            let mut req = self
+                .client
+                .list_objects_v2()
+                .bucket(&self.config.bucket_name);
+
+            if let Some(token) = continuation_token.take() {
+                req = req.continuation_token(token);
+            }
+
+            let resp = req
+                .send()
+                .await
+                .map_err(|e| Error::Internal(format!("Failed to list S3 objects: {}", e)))?;
+
+            for obj in resp.contents() {
+                if let Some(key) = obj.key() {
+                    keys.push(key.to_string());
+                }
+            }
+
+            if resp.is_truncated() == Some(true) {
+                continuation_token = resp.next_continuation_token().map(|s| s.to_string());
+            } else {
+                break;
+            }
+        }
+
+        Ok(keys)
+    }
+
+    /// Get the bucket name
+    pub fn bucket_name(&self) -> &str {
+        &self.config.bucket_name
+    }
+
     /// Check whether a file exists in S3
     pub async fn file_exists(&self, key: &str) -> Result<bool> {
         match self

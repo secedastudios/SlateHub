@@ -2,7 +2,7 @@ use askama::Template;
 use axum::{
     Router,
     extract::{Path, Query},
-    response::{Html, Redirect},
+    response::{Html, IntoResponse, Redirect},
     routing::{get, post},
 };
 use serde::Deserialize;
@@ -16,6 +16,7 @@ use crate::{
     middleware::AuthenticatedUser,
     models::person::SessionUser,
     record_id_ext::RecordIdExt,
+    services::s3::s3,
     templates::{BaseContext, User},
 };
 
@@ -188,6 +189,8 @@ pub fn router() -> Router {
         .route("/admin/locations", get(list_locations))
         .route("/admin/locations/{id}/delete", post(delete_location))
         .route("/admin/rebuild-embeddings", post(rebuild_embeddings))
+        .route("/admin/backup", post(backup_all))
+        .route("/admin/cleanup-files", post(cleanup_orphaned_files))
 }
 
 // ============================
@@ -1021,6 +1024,219 @@ async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send 
 
     info!("Embedding rebuild complete: {} updated, {} failed", total_updated, total_failed);
     Ok(())
+}
+
+// -- Backup --
+
+async fn backup_all(
+    AuthenticatedUser(user): AuthenticatedUser,
+) -> Result<impl IntoResponse, Error> {
+    require_admin(&user).await?;
+
+    info!("Admin {} initiated full backup", user.username);
+
+    // 1. Export database via SurrealDB HTTP endpoint
+    //    (WS client doesn't support export, so we hit the HTTP API directly)
+    let db_config = crate::config::Config::from_env()
+        .map_err(|e| Error::Internal(format!("Config error: {}", e)))?;
+    let db = &db_config.database;
+    let export_url = format!("http://{}:{}/export", db.host, db.port);
+
+    let http_client = reqwest::Client::new();
+    let db_export = http_client
+        .get(&export_url)
+        .header("Accept", "application/octet-stream")
+        .header("surreal-ns", &db.namespace)
+        .header("surreal-db", &db.name)
+        .basic_auth(&db.username, Some(&db.password))
+        .send()
+        .await
+        .map_err(|e| Error::Internal(format!("DB export request failed: {}", e)))?
+        .bytes()
+        .await
+        .map_err(|e| Error::Internal(format!("DB export read failed: {}", e)))?;
+
+    info!("DB export complete: {} bytes", db_export.len());
+
+    // 2. List all S3 objects
+    let s3_service = s3()?;
+    let all_keys = s3_service.list_all_objects().await?;
+    info!("Found {} files in S3 to back up", all_keys.len());
+
+    // 3. Build zip archive in memory
+    let mut zip_buffer = Vec::new();
+    {
+        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut zip_buffer));
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+
+        // Add DB export
+        zip.start_file("db_export.surql", options)
+            .map_err(|e| Error::Internal(format!("Zip error: {}", e)))?;
+        std::io::Write::write_all(&mut zip, &db_export)
+            .map_err(|e| Error::Internal(format!("Zip write error: {}", e)))?;
+
+        // Add each S3 file
+        for key in &all_keys {
+            match s3_service.download_file(key).await {
+                Ok((data, _content_type)) => {
+                    let path = format!("files/{}", key);
+                    zip.start_file(&path, options)
+                        .map_err(|e| Error::Internal(format!("Zip error: {}", e)))?;
+                    std::io::Write::write_all(&mut zip, &data)
+                        .map_err(|e| Error::Internal(format!("Zip write error: {}", e)))?;
+                }
+                Err(e) => {
+                    warn!("Skipping file {} during backup: {}", key, e);
+                }
+            }
+        }
+
+        zip.finish()
+            .map_err(|e| Error::Internal(format!("Zip finish error: {}", e)))?;
+    }
+
+    info!("Backup zip created: {} bytes", zip_buffer.len());
+
+    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+    let filename = format!("slatehub_backup_{}.zip", timestamp);
+
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        axum::http::header::CONTENT_TYPE,
+        "application/zip".parse().unwrap(),
+    );
+    headers.insert(
+        axum::http::header::CONTENT_DISPOSITION,
+        format!("attachment; filename=\"{}\"", filename).parse().unwrap(),
+    );
+
+    Ok((headers, zip_buffer))
+}
+
+// -- Cleanup orphaned files --
+
+async fn cleanup_orphaned_files(
+    AuthenticatedUser(user): AuthenticatedUser,
+) -> Result<Redirect, Error> {
+    require_admin(&user).await?;
+
+    info!("Admin {} initiated orphaned file cleanup", user.username);
+
+    // 1. List all S3 keys
+    let s3_service = s3()?;
+    let all_keys = s3_service.list_all_objects().await?;
+    info!("Total S3 objects: {}", all_keys.len());
+
+    // 2. Collect all referenced file paths from DB
+    let mut referenced: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    // Person avatars and photos
+    {
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct PersonFiles {
+            avatar: Option<String>,
+            photos: Option<Vec<PhotoRef>>,
+        }
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct PhotoRef {
+            url: Option<String>,
+            thumbnail_url: Option<String>,
+        }
+
+        let rows: Vec<PersonFiles> = DB
+            .query("SELECT profile.avatar AS avatar, profile.photos AS photos FROM person")
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?
+            .take(0)
+            .unwrap_or_default();
+
+        for row in rows {
+            if let Some(avatar) = row.avatar {
+                add_media_path(&mut referenced, &avatar);
+            }
+            if let Some(photos) = row.photos {
+                for photo in photos {
+                    if let Some(url) = photo.url {
+                        add_media_path(&mut referenced, &url);
+                    }
+                    if let Some(thumb) = photo.thumbnail_url {
+                        add_media_path(&mut referenced, &thumb);
+                    }
+                }
+            }
+        }
+    }
+
+    // Organization logos
+    {
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct OrgFiles {
+            logo: Option<String>,
+        }
+
+        let rows: Vec<OrgFiles> = DB
+            .query("SELECT logo FROM organization")
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?
+            .take(0)
+            .unwrap_or_default();
+
+        for row in rows {
+            if let Some(logo) = row.logo {
+                add_media_path(&mut referenced, &logo);
+            }
+        }
+    }
+
+    info!("Referenced file paths: {}", referenced.len());
+
+    // 3. Find and delete orphaned files
+    let mut deleted_count = 0u32;
+    let mut failed_count = 0u32;
+
+    for key in &all_keys {
+        if !referenced.contains(key.as_str()) {
+            match s3_service.delete_file(key).await {
+                Ok(_) => {
+                    info!("Deleted orphaned file: {}", key);
+                    deleted_count += 1;
+                }
+                Err(e) => {
+                    warn!("Failed to delete orphaned file {}: {}", key, e);
+                    failed_count += 1;
+                }
+            }
+        }
+    }
+
+    info!(
+        "Cleanup complete: {} deleted, {} failed, {} still referenced",
+        deleted_count,
+        failed_count,
+        referenced.len()
+    );
+
+    Ok(Redirect::to("/admin"))
+}
+
+/// Extract S3 key from a media URL like `/api/media/profiles/abc/img.jpg` → `profiles/abc/img.jpg`
+/// Also derives the thumbnail key for avatar/logo images (thumb_{filename}).
+fn add_media_path(set: &mut std::collections::HashSet<String>, url: &str) {
+    let key = url
+        .strip_prefix("/api/media/")
+        .unwrap_or(url);
+    set.insert(key.to_string());
+
+    // Derive thumbnail key: profiles/{id}/{img}.jpg → profiles/{id}/thumb_{img}.jpg
+    // This covers avatar and logo thumbnails that aren't stored separately in DB.
+    if let Some(slash_pos) = key.rfind('/') {
+        let dir = &key[..slash_pos];
+        let filename = &key[slash_pos + 1..];
+        if !filename.starts_with("thumb_") {
+            set.insert(format!("{}/thumb_{}", dir, filename));
+        }
+    }
 }
 
 // ============================
