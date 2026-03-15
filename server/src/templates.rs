@@ -540,6 +540,7 @@ pub struct LocationView {
     pub country: String,
     pub description: Option<String>,
     pub is_public: bool,
+    pub profile_photo: Option<String>,
     pub created_at: String,
 }
 
@@ -553,6 +554,13 @@ pub struct LocationTemplate {
     pub active_page: String,
     pub user: Option<User>,
     pub location: LocationDetail,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocationPhoto {
+    pub url: String,
+    pub thumbnail_url: String,
+    pub caption: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -573,6 +581,8 @@ pub struct LocationDetail {
     pub restrictions: Option<Vec<String>>,
     pub parking_info: Option<String>,
     pub max_capacity: Option<i32>,
+    pub profile_photo: Option<String>,
+    pub photos: Vec<LocationPhoto>,
     pub created_at: String,
     pub updated_at: String,
     pub rates: Vec<RateView>,
@@ -628,10 +638,12 @@ pub struct LocationEditData {
     pub contact_email: String,
     pub contact_phone: Option<String>,
     pub is_public: bool,
-    pub amenities: Option<String>, // Comma-separated string for editing
-    pub restrictions: Option<String>, // Comma-separated string for editing
+    pub amenities: Option<String>,
+    pub restrictions: Option<String>,
     pub parking_info: Option<String>,
     pub max_capacity: Option<i32>,
+    pub profile_photo: Option<String>,
+    pub photos: Vec<LocationPhoto>,
 }
 
 /// People page template

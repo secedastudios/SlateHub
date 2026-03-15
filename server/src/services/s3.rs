@@ -109,7 +109,7 @@ impl S3Service {
     /// applied even if the bucket was created by a previous run.
     async fn set_public_read_policy(&self) -> Result<()> {
         debug!(
-            "Applying public-read policy for profiles/* and organizations/* in bucket '{}'",
+            "Applying public-read policy for profiles/*, organizations/*, and locations/* in bucket '{}'",
             self.config.bucket_name
         );
 
@@ -128,6 +128,12 @@ impl S3Service {
                         "Principal": {{"AWS": ["*"]}},
                         "Action": ["s3:GetObject"],
                         "Resource": ["arn:aws:s3:::{bucket}/organizations/*"]
+                    }},
+                    {{
+                        "Effect": "Allow",
+                        "Principal": {{"AWS": ["*"]}},
+                        "Action": ["s3:GetObject"],
+                        "Resource": ["arn:aws:s3:::{bucket}/locations/*"]
                     }}
                 ]
             }}"#,
@@ -179,8 +185,8 @@ impl S3Service {
             .body(body)
             .content_type(content_type);
 
-        // Profile images and organization logos are public by default
-        if key.starts_with("profiles/") || key.starts_with("organizations/") {
+        // Profile images, organization logos, and location photos are public by default
+        if key.starts_with("profiles/") || key.starts_with("organizations/") || key.starts_with("locations/") {
             request = request.acl(aws_sdk_s3::types::ObjectCannedAcl::PublicRead);
         }
 

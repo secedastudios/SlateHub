@@ -160,10 +160,12 @@ dev-stop:
 # ============================================================================
 
 db-init: wait-db
+	@echo "Dropping database..."
+	@docker exec -i slatehub-surrealdb /surreal sql --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main --pretty <<< "REMOVE DATABASE main;" > /dev/null 2>&1 || true
 	@echo "Initializing database schema..."
 	@if [ -f db/schema.surql ]; then \
 		cat db/schema.surql | docker exec -i slatehub-surrealdb /surreal import --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main /dev/stdin; \
-		echo "✅ Database initialized."; \
+		echo "✅ Database dropped and re-initialized."; \
 	else \
 		echo "Warning: db/schema.surql not found. Skipping initialization."; \
 	fi

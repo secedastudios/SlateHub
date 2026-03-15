@@ -103,6 +103,7 @@ async fn list_locations(
             country: l.country,
             description: l.description,
             is_public: l.is_public,
+            profile_photo: l.profile_photo,
             created_at: l.created_at.to_string(),
         })
         .collect();
@@ -176,6 +177,12 @@ async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<
             restrictions: location.restrictions,
             parking_info: location.parking_info,
             max_capacity: location.max_capacity,
+            profile_photo: location.profile_photo,
+            photos: location.photos.into_iter().map(|p| crate::templates::LocationPhoto {
+                url: p.url,
+                thumbnail_url: p.thumbnail_url,
+                caption: p.caption,
+            }).collect(),
             created_at: location.created_at.to_string(),
             updated_at: location.updated_at.to_string(),
             rates: rates
@@ -282,8 +289,8 @@ async fn create_location(
 
     info!("Created location: {} ({})", location.name, location.id.display());
 
-    // Redirect to the new location page
-    Ok(Redirect::to(&format!("/locations/{}", location.id.key_string())).into_response())
+    // Redirect to the edit page so user can add photos
+    Ok(Redirect::to(&format!("/locations/{}/edit", location.id.key_string())).into_response())
 }
 
 /// Show form to edit a location
@@ -328,6 +335,12 @@ async fn edit_location_form(
             restrictions: location.restrictions.map(|r| r.join(", ")),
             parking_info: location.parking_info,
             max_capacity: location.max_capacity,
+            profile_photo: location.profile_photo,
+            photos: location.photos.into_iter().map(|p| crate::templates::LocationPhoto {
+                url: p.url,
+                thumbnail_url: p.thumbnail_url,
+                caption: p.caption,
+            }).collect(),
         },
         errors: None,
     };

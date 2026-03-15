@@ -13,7 +13,7 @@ use std::io::Cursor;
 use tracing::{debug, info};
 use ulid::Ulid;
 
-use crate::{db::DB, error::Error, middleware::AuthenticatedUser, models::organization::OrganizationModel, record_id_ext::RecordIdExt, services::s3::s3, verification_limits};
+use crate::{db::DB, error::Error, middleware::AuthenticatedUser, models::location::LocationModel, models::organization::OrganizationModel, record_id_ext::RecordIdExt, services::s3::s3, verification_limits};
 
 pub fn router() -> Router {
     Router::new()
@@ -34,6 +34,22 @@ pub fn router() -> Router {
         .route(
             "/delete/organization-logo/{org_slug}",
             post(delete_organization_logo),
+        )
+        .route(
+            "/upload/location-profile-photo/{location_id}",
+            post(upload_location_profile_photo),
+        )
+        .route(
+            "/delete/location-profile-photo/{location_id}",
+            post(delete_location_profile_photo),
+        )
+        .route(
+            "/upload/location-photo/{location_id}",
+            post(upload_location_photo),
+        )
+        .route(
+            "/delete/location-photo/{location_id}",
+            post(delete_location_photo),
         )
         .route("/debug/list-uploads", get(debug_list_uploads))
         // Media proxy endpoint - catches all media/* paths
@@ -942,6 +958,192 @@ async fn upload_organization_logo_with_slug(
         url: main_url,
         thumbnail_url: Some(thumb_url),
     }))
+}
+
+/// Maximum number of location photos
+const MAX_LOCATION_PHOTOS: usize = 10;
+
+/// Upload a profile photo for a location
+async fn upload_location_profile_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(location_id): Path<String>,
+    Query(params): Query<ImageProcessParams>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadResponse>, Error> {
+    debug!("User {} uploading profile photo for location {}", user.username, location_id);
+
+    let loc_rid = surrealdb::types::RecordId::new("location", location_id.as_str());
+    if !LocationModel::can_edit(&loc_rid, &user.id).await? {
+        return Err(Error::Forbidden);
+    }
+
+    let mut image_data: Option<(String, Bytes)> = None;
+    while let Some(field) = multipart.next_field().await
+        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))? {
+        let name = field.name().unwrap_or("").to_string();
+        if name != "image" { continue; }
+        let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
+        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
+            return Err(Error::bad_request(format!("Invalid file type: {}. Allowed: JPEG, PNG, WebP", content_type)));
+        }
+        let data = field.bytes().await
+            .map_err(|e| Error::bad_request(format!("Failed to read file data: {}", e)))?;
+        if data.len() > MAX_FILE_SIZE {
+            return Err(Error::bad_request("File too large. Maximum size is 10MB"));
+        }
+        image_data = Some((content_type, data));
+        break;
+    }
+
+    let (_content_type, data) = image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
+
+    let (processed, _thumbnail) = process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
+
+    let image_id = Ulid::new().to_string();
+    let main_key = format!("locations/{}/{}.jpg", location_id, image_id);
+
+    let s3_service = s3()?;
+    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
+
+    let main_url = format!("/api/media/{}", main_key);
+
+    DB.query("UPDATE $lid SET profile_photo = $url")
+        .bind(("lid", loc_rid))
+        .bind(("url", main_url.clone()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to update location profile photo: {}", e)))?;
+
+    info!("Location profile photo uploaded for location {}", location_id);
+
+    Ok(Json(UploadResponse {
+        media_id: image_id,
+        url: main_url,
+        thumbnail_url: None,
+    }))
+}
+
+/// Delete a location's profile photo
+async fn delete_location_profile_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(location_id): Path<String>,
+) -> Result<Json<serde_json::Value>, Error> {
+    let loc_rid = surrealdb::types::RecordId::new("location", location_id.as_str());
+    if !LocationModel::can_edit(&loc_rid, &user.id).await? {
+        return Err(Error::Forbidden);
+    }
+
+    DB.query("UPDATE $lid SET profile_photo = NONE")
+        .bind(("lid", loc_rid))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to delete location profile photo: {}", e)))?;
+
+    info!("Location profile photo deleted for location {}", location_id);
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// Upload an additional photo for a location (up to 10)
+async fn upload_location_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(location_id): Path<String>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadResponse>, Error> {
+    debug!("User {} uploading photo for location {}", user.username, location_id);
+
+    let loc_rid = surrealdb::types::RecordId::new("location", location_id.as_str());
+    if !LocationModel::can_edit(&loc_rid, &user.id).await? {
+        return Err(Error::Forbidden);
+    }
+
+    // Check current photo count
+    let mut count_resp = DB.query("SELECT array::len(photos) AS photo_count FROM $lid")
+        .bind(("lid", loc_rid.clone()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to check photo count: {}", e)))?;
+    let count_val: Option<serde_json::Value> = count_resp.take(0).ok().and_then(|v| v);
+    let photo_count = count_val
+        .as_ref()
+        .and_then(|v| v.get("photo_count"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0) as usize;
+
+    if photo_count >= MAX_LOCATION_PHOTOS {
+        return Err(Error::bad_request(format!("Maximum of {} location photos allowed", MAX_LOCATION_PHOTOS)));
+    }
+
+    let mut image_data: Option<(String, Bytes)> = None;
+    while let Some(field) = multipart.next_field().await
+        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))? {
+        let name = field.name().unwrap_or("").to_string();
+        if name != "image" { continue; }
+        let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
+        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
+            return Err(Error::bad_request(format!("Invalid file type: {}. Allowed: JPEG, PNG, WebP", content_type)));
+        }
+        let data = field.bytes().await
+            .map_err(|e| Error::bad_request(format!("Failed to read file data: {}", e)))?;
+        if data.len() > MAX_FILE_SIZE {
+            return Err(Error::bad_request("File too large. Maximum size is 10MB"));
+        }
+        image_data = Some((content_type, data));
+        break;
+    }
+
+    let (_content_type, data) = image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
+
+    let (processed, thumbnail) = process_photo(&data)?;
+
+    let image_id = Ulid::new().to_string();
+    let main_key = format!("locations/{}/photos/{}.jpg", location_id, image_id);
+    let thumb_key = format!("locations/{}/photos/thumb_{}.jpg", location_id, image_id);
+
+    let s3_service = s3()?;
+    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
+    s3_service.upload_file(&thumb_key, thumbnail, "image/jpeg").await?;
+
+    let main_url = format!("/api/media/{}", main_key);
+    let thumb_url = format!("/api/media/{}", thumb_key);
+
+    DB.query("UPDATE $lid SET photos += $photo")
+        .bind(("lid", loc_rid))
+        .bind(("photo", serde_json::json!({
+            "url": main_url,
+            "thumbnail_url": thumb_url,
+            "caption": ""
+        })))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to update location photos: {}", e)))?;
+
+    info!("Location photo uploaded for location {}", location_id);
+
+    Ok(Json(UploadResponse {
+        media_id: image_id,
+        url: main_url,
+        thumbnail_url: Some(thumb_url),
+    }))
+}
+
+/// Delete a location photo
+async fn delete_location_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(location_id): Path<String>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, Error> {
+    let url = body.get("url").and_then(|v| v.as_str())
+        .ok_or_else(|| Error::bad_request("Missing 'url' field"))?;
+
+    let loc_rid = surrealdb::types::RecordId::new("location", location_id.as_str());
+    if !LocationModel::can_edit(&loc_rid, &user.id).await? {
+        return Err(Error::Forbidden);
+    }
+
+    DB.query("UPDATE $lid SET photos = photos[WHERE url != $url]")
+        .bind(("lid", loc_rid))
+        .bind(("url", url.to_string()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to delete location photo: {}", e)))?;
+
+    info!("Location photo deleted for location {}", location_id);
+    Ok(Json(serde_json::json!({ "success": true })))
 }
 
 /// Debug endpoint to list uploaded files

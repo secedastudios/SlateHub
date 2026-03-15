@@ -7,6 +7,15 @@ use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
 use tracing::debug;
 
+/// A photo associated with a location
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+pub struct LocationPhoto {
+    pub url: String,
+    pub thumbnail_url: String,
+    #[serde(default)]
+    pub caption: String,
+}
+
 /// Location entity from the database
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct Location {
@@ -26,6 +35,9 @@ pub struct Location {
     pub restrictions: Option<Vec<String>>,
     pub parking_info: Option<String>,
     pub max_capacity: Option<i32>,
+    pub profile_photo: Option<String>,
+    #[serde(default)]
+    pub photos: Vec<LocationPhoto>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub created_by: RecordId,
@@ -359,7 +371,7 @@ impl LocationModel {
 
         let mut db_query = DB
             .query(&query)
-            .bind(("location_id", location_id.to_raw_string()));
+            .bind(("location_id", location_id.clone()));
 
         if let Some(name) = data.name {
             // Also update slug if name changes
@@ -445,13 +457,13 @@ impl LocationModel {
 
         // Delete all rates associated with this location
         DB.query("DELETE rate WHERE location = $location_id")
-            .bind(("location_id", location_id.to_raw_string()))
+            .bind(("location_id", location_id.clone()))
             .await
             .map_err(|e| Error::Database(format!("Failed to delete rates: {}", e)))?;
 
         // Delete the location
         DB.query("DELETE $location_id")
-            .bind(("location_id", location_id.to_raw_string()))
+            .bind(("location_id", location_id.clone()))
             .await
             .map_err(|e| Error::Database(format!("Failed to delete location: {}", e)))?;
 
@@ -470,21 +482,25 @@ impl LocationModel {
             user_id, location_id.display()
         );
 
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct CreatedByResult {
+            created_by: RecordId,
+        }
+
         let query = r#"
             SELECT created_by FROM location WHERE id = $location_id
         "#;
 
         let mut result = DB
             .query(query)
-            .bind(("location_id", location_id.to_raw_string()))
+            .bind(("location_id", location_id.clone()))
             .await
             .map_err(|e| Error::Database(format!("Failed to check permissions: {}", e)))?;
 
-        let location: Option<serde_json::Value> = result.take(0)?;
-        if let Some(location_obj) = location {
-            if let Some(created_by) = location_obj.get("created_by").and_then(|c| c.as_str()) {
-                return Ok(created_by == user_id);
-            }
+        let location: Option<CreatedByResult> = result.take(0)?;
+        if let Some(loc) = location {
+            let created_by_str = loc.created_by.to_raw_string();
+            return Ok(created_by_str == user_id);
         }
         Ok(false)
     }
@@ -529,7 +545,7 @@ impl LocationModel {
 
         let mut result = DB
             .query(query)
-            .bind(("location_id", location_id.to_raw_string()))
+            .bind(("location_id", location_id.clone()))
             .bind(("rate_type", data.rate_type))
             .bind(("amount", data.amount))
             .bind((
@@ -557,7 +573,7 @@ impl LocationModel {
 
         let mut result = DB
             .query(query)
-            .bind(("location_id", location_id.to_raw_string()))
+            .bind(("location_id", location_id.clone()))
             .await
             .map_err(|e| Error::Database(format!("Failed to fetch rates: {}", e)))?;
 

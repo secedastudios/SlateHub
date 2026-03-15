@@ -23,6 +23,54 @@
     </div>
     {% endif %}
 
+    <fieldset>
+        <legend>Profile Photo</legend>
+        <div data-field="profile-photo">
+            <div id="loc-profile-photo-preview" style="margin-bottom:1rem;">
+                {% match location.profile_photo %}
+                    {% when Some with (url) %}
+                    <img id="loc-profile-photo-img" src="{{ url }}" alt="Location profile photo" style="max-width:400px;max-height:300px;border-radius:8px;object-fit:cover;" />
+                    {% when None %}
+                    <div id="loc-profile-photo-placeholder" style="width:400px;height:250px;border:2px dashed var(--border-color,#333);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-muted,#888);">
+                        No profile photo
+                    </div>
+                {% endmatch %}
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+                <input type="file" id="loc-profile-photo-input" accept="image/jpeg,image/png,image/webp" hidden />
+                <button type="button" class="loc-btn-outline" onclick="document.getElementById('loc-profile-photo-input').click()">
+                    {% if location.profile_photo.is_some() %}Change Photo{% else %}Upload Photo{% endif %}
+                </button>
+                {% if location.profile_photo.is_some() %}
+                <button type="button" class="loc-btn-danger" id="loc-profile-photo-delete" onclick="deleteLocationProfilePhoto()">Remove</button>
+                {% endif %}
+            </div>
+            <small>This is the main photo shown in listings and at the top of your location page.</small>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Location Photos</legend>
+        <div data-field="location-photos">
+            <div id="loc-photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.75rem;margin-bottom:1rem;">
+                {% for photo in location.photos %}
+                <div class="loc-photo-item" data-url="{{ photo.url }}" style="position:relative;">
+                    <img src="{{ photo.thumbnail_url }}" alt="{{ photo.caption }}" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;" />
+                    <button type="button" onclick="deleteLocationPhoto('{{ photo.url }}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:white;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:14px;line-height:1;">&times;</button>
+                </div>
+                {% endfor %}
+            </div>
+            <div id="loc-photos-count" style="font-size:0.85rem;color:var(--text-muted,#888);margin-bottom:0.5rem;">
+                {{ location.photos.len() }} / 10 photos
+            </div>
+            {% if location.photos.len() < 10 %}
+            <input type="file" id="loc-photo-input" accept="image/jpeg,image/png,image/webp" multiple hidden />
+            <button type="button" class="loc-btn-outline" onclick="document.getElementById('loc-photo-input').click()">+ Add Photos</button>
+            {% endif %}
+            <small>Upload up to 10 additional photos of your location. JPEG, PNG, or WebP.</small>
+        </div>
+    </fieldset>
+
     <form method="post" action="/locations/{{ location.id }}/edit">
 
         <fieldset>
@@ -168,5 +216,99 @@ document.getElementById('input-contact-email').addEventListener('blur', function
         e.target.setCustomValidity('');
     }
 });
+
+// Location profile photo upload
+var locId = '{{ location.id }}';
+document.getElementById('loc-profile-photo-input').addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('image', file);
+    fetch('/api/media/upload/location-profile-photo/' + encodeURIComponent(locId), {
+        method: 'POST', body: fd
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.url) {
+            var preview = document.getElementById('loc-profile-photo-preview');
+            preview.innerHTML = '<img id="loc-profile-photo-img" src="' + data.url + '" alt="Location profile photo" style="max-width:400px;max-height:300px;border-radius:8px;object-fit:cover;" />';
+            // Show delete button if not present
+            var delBtn = document.getElementById('loc-profile-photo-delete');
+            if (!delBtn) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'loc-btn-danger';
+                btn.id = 'loc-profile-photo-delete';
+                btn.textContent = 'Remove';
+                btn.onclick = deleteLocationProfilePhoto;
+                document.getElementById('loc-profile-photo-input').parentElement.appendChild(btn);
+            }
+        }
+    }).catch(function(err) { alert('Upload failed: ' + err.message); });
+    e.target.value = '';
+});
+
+function deleteLocationProfilePhoto() {
+    if (!confirm('Remove profile photo?')) return;
+    fetch('/api/media/delete/location-profile-photo/' + encodeURIComponent(locId), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+    }).then(function() {
+        var preview = document.getElementById('loc-profile-photo-preview');
+        preview.innerHTML = '<div id="loc-profile-photo-placeholder" style="width:400px;height:250px;border:2px dashed var(--border-color,#333);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-muted,#888);">No profile photo</div>';
+        var delBtn = document.getElementById('loc-profile-photo-delete');
+        if (delBtn) delBtn.remove();
+    }).catch(function(err) { alert('Delete failed: ' + err.message); });
+}
+
+// Location photos upload
+var locPhotoInput = document.getElementById('loc-photo-input');
+if (locPhotoInput) {
+    locPhotoInput.addEventListener('change', function(e) {
+        var files = Array.from(e.target.files);
+        var grid = document.getElementById('loc-photos-grid');
+        var currentCount = grid.querySelectorAll('.loc-photo-item').length;
+        var remaining = 10 - currentCount;
+        if (files.length > remaining) {
+            alert('You can only add ' + remaining + ' more photo(s).');
+            files = files.slice(0, remaining);
+        }
+        files.forEach(function(file) {
+            var fd = new FormData();
+            fd.append('image', file);
+            fetch('/api/media/upload/location-photo/' + encodeURIComponent(locId), {
+                method: 'POST', body: fd
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.url) {
+                    var div = document.createElement('div');
+                    div.className = 'loc-photo-item';
+                    div.setAttribute('data-url', data.url);
+                    div.style.position = 'relative';
+                    div.innerHTML = '<img src="' + (data.thumbnail_url || data.url) + '" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;" />' +
+                        '<button type="button" onclick="deleteLocationPhoto(\'' + data.url.replace(/'/g, "\\'") + '\')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:white;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:14px;line-height:1;">&times;</button>';
+                    grid.appendChild(div);
+                    updatePhotoCount();
+                }
+            }).catch(function(err) { alert('Upload failed: ' + err.message); });
+        });
+        e.target.value = '';
+    });
+}
+
+function deleteLocationPhoto(url) {
+    if (!confirm('Remove this photo?')) return;
+    fetch('/api/media/delete/location-photo/' + encodeURIComponent(locId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url })
+    }).then(function() {
+        var item = document.querySelector('.loc-photo-item[data-url="' + url + '"]');
+        if (item) item.remove();
+        updatePhotoCount();
+    }).catch(function(err) { alert('Delete failed: ' + err.message); });
+}
+
+function updatePhotoCount() {
+    var count = document.querySelectorAll('.loc-photo-item').length;
+    var el = document.getElementById('loc-photos-count');
+    if (el) el.textContent = count + ' / 10 photos';
+}
 </script>
 {% endblock %}

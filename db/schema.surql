@@ -343,6 +343,11 @@ DEFINE FIELD parking_info ON location TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD max_capacity ON location TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD created_at ON location TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON location TYPE datetime VALUE time::now() PERMISSIONS FULL;
+DEFINE FIELD profile_photo ON location TYPE option<string> PERMISSIONS FULL;  -- Main profile photo URL
+DEFINE FIELD photos ON location TYPE array<object> DEFAULT [] PERMISSIONS FULL;  -- Additional location photos [{url, thumbnail_url, caption}]
+DEFINE FIELD photos.*.url ON location TYPE string PERMISSIONS FULL;
+DEFINE FIELD photos.*.thumbnail_url ON location TYPE string PERMISSIONS FULL;
+DEFINE FIELD photos.*.caption ON location TYPE string DEFAULT "" PERMISSIONS FULL;
 DEFINE FIELD created_by ON location TYPE record<person|organization> PERMISSIONS FULL;  -- Owner
 DEFINE FIELD embedding ON location TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)
 DEFINE FIELD embedding_text ON location TYPE option<string> PERMISSIONS FULL;  -- Cached text used to generate embedding
