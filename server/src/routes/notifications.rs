@@ -113,13 +113,13 @@ struct MarkReadForm {
 }
 
 async fn mark_read(
-    AuthenticatedUser(_user): AuthenticatedUser,
+    AuthenticatedUser(user): AuthenticatedUser,
     Form(form): Form<MarkReadForm>,
 ) -> Result<Redirect, Error> {
     debug!("Marking notification as read: {}", form.notification_id);
 
     let notification_model = NotificationModel::new();
-    notification_model.mark_read(&form.notification_id).await?;
+    notification_model.mark_read(&form.notification_id, &user.id).await?;
 
     Ok(Redirect::to("/notifications"))
 }
@@ -157,8 +157,8 @@ async fn accept_invitation(
         info!("User {} accepted invitation to org {}", user.id, form.org_id);
     }
 
-    // Delete the notification
-    notification_model.delete(&form.notification_id).await?;
+    // Delete the notification (scoped to this user)
+    notification_model.delete(&form.notification_id, &user.id).await?;
 
     // Redirect to the org
     let org_slug = get_org_slug(&form.org_id).await;
@@ -181,20 +181,20 @@ async fn decline_invitation(
         info!("User {} declined invitation to org {}", user.id, form.org_id);
     }
 
-    // Delete the notification
-    notification_model.delete(&form.notification_id).await?;
+    // Delete the notification (scoped to this user)
+    notification_model.delete(&form.notification_id, &user.id).await?;
 
     Ok(Redirect::to("/notifications"))
 }
 
 async fn delete_notification(
-    AuthenticatedUser(_user): AuthenticatedUser,
+    AuthenticatedUser(user): AuthenticatedUser,
     Form(form): Form<MarkReadForm>,
 ) -> Result<Redirect, Error> {
     debug!("Deleting notification: {}", form.notification_id);
 
     let notification_model = NotificationModel::new();
-    notification_model.delete(&form.notification_id).await?;
+    notification_model.delete(&form.notification_id, &user.id).await?;
 
     Ok(Redirect::to("/notifications"))
 }

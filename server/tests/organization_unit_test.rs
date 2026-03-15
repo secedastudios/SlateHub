@@ -111,6 +111,7 @@ fn test_organization_member_structure() {
         person_id: RecordId::parse_simple("person:person_456").unwrap(),
         person_username: "johndoe".to_string(),
         person_name: Some("John Doe".to_string()),
+        person_avatar: None,
         role: "admin".to_string(),
         joined_at: Utc::now(),
         invitation_status: "accepted".to_string(),

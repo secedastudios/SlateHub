@@ -103,13 +103,16 @@ impl NotificationModel {
         Ok(notifications)
     }
 
-    pub async fn mark_read(&self, id: &str) -> Result<(), Error> {
+    pub async fn mark_read(&self, id: &str, person_id: &str) -> Result<(), Error> {
         debug!("Marking notification as read: {}", id);
 
         let id = RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let person_id =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
-        DB.query("UPDATE $id SET read = true")
+        DB.query("UPDATE $id SET read = true WHERE person_id = $person_id")
             .bind(("id", id))
+            .bind(("person_id", person_id))
             .await?;
 
         Ok(())
@@ -128,13 +131,16 @@ impl NotificationModel {
         Ok(())
     }
 
-    pub async fn delete(&self, id: &str) -> Result<(), Error> {
+    pub async fn delete(&self, id: &str, person_id: &str) -> Result<(), Error> {
         debug!("Deleting notification: {}", id);
 
         let id = RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let person_id =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
-        DB.query("DELETE $id")
+        DB.query("DELETE $id WHERE person_id = $person_id")
             .bind(("id", id))
+            .bind(("person_id", person_id))
             .await?;
 
         Ok(())

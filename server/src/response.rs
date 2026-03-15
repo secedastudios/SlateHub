@@ -54,9 +54,11 @@ pub fn redirect_permanent(path: &str) -> Response {
 /// return Ok(redirect_with_status("/", StatusCode::TEMPORARY_REDIRECT));
 /// ```
 pub fn redirect_with_status(path: &str, status: StatusCode) -> Response {
-    // Ensure the path starts with / for absolute path
+    // Ensure the path is a safe internal path (prevent open redirect via //evil.com)
     let absolute_path = if path.starts_with('/') {
-        path.to_string()
+        // Strip leading slashes to prevent protocol-relative URLs like //evil.com
+        let trimmed = path.trim_start_matches('/');
+        format!("/{}", trimmed)
     } else {
         format!("/{}", path)
     };

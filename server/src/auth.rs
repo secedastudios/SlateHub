@@ -82,13 +82,9 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
 pub struct JwtConfig;
 
 impl JwtConfig {
-    /// Get the JWT secret from environment or use a default for development
+    /// Get the JWT secret from environment (required)
     pub fn secret() -> String {
-        std::env::var("JWT_SECRET").unwrap_or_else(|_| {
-            // In production, this should be a strong random secret
-            tracing::warn!("JWT_SECRET not set, using default development secret");
-            "development-secret-change-in-production".to_string()
-        })
+        std::env::var("JWT_SECRET").expect("JWT_SECRET environment variable must be set")
     }
 
     /// Token validity duration in seconds (12 hours by default)
@@ -144,17 +140,3 @@ pub fn decode_jwt(token: &str) -> Result<Claims> {
     Ok(token_data.claims)
 }
 
-/// Decode a JWT token without validation (for debugging or when signature validation isn't needed)
-pub fn decode_jwt_insecure(token: &str) -> Result<Claims> {
-    let mut validation = Validation::new(JwtAlgorithm::HS256);
-    validation.insecure_disable_signature_validation();
-    validation.validate_exp = false;
-
-    let token_data =
-        decode::<Claims>(token, &DecodingKey::from_secret(b""), &validation).map_err(|e| {
-            tracing::debug!("JWT decode error: {}", e);
-            Error::Unauthorized
-        })?;
-
-    Ok(token_data.claims)
-}

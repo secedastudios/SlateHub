@@ -90,7 +90,7 @@ async fn signup(Form(form): Form<CreateUser>) -> Result<Response, Error> {
                 .path("/")
                 .same_site(SameSite::Lax)
                 .http_only(true)
-                .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
+                .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
                 .build();
 
             // Redirect to email verification page
@@ -156,7 +156,7 @@ async fn login(Form(form): Form<LoginUser>) -> Result<Response, Error> {
                 .path("/")
                 .same_site(SameSite::Lax)
                 .http_only(true)
-                .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
+                .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
                 .build();
 
             // Redirect to profile or the originally requested page
@@ -206,7 +206,7 @@ async fn logout(jar: CookieJar) -> Response {
         .path("/")
         .same_site(SameSite::Lax)
         .http_only(true)
-        .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
+        .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
         .max_age(Default::default())
         .build();
 
@@ -292,7 +292,7 @@ async fn verify_email(
                 .path("/")
                 .same_site(SameSite::Lax)
                 .http_only(true)
-                .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
+                .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
                 .build();
 
             // Redirect to invitation target or profile

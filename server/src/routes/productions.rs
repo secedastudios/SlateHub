@@ -321,7 +321,13 @@ async fn create_production(
 
     // Determine creator type (check if creating as organization)
     let (creator_id, creator_type) = if let Some(org_id) = data.organization_id {
-        // TODO: Verify user has permission to create for this organization
+        // Verify user has permission to create for this organization (must be owner or admin)
+        let org_model = crate::models::organization::OrganizationModel::new();
+        let role = org_model.get_member_role(&org_id, &user.id).await?;
+        match role.as_deref() {
+            Some("owner") | Some("admin") => {}
+            _ => return Err(Error::Forbidden),
+        }
         (org_id, "organization")
     } else {
         (user.id.clone(), "person")

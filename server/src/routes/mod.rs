@@ -1,4 +1,4 @@
-use axum::http::{Request, Response, header};
+use axum::http::{Request, Response, header, HeaderValue};
 use axum::{Router, middleware, routing::get_service};
 use std::time::Duration;
 use tower_http::{compression::CompressionLayer, services::ServeDir, set_header::SetResponseHeaderLayer, trace::TraceLayer};
@@ -74,6 +74,23 @@ pub fn app() -> Router {
         .layer(middleware::from_fn(auth_middleware))
         // Error response middleware - converts errors to HTML/JSON based on Accept header
         .layer(middleware::from_fn(error_response_middleware))
+        // Security headers
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_FRAME_OPTIONS,
+            HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::REFERRER_POLICY,
+            HeaderValue::from_static("strict-origin-when-cross-origin"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::HeaderName::from_static("x-xss-protection"),
+            HeaderValue::from_static("1; mode=block"),
+        ))
         // Middleware
         .layer(CompressionLayer::new())
         .layer(

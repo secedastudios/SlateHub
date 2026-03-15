@@ -21,7 +21,6 @@ pub fn router() -> Router {
         .route("/health", get(health_check))
         .route("/stats", get(stats))
         .route("/avatar", get(avatar))
-        .route("/debug/user", get(debug_user))
         .route("/fix-avatar-urls", post(fix_avatar_urls))
         .route("/tmdb/search", get(tmdb_search))
         .route("/tmdb/credits/{person_id}", get(tmdb_credits))
@@ -97,16 +96,16 @@ async fn avatar(Query(params): Query<HashMap<String, String>>) -> impl IntoRespo
     debug!("Avatar requested for user: {}", id);
 
     // First, try to get the actual avatar URL from the person's profile
-    let person_record = if id.starts_with("person:") {
-        id.to_string()
+    let person_rid = if id.starts_with("person:") {
+        surrealdb::types::RecordId::parse_simple(id)
     } else {
-        format!("person:{}", id)
+        Ok(surrealdb::types::RecordId::new("person", id))
     };
 
     // Query for the person's avatar URL
-    let sql = format!("SELECT profile.avatar FROM {} LIMIT 1", person_record);
-
-    if let Ok(mut response) = DB.query(&sql).await {
+    if let Ok(rid) = person_rid {
+    if let Ok(mut response) = DB.query("SELECT profile.avatar FROM ONLY $pid LIMIT 1")
+        .bind(("pid", rid)).await {
         if let Ok(result) = response.take::<Option<serde_json::Value>>(0) {
             if let Some(data) = result {
                 if let Some(avatar_url) = data
@@ -119,7 +118,7 @@ async fn avatar(Query(params): Query<HashMap<String, String>>) -> impl IntoRespo
                 }
             }
         }
-    }
+    }}
 
     // Fall back to DiceBear for deterministic avatars based on user ID
     let avatar_url = format!(
@@ -128,114 +127,6 @@ async fn avatar(Query(params): Query<HashMap<String, String>>) -> impl IntoRespo
     );
 
     Redirect::permanent(&avatar_url)
-}
-
-#[axum::debug_handler]
-async fn debug_user(Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
-    use crate::models::person::Person;
-
-    let username = params
-        .get("username")
-        .map(|s| s.as_str())
-        .unwrap_or("chris");
-    debug!("Debug: Looking up user: {}", username);
-
-    let mut query_results = Vec::new();
-
-    // Test 1: Find by username
-    debug!("Test 1: Person::find_by_username({})", username);
-    match Person::find_by_username(username).await {
-        Ok(Some(person)) => {
-            query_results.push(serde_json::json!({
-                "method": "Person::find_by_username",
-                "success": true,
-                "data": serde_json::json!({
-                    "id": person.id.to_raw_string(),
-                    "username": person.username,
-                    "email": person.email,
-                    "has_profile": person.profile.is_some()
-                })
-            }));
-        }
-        Ok(None) => {
-            query_results.push(serde_json::json!({
-                "method": "Person::find_by_username",
-                "success": true,
-                "data": null,
-                "message": "No user found"
-            }));
-        }
-        Err(e) => {
-            query_results.push(serde_json::json!({
-                "method": "Person::find_by_username",
-                "success": false,
-                "error": format!("Query failed: {}", e)
-            }));
-        }
-    }
-
-    // Test 2: Find by identifier (can be username or email)
-    debug!("Test 2: Person::find_by_identifier({})", username);
-    match Person::find_by_identifier(username).await {
-        Ok(Some(person)) => {
-            query_results.push(serde_json::json!({
-                "method": "Person::find_by_identifier",
-                "success": true,
-                "data": serde_json::json!({
-                    "id": person.id.to_raw_string(),
-                    "username": person.username,
-                    "email": person.email,
-                    "has_profile": person.profile.is_some()
-                })
-            }));
-        }
-        Ok(None) => {
-            query_results.push(serde_json::json!({
-                "method": "Person::find_by_identifier",
-                "success": true,
-                "data": null,
-                "message": "No user found"
-            }));
-        }
-        Err(e) => {
-            query_results.push(serde_json::json!({
-                "method": "Person::find_by_identifier",
-                "success": false,
-                "error": format!("Query failed: {}", e)
-            }));
-        }
-    }
-
-    // Test 3: Get all users (limited for debugging)
-    debug!("Test 3: Person::get_paginated(limit=5)");
-    match Person::get_paginated(5, 0).await {
-        Ok(persons) => {
-            query_results.push(serde_json::json!({
-                "method": "Person::get_paginated",
-                "success": true,
-                "count": persons.len(),
-                "data": persons.iter().map(|p| {
-                    serde_json::json!({
-                        "id": p.id.to_raw_string(),
-                        "username": p.username,
-                        "email": p.email
-                    })
-                }).collect::<Vec<_>>()
-            }));
-        }
-        Err(e) => {
-            query_results.push(serde_json::json!({
-                "method": "Person::get_paginated",
-                "success": false,
-                "error": format!("Query failed: {}", e)
-            }));
-        }
-    }
-
-    Json(serde_json::json!({
-        "username": username,
-        "tests": query_results
-    }))
 }
 
 /// Search TMDB for people by name
@@ -921,7 +812,6 @@ async fn people_search(
         id: String,
         name: Option<String>,
         username: String,
-        email: String,
         avatar_url: Option<String>,
     }
 
@@ -929,13 +819,11 @@ async fn people_search(
             <string> id AS id,
             name,
             username,
-            email,
             profile.avatar AS avatar_url
         FROM person
         WHERE
             string::lowercase(name ?? '') CONTAINS $q
             OR string::lowercase(username ?? '') CONTAINS $q
-            OR string::lowercase(email ?? '') CONTAINS $q
         LIMIT 8";
 
     let results: Vec<PersonHit> = match DB.query(sql).bind(("q", query_lower)).await {
@@ -959,7 +847,6 @@ async fn people_search(
             serde_json::json!({
                 "id": p.id,
                 "username": p.username,
-                "email": p.email,
                 "name": display_name,
                 "initials": initials,
                 "avatar_url": p.avatar_url,

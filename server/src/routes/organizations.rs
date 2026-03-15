@@ -729,19 +729,25 @@ async fn update_member_role(
 ) -> Result<Redirect, Error> {
     let model = OrganizationModel::new();
     let organization = model.get_by_slug(&slug).await?;
+    let org_id = organization.id.to_raw_string();
 
     // Check if user is owner
-    let role = model
-        .get_member_role(&organization.id.to_raw_string(), &user.id)
-        .await?;
+    let role = model.get_member_role(&org_id, &user.id).await?;
     if role != Some("owner".to_string()) {
         return Err(Error::Forbidden);
+    }
+
+    // Verify the member belongs to this organization
+    let members = model.get_members(&org_id).await?;
+    let member_belongs = members.iter().any(|m| m.id.to_raw_string() == member_id);
+    if !member_belongs {
+        return Err(Error::BadRequest("Member does not belong to this organization".to_string()));
     }
 
     // Update member role
     model.update_member_role(&member_id, &data.role).await?;
 
-    Ok(Redirect::to(&format!("/org/{}", slug)))
+    Ok(Redirect::to(&format!("/orgs/{}", slug)))
 }
 
 async fn remove_member(
@@ -753,19 +759,25 @@ async fn remove_member(
 
     let model = OrganizationModel::new();
     let organization = model.get_by_slug(&slug).await?;
+    let org_id = organization.id.to_raw_string();
 
     // Check if user is owner
-    let role = model
-        .get_member_role(&organization.id.to_raw_string(), &user.id)
-        .await?;
+    let role = model.get_member_role(&org_id, &user.id).await?;
     if role != Some("owner".to_string()) {
         return Err(Error::Forbidden);
+    }
+
+    // Verify the member belongs to this organization
+    let members = model.get_members(&org_id).await?;
+    let member_belongs = members.iter().any(|m| m.id.to_raw_string() == member_id);
+    if !member_belongs {
+        return Err(Error::BadRequest("Member does not belong to this organization".to_string()));
     }
 
     // Remove member
     model.remove_member(&member_id).await?;
 
-    Ok(Redirect::to(&format!("/org/{}", slug)))
+    Ok(Redirect::to(&format!("/orgs/{}", slug)))
 }
 
 async fn request_to_join(

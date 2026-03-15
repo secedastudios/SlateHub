@@ -163,12 +163,11 @@ async fn upload_profile_image(
     };
 
     // Use MERGE to ensure profile object is created if it doesn't exist yet
-    let update_sql = format!(
-        "UPDATE {} MERGE {{ profile: {{ avatar: $avatar }} }} RETURN NONE",
-        person_id
-    );
+    let person_rid = surrealdb::types::RecordId::parse_simple(&person_id)
+        .map_err(|e| Error::BadRequest(e.to_string()))?;
 
-    DB.query(&update_sql)
+    DB.query("UPDATE $pid MERGE { profile: { avatar: $avatar } } RETURN NONE")
+        .bind(("pid", person_rid))
         .bind(("avatar", main_url.clone()))
         .await
         .map_err(|e| Error::Internal(format!("Failed to update profile avatar: {}", e)))?;
@@ -195,9 +194,11 @@ async fn delete_profile_image(
         format!("person:{}", user.id)
     };
 
-    let update_sql = format!("UPDATE {} SET profile.avatar = NONE RETURN NONE", person_id);
+    let person_rid = surrealdb::types::RecordId::parse_simple(&person_id)
+        .map_err(|e| Error::BadRequest(e.to_string()))?;
 
-    DB.query(&update_sql)
+    DB.query("UPDATE $pid SET profile.avatar = NONE RETURN NONE")
+        .bind(("pid", person_rid))
         .await
         .map_err(|e| Error::Internal(format!("Failed to delete profile avatar: {}", e)))?;
 
@@ -318,11 +319,10 @@ async fn upload_profile_photo(
     let thumb_url = format!("/api/media/{}", thumb_key);
 
     // Append photo to profile.photos array
-    let update_sql = format!(
-        "UPDATE {} SET profile.photos += $photo RETURN NONE",
-        person_id
-    );
-    DB.query(&update_sql)
+    let person_rid = surrealdb::types::RecordId::parse_simple(&person_id)
+        .map_err(|e| Error::BadRequest(e.to_string()))?;
+    DB.query("UPDATE $pid SET profile.photos += $photo RETURN NONE")
+        .bind(("pid", person_rid))
         .bind((
             "photo",
             serde_json::json!({
@@ -363,12 +363,11 @@ async fn delete_profile_photo(
     };
 
     // Remove the photo with matching URL from the array
-    let update_sql = format!(
-        "UPDATE {} SET profile.photos = profile.photos[WHERE url != $url] RETURN NONE",
-        person_id
-    );
+    let person_rid = surrealdb::types::RecordId::parse_simple(&person_id)
+        .map_err(|e| Error::BadRequest(e.to_string()))?;
 
-    DB.query(&update_sql)
+    DB.query("UPDATE $pid SET profile.photos = profile.photos[WHERE url != $url] RETURN NONE")
+        .bind(("pid", person_rid))
         .bind(("url", url.to_string()))
         .await
         .map_err(|e| Error::Internal(format!("Failed to delete profile photo: {}", e)))?;
@@ -675,13 +674,9 @@ async fn upload_organization_logo(
     let thumb_url = format!("/api/media/{}", thumb_key);
 
     // Update the organization's logo field
-    let update_sql = format!(
-        "UPDATE organization SET logo = $logo WHERE slug = '{}'",
-        org_slug
-    );
-
-    DB.query(&update_sql)
+    DB.query("UPDATE organization SET logo = $logo WHERE slug = $slug")
         .bind(("logo", main_url.clone()))
+        .bind(("slug", org_slug.clone()))
         .await
         .map_err(|e| Error::Internal(format!("Failed to update organization logo: {}", e)))?;
 
@@ -764,13 +759,9 @@ async fn get_organization_logo_url(
     debug!("Getting logo for organization: {}", org_slug);
 
     // Query for the organization's logo URL
-    let sql = format!(
-        "SELECT logo FROM organization WHERE slug = '{}' LIMIT 1",
-        org_slug
-    );
-
     let mut response = DB
-        .query(&sql)
+        .query("SELECT logo FROM organization WHERE slug = $slug LIMIT 1")
+        .bind(("slug", org_slug.clone()))
         .await
         .map_err(|e| Error::Internal(format!("Failed to query organization: {}", e)))?;
 
@@ -812,12 +803,8 @@ async fn delete_organization_logo(
     }
 
     // Clear the logo field
-    let update_sql = format!(
-        "UPDATE organization SET logo = NONE WHERE slug = '{}'",
-        org_slug
-    );
-
-    DB.query(&update_sql)
+    DB.query("UPDATE organization SET logo = NONE WHERE slug = $slug")
+        .bind(("slug", org_slug.clone()))
         .await
         .map_err(|e| Error::Internal(format!("Failed to delete organization logo: {}", e)))?;
 
@@ -942,13 +929,9 @@ async fn upload_organization_logo_with_slug(
     let thumb_url = format!("/api/media/{}", thumb_key);
 
     // Update the organization's logo field
-    let update_sql = format!(
-        "UPDATE organization SET logo = $logo WHERE slug = '{}'",
-        org_slug
-    );
-
-    DB.query(&update_sql)
+    DB.query("UPDATE organization SET logo = $logo WHERE slug = $slug")
         .bind(("logo", main_url.clone()))
+        .bind(("slug", org_slug.clone()))
         .await
         .map_err(|e| Error::Internal(format!("Failed to update organization logo: {}", e)))?;
 

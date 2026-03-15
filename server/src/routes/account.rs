@@ -166,7 +166,7 @@ async fn change_username(
         .path("/")
         .same_site(SameSite::Lax)
         .http_only(true)
-        .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
+        .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
         .build();
 
     // Redirect back so the new cookie takes effect
@@ -209,9 +209,9 @@ async fn delete_account(
     // Delete related data: involvements, notifications, verification codes, org memberships
     let cleanup_sql = "
         DELETE FROM involvement WHERE in = $person_id;
-        DELETE FROM notification WHERE recipient = $person_id;
-        DELETE FROM verification_code WHERE person = $person_id;
-        DELETE FROM org_member WHERE in = $person_id;
+        DELETE FROM notification WHERE person_id = $person_id;
+        DELETE FROM verification_code WHERE person_id = $person_id;
+        DELETE FROM member_of WHERE in = $person_id;
     ";
     if let Err(e) = DB
         .query(cleanup_sql)
@@ -238,7 +238,7 @@ async fn delete_account(
         .path("/")
         .same_site(SameSite::Lax)
         .http_only(true)
-        .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
+        .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
         .max_age(Default::default())
         .build();
 
