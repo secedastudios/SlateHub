@@ -3,9 +3,7 @@ use chrono::Datelike;
 use serde::{Deserialize, Serialize};
 
 use crate::db::DB;
-// use crate::models::equipment::{
-//     Equipment, EquipmentCategory, EquipmentCondition, EquipmentKit, EquipmentRental,
-// };
+use crate::models::likes::{LikedLocation, LikedPerson};
 use crate::models::notification::NotificationModel;
 use crate::models::person::SessionUser;
 
@@ -14,6 +12,11 @@ mod filters {
     pub fn abs_url(path: &str) -> askama::Result<String> {
         let base = crate::config::app_url();
         Ok(format!("{}{}", base, path))
+    }
+
+    /// Check if a Vec<String> contains a given value
+    pub fn contains(list: &[String], value: &String) -> askama::Result<bool> {
+        Ok(list.contains(value))
     }
 }
 
@@ -256,6 +259,7 @@ pub struct ProfileTemplate {
     pub active_page: String,
     pub user: Option<User>,
     pub profile: ProfileData,
+    pub is_liked: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -528,6 +532,7 @@ pub struct LocationsTemplate {
     pub city: Option<String>,
     pub show_private: bool,
     pub sort_by: String,
+    pub liked_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -554,6 +559,7 @@ pub struct LocationTemplate {
     pub active_page: String,
     pub user: Option<User>,
     pub location: LocationDetail,
+    pub is_liked: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -658,6 +664,8 @@ pub struct PeopleTemplate {
     pub people: Vec<PersonCard>,
     pub filter: Option<String>,
     pub specialties: Vec<String>,
+    pub liked_ids: Vec<String>,
+    pub current_user_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -730,6 +738,19 @@ pub struct AccountSettingsTemplate {
     pub show_contact_info: bool,
     pub error: Option<String>,
     pub success: Option<String>,
+}
+
+/// Likes page template
+#[derive(Template)]
+#[template(path = "likes/index.html")]
+pub struct LikesTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub liked_people: Vec<LikedPerson>,
+    pub liked_locations: Vec<LikedLocation>,
 }
 
 // ============================
@@ -1055,6 +1076,8 @@ impl PeopleTemplate {
             people: vec![],
             filter: None,
             specialties: vec![],
+            liked_ids: vec![],
+            current_user_id: String::new(),
         }
     }
 }

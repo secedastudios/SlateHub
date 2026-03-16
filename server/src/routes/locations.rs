@@ -1,5 +1,6 @@
 use crate::error::Error;
 use crate::middleware::{AuthenticatedUser, UserExtractor};
+use crate::models::likes::LikesModel;
 use crate::models::location::{
     CreateLocationData, CreateRateData, LocationModel, LocationRate, UpdateLocationData,
 };
@@ -108,6 +109,31 @@ async fn list_locations(
         })
         .collect();
 
+    // Fetch liked IDs if user is logged in
+    let liked_ids = if let Some(ref uid) = user_id {
+        let person_rid = if uid.starts_with("person:") {
+            RecordId::parse_simple(uid).ok()
+        } else {
+            Some(RecordId::new("person", uid.as_str()))
+        };
+        if let Some(rid) = person_rid {
+            let target_ids: Vec<RecordId> = locations
+                .iter()
+                .map(|l| RecordId::new("location", l.id.as_str()))
+                .collect();
+            LikesModel::get_liked_ids(&rid, &target_ids)
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .map(|id| id.strip_prefix("location:").unwrap_or(&id).to_string())
+                .collect()
+        } else {
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+
     let template = LocationsTemplate {
         app_name: base.app_name,
         year: base.year,
@@ -119,6 +145,7 @@ async fn list_locations(
         city: city_text,
         show_private,
         sort_by,
+        liked_ids,
     };
 
     let html = template.render().map_err(|e| {
@@ -140,6 +167,7 @@ async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<
 
     // Add user to context if authenticated
     let mut can_edit = false;
+    let mut is_liked = false;
     if let Some(user) = request.get_user() {
         base = base.with_user(User::from_session_user(&user).await);
 
@@ -147,6 +175,16 @@ async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<
         can_edit = LocationModel::can_edit(&location.id, &user.id)
             .await
             .unwrap_or(false);
+
+        // Check if user has liked this location
+        let person_rid = if user.id.starts_with("person:") {
+            RecordId::parse_simple(&user.id).ok()
+        } else {
+            Some(RecordId::new("person", user.id.as_str()))
+        };
+        if let Some(rid) = person_rid {
+            is_liked = LikesModel::is_liked(&rid, &location.id).await.unwrap_or(false);
+        }
     }
 
     // Get location rates
@@ -202,6 +240,7 @@ async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<
                 .collect(),
             can_edit,
         },
+        is_liked,
     };
 
     let html = template.render().map_err(|e| {

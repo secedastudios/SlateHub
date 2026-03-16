@@ -13,6 +13,7 @@ use crate::{
     error::Error,
     middleware::UserExtractor,
     models::involvement::InvolvementModel,
+    models::likes::LikesModel,
     models::person::Person,
     record_id_ext::RecordIdExt,
     social_platforms,
@@ -22,6 +23,7 @@ use crate::{
     },
     video_platforms,
 };
+use surrealdb::types::RecordId;
 
 pub fn router() -> Router {
     Router::new()
@@ -43,6 +45,7 @@ const RESERVED_ROUTES: &[&str] = &[
     "get-verified",
     "help",
     "home",
+    "likes",
     "login",
     "logout",
     "messages",
@@ -137,8 +140,23 @@ async fn user_profile(
 
     // Build base context
     let mut base = BaseContext::new().with_page("profile");
+    let mut is_liked = false;
     if let Some(ref user) = current_user {
         base = base.with_user(User::from_session_user(&user).await);
+
+        // Check if current user has liked this profile
+        if !is_own_profile {
+            let person_rid = if user.id.starts_with("person:") {
+                RecordId::parse_simple(&user.id).ok()
+            } else {
+                Some(RecordId::new("person", user.id.as_str()))
+            };
+            if let Some(rid) = person_rid {
+                is_liked = LikesModel::is_liked(&rid, &profile_user.id)
+                    .await
+                    .unwrap_or(false);
+            }
+        }
     }
 
     // Convert Person model to ProfileData (same structure as /profile/{username} used)
@@ -234,6 +252,7 @@ async fn user_profile(
         active_page: base.active_page,
         user: base.user,
         profile: profile_data,
+        is_liked,
     };
 
     let html = template.render().map_err(|e| {
@@ -259,11 +278,16 @@ async fn people(
     let mut base = BaseContext::new().with_page("people");
 
     // Add user to context if authenticated
-    if let Some(user) = request.get_user() {
+    let current_user_id = if let Some(user) = request.get_user() {
+        let uid = user.id.clone();
         base = base.with_user(User::from_session_user(&user).await);
-    }
+        Some(uid)
+    } else {
+        None
+    };
 
     let mut template = PeopleTemplate::new(base);
+    template.current_user_id = current_user_id.clone().unwrap_or_default();
     template.filter = filter.map(|s| s.to_string());
 
     // Add specialties list (in production, fetch from database)
@@ -366,6 +390,25 @@ async fn people(
             }
         })
         .collect();
+
+    // Fetch liked IDs if user is logged in
+    if let Some(ref uid) = current_user_id {
+        let person_rid = if uid.starts_with("person:") {
+            RecordId::parse_simple(uid).ok()
+        } else {
+            Some(RecordId::new("person", uid.as_str()))
+        };
+        if let Some(rid) = person_rid {
+            let target_ids: Vec<RecordId> = template
+                .people
+                .iter()
+                .filter_map(|p| RecordId::parse_simple(&p.id).ok())
+                .collect();
+            template.liked_ids = LikesModel::get_liked_ids(&rid, &target_ids)
+                .await
+                .unwrap_or_default();
+        }
+    }
 
     let html = template.render().map_err(|e| {
         error!("Failed to render people template: {}", e);

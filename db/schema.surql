@@ -158,6 +158,15 @@ DEFINE FIELD invited_at ON member_of TYPE option<datetime> VALUE $value OR time:
 
 DEFINE INDEX idx_member_of_unique ON member_of FIELDS in, out UNIQUE;
 
+-- ------------------------------
+-- TABLE: likes (relation)
+-- ------------------------------
+
+DEFINE TABLE likes TYPE RELATION FROM person TO person|location SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD created_at ON likes TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE INDEX idx_likes_unique ON likes FIELDS in, out UNIQUE;
+DEFINE INDEX idx_likes_in ON likes FIELDS in;
+DEFINE INDEX idx_likes_out ON likes FIELDS out;
 
 -- ------------------------------
 -- TABLE: notification

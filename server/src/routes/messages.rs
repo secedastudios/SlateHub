@@ -488,8 +488,6 @@ async fn reply_message_sse(
     );
 
     let mut sse = String::new();
-    // Remove empty chat placeholder if present
-    sse += &sse_patch_elements(".empty-chat", "remove", "");
     // Append the new message bubble
     sse += &sse_patch_elements("#chat-messages", "append", &fragment);
     // Clear the body signal so the textarea resets

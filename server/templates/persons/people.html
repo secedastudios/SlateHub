@@ -83,9 +83,22 @@
                     {% endif %}
                     <div data-role="actions">
                         <a href="/{{ person.username }}" data-role="btn-primary">View Profile</a>
-                        <button type="button" data-role="btn-icon-bare" aria-label="Save">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                        {% if user.is_some() && person.id != current_user_id %}
+                        <button type="button" data-role="btn-icon-bare"
+                            data-like-target="{{ person.id }}"
+                            data-on:click="@post('/api/likes/toggle-sse/{{ person.id }}?v=people')"
+                            aria-label="{% if liked_ids|contains(person.id) %}Unlike{% else %}Like{% endif %}">
+                            <svg width="20" height="20" viewBox="0 0 24 24"
+                                fill="{% if liked_ids|contains(person.id) %}#e53e3e{% else %}none{% endif %}"
+                                stroke="{% if liked_ids|contains(person.id) %}#e53e3e{% else %}currentColor{% endif %}"
+                                stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                         </button>
+                        {% else if user.is_none() %}
+                        <a href="/login?redirect=/people" data-role="btn-icon-bare" aria-label="Like">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                        </a>
+                        {% endif %}
                         <button type="button" data-role="btn-icon-outline" aria-label="Connect">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
