@@ -1179,7 +1179,7 @@ async fn debug_list_uploads() -> Result<Json<serde_json::Value>, Error> {
     }
 
     // Also check the database for media records
-    let media_check_sql = "SELECT id, filename, object_key, url FROM media LIMIT 10";
+    let media_check_sql = "SELECT <string> id AS id, filename, object_key, url FROM media LIMIT 10";
     let mut response = crate::db::DB.query(media_check_sql).await?;
 
     // Try to get records without deserializing to specific type

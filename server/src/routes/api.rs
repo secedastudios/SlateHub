@@ -757,7 +757,7 @@ async fn fix_avatar_urls() -> impl IntoResponse {
         UPDATE person
         SET profile.avatar = string::replace(profile.avatar, '/profiles/person:', '/profiles/')
         WHERE profile.avatar CONTAINS '/profiles/person:'
-        RETURN AFTER
+        RETURN <string> id AS id, profile.avatar AS avatar
     "#;
 
     match DB.query(sql).await {
