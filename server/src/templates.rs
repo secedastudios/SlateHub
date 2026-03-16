@@ -532,6 +532,7 @@ pub struct ProductionMemberView {
     pub production_role: Option<String>,
     pub member_type: String,
     pub invitation_status: String,
+    pub is_verified: bool,
 }
 
 /// Organization option for ownership dropdown
@@ -1210,6 +1211,28 @@ impl TermsTemplate {
 }
 
 impl PrivacyTemplate {
+    pub fn new(base: BaseContext) -> Self {
+        Self {
+            app_name: base.app_name,
+            year: base.year,
+            version: base.version,
+            active_page: base.active_page,
+            user: base.user,
+        }
+    }
+}
+
+#[derive(Template)]
+#[template(path = "impressum/index.html")]
+pub struct ImpressumTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+}
+
+impl ImpressumTemplate {
     pub fn new(base: BaseContext) -> Self {
         Self {
             app_name: base.app_name,

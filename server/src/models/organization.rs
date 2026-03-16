@@ -49,6 +49,9 @@ pub struct Organization {
     pub founded_year: Option<i32>,
     pub employees_count: Option<i32>,
     pub public: bool,
+    #[serde(default)]
+    #[surreal(default)]
+    pub verified: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

@@ -6,7 +6,8 @@ use crate::{
     error::Error,
     middleware::UserExtractor,
     templates::{
-        AboutTemplate, Activity, BaseContext, IndexTemplate, PrivacyTemplate, TermsTemplate, User,
+        AboutTemplate, Activity, BaseContext, ImpressumTemplate, IndexTemplate, PrivacyTemplate,
+        TermsTemplate, User,
     },
 };
 
@@ -16,6 +17,7 @@ pub fn router() -> Router {
         .route("/about", get(about))
         .route("/terms", get(terms))
         .route("/privacy", get(privacy))
+        .route("/impressum", get(impressum))
 }
 
 async fn index(request: Request) -> Result<Html<String>, Error> {
@@ -127,6 +129,25 @@ async fn about(request: Request) -> Result<Html<String>, Error> {
 
     let html = template.render().map_err(|e| {
         error!("Failed to render about template: {}", e);
+        Error::template(e.to_string())
+    })?;
+
+    Ok(Html(html))
+}
+
+async fn impressum(request: Request) -> Result<Html<String>, Error> {
+    debug!("Rendering impressum page");
+
+    let mut base = BaseContext::new().with_page("impressum");
+
+    if let Some(user) = request.get_user() {
+        base = base.with_user(User::from_session_user(&user).await);
+    }
+
+    let template = ImpressumTemplate::new(base);
+
+    let html = template.render().map_err(|e| {
+        error!("Failed to render impressum template: {}", e);
         Error::template(e.to_string())
     })?;
 

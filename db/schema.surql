@@ -151,6 +151,7 @@ DEFINE FIELD services ON organization TYPE array<string> PERMISSIONS FULL;  -- e
 DEFINE FIELD founded_year ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD employees_count ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD public ON organization TYPE bool DEFAULT false PERMISSIONS FULL;  -- Whether the organization profile is public
+DEFINE FIELD verified ON organization TYPE bool DEFAULT false PERMISSIONS FULL;  -- Whether the organization is verified (gold checkmark)
 DEFINE FIELD created_at ON organization TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON organization TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD embedding ON organization TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)

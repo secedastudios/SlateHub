@@ -303,8 +303,9 @@ async fn view_production(
             slug: m.slug,
             role: m.role,
             production_role: m.production_role,
-            member_type: m.member_type,
+            member_type: m.member_type.clone(),
             invitation_status: m.invitation_status,
+            is_verified: m.is_verified,
         })
         .collect();
     let person_members: Vec<_> = all_members.iter().filter(|m| m.member_type == "person").cloned().collect();
@@ -573,8 +574,9 @@ async fn edit_production_form(
                     slug: m.slug,
                     role: m.role,
                     production_role: m.production_role,
-                    member_type: m.member_type,
+                    member_type: m.member_type.clone(),
                     invitation_status: m.invitation_status,
+                    is_verified: m.is_verified,
                 })
                 .collect();
             edit_members

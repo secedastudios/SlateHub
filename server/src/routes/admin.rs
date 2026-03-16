@@ -145,6 +145,7 @@ struct OrgRow {
     slug: String,
     org_type: String,
     is_public: bool,
+    is_verified: bool,
     created_at: String,
 }
 
@@ -186,6 +187,7 @@ pub fn router() -> Router {
         .route("/admin/productions/{id}/delete", post(delete_production))
         .route("/admin/organizations", get(list_organizations))
         .route("/admin/organizations/{id}/delete", post(delete_organization))
+        .route("/admin/organizations/{id}/toggle-verified", post(toggle_org_verified))
         .route("/admin/locations", get(list_locations))
         .route("/admin/locations/{id}/delete", post(delete_location))
         .route("/admin/rebuild-embeddings", post(rebuild_embeddings))
@@ -587,18 +589,21 @@ async fn list_organizations(
         slug: String,
         org_type: Option<String>,
         public: Option<bool>,
+        #[serde(default)]
+        #[surreal(default)]
+        verified: bool,
         created_at: chrono::DateTime<chrono::Utc>,
     }
 
     let orgs: Vec<DbOrgRow> = if search.is_empty() {
-        DB.query("SELECT id, name, slug, type.name AS org_type, public, created_at FROM organization ORDER BY created_at DESC LIMIT 50")
+        DB.query("SELECT id, name, slug, type.name AS org_type, public, verified, created_at FROM organization ORDER BY created_at DESC LIMIT 50")
             .await
             .map_err(|e| Error::Database(e.to_string()))?
             .take(0)
             .unwrap_or_default()
     } else {
         let q = search.to_lowercase();
-        DB.query("SELECT id, name, slug, type.name AS org_type, public, created_at FROM organization WHERE string::lowercase(name) CONTAINS $q OR string::lowercase(slug) CONTAINS $q ORDER BY created_at DESC LIMIT 50")
+        DB.query("SELECT id, name, slug, type.name AS org_type, public, verified, created_at FROM organization WHERE string::lowercase(name) CONTAINS $q OR string::lowercase(slug) CONTAINS $q ORDER BY created_at DESC LIMIT 50")
             .bind(("q", q))
             .await
             .map_err(|e| Error::Database(e.to_string()))?
@@ -614,6 +619,7 @@ async fn list_organizations(
             slug: o.slug,
             org_type: o.org_type.unwrap_or_default(),
             is_public: o.public.unwrap_or(false),
+            is_verified: o.verified,
             created_at: o.created_at.format("%b %d, %Y").to_string(),
         })
         .collect();
@@ -653,6 +659,23 @@ async fn delete_organization(
         .map_err(|e| Error::Database(e.to_string()))?;
 
     info!("Admin {} deleted organization {}", user.username, id);
+    Ok(Redirect::to("/admin/organizations"))
+}
+
+async fn toggle_org_verified(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(id): Path<String>,
+) -> Result<Redirect, Error> {
+    require_admin(&user).await?;
+
+    let record_id = surrealdb::types::RecordId::new("organization", id.as_str());
+
+    DB.query("UPDATE $oid SET verified = !verified")
+        .bind(("oid", record_id))
+        .await
+        .map_err(|e| Error::Database(e.to_string()))?;
+
+    info!("Admin {} toggled verification for organization {}", user.username, id);
     Ok(Redirect::to("/admin/organizations"))
 }
 

@@ -1,0 +1,69 @@
+{% extends "_layout.html" %}
+{% block title %}Impressum - {{ app_name }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/legal.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<main id="main-content">
+    <article data-component="legal-document" data-page="impressum">
+        <header data-role="document-header">
+            <h1 id="heading-impressum">Impressum</h1>
+            <p data-role="last-updated">Information according to &sect; 5 TMG (German Telemedia Act)</p>
+        </header>
+
+        <section data-section="company">
+            <h2>Company</h2>
+            <address data-role="company-address">
+                <strong>Seceda GmbH</strong><br>
+                Germany
+            </address>
+        </section>
+
+        <section data-section="contact">
+            <h2>Contact</h2>
+            <p>
+                Email: <a href="mailto:hello@slatehub.com">hello@slatehub.com</a><br>
+                Website: <a href="https://slatehub.com">slatehub.com</a>
+            </p>
+        </section>
+
+        <section data-section="responsible">
+            <h2>Responsible for Content</h2>
+            <p>Responsible for content according to &sect; 55 Abs. 2 RStV:</p>
+            <address data-role="responsible-address">
+                Seceda GmbH<br>
+                Germany
+            </address>
+        </section>
+
+        <section data-section="dispute-resolution">
+            <h2>Dispute Resolution</h2>
+            <p>The European Commission provides a platform for online dispute resolution (ODR): <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer">https://ec.europa.eu/consumers/odr</a></p>
+            <p>We are not willing or obliged to participate in dispute resolution proceedings before a consumer arbitration board.</p>
+        </section>
+
+        <section data-section="liability">
+            <h2>Liability for Content</h2>
+            <p>As a service provider, we are responsible for our own content on these pages according to general laws (&sect; 7 Abs. 1 TMG). However, we are not obligated to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity.</p>
+            <p>Obligations to remove or block the use of information under general laws remain unaffected. However, liability in this regard is only possible from the time of knowledge of a specific legal violation. Upon becoming aware of such violations, we will remove the content immediately.</p>
+        </section>
+
+        <section data-section="liability-links">
+            <h2>Liability for Links</h2>
+            <p>Our website contains links to external websites of third parties over whose content we have no influence. We therefore cannot accept any liability for this third-party content. The respective provider or operator of the linked pages is always responsible for the content of the linked pages.</p>
+            <p>The linked pages were checked for possible legal violations at the time of linking. Illegal content was not recognizable at the time of linking. However, permanent monitoring of the content of linked pages is not reasonable without concrete indications of a legal violation. Upon becoming aware of legal violations, we will remove such links immediately.</p>
+        </section>
+
+        <section data-section="copyright">
+            <h2>Copyright</h2>
+            <p>The content and works created by the site operators on these pages are subject to German copyright law. Duplication, processing, distribution, or any form of commercialization of such material beyond the scope of copyright law requires the prior written consent of its respective author or creator.</p>
+            <p>SlateHub is open-source software. The source code is available on <a href="https://github.com/secedastudios/SlateHub" target="_blank" rel="noopener noreferrer">GitHub</a> under its respective license. User-generated content remains the property of its respective creators.</p>
+        </section>
+
+        <section data-section="data-protection">
+            <h2>Data Protection</h2>
+            <p>For information about how we handle your personal data, please see our <a href="/privacy">Privacy Policy</a>.</p>
+        </section>
+    </article>
+</main>
+{% endblock %}

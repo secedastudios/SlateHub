@@ -35,6 +35,7 @@
                     <th>Slug</th>
                     <th>Type</th>
                     <th>Public</th>
+                    <th>Verified</th>
                     <th>Created</th>
                     <th></th>
                 </tr>
@@ -46,6 +47,13 @@
                     <td>{{ org.slug }}</td>
                     <td>{{ org.org_type }}</td>
                     <td>{% if org.is_public %}Yes{% else %}No{% endif %}</td>
+                    <td>
+                        <form method="post" action="/admin/organizations/{{ org.id }}/toggle-verified" style="display:inline">
+                            <button type="submit" class="admin-btn{% if org.is_verified %} admin-btn-active{% endif %}" style="font-size:0.75rem;padding:2px 8px">
+                                {% if org.is_verified %}Verified{% else %}Unverified{% endif %}
+                            </button>
+                        </form>
+                    </td>
                     <td class="admin-cell-nowrap">{{ org.created_at }}</td>
                     <td>
                         <form method="post" action="/admin/organizations/{{ org.id }}/delete" onsubmit="return confirm('Permanently delete organization {{ org.name }}?')">

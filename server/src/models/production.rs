@@ -127,6 +127,9 @@ pub struct ProductionMember {
     pub production_role: Option<String>, // e.g. "Director", "Producer"
     pub member_type: String,             // person or organization
     pub invitation_status: String,       // pending, accepted, declined
+    #[serde(default)]
+    #[surreal(default)]
+    pub is_verified: bool,               // Whether org is verified (gold checkmark)
 }
 
 /// Production membership info (for "my productions" listing)
@@ -559,7 +562,8 @@ impl ProductionModel {
                 role,
                 production_role,
                 <string> type::table(in) as member_type,
-                invitation_status
+                invitation_status,
+                in.verified ?? false as is_verified
             FROM member_of
             WHERE out = {}
             ORDER BY role ASC, in.name ASC",
