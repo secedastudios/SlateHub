@@ -441,6 +441,25 @@ pub struct Production {
     pub owner: String,
     pub tags: Vec<String>,
     pub poster_url: Option<String>,
+    pub poster_photo: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductionPhotoView {
+    pub url: String,
+    pub thumbnail_url: String,
+    pub caption: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductionScriptView {
+    pub id: String,
+    pub title: String,
+    pub version: i64,
+    pub visibility: String,
+    pub file_url: String,
+    pub notes: Option<String>,
+    pub created_at: String,
 }
 
 /// Single production view template
@@ -453,6 +472,8 @@ pub struct ProductionTemplate {
     pub active_page: String,
     pub user: Option<User>,
     pub production: ProductionDetail,
+    pub production_roles: Vec<String>,
+    pub org_production_roles: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -469,8 +490,14 @@ pub struct ProductionDetail {
     pub created_at: String,
     pub updated_at: String,
     pub members: Vec<ProductionMemberView>,
+    pub person_members: Vec<ProductionMemberView>,
+    pub org_members: Vec<ProductionMemberView>,
     pub can_edit: bool,
     pub poster_url: Option<String>,
+    pub poster_photo: Option<String>,
+    pub header_photo: Option<String>,
+    pub photos: Vec<ProductionPhotoView>,
+    pub scripts: Vec<ProductionScriptView>,
     pub tmdb_url: Option<String>,
     pub release_date: Option<String>,
     pub source: String,
@@ -478,6 +505,8 @@ pub struct ProductionDetail {
     pub cast: Vec<CastCrewMember>,
     pub crew: Vec<CastCrewMember>,
     pub pending_credits: Vec<CastCrewMember>,
+    pub budget_level: Option<String>,
+    pub production_tier: Option<String>,
 }
 
 /// A cast or crew member on a production (from involvement graph traversal)
@@ -500,7 +529,17 @@ pub struct ProductionMemberView {
     pub username: Option<String>,
     pub slug: Option<String>,
     pub role: String,
+    pub production_role: Option<String>,
     pub member_type: String,
+    pub invitation_status: String,
+}
+
+/// Organization option for ownership dropdown
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrgOption {
+    pub id: String,
+    pub name: String,
+    pub role: String,
 }
 
 /// Production create form template
@@ -514,6 +553,11 @@ pub struct ProductionCreateTemplate {
     pub user: Option<User>,
     pub production_types: Vec<String>,
     pub production_statuses: Vec<String>,
+    pub budget_levels: Vec<String>,
+    pub production_tiers: Vec<String>,
+    pub user_organizations: Vec<OrgOption>,
+    pub production_roles: Vec<String>,
+    pub org_production_roles: Vec<String>,
     pub errors: Option<Vec<String>>,
 }
 
@@ -529,6 +573,13 @@ pub struct ProductionEditTemplate {
     pub production: ProductionEditData,
     pub production_types: Vec<String>,
     pub production_statuses: Vec<String>,
+    pub budget_levels: Vec<String>,
+    pub production_tiers: Vec<String>,
+    pub production_roles: Vec<String>,
+    pub org_production_roles: Vec<String>,
+    pub members: Vec<ProductionMemberView>,
+    pub person_members: Vec<ProductionMemberView>,
+    pub org_members: Vec<ProductionMemberView>,
     pub errors: Option<Vec<String>>,
 }
 
@@ -543,6 +594,11 @@ pub struct ProductionEditData {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub location: Option<String>,
+    pub header_photo: Option<String>,
+    pub poster_photo: Option<String>,
+    pub photos: Vec<ProductionPhotoView>,
+    pub budget_level: Option<String>,
+    pub production_tier: Option<String>,
 }
 
 /// Locations page template

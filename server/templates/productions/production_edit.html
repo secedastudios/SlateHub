@@ -3,6 +3,7 @@
 {% block page_name %}productions{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
+<link rel="stylesheet" href="/static/css/components/invite-search.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
 <section id="prod-form-page">
@@ -94,6 +95,224 @@
         </div>
     </form>
 
+    <section class="prod-members-section">
+        <h2>Cast & Crew</h2>
+
+        {% if !person_members.is_empty() %}
+        <ul class="prod-members-list">
+            {% for member in person_members %}
+            <li class="prod-member-item">
+                <div class="prod-member-info">
+                    {% if member.username.is_some() %}
+                    <a href="/{{ member.username.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
+                    {% else %}
+                    <strong>{{ member.name }}</strong>
+                    {% endif %}
+                    {% if member.production_role.is_some() %}
+                    <span class="prod-role-badge">{{ member.production_role.as_ref().unwrap() }}</span>
+                    {% endif %}
+                    {% if member.role == "owner" || member.role == "admin" %}
+                    <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
+                    {% endif %}
+                    {% if member.invitation_status == "pending" %}
+                    <span class="prod-role-badge" data-role="pending">invited</span>
+                    {% endif %}
+                </div>
+                {% if member.role != "owner" %}
+                <form action="/productions/{{ production.slug }}/members/remove" method="post"
+                      onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                    <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                    <button type="submit" class="prod-btn-danger">Remove</button>
+                </form>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No cast or crew members yet.</p>
+        {% endif %}
+
+        <div class="prod-add-member-section"
+             data-signals="{pm_query: '', pm_selected_value: '', pm_selected_name: '', pm_selected_avatar: '', pm_has_selection: false}">
+            <h3>Invite Member</h3>
+            <form action="/productions/{{ production.slug }}/members/add" method="post">
+                <div class="prod-form-grid">
+                    <div>
+                        <label>Find a person</label>
+                        <div class="invite-search-wrap">
+                            <div class="invite-selected-user" data-show="$pm_has_selection">
+                                <img data-attr-src="$pm_selected_avatar" alt="" class="invite-sel-avatar"
+                                     data-show="$pm_selected_avatar !== ''" />
+                                <span data-text="$pm_selected_name"></span>
+                                <button type="button" class="invite-sel-clear" aria-label="Clear selection"
+                                        data-on:click="$pm_has_selection = false; $pm_selected_value = ''; $pm_query = ''">&times;</button>
+                            </div>
+                            <input type="text" autocomplete="off" placeholder="Search by name, username, or email..."
+                                   data-bind:pm_query
+                                   data-on:input__debounce_250ms="@get('/api/people/search-sse?scope=pm&value_field=username&allow_email=true&q=' + $pm_query)"
+                                   data-show="!$pm_has_selection" />
+                            <input type="hidden" name="member_id" data-bind:pm_selected_value />
+                            <div id="pm-results" class="invite-search-results"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="select-prod-role">Production Role</label>
+                        <select id="select-prod-role" name="production_role">
+                            <option value="">-- Select Role --</option>
+                            {% for r in production_roles %}
+                            <option value="{{ r }}">{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="text" name="custom_role" placeholder="Or enter a custom role..." />
+                    </div>
+                    <div>
+                        <label for="select-member-perm">Permission Level</label>
+                        <select id="select-member-perm" name="role" required>
+                            <option value="member">Member</option>
+                            <option value="admin">Admin</option>
+                            <option value="owner">Owner</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem;">
+                    <button type="submit" class="prod-btn-primary">Send Invitation</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section class="prod-members-section">
+        <h2>Organizations</h2>
+
+        {% if !org_members.is_empty() %}
+        <ul class="prod-members-list">
+            {% for member in org_members %}
+            <li class="prod-member-item">
+                <div class="prod-member-info">
+                    {% if member.slug.is_some() %}
+                    <a href="/orgs/{{ member.slug.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
+                    {% else %}
+                    <strong>{{ member.name }}</strong>
+                    {% endif %}
+                    {% if member.production_role.is_some() %}
+                    <span class="prod-role-badge">{{ member.production_role.as_ref().unwrap() }}</span>
+                    {% endif %}
+                    {% if member.role == "owner" || member.role == "admin" %}
+                    <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
+                    {% endif %}
+                </div>
+                {% if member.role != "owner" %}
+                <form action="/productions/{{ production.slug }}/members/remove" method="post"
+                      onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                    <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                    <button type="submit" class="prod-btn-danger">Remove</button>
+                </form>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No organizations added yet.</p>
+        {% endif %}
+
+        <div class="prod-add-member-section"
+             data-signals="{oe_query: '', oe_selected_value: '', oe_selected_name: '', oe_selected_avatar: '', oe_has_selection: false}">
+            <h3>Add Organization</h3>
+            <form action="/productions/{{ production.slug }}/members/add-org" method="post">
+                <div class="prod-form-grid">
+                    <div>
+                        <label>Find an organization</label>
+                        <div class="invite-search-wrap">
+                            <div class="invite-selected-user" data-show="$oe_has_selection">
+                                <img data-attr-src="$oe_selected_avatar" alt="" class="invite-sel-avatar"
+                                     data-show="$oe_selected_avatar !== ''" />
+                                <span data-text="$oe_selected_name"></span>
+                                <button type="button" class="invite-sel-clear" aria-label="Clear selection"
+                                        data-on:click="$oe_has_selection = false; $oe_selected_value = ''; $oe_query = ''">&times;</button>
+                            </div>
+                            <input type="text" autocomplete="off" placeholder="Search organizations..."
+                                   data-bind:oe_query
+                                   data-on:input__debounce_250ms="@get('/api/orgs/search-sse?scope=oe&q=' + $oe_query)"
+                                   data-show="!$oe_has_selection" />
+                            <input type="hidden" name="org_id" data-bind:oe_selected_value />
+                            <div id="oe-results" class="invite-search-results"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="select-org-role">Organization Role</label>
+                        <select id="select-org-role" name="production_role">
+                            <option value="">-- Select Role --</option>
+                            {% for r in org_production_roles %}
+                            <option value="{{ r }}">{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="text" name="custom_role" placeholder="Or enter a custom role..." />
+                    </div>
+                    <div>
+                        <label for="select-org-perm">Permission Level</label>
+                        <select id="select-org-perm" name="role" required>
+                            <option value="member">Member</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top:0.5rem;">
+                    <button type="submit" class="prod-btn-primary">Add Organization</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section class="prod-photos-section">
+        <h2>Photos</h2>
+
+        <div class="prod-photo-upload-group">
+            <h3>Header Photo</h3>
+            {% if production.header_photo.is_some() %}
+            <div class="prod-photo-preview">
+                <img src="{{ production.header_photo.as_ref().unwrap() }}" alt="Header photo" style="max-width:400px;max-height:200px;" />
+                <button type="button" class="prod-btn-danger" onclick="deletePhoto('header')">Remove</button>
+            </div>
+            {% endif %}
+            <form id="header-upload-form" enctype="multipart/form-data">
+                <input type="file" id="header-file" accept="image/*" />
+                <button type="button" class="prod-btn-outline" onclick="uploadPhoto('header')">Upload Header</button>
+            </form>
+        </div>
+
+        <div class="prod-photo-upload-group">
+            <h3>Poster</h3>
+            {% if production.poster_photo.is_some() %}
+            <div class="prod-photo-preview">
+                <img src="{{ production.poster_photo.as_ref().unwrap() }}" alt="Poster" style="max-width:200px;max-height:300px;" />
+                <button type="button" class="prod-btn-danger" onclick="deletePhoto('poster')">Remove</button>
+            </div>
+            {% endif %}
+            <form id="poster-upload-form" enctype="multipart/form-data">
+                <input type="file" id="poster-file" accept="image/*" />
+                <button type="button" class="prod-btn-outline" onclick="uploadPhoto('poster')">Upload Poster</button>
+            </form>
+        </div>
+
+        <div class="prod-photo-upload-group">
+            <h3>Gallery Photos</h3>
+            {% if !production.photos.is_empty() %}
+            <div class="prod-gallery-grid" style="display:flex;flex-wrap:wrap;gap:1rem;">
+                {% for photo in production.photos %}
+                <div class="prod-gallery-item" style="position:relative;">
+                    <img src="{{ photo.thumbnail_url }}" alt="Gallery photo" style="width:120px;height:120px;object-fit:cover;" />
+                    <button type="button" class="prod-btn-danger" onclick="deleteGalleryPhoto('{{ photo.url }}')" style="position:absolute;top:0;right:0;">&times;</button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <form id="gallery-upload-form" enctype="multipart/form-data">
+                <input type="file" id="gallery-file" accept="image/*" />
+                <button type="button" class="prod-btn-outline" onclick="uploadPhoto('gallery')">Add Gallery Photo</button>
+            </form>
+        </div>
+    </section>
+
     <section class="prod-danger-zone">
         <h2>Danger Zone</h2>
         <p>Once you delete a production, there is no going back. This will permanently delete the production and remove all associations with team members.</p>
@@ -122,5 +341,56 @@ document.getElementById('input-start-date').addEventListener('change', function(
         e.setCustomValidity('');
     }
 });
+
+const prodId = '{{ production.id }}';
+
+function uploadPhoto(type) {
+    const fileMap = { header: 'header-file', poster: 'poster-file', gallery: 'gallery-file' };
+    const urlMap = {
+        header: `/api/media/upload/production-header-photo/${prodId}`,
+        poster: `/api/media/upload/production-poster/${prodId}`,
+        gallery: `/api/media/upload/production-photo/${prodId}`
+    };
+    const fileInput = document.getElementById(fileMap[type]);
+    if (!fileInput.files.length) { alert('Please select an image first.'); return; }
+    const formData = new FormData();
+    formData.append('image', fileInput.files[0]);
+    fetch(urlMap[type], { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            location.reload();
+        })
+        .catch(e => alert('Upload failed: ' + e));
+}
+
+function deletePhoto(type) {
+    if (!confirm('Remove this photo?')) return;
+    const url = type === 'header'
+        ? `/api/media/delete/production-header-photo/${prodId}`
+        : `/api/media/delete/production-poster/${prodId}`;
+    fetch(url, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            location.reload();
+        })
+        .catch(e => alert('Delete failed: ' + e));
+}
+
+function deleteGalleryPhoto(photoUrl) {
+    if (!confirm('Remove this photo?')) return;
+    fetch(`/api/media/delete/production-photo/${prodId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: photoUrl })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            location.reload();
+        })
+        .catch(e => alert('Delete failed: ' + e));
+}
 </script>
 {% endblock %}

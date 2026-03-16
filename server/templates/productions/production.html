@@ -16,9 +16,13 @@
 
     <section id="prod-hero">
         <div class="prod-hero-layout">
-            {% if production.poster_url.is_some() %}
+            {% if production.poster_photo.is_some() || production.poster_url.is_some() %}
             <div class="prod-hero-poster">
+                {% if production.poster_photo.is_some() %}
+                <img src="{{ production.poster_photo.as_ref().unwrap() }}" alt="{{ production.title }} poster" />
+                {% else %}
                 <img src="{{ production.poster_url.as_ref().unwrap() }}" alt="{{ production.title }} poster" />
+                {% endif %}
             </div>
             {% endif %}
             <div class="prod-hero-info">
@@ -80,136 +84,56 @@
                 <div class="prod-stat">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                    {{ production.cast.len() + production.crew.len() }} credit{% if production.cast.len() + production.crew.len() != 1 %}s{% endif %}
+                    {{ production.members.len() }} member{% if production.members.len() != 1 %}s{% endif %}
                 </div>
             </div>
 
-            {% if !production.cast.is_empty() %}
-            <section class="prod-credits-section">
-                <h3 class="prod-section-title">Cast</h3>
-                <ul class="prod-credits-list">
-                    {% for member in production.cast %}
-                    <li class="prod-credit-item">
-                        <div class="prod-credit-avatar">
-                            {% if member.person_avatar.is_some() %}
-                            <img src="{{ member.person_avatar.as_ref().unwrap() }}" alt="" />
-                            {% else %}
-                            <div class="prod-credit-avatar-placeholder">{{ member.person_username.chars().next().unwrap_or('?') }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="prod-credit-info">
-                            <a href="/{{ member.person_username }}"><strong>{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}{{ member.person_username }}{% endif %}</strong>{% if member.person_is_identity_verified %} <svg data-role="verified-badge" width="14" height="14" viewBox="0 0 24 24" fill="#1d9bf0" aria-label="Verified"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>{% endif %}</a>
-                            {% if member.role.is_some() %}
-                            <span class="prod-credit-role">{{ member.role.as_ref().unwrap() }}</span>
-                            {% endif %}
-                        </div>
-                        <span class="prod-verification-badge" data-status="{{ member.verification_status }}">{{ member.verification_status }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </section>
-            {% endif %}
-
-            {% if !production.crew.is_empty() %}
-            <section class="prod-credits-section">
-                <h3 class="prod-section-title">Crew</h3>
-                <ul class="prod-credits-list">
-                    {% for member in production.crew %}
-                    <li class="prod-credit-item">
-                        <div class="prod-credit-avatar">
-                            {% if member.person_avatar.is_some() %}
-                            <img src="{{ member.person_avatar.as_ref().unwrap() }}" alt="" />
-                            {% else %}
-                            <div class="prod-credit-avatar-placeholder">{{ member.person_username.chars().next().unwrap_or('?') }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="prod-credit-info">
-                            <a href="/{{ member.person_username }}"><strong>{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}{{ member.person_username }}{% endif %}</strong>{% if member.person_is_identity_verified %} <svg data-role="verified-badge" width="14" height="14" viewBox="0 0 24 24" fill="#1d9bf0" aria-label="Verified"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>{% endif %}</a>
-                            {% if member.role.is_some() %}
-                            <span class="prod-credit-role">{{ member.role.as_ref().unwrap() }}</span>
-                            {% endif %}
-                            {% if member.department.is_some() %}
-                            <span class="prod-credit-dept">{{ member.department.as_ref().unwrap() }}</span>
-                            {% endif %}
-                        </div>
-                        <span class="prod-verification-badge" data-status="{{ member.verification_status }}">{{ member.verification_status }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </section>
-            {% endif %}
-
-            {% if production.cast.is_empty() && production.crew.is_empty() %}
-            <section class="prod-credits-section">
-                <h3 class="prod-section-title">Cast & Crew</h3>
-                <div class="prod-empty" style="padding:2rem 0">
-                    <p>No credits have been added to this production yet.</p>
-                </div>
-            </section>
-            {% endif %}
-
-            {% if production.can_edit && !production.pending_credits.is_empty() %}
-            <section class="prod-credits-section prod-pending-section">
-                <h3 class="prod-section-title">Pending Credits</h3>
-                <p class="prod-pending-desc">These credits are awaiting your review.</p>
-                <ul class="prod-credits-list">
-                    {% for member in production.pending_credits %}
-                    <li class="prod-credit-item">
-                        <div class="prod-credit-avatar">
-                            {% if member.person_avatar.is_some() %}
-                            <img src="{{ member.person_avatar.as_ref().unwrap() }}" alt="" />
-                            {% else %}
-                            <div class="prod-credit-avatar-placeholder">{{ member.person_username.chars().next().unwrap_or('?') }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="prod-credit-info">
-                            <a href="/{{ member.person_username }}"><strong>{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}{{ member.person_username }}{% endif %}</strong>{% if member.person_is_identity_verified %} <svg data-role="verified-badge" width="14" height="14" viewBox="0 0 24 24" fill="#1d9bf0" aria-label="Verified"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>{% endif %}</a>
-                            {% if member.role.is_some() %}
-                            <span class="prod-credit-role">{{ member.role.as_ref().unwrap() }}</span>
-                            {% endif %}
-                            <span class="prod-verification-badge" data-status="{{ member.verification_status }}">{{ member.verification_status }}</span>
-                        </div>
-                        <div class="prod-credit-actions">
-                            <button type="button" class="prod-btn-primary" onclick="verifyCredit('{{ member.involvement_id }}')">Approve</button>
-                            <button type="button" class="prod-btn-danger" onclick="rejectCredit('{{ member.involvement_id }}')">Reject</button>
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </section>
-            {% endif %}
-
             <section>
                 <div id="prod-members-header">
-                    <h3 class="prod-section-title">Production Team</h3>
+                    <h3 class="prod-section-title">Cast & Crew</h3>
                     {% if production.can_edit %}
-                    <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">+ Add Member</button>
+                    <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">+ Invite Member</button>
                     {% endif %}
                 </div>
 
                 {% if production.can_edit %}
-                <div id="add-member-form-container" hidden>
+                <div id="add-member-form-container" hidden
+                     data-signals="{pd_query: '', pd_selected_value: '', pd_selected_name: '', pd_selected_avatar: '', pd_has_selection: false}">
                     <form id="prod-add-member-form" action="/productions/{{ production.slug }}/members/add" method="post">
                         <fieldset>
-                            <legend>Add Team Member</legend>
+                            <legend>Invite Team Member</legend>
                             <div class="prod-form-grid">
                                 <div>
-                                    <label for="input-prod-member-search">Find a person</label>
-                                    <div class="invite-search-wrap" id="prod-search-wrap">
-                                        <div id="prod-selected-user" class="invite-selected-user" hidden>
-                                            <img id="prod-sel-avatar" src="" alt="" class="invite-sel-avatar" />
-                                            <span id="prod-sel-name"></span>
-                                            <button type="button" id="prod-sel-clear" class="invite-sel-clear" aria-label="Clear selection">&times;</button>
+                                    <label>Find a person</label>
+                                    <div class="invite-search-wrap">
+                                        <div class="invite-selected-user" data-show="$pd_has_selection">
+                                            <img data-attr-src="$pd_selected_avatar" alt="" class="invite-sel-avatar"
+                                                 data-show="$pd_selected_avatar !== ''" />
+                                            <span data-text="$pd_selected_name"></span>
+                                            <button type="button" class="invite-sel-clear" aria-label="Clear selection"
+                                                    data-on:click="$pd_has_selection = false; $pd_selected_value = ''; $pd_query = ''">&times;</button>
                                         </div>
-                                        <input type="text" id="input-prod-member-search" autocomplete="off"
-                                               placeholder="Search by name, username, or email..." />
-                                        <input type="hidden" id="input-member-id" name="member_id" required />
-                                        <div id="prod-search-results" class="invite-search-results" hidden></div>
+                                        <input type="text" autocomplete="off" placeholder="Search by name, username, or email..."
+                                               data-bind:pd_query
+                                               data-on:input__debounce_250ms="@get('/api/people/search-sse?scope=pd&value_field=username&allow_email=true&q=' + $pd_query)"
+                                               data-show="!$pd_has_selection" />
+                                        <input type="hidden" name="member_id" data-bind:pd_selected_value />
+                                        <div id="pd-results" class="invite-search-results"></div>
                                     </div>
                                 </div>
                                 <div>
-                                    <label for="select-member-role">Role</label>
-                                    <select id="select-member-role" name="role" required>
+                                    <label>Production Role</label>
+                                    <select name="production_role">
+                                        <option value="">-- Select Role --</option>
+                                        {% for r in production_roles %}
+                                        <option value="{{ r }}">{{ r }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="text" name="custom_role" placeholder="Or enter a custom role..." />
+                                </div>
+                                <div>
+                                    <label>Permission Level</label>
+                                    <select name="role" required>
                                         <option value="member">Member</option>
                                         <option value="admin">Admin</option>
                                         <option value="owner">Owner</option>
@@ -217,7 +141,7 @@
                                 </div>
                             </div>
                             <div class="prod-member-form-actions">
-                                <button type="submit" class="prod-btn-primary">Add Member</button>
+                                <button type="submit" class="prod-btn-primary">Send Invitation</button>
                                 <button type="button" class="prod-btn-outline" onclick="hideAddMemberForm()">Cancel</button>
                             </div>
                         </fieldset>
@@ -225,20 +149,25 @@
                 </div>
                 {% endif %}
 
-                {% if !production.members.is_empty() %}
+                {% if !production.person_members.is_empty() %}
                 <ul class="prod-members-list">
-                    {% for member in production.members %}
-                    <li class="prod-member-item">
+                    {% for member in production.person_members %}
+                    <li class="prod-member-item{% if member.invitation_status == "pending" %} prod-member-pending{% endif %}">
                         <div class="prod-member-info">
-                            {% if member.member_type == "person" && member.username.is_some() %}
+                            {% if member.username.is_some() %}
                             <a href="/{{ member.username.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
-                            {% else if member.member_type == "organization" && member.slug.is_some() %}
-                            <a href="/orgs/{{ member.slug.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
                             {% else %}
                             <strong>{{ member.name }}</strong>
                             {% endif %}
+                            {% if member.production_role.is_some() %}
+                            <span class="prod-role-badge">{{ member.production_role.as_ref().unwrap() }}</span>
+                            {% endif %}
+                            {% if member.role == "owner" || member.role == "admin" %}
                             <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
-                            <span class="prod-type-indicator">{{ member.member_type }}</span>
+                            {% endif %}
+                            {% if member.invitation_status == "pending" %}
+                            <span class="prod-role-badge" data-role="pending">invited</span>
+                            {% endif %}
                         </div>
                         {% if production.can_edit && member.role != "owner" %}
                         <form action="/productions/{{ production.slug }}/members/remove" method="post"
@@ -252,9 +181,106 @@
                 </ul>
                 {% else %}
                 <div class="prod-empty" style="padding:2rem 0">
-                    <p>No team members have been added to this production yet.</p>
+                    <p>No cast or crew members yet.</p>
                     {% if production.can_edit %}
-                    <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">Add First Member</button>
+                    <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">Invite First Member</button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </section>
+
+            <section>
+                <div id="prod-orgs-header">
+                    <h3 class="prod-section-title">Organizations</h3>
+                    {% if production.can_edit %}
+                    <button type="button" class="prod-btn-outline" onclick="showAddOrgForm()">+ Add Organization</button>
+                    {% endif %}
+                </div>
+
+                {% if production.can_edit %}
+                <div id="add-org-form-container" hidden
+                     data-signals="{og_query: '', og_selected_value: '', og_selected_name: '', og_selected_avatar: '', og_has_selection: false}">
+                    <form id="prod-add-org-form" action="/productions/{{ production.slug }}/members/add-org" method="post">
+                        <fieldset>
+                            <legend>Add Organization</legend>
+                            <div class="prod-form-grid">
+                                <div>
+                                    <label>Find an organization</label>
+                                    <div class="invite-search-wrap">
+                                        <div class="invite-selected-user" data-show="$og_has_selection">
+                                            <img data-attr-src="$og_selected_avatar" alt="" class="invite-sel-avatar"
+                                                 data-show="$og_selected_avatar !== ''" />
+                                            <span data-text="$og_selected_name"></span>
+                                            <button type="button" class="invite-sel-clear" aria-label="Clear selection"
+                                                    data-on:click="$og_has_selection = false; $og_selected_value = ''; $og_query = ''">&times;</button>
+                                        </div>
+                                        <input type="text" autocomplete="off" placeholder="Search organizations..."
+                                               data-bind:og_query
+                                               data-on:input__debounce_250ms="@get('/api/orgs/search-sse?scope=og&q=' + $og_query)"
+                                               data-show="!$og_has_selection" />
+                                        <input type="hidden" name="org_id" data-bind:og_selected_value />
+                                        <div id="og-results" class="invite-search-results"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label>Production Role</label>
+                                    <select name="production_role">
+                                        <option value="">-- Select Role --</option>
+                                        {% for r in org_production_roles %}
+                                        <option value="{{ r }}">{{ r }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="text" name="custom_role" placeholder="Or enter a custom role..." />
+                                </div>
+                                <div>
+                                    <label>Permission Level</label>
+                                    <select name="role" required>
+                                        <option value="member">Member</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="prod-member-form-actions">
+                                <button type="submit" class="prod-btn-primary">Add Organization</button>
+                                <button type="button" class="prod-btn-outline" onclick="hideAddOrgForm()">Cancel</button>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+                {% endif %}
+
+                {% if !production.org_members.is_empty() %}
+                <ul class="prod-members-list">
+                    {% for member in production.org_members %}
+                    <li class="prod-member-item">
+                        <div class="prod-member-info">
+                            {% if member.slug.is_some() %}
+                            <a href="/orgs/{{ member.slug.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
+                            {% else %}
+                            <strong>{{ member.name }}</strong>
+                            {% endif %}
+                            {% if member.production_role.is_some() %}
+                            <span class="prod-role-badge">{{ member.production_role.as_ref().unwrap() }}</span>
+                            {% endif %}
+                            {% if member.role == "owner" || member.role == "admin" %}
+                            <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
+                            {% endif %}
+                        </div>
+                        {% if production.can_edit && member.role != "owner" %}
+                        <form action="/productions/{{ production.slug }}/members/remove" method="post"
+                              onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                            <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                            <button type="submit" class="prod-btn-danger">Remove</button>
+                        </form>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="prod-empty" style="padding:2rem 0">
+                    <p>No organizations added yet.</p>
+                    {% if production.can_edit %}
+                    <button type="button" class="prod-btn-outline" onclick="showAddOrgForm()">Add First Organization</button>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -331,102 +357,17 @@
 
 <script>
 function showAddMemberForm() {
-    const c = document.getElementById('add-member-form-container');
-    if (c) {
-        c.removeAttribute('hidden');
-        resetProdSearch();
-        document.getElementById('input-prod-member-search').focus();
-    }
+    document.getElementById('add-member-form-container').removeAttribute('hidden');
 }
 function hideAddMemberForm() {
-    const c = document.getElementById('add-member-form-container');
-    if (c) { c.setAttribute('hidden', ''); document.getElementById('prod-add-member-form').reset(); resetProdSearch(); }
+    document.getElementById('add-member-form-container').setAttribute('hidden', '');
 }
-
-function resetProdSearch() {
-    var s = document.getElementById('input-prod-member-search');
-    var h = document.getElementById('input-member-id');
-    var r = document.getElementById('prod-search-results');
-    var sel = document.getElementById('prod-selected-user');
-    if (s) { s.value = ''; s.style.display = ''; }
-    if (h) h.value = '';
-    if (r) { r.innerHTML = ''; r.hidden = true; }
-    if (sel) sel.hidden = true;
+function showAddOrgForm() {
+    document.getElementById('add-org-form-container').removeAttribute('hidden');
 }
-
-(function() {
-    var searchInput = document.getElementById('input-prod-member-search');
-    var hiddenInput = document.getElementById('input-member-id');
-    var resultsBox = document.getElementById('prod-search-results');
-    var selectedBox = document.getElementById('prod-selected-user');
-    var selAvatar = document.getElementById('prod-sel-avatar');
-    var selName = document.getElementById('prod-sel-name');
-    var selClear = document.getElementById('prod-sel-clear');
-    if (!searchInput) return;
-    var debounceTimer = null;
-
-    function selectUser(person) {
-        hiddenInput.value = person.id;
-        selName.textContent = person.name + ' (@' + person.username + ')';
-        if (person.avatar_url) { selAvatar.src = person.avatar_url; selAvatar.style.display = ''; }
-        else { selAvatar.style.display = 'none'; }
-        selectedBox.hidden = false;
-        searchInput.style.display = 'none';
-        resultsBox.hidden = true;
-    }
-
-    selClear.addEventListener('click', function() { resetProdSearch(); searchInput.focus(); });
-
-    searchInput.addEventListener('input', function() {
-        var q = searchInput.value.trim();
-        clearTimeout(debounceTimer);
-        if (q.length < 2) { resultsBox.innerHTML = ''; resultsBox.hidden = true; hiddenInput.value = ''; return; }
-        debounceTimer = setTimeout(function() {
-            fetch('/api/people/search?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    resultsBox.innerHTML = '';
-                    var results = data.results || [];
-                    if (results.length === 0) {
-                        resultsBox.innerHTML = '<div class="invite-search-empty">No users found.</div>';
-                        resultsBox.hidden = false;
-                        return;
-                    }
-                    results.forEach(function(person) {
-                        var item = document.createElement('div');
-                        item.className = 'invite-search-item';
-                        item.tabIndex = 0;
-                        var avatarHtml = person.avatar_url
-                            ? '<img src="' + person.avatar_url + '" alt="" class="invite-search-avatar" />'
-                            : '<span class="invite-search-initials">' + person.initials + '</span>';
-                        item.innerHTML = avatarHtml +
-                            '<span class="invite-search-info"><strong>' + person.name + '</strong><small>@' + person.username + '</small></span>';
-                        item.addEventListener('click', function() { selectUser(person); });
-                        item.addEventListener('keydown', function(e) { if (e.key === 'Enter') selectUser(person); });
-                        resultsBox.appendChild(item);
-                    });
-                    resultsBox.hidden = false;
-                })
-                .catch(function() { resultsBox.hidden = true; });
-        }, 250);
-    });
-
-    document.addEventListener('click', function(e) {
-        if (!document.getElementById('prod-search-wrap').contains(e.target)) resultsBox.hidden = true;
-    });
-    searchInput.addEventListener('keydown', function(e) {
-        if (e.key === 'ArrowDown' && !resultsBox.hidden) {
-            e.preventDefault();
-            var first = resultsBox.querySelector('.invite-search-item');
-            if (first) first.focus();
-        }
-    });
-    resultsBox.addEventListener('keydown', function(e) {
-        if (e.key === 'ArrowDown') { e.preventDefault(); var n = document.activeElement.nextElementSibling; if (n && n.classList.contains('invite-search-item')) n.focus(); }
-        else if (e.key === 'ArrowUp') { e.preventDefault(); var p = document.activeElement.previousElementSibling; if (p && p.classList.contains('invite-search-item')) p.focus(); else searchInput.focus(); }
-        else if (e.key === 'Escape') { resultsBox.hidden = true; searchInput.focus(); }
-    });
-})();
+function hideAddOrgForm() {
+    document.getElementById('add-org-form-container').setAttribute('hidden', '');
+}
 
 function claimProduction() {
     if (!confirm('Claim this production? You will become the owner and can manage credits.')) return;

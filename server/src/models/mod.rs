@@ -11,4 +11,5 @@ pub mod organization;
 pub mod pending_invitation;
 pub mod person;
 pub mod production;
+pub mod script;
 pub mod system;

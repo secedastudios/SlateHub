@@ -16,3 +16,24 @@ SELECT id, out.release_date AS release_date, out.title AS production_title, role
 SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC, production_title ASC;
 SELECT id, out.release_date AS release_date, out.title AS production_title, role, out.release_date IS NONE AS has_no_date FROM involvement WHERE in = person:6l3k8z8eyaht5bjgzjs9 ORDER BY has_no_date DESC, release_date DESC, production_title ASC, role ASC;
 SELECT username, profile.avatar FROM person WHERE username = 'chris';
+-- Test 1: Create test data
+CREATE person:testbind SET name = "Test Person";
+CREATE production:testbind SET title = "Test Production", slug = "test-bind", type = "Film", status = "Development", source = "manual";
+RELATE person:testbind->member_of->production:testbind SET role = 'owner';
+-- Test 2: Query with string bind param (simulating what we had before)
+-- We can't do bind params in surreal import, but we can test directly
+SELECT count() AS count FROM member_of WHERE out = "production:testbind" AND role = 'owner';
+-- Test 3: Query with actual record reference
+SELECT count() AS count FROM member_of WHERE out = production:testbind AND role = 'owner';
+-- Cleanup
+DELETE person:testbind;
+DELETE production:testbind;
+DELETE member_of WHERE in = person:testbind OR out = production:testbind;
+SELECT <string> id AS id, name, username, profile.avatar AS avatar_url FROM person WHERE string::lowercase(name ?? '') CONTAINS 'chris' OR string::lowercase(username ?? '') CONTAINS 'chris' LIMIT 8;
+SELECT id, name, username FROM person LIMIT 5;
+SELECT count() AS count FROM person;
+INFO FOR TABLE person;
+INFO FOR DB;
+SELECT * FROM person LIMIT 3;
+INFO FOR NS;
+SELECT * FROM person LIMIT 3;

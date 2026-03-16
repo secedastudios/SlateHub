@@ -1,7 +1,8 @@
 use axum::{
     Extension, Json, Router,
     extract::{Path, Query},
-    response::{IntoResponse, Redirect},
+    http::header,
+    response::{IntoResponse, Redirect, Response},
     routing::{delete, get, post},
 };
 use serde::{Deserialize, Serialize};
@@ -35,6 +36,10 @@ pub fn router() -> Router {
         .route("/feedback", post(submit_feedback))
         .route("/check-username", get(check_username))
         .route("/people/search", get(people_search))
+        .route("/people/search-sse", get(people_search_sse))
+        .route("/people/select-sse", get(people_select_sse))
+        .route("/orgs/search-sse", get(orgs_search_sse))
+        .route("/orgs/select-sse", get(orgs_select_sse))
         .route("/og/profile/{username}", get(og_profile_image))
         .route("/qr/profile/{username}", get(qr_profile_image))
 }
@@ -473,9 +478,12 @@ async fn create_involvement_with_production(
             end_date: None,
             description: None,
             location: None,
+            budget_level: None,
+            production_tier: None,
         },
         &user.id,
         "person",
+        None,
     )
     .await
     {
@@ -855,6 +863,333 @@ async fn people_search(
         .collect();
 
     Json(serde_json::json!({ "results": items }))
+}
+
+// -- SSE helpers for Datastar --
+
+fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
+    let mut s = format!(
+        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
+        selector, mode
+    );
+    if !elements.is_empty() {
+        s += &format!("data: elements {}\n", elements.replace('\n', " "));
+    }
+    s += "\n";
+    s
+}
+
+fn sse_patch_signals(signals: &str) -> String {
+    format!(
+        "event: datastar-patch-signals\ndata: signals {}\n\n",
+        signals
+    )
+}
+
+fn sse_response(body: String) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "text/event-stream"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+/// People search via SSE (Datastar) — returns rendered HTML fragments
+#[derive(Debug, Deserialize)]
+struct PeopleSearchSseQuery {
+    q: Option<String>,
+    /// Which field to use as the selected value: "id" or "username"
+    #[serde(default = "default_value_field")]
+    value_field: String,
+    /// Whether to allow email invitations
+    #[serde(default)]
+    allow_email: bool,
+    /// A unique prefix to scope signals when multiple search components are on one page
+    #[serde(default = "default_scope")]
+    scope: String,
+}
+
+fn default_value_field() -> String { "id".to_string() }
+fn default_scope() -> String { "ms".to_string() }
+
+#[axum::debug_handler]
+async fn people_search_sse(
+    _user: AuthenticatedUser,
+    Query(params): Query<PeopleSearchSseQuery>,
+) -> Response {
+    use surrealdb::types::SurrealValue;
+
+    let scope = &params.scope;
+    let results_selector = &format!("#{scope}-results");
+
+    let query = match params.q.filter(|q| q.len() >= 2) {
+        Some(q) => q,
+        None => {
+            // Clear results
+            let sse = sse_patch_elements(results_selector, "inner", "");
+            return sse_response(sse);
+        }
+    };
+
+    let query_lower = query.to_lowercase();
+    let is_email = query.contains('@') && query.contains('.');
+
+    #[derive(Debug, Deserialize, SurrealValue)]
+    struct PersonHit {
+        id: String,
+        name: Option<String>,
+        username: String,
+        avatar_url: Option<String>,
+    }
+
+    let sql = "SELECT
+            <string> id AS id,
+            name,
+            username,
+            profile.avatar AS avatar_url
+        FROM person
+        WHERE
+            string::lowercase(name ?? '') CONTAINS $q
+            OR string::lowercase(username ?? '') CONTAINS $q
+        LIMIT 8";
+
+    let results: Vec<PersonHit> = match DB.query(sql).bind(("q", query_lower)).await {
+        Ok(mut resp) => resp.take(0).unwrap_or_default(),
+        Err(e) => {
+            error!("People search SSE failed: {}", e);
+            vec![]
+        }
+    };
+
+    let mut html = String::new();
+
+    if results.is_empty() && !is_email {
+        html.push_str(if params.allow_email {
+            r#"<div class="invite-search-empty">No users found. Enter an email to invite someone new.</div>"#
+        } else {
+            r#"<div class="invite-search-empty">No users found.</div>"#
+        });
+    }
+
+    for p in &results {
+        let display_name = p.name.as_deref().unwrap_or(&p.username);
+        let initials: String = display_name
+            .split_whitespace()
+            .filter_map(|w| w.chars().next())
+            .take(2)
+            .collect::<String>()
+            .to_uppercase();
+
+        let value = if params.value_field == "username" { &p.username } else { &p.id };
+
+        let avatar_html = if let Some(ref url) = p.avatar_url {
+            format!(r#"<img src="{}" alt="" class="invite-search-avatar" />"#, url)
+        } else {
+            format!(r#"<span class="invite-search-initials">{}</span>"#, initials)
+        };
+
+        html.push_str(&format!(
+            r#"<div class="invite-search-item" tabindex="0" data-on:click="@get('{}')" data-on:keydown.enter="@get('{}')">{}<span class="invite-search-info"><strong>{}</strong><small>@{}</small></span></div>"#,
+            format_args!("/api/people/select-sse?scope={}&value={}&name={}&avatar={}&username={}",
+                scope,
+                urlencoding::encode(value),
+                urlencoding::encode(display_name),
+                urlencoding::encode(p.avatar_url.as_deref().unwrap_or("")),
+                urlencoding::encode(&p.username),
+            ),
+            format_args!("/api/people/select-sse?scope={}&value={}&name={}&avatar={}&username={}",
+                scope,
+                urlencoding::encode(value),
+                urlencoding::encode(display_name),
+                urlencoding::encode(p.avatar_url.as_deref().unwrap_or("")),
+                urlencoding::encode(&p.username),
+            ),
+            avatar_html, display_name, p.username
+        ));
+    }
+
+    // Add email invite option if applicable
+    if params.allow_email && is_email {
+        html.push_str(&format!(
+            r#"<div class="invite-search-item invite-search-email" tabindex="0" data-on:click="@get('/api/people/select-sse?scope={scope}&value={email}&name={email}&avatar=&username=')" data-on:keydown.enter="@get('/api/people/select-sse?scope={scope}&value={email}&name={email}&avatar=&username=')"><span class="invite-search-email-icon">&#9993;</span><span>Invite <strong>{email}</strong> by email</span></div>"#,
+            scope = scope,
+            email = query,
+        ));
+    }
+
+    let sse = sse_patch_elements(results_selector, "inner", &html);
+    sse_response(sse)
+}
+
+/// Selection endpoint — sets signals when a user is selected from search results
+#[derive(Debug, Deserialize)]
+struct PeopleSelectSseQuery {
+    scope: String,
+    value: String,
+    name: String,
+    avatar: Option<String>,
+    username: Option<String>,
+}
+
+#[axum::debug_handler]
+async fn people_select_sse(
+    _user: AuthenticatedUser,
+    Query(params): Query<PeopleSelectSseQuery>,
+) -> Response {
+    let scope = &params.scope;
+    let display = if let Some(ref u) = params.username {
+        if u.is_empty() {
+            params.name.clone()
+        } else {
+            format!("{} (@{})", params.name, u)
+        }
+    } else {
+        params.name.clone()
+    };
+
+    let mut sse = sse_patch_signals(&format!(
+        r#"{{{scope}_selected_value: "{value}", {scope}_selected_name: "{display}", {scope}_selected_avatar: "{avatar}", {scope}_has_selection: true, {scope}_query: ""}}"#,
+        scope = scope,
+        value = params.value.replace('"', r#"\""#),
+        display = display.replace('"', r#"\""#),
+        avatar = params.avatar.as_deref().unwrap_or("").replace('"', r#"\""#),
+    ));
+
+    // Clear results
+    sse += &sse_patch_elements(&format!("#{scope}-results"), "inner", "");
+
+    sse_response(sse)
+}
+
+// -----------------------------------------------------------------------------
+// Organization Search SSE (Datastar)
+// -----------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+struct OrgSearchSseQuery {
+    q: Option<String>,
+    #[serde(default = "default_scope")]
+    scope: String,
+}
+
+#[axum::debug_handler]
+async fn orgs_search_sse(
+    _user: AuthenticatedUser,
+    Query(params): Query<OrgSearchSseQuery>,
+) -> Response {
+    use surrealdb::types::SurrealValue;
+
+    let scope = &params.scope;
+    let results_selector = &format!("#{scope}-results");
+
+    let query = match params.q.filter(|q| q.len() >= 2) {
+        Some(q) => q,
+        None => {
+            let sse = sse_patch_elements(results_selector, "inner", "");
+            return sse_response(sse);
+        }
+    };
+
+    let query_lower = query.to_lowercase();
+
+    #[derive(Debug, Deserialize, SurrealValue)]
+    struct OrgHit {
+        id: String,
+        name: String,
+        slug: String,
+        logo: Option<String>,
+    }
+
+    let sql = "SELECT
+            <string> id AS id,
+            name,
+            slug,
+            logo
+        FROM organization
+        WHERE
+            string::lowercase(name ?? '') CONTAINS $q
+            OR string::lowercase(slug ?? '') CONTAINS $q
+        LIMIT 8";
+
+    let results: Vec<OrgHit> = match DB.query(sql).bind(("q", query_lower)).await {
+        Ok(mut resp) => resp.take(0).unwrap_or_default(),
+        Err(e) => {
+            error!("Org search SSE failed: {}", e);
+            vec![]
+        }
+    };
+
+    let mut html = String::new();
+
+    if results.is_empty() {
+        html.push_str(r#"<div class="invite-search-empty">No organizations found.</div>"#);
+    }
+
+    for o in &results {
+        let initials: String = o.name
+            .split_whitespace()
+            .filter_map(|w| w.chars().next())
+            .take(2)
+            .collect::<String>()
+            .to_uppercase();
+
+        let avatar_html = if let Some(ref url) = o.logo {
+            format!(r#"<img src="{}" alt="" class="invite-search-avatar" />"#, url)
+        } else {
+            format!(r#"<span class="invite-search-initials">{}</span>"#, initials)
+        };
+
+        html.push_str(&format!(
+            r#"<div class="invite-search-item" tabindex="0" data-on:click="@get('{}')" data-on:keydown.enter="@get('{}')">{}<span class="invite-search-info"><strong>{}</strong><small>{}</small></span></div>"#,
+            format_args!("/api/orgs/select-sse?scope={}&value={}&name={}&avatar={}",
+                scope,
+                urlencoding::encode(&o.id),
+                urlencoding::encode(&o.name),
+                urlencoding::encode(o.logo.as_deref().unwrap_or("")),
+            ),
+            format_args!("/api/orgs/select-sse?scope={}&value={}&name={}&avatar={}",
+                scope,
+                urlencoding::encode(&o.id),
+                urlencoding::encode(&o.name),
+                urlencoding::encode(o.logo.as_deref().unwrap_or("")),
+            ),
+            avatar_html, o.name, o.slug
+        ));
+    }
+
+    let sse = sse_patch_elements(results_selector, "inner", &html);
+    sse_response(sse)
+}
+
+#[derive(Debug, Deserialize)]
+struct OrgSelectSseQuery {
+    scope: String,
+    value: String,
+    name: String,
+    avatar: Option<String>,
+}
+
+#[axum::debug_handler]
+async fn orgs_select_sse(
+    _user: AuthenticatedUser,
+    Query(params): Query<OrgSelectSseQuery>,
+) -> Response {
+    let scope = &params.scope;
+
+    let mut sse = sse_patch_signals(&format!(
+        r#"{{{scope}_selected_value: "{value}", {scope}_selected_name: "{display}", {scope}_selected_avatar: "{avatar}", {scope}_has_selection: true, {scope}_query: ""}}"#,
+        scope = scope,
+        value = params.value.replace('"', r#"\""#),
+        display = params.name.replace('"', r#"\""#),
+        avatar = params.avatar.as_deref().unwrap_or("").replace('"', r#"\""#),
+    ));
+
+    sse += &sse_patch_elements(&format!("#{scope}-results"), "inner", "");
+
+    sse_response(sse)
 }
 
 // -----------------------------------------------------------------------------

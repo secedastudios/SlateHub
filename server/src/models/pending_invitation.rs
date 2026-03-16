@@ -17,6 +17,16 @@ pub struct PendingInvitation {
     pub status: String,
     pub created_at: DateTime<Utc>,
     pub expires_at: Option<DateTime<Utc>>,
+    // Production invite extras
+    #[serde(default)]
+    #[surreal(default)]
+    pub production_role: Option<String>,
+    #[serde(default)]
+    #[surreal(default)]
+    pub relation_type: Option<String>,
+    #[serde(default)]
+    #[surreal(default)]
+    pub department: Option<String>,
 }
 
 pub struct PendingInvitationModel;
@@ -97,6 +107,51 @@ impl PendingInvitationModel {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn create_for_production(
+        &self,
+        email: &str,
+        target_id: &str,
+        target_name: &str,
+        target_slug: &str,
+        role: &str,
+        invited_by: &str,
+        production_role: Option<&str>,
+    ) -> Result<PendingInvitation, Error> {
+        debug!(
+            "Creating pending production invitation for {} to '{}'",
+            email, target_name
+        );
+
+        let invited_by =
+            RecordId::parse_simple(invited_by).map_err(|e| Error::BadRequest(e.to_string()))?;
+
+        let result: Option<PendingInvitation> = DB
+            .query(
+                "CREATE pending_invitation CONTENT {
+                    email: $email,
+                    target_type: 'production',
+                    target_id: $target_id,
+                    target_name: $target_name,
+                    target_slug: $target_slug,
+                    role: $role,
+                    invited_by: $invited_by,
+                    status: 'pending',
+                    production_role: $production_role
+                }",
+            )
+            .bind(("email", email.to_string()))
+            .bind(("target_id", target_id.to_string()))
+            .bind(("target_name", target_name.to_string()))
+            .bind(("target_slug", target_slug.to_string()))
+            .bind(("role", role.to_string()))
+            .bind(("invited_by", invited_by))
+            .bind(("production_role", production_role.map(|s| s.to_string())))
+            .await?
+            .take(0)?;
+
+        result.ok_or_else(|| Error::Internal("Failed to create pending invitation".to_string()))
     }
 
     pub async fn find_existing(

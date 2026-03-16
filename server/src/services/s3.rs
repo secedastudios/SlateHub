@@ -134,6 +134,12 @@ impl S3Service {
                         "Principal": {{"AWS": ["*"]}},
                         "Action": ["s3:GetObject"],
                         "Resource": ["arn:aws:s3:::{bucket}/locations/*"]
+                    }},
+                    {{
+                        "Effect": "Allow",
+                        "Principal": {{"AWS": ["*"]}},
+                        "Action": ["s3:GetObject"],
+                        "Resource": ["arn:aws:s3:::{bucket}/productions/*"]
                     }}
                 ]
             }}"#,
@@ -185,8 +191,8 @@ impl S3Service {
             .body(body)
             .content_type(content_type);
 
-        // Profile images, organization logos, and location photos are public by default
-        if key.starts_with("profiles/") || key.starts_with("organizations/") || key.starts_with("locations/") {
+        // Profile images, organization logos, location photos, and production media are public by default
+        if key.starts_with("profiles/") || key.starts_with("organizations/") || key.starts_with("locations/") || key.starts_with("productions/") {
             request = request.acl(aws_sdk_s3::types::ObjectCannedAcl::PublicRead);
         }
 

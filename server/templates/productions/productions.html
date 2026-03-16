@@ -50,7 +50,9 @@
             {% for production in productions %}
             <article class="prod-card">
                 <a href="/productions/{{ production.slug }}" class="prod-card-visual" data-status="{{ production.status }}">
-                    {% if production.poster_url.is_some() %}
+                    {% if production.poster_photo.is_some() %}
+                    <img src="{{ production.poster_photo.as_ref().unwrap() }}" alt="{{ production.title }}" class="prod-card-poster" loading="lazy" />
+                    {% else if production.poster_url.is_some() %}
                     <img src="{{ production.poster_url.as_ref().unwrap() }}" alt="{{ production.title }}" class="prod-card-poster" loading="lazy" />
                     {% else %}
                     <div class="prod-card-placeholder">

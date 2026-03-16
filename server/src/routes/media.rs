@@ -13,7 +13,7 @@ use std::io::Cursor;
 use tracing::{debug, info};
 use ulid::Ulid;
 
-use crate::{db::DB, error::Error, middleware::AuthenticatedUser, models::location::LocationModel, models::organization::OrganizationModel, record_id_ext::RecordIdExt, services::s3::s3, verification_limits};
+use crate::{db::DB, error::Error, middleware::AuthenticatedUser, models::location::LocationModel, models::organization::OrganizationModel, models::production::ProductionModel, record_id_ext::RecordIdExt, services::s3::s3, verification_limits};
 
 pub fn router() -> Router {
     Router::new()
@@ -50,6 +50,31 @@ pub fn router() -> Router {
         .route(
             "/delete/location-photo/{location_id}",
             post(delete_location_photo),
+        )
+        // Production photo routes
+        .route(
+            "/upload/production-header-photo/{production_id}",
+            post(upload_production_header_photo),
+        )
+        .route(
+            "/delete/production-header-photo/{production_id}",
+            post(delete_production_header_photo),
+        )
+        .route(
+            "/upload/production-poster/{production_id}",
+            post(upload_production_poster),
+        )
+        .route(
+            "/delete/production-poster/{production_id}",
+            post(delete_production_poster),
+        )
+        .route(
+            "/upload/production-photo/{production_id}",
+            post(upload_production_photo),
+        )
+        .route(
+            "/delete/production-photo/{production_id}",
+            post(delete_production_photo),
         )
         .route("/debug/list-uploads", get(debug_list_uploads))
         // Media proxy endpoint - catches all media/* paths
@@ -1143,6 +1168,256 @@ async fn delete_location_photo(
         .map_err(|e| Error::Internal(format!("Failed to delete location photo: {}", e)))?;
 
     info!("Location photo deleted for location {}", location_id);
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+// ============================
+// Production Photo Endpoints
+// ============================
+
+const MAX_PRODUCTION_PHOTOS: usize = 20;
+
+/// Poster image dimensions (2:3 aspect ratio)
+const POSTER_WIDTH: u32 = 600;
+const POSTER_HEIGHT: u32 = 900;
+const POSTER_THUMB_WIDTH: u32 = 200;
+const POSTER_THUMB_HEIGHT: u32 = 300;
+
+fn process_poster(image_data: &[u8]) -> Result<(Bytes, Bytes), Error> {
+    let img = image::load_from_memory(image_data)
+        .map_err(|e| Error::bad_request(format!("Invalid image file: {}", e)))?;
+
+    let full = img.resize_to_fill(POSTER_WIDTH, POSTER_HEIGHT, image::imageops::FilterType::Lanczos3);
+    let thumb = img.resize_to_fill(POSTER_THUMB_WIDTH, POSTER_THUMB_HEIGHT, image::imageops::FilterType::Lanczos3);
+
+    let mut full_bytes = Cursor::new(Vec::new());
+    full.write_to(&mut full_bytes, ImageFormat::Jpeg)
+        .map_err(|e| Error::Internal(format!("Failed to encode poster: {}", e)))?;
+
+    let mut thumb_bytes = Cursor::new(Vec::new());
+    thumb.write_to(&mut thumb_bytes, ImageFormat::Jpeg)
+        .map_err(|e| Error::Internal(format!("Failed to encode poster thumbnail: {}", e)))?;
+
+    Ok((
+        Bytes::from(full_bytes.into_inner()),
+        Bytes::from(thumb_bytes.into_inner()),
+    ))
+}
+
+/// Helper: check production edit permissions
+async fn check_production_edit(production_id: &str, user_id: &str) -> Result<surrealdb::types::RecordId, Error> {
+    let prod_rid = surrealdb::types::RecordId::new("production", production_id);
+    if !ProductionModel::can_edit(&prod_rid, user_id).await? {
+        return Err(Error::Forbidden);
+    }
+    Ok(prod_rid)
+}
+
+/// Helper: extract image from multipart
+async fn extract_image_from_multipart(multipart: &mut Multipart) -> Result<(String, Bytes), Error> {
+    while let Some(field) = multipart.next_field().await
+        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))? {
+        let name = field.name().unwrap_or("").to_string();
+        if name != "image" { continue; }
+        let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
+        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
+            return Err(Error::bad_request(format!("Invalid file type: {}. Allowed: JPEG, PNG, WebP", content_type)));
+        }
+        let data = field.bytes().await
+            .map_err(|e| Error::bad_request(format!("Failed to read file data: {}", e)))?;
+        if data.len() > MAX_FILE_SIZE {
+            return Err(Error::bad_request("File too large. Maximum size is 10MB"));
+        }
+        return Ok((content_type, data));
+    }
+    Err(Error::bad_request("No image file provided"))
+}
+
+/// Upload a header photo for a production
+async fn upload_production_header_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(production_id): Path<String>,
+    Query(params): Query<ImageProcessParams>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadResponse>, Error> {
+    debug!("User {} uploading header photo for production {}", user.username, production_id);
+
+    let prod_rid = check_production_edit(&production_id, &user.id).await?;
+
+    let (_content_type, data) = extract_image_from_multipart(&mut multipart).await?;
+    let (processed, _thumbnail) = process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
+
+    let image_id = Ulid::new().to_string();
+    let main_key = format!("productions/{}/{}.jpg", production_id, image_id);
+
+    let s3_service = s3()?;
+    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
+
+    let main_url = format!("/api/media/{}", main_key);
+
+    DB.query("UPDATE $pid SET header_photo = $url")
+        .bind(("pid", prod_rid))
+        .bind(("url", main_url.clone()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to update production header photo: {}", e)))?;
+
+    info!("Production header photo uploaded for {}", production_id);
+
+    Ok(Json(UploadResponse {
+        media_id: image_id,
+        url: main_url,
+        thumbnail_url: None,
+    }))
+}
+
+/// Delete a production's header photo
+async fn delete_production_header_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(production_id): Path<String>,
+) -> Result<Json<serde_json::Value>, Error> {
+    let prod_rid = check_production_edit(&production_id, &user.id).await?;
+
+    DB.query("UPDATE $pid SET header_photo = NONE")
+        .bind(("pid", prod_rid))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to delete production header photo: {}", e)))?;
+
+    info!("Production header photo deleted for {}", production_id);
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// Upload a custom poster for a production
+async fn upload_production_poster(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(production_id): Path<String>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadResponse>, Error> {
+    debug!("User {} uploading poster for production {}", user.username, production_id);
+
+    let prod_rid = check_production_edit(&production_id, &user.id).await?;
+
+    let (_content_type, data) = extract_image_from_multipart(&mut multipart).await?;
+    let (processed, thumbnail) = process_poster(&data)?;
+
+    let image_id = Ulid::new().to_string();
+    let main_key = format!("productions/{}/poster_{}.jpg", production_id, image_id);
+    let thumb_key = format!("productions/{}/poster_thumb_{}.jpg", production_id, image_id);
+
+    let s3_service = s3()?;
+    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
+    s3_service.upload_file(&thumb_key, thumbnail, "image/jpeg").await?;
+
+    let main_url = format!("/api/media/{}", main_key);
+    let thumb_url = format!("/api/media/{}", thumb_key);
+
+    DB.query("UPDATE $pid SET poster_photo = $url")
+        .bind(("pid", prod_rid))
+        .bind(("url", main_url.clone()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to update production poster: {}", e)))?;
+
+    info!("Production poster uploaded for {}", production_id);
+
+    Ok(Json(UploadResponse {
+        media_id: image_id,
+        url: main_url,
+        thumbnail_url: Some(thumb_url),
+    }))
+}
+
+/// Delete a production's custom poster
+async fn delete_production_poster(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(production_id): Path<String>,
+) -> Result<Json<serde_json::Value>, Error> {
+    let prod_rid = check_production_edit(&production_id, &user.id).await?;
+
+    DB.query("UPDATE $pid SET poster_photo = NONE")
+        .bind(("pid", prod_rid))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to delete production poster: {}", e)))?;
+
+    info!("Production poster deleted for {}", production_id);
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// Upload a gallery photo for a production (up to 20)
+async fn upload_production_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(production_id): Path<String>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadResponse>, Error> {
+    debug!("User {} uploading gallery photo for production {}", user.username, production_id);
+
+    let prod_rid = check_production_edit(&production_id, &user.id).await?;
+
+    // Check current photo count
+    let mut count_resp = DB.query("SELECT array::len(photos) AS photo_count FROM $pid")
+        .bind(("pid", prod_rid.clone()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to check photo count: {}", e)))?;
+    let count_val: Option<serde_json::Value> = count_resp.take(0).ok().and_then(|v| v);
+    let photo_count = count_val
+        .as_ref()
+        .and_then(|v| v.get("photo_count"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0) as usize;
+
+    if photo_count >= MAX_PRODUCTION_PHOTOS {
+        return Err(Error::bad_request(format!("Maximum of {} production photos allowed", MAX_PRODUCTION_PHOTOS)));
+    }
+
+    let (_content_type, data) = extract_image_from_multipart(&mut multipart).await?;
+    let (processed, thumbnail) = process_photo(&data)?;
+
+    let image_id = Ulid::new().to_string();
+    let main_key = format!("productions/{}/photos/{}.jpg", production_id, image_id);
+    let thumb_key = format!("productions/{}/photos/thumb_{}.jpg", production_id, image_id);
+
+    let s3_service = s3()?;
+    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
+    s3_service.upload_file(&thumb_key, thumbnail, "image/jpeg").await?;
+
+    let main_url = format!("/api/media/{}", main_key);
+    let thumb_url = format!("/api/media/{}", thumb_key);
+
+    DB.query("UPDATE $pid SET photos += $photo")
+        .bind(("pid", prod_rid))
+        .bind(("photo", serde_json::json!({
+            "url": main_url,
+            "thumbnail_url": thumb_url,
+            "caption": ""
+        })))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to update production photos: {}", e)))?;
+
+    info!("Production gallery photo uploaded for {}", production_id);
+
+    Ok(Json(UploadResponse {
+        media_id: image_id,
+        url: main_url,
+        thumbnail_url: Some(thumb_url),
+    }))
+}
+
+/// Delete a production gallery photo
+async fn delete_production_photo(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(production_id): Path<String>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, Error> {
+    let url = body.get("url").and_then(|v| v.as_str())
+        .ok_or_else(|| Error::bad_request("Missing 'url' field"))?;
+
+    let prod_rid = check_production_edit(&production_id, &user.id).await?;
+
+    DB.query("UPDATE $pid SET photos = photos[WHERE url != $url]")
+        .bind(("pid", prod_rid))
+        .bind(("url", url.to_string()))
+        .await
+        .map_err(|e| Error::Internal(format!("Failed to delete production photo: {}", e)))?;
+
+    info!("Production gallery photo deleted for {}", production_id);
     Ok(Json(serde_json::json!({ "success": true })))
 }
 

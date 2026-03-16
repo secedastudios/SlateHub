@@ -1,0 +1,83 @@
+{% extends "_layout.html" %}
+{% block title %}My Productions - {{ app_name }}{% endblock %}
+{% block page_name %}my-productions{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section data-component="my-productions-page">
+    <header data-role="page-header">
+        <h1>My Productions</h1>
+        <p data-role="subtitle">Productions you are part of</p>
+        <div data-role="header-actions">
+            <a href="/productions/new" data-role="btn-primary">+ Create New</a>
+            <a href="/productions" data-role="btn-secondary">Browse All</a>
+        </div>
+    </header>
+
+    <section data-section="productions-list"
+        data-state="{% if productions.is_empty() %}empty{% else %}ready{% endif %}">
+
+        {% if productions.is_empty() %}
+        <div data-role="empty-state">
+            <h2>You're not part of any productions yet</h2>
+            <p>Create your own production or browse existing ones.</p>
+            <nav data-role="empty-actions">
+                <a href="/productions/new" data-role="btn-primary">Create Production</a>
+                <a href="/productions" data-role="btn-secondary">Browse Productions</a>
+            </nav>
+        </div>
+        {% else %}
+        <div data-role="results-count">
+            <p>You are part of {{ productions.len() }} production{% if productions.len() != 1 %}s{% endif %}</p>
+        </div>
+        <div data-role="card-grid">
+            {% for prod in productions %}
+            <article data-component="card" data-type="production">
+                <a href="/productions/{{ prod.slug }}" data-role="card-visual">
+                    {% if prod.poster_photo.is_some() %}
+                    <img src="{{ prod.poster_photo.as_ref().unwrap() }}" alt="{{ prod.title }}" loading="lazy" onerror="this.style.display='none'" />
+                    {% else if prod.poster_url.is_some() %}
+                    <img src="{{ prod.poster_url.as_ref().unwrap() }}" alt="{{ prod.title }}" loading="lazy" onerror="this.style.display='none'" />
+                    {% else %}
+                    <div data-role="placeholder"><span>{{ prod.title }}</span></div>
+                    {% endif %}
+                    <div data-role="overlay">
+                        <h3>{{ prod.title }}</h3>
+                        <div data-role="meta">
+                            <span data-role="type-label">{{ prod.production_type }}</span>
+                            {% if prod.location.is_some() %}
+                            <span data-role="loc">{{ prod.location.as_ref().unwrap() }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if prod.production_role.is_some() %}
+                    <span data-role="badge">{{ prod.production_role.as_ref().unwrap() }}</span>
+                    {% else %}
+                    <span data-role="badge">{{ prod.role }}</span>
+                    {% endif %}
+                </a>
+                <div data-role="content">
+                    <div data-role="tags">
+                        <span class="prod-badge" data-role="status" data-value="{{ prod.status }}">{{ prod.status }}</span>
+                        {% if prod.role == "owner" || prod.role == "admin" %}
+                        <span class="prod-badge" data-role="permission">{{ prod.role }}</span>
+                        {% endif %}
+                        {% if prod.invitation_status == "pending" %}
+                        <span class="prod-badge" data-role="pending">invited</span>
+                        {% endif %}
+                    </div>
+                    <div data-role="actions">
+                        <a href="/productions/{{ prod.slug }}" data-role="btn-primary">View</a>
+                        {% if prod.role == "owner" || prod.role == "admin" %}
+                        <a href="/productions/{{ prod.slug }}/edit" data-role="btn-secondary">Edit</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

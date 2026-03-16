@@ -666,6 +666,7 @@ impl OrganizationModel {
                 joined_at
             FROM member_of
             WHERE in = $user_id
+            AND <string> type::table(out) = 'organization'
             AND invitation_status = 'accepted'
             ORDER BY joined_at DESC";
 
@@ -742,5 +743,25 @@ impl OrganizationModel {
             result.len()
         );
         Ok(result)
+    }
+
+    /// Get person IDs of all owners of an organization
+    pub async fn get_org_owners(&self, org_id: &str) -> Result<Vec<String>, Error> {
+        let org_rid = surrealdb::types::RecordId::parse_simple(org_id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+
+        #[derive(Debug, serde::Deserialize, surrealdb::types::SurrealValue)]
+        struct OwnerId {
+            person_id: String,
+        }
+
+        let results: Vec<OwnerId> = DB
+            .query("SELECT <string> in AS person_id FROM member_of WHERE out = $org_id AND role = 'owner'")
+            .bind(("org_id", org_rid))
+            .await?
+            .take(0)
+            .unwrap_or_default();
+
+        Ok(results.into_iter().map(|o| o.person_id).collect())
     }
 }

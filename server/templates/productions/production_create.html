@@ -94,11 +94,32 @@
             <legend>Ownership</legend>
 
             <div data-field="create-as">
-                <label for="select-create-as">Create As</label>
-                <select id="select-create-as" name="organization_id">
+                <label for="select-create-as">Create Under</label>
+                <select id="select-create-as" name="organization_id" onchange="toggleOwnerRoles()">
                     <option value="">Myself</option>
+                    {% for org in user_organizations %}
+                    <option value="{{ org.id }}">{{ org.name }} ({{ org.role }})</option>
+                    {% endfor %}
                 </select>
                 <small>Choose whether to create this production as yourself or on behalf of an organization</small>
+            </div>
+
+            <div data-field="owner-role">
+                <label for="select-owner-role">Production Role</label>
+                <select id="select-owner-role-person" name="owner_production_role">
+                    <option value="">-- Select Role --</option>
+                    {% for r in production_roles %}
+                    <option value="{{ r }}">{{ r }}</option>
+                    {% endfor %}
+                </select>
+                <select id="select-owner-role-org" style="display:none;" disabled>
+                    <option value="">-- Select Role --</option>
+                    {% for r in org_production_roles %}
+                    <option value="{{ r }}">{{ r }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" name="custom_owner_role" placeholder="Or enter a custom role..." />
+                <small>Your role on this production (e.g. Director, Producer, Production Services)</small>
             </div>
         </fieldset>
 
@@ -127,5 +148,18 @@ document.getElementById('input-start-date').addEventListener('change', function(
         e.setCustomValidity('');
     }
 });
+
+function toggleOwnerRoles() {
+    const orgSelect = document.getElementById('select-create-as');
+    const personRoles = document.getElementById('select-owner-role-person');
+    const orgRoles = document.getElementById('select-owner-role-org');
+    const isOrg = orgSelect.value !== '';
+    personRoles.style.display = isOrg ? 'none' : '';
+    personRoles.disabled = isOrg;
+    personRoles.name = isOrg ? '' : 'owner_production_role';
+    orgRoles.style.display = isOrg ? '' : 'none';
+    orgRoles.disabled = !isOrg;
+    orgRoles.name = isOrg ? 'owner_production_role' : '';
+}
 </script>
 {% endblock %}

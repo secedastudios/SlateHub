@@ -8,6 +8,7 @@ use crate::{
     record_id_ext::RecordIdExt,
     services::email::EmailService,
 };
+use surrealdb::types::RecordId;
 use tracing::{debug, error, info, warn};
 
 #[derive(Debug)]
@@ -158,6 +159,138 @@ impl InvitationService {
         }
     }
 
+    /// Invite a user to a production. Handles both existing and non-existing users.
+    /// Creates a member_of relation with pending status for existing users.
+    pub async fn invite_to_production(
+        production_id: &str,
+        production_title: &str,
+        production_slug: &str,
+        identifier: &str,
+        permission_level: &str, // "owner", "admin", "member"
+        production_role: Option<&str>, // e.g. "Director", "Producer"
+        inviter_id: &str,
+        inviter_name: &str,
+        message: Option<&str>,
+    ) -> Result<InviteResult, Error> {
+        let org_model = OrganizationModel::new();
+        let notification_model = NotificationModel::new();
+
+        let prod_rid = RecordId::new("production", production_id.split(':').last().unwrap_or(production_id));
+
+        match org_model.find_user_by_username_or_email(identifier).await {
+            Ok(person_id) => {
+                // Check if already a member
+                if crate::models::production::ProductionModel::is_member(&prod_rid, &person_id).await? {
+                    return Ok(InviteResult::AlreadyMember);
+                }
+
+                // Create member_of with pending invitation status
+                crate::models::production::ProductionModel::add_member(
+                    &prod_rid,
+                    &person_id,
+                    permission_level,
+                    production_role,
+                    Some(inviter_id),
+                )
+                .await?;
+
+                // Notify the invitee
+                let role_desc = production_role.unwrap_or(permission_level);
+                let mut notification_msg = format!(
+                    "{} invited you to join {} as {}",
+                    inviter_name, production_title, role_desc
+                );
+                if let Some(msg) = message {
+                    if !msg.is_empty() {
+                        notification_msg.push_str(&format!("\n\n\"{}\"", msg));
+                    }
+                }
+
+                notification_model
+                    .create(
+                        &person_id,
+                        "invitation",
+                        &format!("Invitation to {}", production_title),
+                        &notification_msg,
+                        Some(&format!("/productions/{}", production_slug)),
+                        Some(production_id),
+                    )
+                    .await?;
+
+                info!(
+                    "Invited existing user {} to production {} as {} (permission: {})",
+                    person_id, production_title, role_desc, permission_level
+                );
+
+                Ok(InviteResult::ExistingUser)
+            }
+            Err(Error::NotFound) => {
+                if !identifier.contains('@') {
+                    return Err(Error::BadRequest(format!(
+                        "No user found with username '{}'",
+                        identifier
+                    )));
+                }
+
+                let pending_model = PendingInvitationModel::new();
+
+                if pending_model.find_existing(identifier, production_id).await?.is_some() {
+                    return Ok(InviteResult::AlreadyInvited);
+                }
+
+                pending_model
+                    .create_for_production(
+                        identifier,
+                        production_id,
+                        production_title,
+                        production_slug,
+                        permission_level,
+                        inviter_id,
+                        production_role,
+                    )
+                    .await?;
+
+                // Send invitation email
+                let base_url = crate::config::app_url();
+                let signup_url = format!(
+                    "{}/signup?ref=invite&email={}",
+                    base_url,
+                    urlencoding::encode(identifier)
+                );
+
+                match EmailService::from_env() {
+                    Ok(email_service) => {
+                        let to_email = identifier.to_string();
+                        let prod = production_title.to_string();
+                        let inviter = inviter_name.to_string();
+                        let url = signup_url;
+                        let msg = message.map(|m| m.to_string());
+
+                        tokio::spawn(async move {
+                            if let Err(e) = email_service
+                                .send_invitation_email(&to_email, &prod, &inviter, &url, msg.as_deref())
+                                .await
+                            {
+                                error!("Failed to send production invitation email to {}: {}", to_email, e);
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        warn!("Email service not configured, skipping invitation email: {}", e);
+                    }
+                }
+
+                info!(
+                    "Created pending invitation for {} to production {} ({})",
+                    identifier, production_title, production_slug
+                );
+
+                Ok(InviteResult::NewUserInvited)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     /// Process pending invitations for a newly verified user.
     /// Returns the redirect URL of the most recent invitation target, or None.
     pub async fn process_pending_invitations(
@@ -237,10 +370,50 @@ impl InvitationService {
                     );
                 }
                 "production" => {
-                    // TODO: Handle production invitations in Phase 2
-                    warn!(
-                        "Production invitations not yet implemented, skipping: {}",
-                        invitation.target_id
+                    let prod_rid = RecordId::new(
+                        "production",
+                        invitation.target_id.split(':').last().unwrap_or(&invitation.target_id),
+                    );
+
+                    if let Err(e) = crate::models::production::ProductionModel::add_member_accepted(
+                        &prod_rid,
+                        person_id,
+                        &invitation.role,
+                        invitation.production_role.as_deref(),
+                    )
+                    .await
+                    {
+                        error!(
+                            "Failed to add person {} to production {}: {}",
+                            person_id, invitation.target_id, e
+                        );
+                        continue;
+                    }
+
+                    pending_model.mark_accepted(&invitation_id).await?;
+
+                    // Notify the inviter
+                    let inviter_id = invitation.invited_by.to_raw_string();
+                    let _ = notification_model
+                        .create(
+                            &inviter_id,
+                            "invitation_accepted",
+                            "Invitation accepted",
+                            &format!(
+                                "{} accepted your invitation to join {}",
+                                email, invitation.target_name
+                            ),
+                            Some(&format!("/productions/{}", invitation.target_slug)),
+                            None,
+                        )
+                        .await;
+
+                    most_recent_url =
+                        Some(format!("/productions/{}", invitation.target_slug));
+
+                    info!(
+                        "Auto-joined person {} to production {} via pending invitation",
+                        person_id, invitation.target_name
                     );
                 }
                 other => {

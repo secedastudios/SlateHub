@@ -73,6 +73,7 @@ impl InvolvementModel {
         let verification_status = match source {
             "tmdb_import" => "externally_sourced",
             "claimed" => "verified",
+            "invited" => "pending_verification",
             _ => "self_asserted",
         };
 

@@ -27,6 +27,20 @@ DEFINE FIELD position ON production_status TYPE int;
 DEFINE INDEX idx_production_status_name ON production_status FIELDS name UNIQUE;
 DEFINE INDEX idx_production_status_position ON production_status FIELDS position;
 
+-- Budget Levels
+DEFINE TABLE budget_level TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
+DEFINE FIELD name ON budget_level TYPE string;
+DEFINE FIELD position ON budget_level TYPE int;
+DEFINE INDEX idx_budget_level_name ON budget_level FIELDS name UNIQUE;
+DEFINE INDEX idx_budget_level_position ON budget_level FIELDS position;
+
+-- Production Tiers
+DEFINE TABLE production_tier TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
+DEFINE FIELD name ON production_tier TYPE string;
+DEFINE FIELD position ON production_tier TYPE int;
+DEFINE INDEX idx_production_tier_name ON production_tier FIELDS name UNIQUE;
+DEFINE INDEX idx_production_tier_position ON production_tier FIELDS position;
+
 -- Involvement Relation Types
 DEFINE TABLE involvement_relation_type TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
 DEFINE FIELD name ON involvement_relation_type TYPE string;
@@ -36,6 +50,7 @@ DEFINE INDEX idx_involvement_relation_type_name ON involvement_relation_type FIE
 DEFINE TABLE role TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
 DEFINE FIELD name ON role TYPE string;
 DEFINE FIELD department ON role TYPE option<record<department>>;  -- Link to department if needed
+DEFINE FIELD role_type ON role TYPE string DEFAULT "individual";  -- "individual", "organization", "both"
 DEFINE INDEX idx_role_name ON role FIELDS name UNIQUE;
 
 -- Departments
@@ -149,7 +164,8 @@ DEFINE INDEX idx_organization_slug ON organization FIELDS slug UNIQUE;
 
 DEFINE TABLE member_of TYPE RELATION FROM person|organization TO organization|production SCHEMAFULL PERMISSIONS NONE;
 
-DEFINE FIELD role ON member_of TYPE string PERMISSIONS FULL;  -- "owner", "admin", "member"
+DEFINE FIELD role ON member_of TYPE string PERMISSIONS FULL;  -- "owner", "admin", "member" (permission level)
+DEFINE FIELD production_role ON member_of TYPE option<string> PERMISSIONS FULL;  -- e.g. "Director", "Producer" (from role table or custom)
 DEFINE FIELD permissions ON member_of TYPE array<string> DEFAULT [] PERMISSIONS FULL;  -- Array of permission strings
 DEFINE FIELD joined_at ON member_of TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD invitation_status ON member_of TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined"
@@ -217,6 +233,9 @@ DEFINE FIELD invited_by ON pending_invitation TYPE record<person> PERMISSIONS FU
 DEFINE FIELD status ON pending_invitation TYPE string DEFAULT 'pending' ASSERT $value IN ['pending', 'accepted', 'expired'] PERMISSIONS FULL;
 DEFINE FIELD created_at ON pending_invitation TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD expires_at ON pending_invitation TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD production_role ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- e.g. "Director", "Producer"
+DEFINE FIELD relation_type ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- For production invites: "cast", "crew"
+DEFINE FIELD department ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- For production crew invites
 
 DEFINE INDEX idx_pending_invitation_email ON pending_invitation FIELDS email;
 DEFINE INDEX idx_pending_invitation_status ON pending_invitation FIELDS status;
@@ -343,6 +362,38 @@ DEFINE FIELD overview ON production TYPE option<string> PERMISSIONS FULL;  -- TM
 -- Source tracking (claim state derived from graph: count(<-member_of[WHERE role = 'owner']) > 0)
 DEFINE FIELD source ON production TYPE string DEFAULT 'manual' PERMISSIONS FULL;  -- "tmdb", "manual"
 DEFINE FIELD source_overrides ON production TYPE array<string> DEFAULT [] PERMISSIONS FULL;  -- fields manually edited by owner, won't be overwritten on re-sync
+
+-- Production photos
+DEFINE FIELD header_photo ON production TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD poster_photo ON production TYPE option<string> PERMISSIONS FULL;  -- Custom poster, overrides TMDB poster_url
+DEFINE FIELD photos ON production TYPE array<object> DEFAULT [] PERMISSIONS FULL;
+DEFINE FIELD photos.*.url ON production TYPE string PERMISSIONS FULL;
+DEFINE FIELD photos.*.thumbnail_url ON production TYPE string PERMISSIONS FULL;
+DEFINE FIELD photos.*.caption ON production TYPE string DEFAULT "" PERMISSIONS FULL;
+-- Classification
+DEFINE FIELD budget_level ON production TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD production_tier ON production TYPE option<string> PERMISSIONS FULL;
+
+-- ------------------------------
+-- TABLE: production_script (versioned script uploads)
+-- ------------------------------
+
+DEFINE TABLE production_script TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD production ON production_script TYPE record<production> PERMISSIONS FULL;
+DEFINE FIELD title ON production_script TYPE string PERMISSIONS FULL;
+DEFINE FIELD version ON production_script TYPE int DEFAULT 1 PERMISSIONS FULL;
+DEFINE FIELD file_url ON production_script TYPE string PERMISSIONS FULL;
+DEFINE FIELD file_key ON production_script TYPE string PERMISSIONS FULL;
+DEFINE FIELD file_size ON production_script TYPE int PERMISSIONS FULL;
+DEFINE FIELD mime_type ON production_script TYPE string DEFAULT 'application/pdf' PERMISSIONS FULL;
+DEFINE FIELD visibility ON production_script TYPE string DEFAULT 'members' ASSERT $value IN ['public', 'members'] PERMISSIONS FULL;
+DEFINE FIELD uploaded_by ON production_script TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD notes ON production_script TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD created_at ON production_script TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_script_production ON production_script FIELDS production;
+DEFINE INDEX idx_script_production_version ON production_script FIELDS production, title, version UNIQUE;
 
 -- ------------------------------
 -- TABLE: location (filming locations)
@@ -510,6 +561,14 @@ INSERT INTO production_type (name) VALUES
 INSERT INTO production_status (name, position) VALUES
 ("Development", 0), ("Pre-Production", 1), ("Production", 2), ("Post-Production", 3), ("Completed", 4), ("Festival", 5), ("Pre-Sales", 6), ("Released", 7), ("Canceled", 8);
 
+-- Budget Levels
+INSERT INTO budget_level (name, position) VALUES
+("No Budget", 0), ("Micro Budget", 1), ("Low Budget", 2), ("Moderate Budget", 3), ("Mid Budget", 4), ("High Budget", 5);
+
+-- Production Tiers
+INSERT INTO production_tier (name, position) VALUES
+("Student Film", 0), ("Hobby / Personal", 1), ("Content Creator", 2), ("Independent", 3), ("Indie Studio", 4), ("Studio", 5), ("Major Studio", 6);
+
 -- Involvement Relation Types
 INSERT INTO involvement_relation_type (name) VALUES
 ("owner"), ("admin"), ("member"), ("credit"), ("contractor"), ("other");
@@ -526,31 +585,56 @@ INSERT INTO department (id, name) VALUES
 (department:transportation, "Transportation"), (department:cast, "Cast"), (department:other, "Other");
 
 -- Roles (Comprehensive list from standard film crew positions)
-INSERT INTO role (name, department) VALUES
-("Director", department:above_the_line), ("Producer", department:above_the_line), ("Executive Producer", department:above_the_line),
-("Writer", department:above_the_line), ("Screenwriter", department:above_the_line), ("Actor", department:cast),
-("Principal Cast", department:cast), ("Production Designer", department:art), ("Art Director", department:art),
-("Set Designer", department:art), ("Set Decorator", department:art), ("Prop Master", department:art),
-("Greensman", department:art), ("Director of Photography", department:camera), ("Cinematographer", department:camera),
-("Camera Operator", department:camera), ("First AC", department:camera), ("Second AC", department:camera),
-("DIT", department:camera), ("Production Sound Mixer", department:sound), ("Boom Operator", department:sound),
-("Sound Assistant", department:sound), ("Gaffer", department:lighting), ("Best Boy Electric", department:lighting),
-("Key Grip", department:grip), ("Best Boy Grip", department:grip), ("Costume Designer", department:wardrobe),
-("Costume Coordinator", department:wardrobe), ("Tailor", department:wardrobe), ("Shopper", department:wardrobe),
-("Makeup Artist", department:makeup_hair), ("Key Makeup Artist", department:makeup_hair), ("Hair Stylist", department:makeup_hair),
-("Key Hair Stylist", department:makeup_hair), ("Line Producer", department:production_management),
-("Unit Production Manager", department:production_management), ("Production Coordinator", department:production_management),
-("Production Assistant", department:production_management), ("Location Manager", department:locations),
-("Location Scout", department:locations), ("First AD", department:directing), ("Second AD", department:directing),
-("Script Supervisor", department:directing), ("Editor", department:post_production), ("VFX Supervisor", department:vfx),
-("Colorist", department:post_production), ("Sound Editor", department:post_production),
-("Casting Director", department:casting), ("Stunt Coordinator", department:stunts), ("Weapons Wrangler", department:stunts),
-("On Set Editor", department:post_production), ("Influencer", department:social_media), ("Content Creator", department:social_media),
-("Brand Ambassador", department:marketing), ("Social Media Manager", department:social_media), ("Marketing Manager", department:marketing),
-("Distributor", department:distribution), ("Agent", department:above_the_line), ("Publicist", department:marketing),
-("Copywriter", department:marketing), ("Video Editor", department:post_production), ("Graphic Designer", department:art),
-("Photographer", department:camera), ("Videographer", department:camera), ("Driver", department:transportation),
-("Caterer", department:other), ("Other", null);
+INSERT INTO role (name, department, role_type) VALUES
+("Director", department:above_the_line, "individual"), ("Producer", department:above_the_line, "both"), ("Executive Producer", department:above_the_line, "both"),
+("Writer", department:above_the_line, "individual"), ("Screenwriter", department:above_the_line, "individual"), ("Actor", department:cast, "individual"),
+("Principal Cast", department:cast, "individual"), ("Production Designer", department:art, "individual"), ("Art Director", department:art, "individual"),
+("Set Designer", department:art, "individual"), ("Set Decorator", department:art, "individual"), ("Prop Master", department:art, "individual"),
+("Greensman", department:art, "individual"), ("Director of Photography", department:camera, "individual"), ("Cinematographer", department:camera, "individual"),
+("Camera Operator", department:camera, "individual"), ("First AC", department:camera, "individual"), ("Second AC", department:camera, "individual"),
+("DIT", department:camera, "individual"), ("Production Sound Mixer", department:sound, "individual"), ("Boom Operator", department:sound, "individual"),
+("Sound Assistant", department:sound, "individual"), ("Gaffer", department:lighting, "individual"), ("Best Boy Electric", department:lighting, "individual"),
+("Key Grip", department:grip, "individual"), ("Best Boy Grip", department:grip, "individual"), ("Costume Designer", department:wardrobe, "individual"),
+("Costume Coordinator", department:wardrobe, "individual"), ("Tailor", department:wardrobe, "individual"), ("Shopper", department:wardrobe, "individual"),
+("Makeup Artist", department:makeup_hair, "individual"), ("Key Makeup Artist", department:makeup_hair, "individual"), ("Hair Stylist", department:makeup_hair, "individual"),
+("Key Hair Stylist", department:makeup_hair, "individual"), ("Line Producer", department:production_management, "individual"),
+("Unit Production Manager", department:production_management, "individual"), ("Production Coordinator", department:production_management, "individual"),
+("Production Assistant", department:production_management, "individual"), ("Location Manager", department:locations, "individual"),
+("Location Scout", department:locations, "individual"), ("First AD", department:directing, "individual"), ("Second AD", department:directing, "individual"),
+("Script Supervisor", department:directing, "individual"), ("Editor", department:post_production, "individual"), ("VFX Supervisor", department:vfx, "individual"),
+("Colorist", department:post_production, "individual"), ("Sound Editor", department:post_production, "individual"),
+("Casting Director", department:casting, "individual"), ("Stunt Coordinator", department:stunts, "individual"), ("Weapons Wrangler", department:stunts, "individual"),
+("On Set Editor", department:post_production, "individual"), ("Influencer", department:social_media, "individual"), ("Content Creator", department:social_media, "individual"),
+("Brand Ambassador", department:marketing, "individual"), ("Social Media Manager", department:social_media, "individual"), ("Marketing Manager", department:marketing, "individual"),
+("Distributor", department:distribution, "both"), ("Agent", department:above_the_line, "individual"), ("Publicist", department:marketing, "individual"),
+("Copywriter", department:marketing, "individual"), ("Video Editor", department:post_production, "individual"), ("Graphic Designer", department:art, "individual"),
+("Photographer", department:camera, "individual"), ("Videographer", department:camera, "individual"), ("Driver", department:transportation, "individual"),
+("Caterer", department:other, "individual"), ("Other", null, "both");
+
+-- Organization Production Roles (business-centric roles for organizations on productions)
+INSERT INTO role (name, department, role_type) VALUES
+("Production Services", department:production_management, "organization"), ("Equipment Rental", department:other, "organization"),
+("Camera Rental", department:camera, "organization"), ("Lighting Rental", department:lighting, "organization"), ("Grip Rental", department:grip, "organization"),
+("Sound Rental", department:sound, "organization"), ("VFX House", department:vfx, "organization"), ("Post Production House", department:post_production, "organization"),
+("Color Grading", department:post_production, "organization"), ("Sound Design", department:sound, "organization"), ("Sound Mixing", department:sound, "organization"),
+("Music Production", department:sound, "organization"), ("Scoring", department:sound, "organization"),
+("Casting Agency", department:casting, "organization"), ("Talent Agency", department:above_the_line, "organization"),
+("Management Company", department:above_the_line, "organization"),
+("Catering Services", department:other, "organization"), ("Craft Services", department:other, "organization"),
+("Transportation Services", department:transportation, "organization"), ("Location Services", department:locations, "organization"),
+("Set Construction", department:art, "organization"), ("Prop House", department:art, "organization"),
+("Costume House", department:wardrobe, "organization"), ("Makeup & Hair Services", department:makeup_hair, "organization"),
+("Stunt Services", department:stunts, "organization"), ("Security Services", department:other, "organization"),
+("Insurance", department:other, "organization"), ("Legal Services", department:other, "organization"),
+("Payroll Services", department:production_management, "organization"), ("Accounting Services", department:production_management, "organization"),
+("Marketing & PR", department:marketing, "organization"), ("Distribution Services", department:distribution, "organization"),
+("Film Commission", department:locations, "organization"), ("Studio Facilities", department:other, "organization"),
+("Editing Services", department:editing, "organization"), ("Animation Services", department:vfx, "organization"),
+("Motion Capture", department:vfx, "organization"), ("Aerial Services", department:camera, "organization"),
+("Underwater Services", department:camera, "organization"), ("Special Effects", department:stunts, "organization"),
+("Title Design", department:post_production, "organization"), ("Subtitling & Captioning", department:post_production, "organization"),
+("Financing", department:other, "organization"), ("Co-Producer", department:above_the_line, "organization"),
+("Sponsor", department:marketing, "organization");
 
 -- Phases
 INSERT INTO phase (name) VALUES
