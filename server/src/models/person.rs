@@ -23,10 +23,12 @@ use tracing::{debug, error, info};
 static USERNAME_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z0-9._]+$").unwrap());
 
 const RESERVED_USERNAMES: &[&str] = &[
-    "about", "account", "admin", "api", "auth", "contact", "dashboard", "equipment",
-    "help", "home", "login", "logout", "messages", "notifications", "org", "orgs",
-    "people", "productions", "profile", "project", "projects", "search",
-    "settings", "signup", "static", "support", "terms", "privacy",
+    "about", "account", "admin", "api", "auth", "contact", "dashboard", "delete",
+    "equipment", "feedback", "get-verified", "health", "help", "home", "invitations",
+    "likes", "locations", "login", "logout", "messages", "my-orgs", "notifications",
+    "org", "orgs", "people", "privacy", "productions", "profile", "project", "projects",
+    "qr", "resend-verification", "search", "settings", "signup", "static", "stats",
+    "support", "terms", "upload", "verify-email",
 ];
 
 /// Validates and normalizes a username to Instagram-style handle rules.
