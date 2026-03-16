@@ -169,6 +169,21 @@ DEFINE INDEX idx_likes_in ON likes FIELDS in;
 DEFINE INDEX idx_likes_out ON likes FIELDS out;
 
 -- ------------------------------
+-- TABLE: profile_view (analytics events)
+-- ------------------------------
+
+DEFINE TABLE profile_view TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
+DEFINE FIELD profile_id ON profile_view TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD viewer_id ON profile_view TYPE option<record<person>> PERMISSIONS FULL;
+DEFINE FIELD referrer ON profile_view TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD referrer_source ON profile_view TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD user_agent ON profile_view TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD viewed_at ON profile_view TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_profile_view_profile ON profile_view FIELDS profile_id;
+DEFINE INDEX idx_profile_view_time ON profile_view FIELDS profile_id, viewed_at;
+
+-- ------------------------------
 -- TABLE: notification
 -- ------------------------------
 

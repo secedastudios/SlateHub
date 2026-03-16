@@ -1,0 +1,213 @@
+#analytics-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.analytics-header {
+    margin-bottom: 2rem;
+}
+
+.analytics-header-top {
+    margin-bottom: 0.5rem;
+}
+
+.analytics-back {
+    font-size: 0.875rem;
+    color: var(--color-text-muted, #888);
+    text-decoration: none;
+}
+
+.analytics-back:hover {
+    color: var(--color-text, #fff);
+}
+
+.analytics-header h1 {
+    font-size: 1.5rem;
+    margin: 0.25rem 0;
+}
+
+.analytics-header p {
+    color: var(--color-text-muted, #888);
+    margin: 0;
+}
+
+.analytics-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.analytics-stat-card {
+    background: var(--color-surface, #1a1a1a);
+    border: 1px solid var(--color-border, #333);
+    border-radius: 8px;
+    padding: 1.25rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.analytics-stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.analytics-stat-label {
+    font-size: 0.8rem;
+    color: var(--color-text-muted, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.analytics-section {
+    margin-bottom: 2rem;
+}
+
+.analytics-section h2 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+/* Period stat cards */
+.analytics-periods {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.analytics-period-card {
+    background: var(--color-surface, #1a1a1a);
+    border: 1px solid var(--color-border, #333);
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.analytics-period-top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.analytics-period-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.analytics-period-label {
+    font-size: 0.8rem;
+    color: var(--color-text-muted, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+.analytics-period-prev {
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #666);
+}
+
+.analytics-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.analytics-trend-up {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.analytics-trend-down {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.analytics-trend-flat {
+    color: var(--color-text-muted, #888);
+}
+
+/* Referrers */
+.analytics-referrers {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.analytics-referrer-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.analytics-referrer-source {
+    width: 100px;
+    font-size: 0.85rem;
+    text-transform: capitalize;
+    flex-shrink: 0;
+}
+
+.analytics-referrer-bar-track {
+    flex: 1;
+    height: 20px;
+    background: var(--color-surface, #1a1a1a);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.analytics-referrer-bar {
+    height: 100%;
+    background: var(--color-primary, #e53e3e);
+    border-radius: 4px;
+    min-width: 2px;
+    transition: width 0.3s;
+}
+
+.analytics-referrer-count {
+    width: 40px;
+    text-align: right;
+    font-size: 0.85rem;
+    color: var(--color-text-muted, #888);
+    flex-shrink: 0;
+}
+
+.analytics-empty {
+    color: var(--color-text-muted, #888);
+    font-style: italic;
+}
+
+@media (max-width: 600px) {
+    .analytics-stats,
+    .analytics-periods {
+        grid-template-columns: 1fr;
+    }
+
+    .analytics-stat-card {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .analytics-stat-value {
+        font-size: 1.5rem;
+    }
+
+    .analytics-period-value {
+        font-size: 1.5rem;
+    }
+
+    .analytics-referrer-source {
+        width: 70px;
+    }
+}

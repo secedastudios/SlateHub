@@ -2,6 +2,7 @@ use askama::Template;
 use axum::{
     Router,
     extract::{Path, Query, Request},
+    http::{HeaderMap, header},
     response::Html,
     routing::get,
 };
@@ -12,6 +13,7 @@ use crate::{
     db::DB,
     error::Error,
     middleware::UserExtractor,
+    models::analytics::AnalyticsModel,
     models::involvement::InvolvementModel,
     models::likes::LikesModel,
     models::person::Person,
@@ -112,6 +114,7 @@ fn to_social_link_displays(links: &[crate::models::person::SocialLink]) -> Vec<S
 /// Uses the same ProfileTemplate as the authenticated profile view
 async fn user_profile(
     Path(username): Path<String>,
+    headers: HeaderMap,
     request: Request,
 ) -> Result<Html<String>, Error> {
     debug!("Attempting to view public profile: {}", username);
@@ -137,6 +140,35 @@ async fn user_profile(
             return Err(Error::NotFound);
         }
     };
+
+    // Record profile view (fire-and-forget, skip own profile)
+    if !is_own_profile {
+        let pid = profile_user.id.clone();
+        let viewer_rid = current_user.as_ref().and_then(|u| {
+            if u.id.starts_with("person:") {
+                RecordId::parse_simple(&u.id).ok()
+            } else {
+                Some(RecordId::new("person", u.id.as_str()))
+            }
+        });
+        let referrer = headers
+            .get(header::REFERER)
+            .and_then(|v| v.to_str().ok())
+            .map(String::from);
+        let user_agent = headers
+            .get(header::USER_AGENT)
+            .and_then(|v| v.to_str().ok())
+            .map(String::from);
+        tokio::spawn(async move {
+            let _ = AnalyticsModel::record_view(
+                &pid,
+                viewer_rid.as_ref(),
+                referrer.as_deref(),
+                user_agent.as_deref(),
+            )
+            .await;
+        });
+    }
 
     // Build base context
     let mut base = BaseContext::new().with_page("profile");

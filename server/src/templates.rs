@@ -18,6 +18,33 @@ mod filters {
     pub fn contains(list: &[String], value: &String) -> askama::Result<bool> {
         Ok(list.contains(value))
     }
+
+    /// Abbreviate a signed number: +1500 → "+1.5k", -200000 → "-200k"
+    pub fn abbr_i64(value: i64) -> askama::Result<String> {
+        let abs = value.unsigned_abs();
+        let formatted = abbr(&abs)?;
+        if value >= 0 {
+            Ok(format!("+{}", formatted))
+        } else {
+            Ok(format!("-{}", formatted))
+        }
+    }
+
+    /// Abbreviate large numbers: 1500 → "1.5k", 200000 → "200k", 1500000 → "1.5M"
+    pub fn abbr(value: &u64) -> askama::Result<String> {
+        let n = *value;
+        let (divisor, suffix) = if n >= 1_000_000 {
+            (1_000_000.0, "M")
+        } else if n >= 1_000 {
+            (1_000.0, "k")
+        } else {
+            return Ok(n.to_string());
+        };
+        let v = n as f64 / divisor;
+        let s = format!("{:.1}", v);
+        let s = s.strip_suffix(".0").unwrap_or(&s);
+        Ok(format!("{}{}", s, suffix))
+    }
 }
 
 /// Represents a user for template rendering
@@ -751,6 +778,26 @@ pub struct LikesTemplate {
     pub user: Option<User>,
     pub liked_people: Vec<LikedPerson>,
     pub liked_locations: Vec<LikedLocation>,
+}
+
+/// Profile analytics page template
+#[derive(Template)]
+#[template(path = "persons/analytics.html")]
+pub struct ProfileAnalyticsTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub profile_name: String,
+    pub profile_username: String,
+    pub total_views: u64,
+    pub unique_views: u64,
+    pub likes_received: u64,
+    pub views_30d: crate::models::analytics::PeriodStat,
+    pub views_90d: crate::models::analytics::PeriodStat,
+    pub views_1y: crate::models::analytics::PeriodStat,
+    pub referrer_breakdown: Vec<crate::models::analytics::ReferrerCount>,
 }
 
 // ============================

@@ -1,0 +1,119 @@
+{% extends "_layout.html" %}
+{% block title %}Analytics - {{ app_name }}{% endblock %}
+{% block page_name %}profile{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/analytics.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section id="analytics-page">
+
+    <header class="analytics-header">
+        <div class="analytics-header-top">
+            <a href="/{{ profile_username }}" class="analytics-back">&larr; Back to profile</a>
+        </div>
+        <h1>Profile Analytics</h1>
+        <p>{{ profile_name }} (@{{ profile_username }})</p>
+    </header>
+
+    <div class="analytics-stats">
+        <div class="analytics-stat-card">
+            <span class="analytics-stat-value">{{ total_views|abbr }}</span>
+            <span class="analytics-stat-label">Total Views</span>
+        </div>
+        <div class="analytics-stat-card">
+            <span class="analytics-stat-value">{{ unique_views|abbr }}</span>
+            <span class="analytics-stat-label">Unique Visitors</span>
+        </div>
+        <div class="analytics-stat-card">
+            <span class="analytics-stat-value">{{ likes_received|abbr }}</span>
+            <span class="analytics-stat-label">Likes Received</span>
+        </div>
+    </div>
+
+    <section class="analytics-section">
+        <h2>Views by Period</h2>
+        <div class="analytics-periods">
+            <div class="analytics-period-card">
+                <div class="analytics-period-top">
+                    <span class="analytics-period-value">{{ views_30d.current|abbr }}</span>
+                    {% if views_30d.is_up() %}
+                    <span class="analytics-trend analytics-trend-up">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                        {{ views_30d.trend()|abbr_i64 }}
+                    </span>
+                    {% else if views_30d.is_down() %}
+                    <span class="analytics-trend analytics-trend-down">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                        {{ views_30d.trend()|abbr_i64 }}
+                    </span>
+                    {% else %}
+                    <span class="analytics-trend analytics-trend-flat">&mdash;</span>
+                    {% endif %}
+                </div>
+                <span class="analytics-period-label">Last 30 Days</span>
+                <span class="analytics-period-prev">vs {{ views_30d.previous|abbr }} prev period</span>
+            </div>
+            <div class="analytics-period-card">
+                <div class="analytics-period-top">
+                    <span class="analytics-period-value">{{ views_90d.current|abbr }}</span>
+                    {% if views_90d.is_up() %}
+                    <span class="analytics-trend analytics-trend-up">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                        {{ views_90d.trend()|abbr_i64 }}
+                    </span>
+                    {% else if views_90d.is_down() %}
+                    <span class="analytics-trend analytics-trend-down">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                        {{ views_90d.trend()|abbr_i64 }}
+                    </span>
+                    {% else %}
+                    <span class="analytics-trend analytics-trend-flat">&mdash;</span>
+                    {% endif %}
+                </div>
+                <span class="analytics-period-label">Last 90 Days</span>
+                <span class="analytics-period-prev">vs {{ views_90d.previous|abbr }} prev period</span>
+            </div>
+            <div class="analytics-period-card">
+                <div class="analytics-period-top">
+                    <span class="analytics-period-value">{{ views_1y.current|abbr }}</span>
+                    {% if views_1y.is_up() %}
+                    <span class="analytics-trend analytics-trend-up">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                        {{ views_1y.trend()|abbr_i64 }}
+                    </span>
+                    {% else if views_1y.is_down() %}
+                    <span class="analytics-trend analytics-trend-down">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                        {{ views_1y.trend()|abbr_i64 }}
+                    </span>
+                    {% else %}
+                    <span class="analytics-trend analytics-trend-flat">&mdash;</span>
+                    {% endif %}
+                </div>
+                <span class="analytics-period-label">Last Year</span>
+                <span class="analytics-period-prev">vs {{ views_1y.previous|abbr }} prev period</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="analytics-section">
+        <h2>Traffic Sources</h2>
+        {% if !referrer_breakdown.is_empty() %}
+        <div class="analytics-referrers">
+            {% for ref in referrer_breakdown %}
+            <div class="analytics-referrer-row">
+                <span class="analytics-referrer-source">{{ ref.source }}</span>
+                <div class="analytics-referrer-bar-track">
+                    <div class="analytics-referrer-bar" style="width: {% if total_views > 0 %}{{ ref.count * 100 / total_views }}{% else %}0{% endif %}%"></div>
+                </div>
+                <span class="analytics-referrer-count">{{ ref.count|abbr }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="analytics-empty">No referrer data yet.</p>
+        {% endif %}
+    </section>
+
+</section>
+{% endblock %}

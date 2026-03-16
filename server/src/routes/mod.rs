@@ -10,6 +10,7 @@ use crate::middleware::{
 
 mod account;
 mod admin;
+mod analytics;
 mod api;
 mod auth;
 mod equipment;
@@ -54,6 +55,8 @@ pub fn app() -> Router {
         .merge(messages::router())
         // Mount equipment routes
         .merge(equipment::router())
+        // Mount analytics routes (before profile to avoid /{username} conflict)
+        .merge(analytics::router())
         // Mount profile routes
         .merge(profile::router())
         // Mount verification routes
