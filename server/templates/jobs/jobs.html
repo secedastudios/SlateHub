@@ -1,0 +1,98 @@
+{% extends "_layout.html" %}
+{% block title %}Jobs - {{ app_name }}{% endblock %}
+{% block page_name %}jobs{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/jobs.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section class="jobs-page">
+    <header class="jobs-header">
+        <h1>Jobs &amp; Casting</h1>
+        <p>Find cast, crew, and production service opportunities</p>
+        <div class="jobs-header-actions">
+            {% if user.is_some() %}
+            <a href="/jobs/new" class="jobs-btn-primary">+ Post a Job</a>
+            {% else %}
+            <a href="/login?redirect=/jobs/new" class="jobs-btn-primary">+ Post a Job</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="jobs-controls">
+        <form method="get" action="/jobs" class="jobs-search-form">
+            <div class="jobs-search-wrap">
+                <svg class="jobs-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="M21 21l-4.35-4.35"/>
+                </svg>
+                <input type="search" name="q" placeholder="Search jobs..." value="{% if search_query.is_some() %}{{ search_query.as_ref().unwrap() }}{% endif %}" autocomplete="off" />
+                <button type="submit">Search</button>
+            </div>
+        </form>
+    </div>
+
+    <section class="jobs-results">
+        {% if jobs.is_empty() %}
+        <div class="jobs-empty">
+            <h2>No jobs found</h2>
+            {% if search_query.is_some() %}
+            <p>No jobs match your search. Try different keywords.</p>
+            <a href="/jobs" class="jobs-btn-secondary">Clear Search</a>
+            {% else %}
+            <p>Be the first to post a job on SlateHub!</p>
+            {% if user.is_some() %}
+            <a href="/jobs/new" class="jobs-btn-primary">Post a Job</a>
+            {% endif %}
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="jobs-count">
+            <p>Showing {{ jobs.len() }} job{% if jobs.len() != 1 %}s{% endif %}</p>
+        </div>
+        <div class="jobs-list">
+            {% for job in jobs %}
+            <article class="job-card{% if job.is_poster_verified %} job-card-verified{% endif %}">
+                {% if job.production_poster.is_some() %}
+                <div class="job-card-poster">
+                    <img src="{{ job.production_poster.as_ref().unwrap() }}" alt="" loading="lazy" />
+                </div>
+                {% endif %}
+                <div class="job-card-body">
+                    <div class="job-card-header">
+                        <h3><a href="/jobs/{{ job.id }}">{{ job.title }}</a></h3>
+                        <div class="job-card-meta">
+                            <span class="job-poster">
+                                {% if job.poster_type == "organization" %}
+                                <a href="/orgs/{{ job.poster_slug }}">{{ job.poster_name }}</a>
+                                {% else %}
+                                <a href="/{{ job.poster_slug }}">{{ job.poster_name }}</a>
+                                {% endif %}
+                                {% if job.is_poster_verified %}
+                                {% if job.poster_type == "organization" %}
+                                <svg class="verified-badge" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>
+                                {% else %}
+                                <svg class="verified-badge" width="16" height="16" viewBox="0 0 24 24" fill="#1d9bf0" aria-label="Verified"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>
+                                {% endif %}
+                                {% endif %}
+                            </span>
+                            {% if job.location.is_some() %}
+                            <span class="job-location">{{ job.location.as_ref().unwrap() }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <p class="job-card-desc">{{ job.description }}</p>
+                    <div class="job-card-footer">
+                        <span class="job-roles">{{ job.role_count }} role{% if job.role_count != 1 %}s{% endif %}</span>
+                        {% if job.production_title.is_some() %}
+                        <span class="job-production">{{ job.production_title.as_ref().unwrap() }}</span>
+                        {% endif %}
+                        <a href="/jobs/{{ job.id }}" class="jobs-btn-sm">View</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

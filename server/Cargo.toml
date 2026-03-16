@@ -17,7 +17,7 @@ path = "src/bin/rebuild_embeddings.rs"
 
 [dependencies]
 axum = { version = "0.8.4", features = ["macros", "multipart"] }
-axum-extra = { version = "0.10", features = ["cookie"] }
+axum-extra = { version = "0.10", features = ["cookie", "form"] }
 chrono = "0.4"
 cookie = "0.18"
 dotenv = "0.15.0"

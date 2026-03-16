@@ -17,6 +17,12 @@ use crate::models::production::ProductionModel;
 use crate::models::system::System;
 use crate::record_id_ext::RecordIdExt;
 
+/// Escape HTML special characters to prevent XSS in SSE HTML fragments.
+/// Uses ammonia::clean_text which escapes <, >, &, ", '.
+fn escape_html(s: &str) -> String {
+    ammonia::clean_text(s)
+}
+
 pub fn router() -> Router {
     Router::new()
         .route("/health", get(health_check))
@@ -40,6 +46,8 @@ pub fn router() -> Router {
         .route("/people/select-sse", get(people_select_sse))
         .route("/orgs/search-sse", get(orgs_search_sse))
         .route("/orgs/select-sse", get(orgs_select_sse))
+        .route("/productions/search-sse", get(productions_search_sse))
+        .route("/productions/select-sse", get(productions_select_sse))
         .route("/og/profile/{username}", get(og_profile_image))
         .route("/qr/profile/{username}", get(qr_profile_image))
 }
@@ -986,37 +994,36 @@ async fn people_search_sse(
         let value = if params.value_field == "username" { &p.username } else { &p.id };
 
         let avatar_html = if let Some(ref url) = p.avatar_url {
-            format!(r#"<img src="{}" alt="" class="invite-search-avatar" />"#, url)
+            format!(r#"<img src="{}" alt="" class="invite-search-avatar" />"#, escape_html(url))
         } else {
-            format!(r#"<span class="invite-search-initials">{}</span>"#, initials)
+            format!(r#"<span class="invite-search-initials">{}</span>"#, escape_html(&initials))
         };
 
+        let select_url = format!("/api/people/select-sse?scope={}&value={}&name={}&avatar={}&username={}",
+            scope,
+            urlencoding::encode(value),
+            urlencoding::encode(display_name),
+            urlencoding::encode(p.avatar_url.as_deref().unwrap_or("")),
+            urlencoding::encode(&p.username),
+        );
+
         html.push_str(&format!(
-            r#"<div class="invite-search-item" tabindex="0" data-on:click="@get('{}')" data-on:keydown.enter="@get('{}')">{}<span class="invite-search-info"><strong>{}</strong><small>@{}</small></span></div>"#,
-            format_args!("/api/people/select-sse?scope={}&value={}&name={}&avatar={}&username={}",
-                scope,
-                urlencoding::encode(value),
-                urlencoding::encode(display_name),
-                urlencoding::encode(p.avatar_url.as_deref().unwrap_or("")),
-                urlencoding::encode(&p.username),
-            ),
-            format_args!("/api/people/select-sse?scope={}&value={}&name={}&avatar={}&username={}",
-                scope,
-                urlencoding::encode(value),
-                urlencoding::encode(display_name),
-                urlencoding::encode(p.avatar_url.as_deref().unwrap_or("")),
-                urlencoding::encode(&p.username),
-            ),
-            avatar_html, display_name, p.username
+            r#"<div class="invite-search-item" tabindex="0" data-on:click="@get('{url}')" data-on:keydown.enter="@get('{url}')">{avatar}<span class="invite-search-info"><strong>{name}</strong><small>@{username}</small></span></div>"#,
+            url = select_url,
+            avatar = avatar_html,
+            name = escape_html(display_name),
+            username = escape_html(&p.username),
         ));
     }
 
     // Add email invite option if applicable
     if params.allow_email && is_email {
+        let escaped_query = escape_html(&query);
         html.push_str(&format!(
-            r#"<div class="invite-search-item invite-search-email" tabindex="0" data-on:click="@get('/api/people/select-sse?scope={scope}&value={email}&name={email}&avatar=&username=')" data-on:keydown.enter="@get('/api/people/select-sse?scope={scope}&value={email}&name={email}&avatar=&username=')"><span class="invite-search-email-icon">&#9993;</span><span>Invite <strong>{email}</strong> by email</span></div>"#,
+            r#"<div class="invite-search-item invite-search-email" tabindex="0" data-on:click="@get('/api/people/select-sse?scope={scope}&value={email}&name={email}&avatar=&username=')" data-on:keydown.enter="@get('/api/people/select-sse?scope={scope}&value={email}&name={email}&avatar=&username=')"><span class="invite-search-email-icon">&#9993;</span><span>Invite <strong>{escaped}</strong> by email</span></div>"#,
             scope = scope,
-            email = query,
+            email = urlencoding::encode(&query),
+            escaped = escaped_query,
         ));
     }
 
@@ -1137,26 +1144,24 @@ async fn orgs_search_sse(
             .to_uppercase();
 
         let avatar_html = if let Some(ref url) = o.logo {
-            format!(r#"<img src="{}" alt="" class="invite-search-avatar" />"#, url)
+            format!(r#"<img src="{}" alt="" class="invite-search-avatar" />"#, escape_html(url))
         } else {
-            format!(r#"<span class="invite-search-initials">{}</span>"#, initials)
+            format!(r#"<span class="invite-search-initials">{}</span>"#, escape_html(&initials))
         };
 
+        let select_url = format!("/api/orgs/select-sse?scope={}&value={}&name={}&avatar={}",
+            scope,
+            urlencoding::encode(&o.id),
+            urlencoding::encode(&o.name),
+            urlencoding::encode(o.logo.as_deref().unwrap_or("")),
+        );
+
         html.push_str(&format!(
-            r#"<div class="invite-search-item" tabindex="0" data-on:click="@get('{}')" data-on:keydown.enter="@get('{}')">{}<span class="invite-search-info"><strong>{}</strong><small>{}</small></span></div>"#,
-            format_args!("/api/orgs/select-sse?scope={}&value={}&name={}&avatar={}",
-                scope,
-                urlencoding::encode(&o.id),
-                urlencoding::encode(&o.name),
-                urlencoding::encode(o.logo.as_deref().unwrap_or("")),
-            ),
-            format_args!("/api/orgs/select-sse?scope={}&value={}&name={}&avatar={}",
-                scope,
-                urlencoding::encode(&o.id),
-                urlencoding::encode(&o.name),
-                urlencoding::encode(o.logo.as_deref().unwrap_or("")),
-            ),
-            avatar_html, o.name, o.slug
+            r#"<div class="invite-search-item" tabindex="0" data-on:click="@get('{url}')" data-on:keydown.enter="@get('{url}')">{avatar}<span class="invite-search-info"><strong>{name}</strong><small>{slug}</small></span></div>"#,
+            url = select_url,
+            avatar = avatar_html,
+            name = escape_html(&o.name),
+            slug = escape_html(&o.slug),
         ));
     }
 
@@ -1176,6 +1181,139 @@ struct OrgSelectSseQuery {
 async fn orgs_select_sse(
     _user: AuthenticatedUser,
     Query(params): Query<OrgSelectSseQuery>,
+) -> Response {
+    let scope = &params.scope;
+
+    let mut sse = sse_patch_signals(&format!(
+        r#"{{{scope}_selected_value: "{value}", {scope}_selected_name: "{display}", {scope}_selected_avatar: "{avatar}", {scope}_has_selection: true, {scope}_query: ""}}"#,
+        scope = scope,
+        value = params.value.replace('"', r#"\""#),
+        display = params.name.replace('"', r#"\""#),
+        avatar = params.avatar.as_deref().unwrap_or("").replace('"', r#"\""#),
+    ));
+
+    sse += &sse_patch_elements(&format!("#{scope}-results"), "inner", "");
+
+    sse_response(sse)
+}
+
+// -----------------------------------------------------------------------------
+// Production Search SSE (Datastar)
+// -----------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+struct ProdSearchSseQuery {
+    q: Option<String>,
+    #[serde(default = "default_scope")]
+    scope: String,
+}
+
+#[axum::debug_handler]
+async fn productions_search_sse(
+    _user: AuthenticatedUser,
+    Query(params): Query<ProdSearchSseQuery>,
+) -> Response {
+    use surrealdb::types::SurrealValue;
+
+    let scope = &params.scope;
+    let results_selector = &format!("#{scope}-results");
+
+    let query = match params.q.filter(|q| q.len() >= 2) {
+        Some(q) => q,
+        None => {
+            let sse = sse_patch_elements(results_selector, "inner", "");
+            return sse_response(sse);
+        }
+    };
+
+    let query_lower = query.to_lowercase();
+
+    #[derive(Debug, Deserialize, SurrealValue)]
+    struct ProdHit {
+        id: String,
+        title: String,
+        slug: String,
+        poster_url: Option<String>,
+        poster_photo: Option<String>,
+        production_type: String,
+        created_at: String,
+    }
+
+    let sql = "SELECT
+            <string> id AS id,
+            title,
+            slug,
+            poster_url,
+            poster_photo,
+            `type` AS production_type,
+            <string> created_at AS created_at
+        FROM production
+        WHERE
+            string::lowercase(title ?? '') CONTAINS $q
+        ORDER BY created_at DESC
+        LIMIT 8";
+
+    let results: Vec<ProdHit> = match DB.query(sql).bind(("q", query_lower)).await {
+        Ok(mut resp) => resp.take(0).unwrap_or_default(),
+        Err(e) => {
+            error!("Production search SSE failed: {}", e);
+            vec![]
+        }
+    };
+
+    let mut html = String::new();
+
+    if results.is_empty() {
+        html.push_str(r#"<div class="invite-search-empty">No productions found.</div>"#);
+    }
+
+    for p in &results {
+        let poster = p.poster_photo.as_deref().or(p.poster_url.as_deref());
+
+        let avatar_html = if let Some(url) = poster {
+            format!(r#"<img src="{}" alt="" class="invite-search-avatar" style="border-radius:4px;width:32px;height:32px;object-fit:cover" />"#, escape_html(url))
+        } else {
+            let initials: String = p.title
+                .split_whitespace()
+                .filter_map(|w| w.chars().next())
+                .take(2)
+                .collect::<String>()
+                .to_uppercase();
+            format!(r#"<span class="invite-search-initials">{}</span>"#, escape_html(&initials))
+        };
+
+        let select_url = format!("/api/productions/select-sse?scope={}&value={}&name={}&avatar={}",
+            scope,
+            urlencoding::encode(&p.id),
+            urlencoding::encode(&p.title),
+            urlencoding::encode(poster.unwrap_or("")),
+        );
+
+        html.push_str(&format!(
+            r#"<div class="invite-search-item" tabindex="0" data-on:click="@get('{url}')" data-on:keydown.enter="@get('{url}')">{avatar}<span class="invite-search-info"><strong>{title}</strong><small>{ptype}</small></span></div>"#,
+            url = select_url,
+            avatar = avatar_html,
+            title = escape_html(&p.title),
+            ptype = escape_html(&p.production_type),
+        ));
+    }
+
+    let sse = sse_patch_elements(results_selector, "inner", &html);
+    sse_response(sse)
+}
+
+#[derive(Debug, Deserialize)]
+struct ProdSelectSseQuery {
+    scope: String,
+    value: String,
+    name: String,
+    avatar: Option<String>,
+}
+
+#[axum::debug_handler]
+async fn productions_select_sse(
+    _user: AuthenticatedUser,
+    Query(params): Query<ProdSelectSseQuery>,
 ) -> Response {
     let scope = &params.scope;
 

@@ -76,7 +76,6 @@ pub fn router() -> Router {
             "/delete/production-photo/{production_id}",
             post(delete_production_photo),
         )
-        .route("/debug/list-uploads", get(debug_list_uploads))
         // Media proxy endpoint - catches all media/* paths
         .route("/{*path}", get(proxy_media))
 }
@@ -552,18 +551,16 @@ async fn get_profile_image_url(
 ) -> Result<Json<serde_json::Value>, Error> {
     debug!("Getting profile image for person: {}", person_id);
 
-    // Ensure we have full record ID
-    let person_record = if person_id.starts_with("person:") {
-        person_id.clone()
-    } else {
-        format!("person:{}", person_id)
-    };
+    // Strip prefix if present and validate ID is alphanumeric
+    let id = person_id.strip_prefix("person:").unwrap_or(&person_id);
+    if !id.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        return Err(Error::BadRequest("Invalid person ID".to_string()));
+    }
 
     // Get the profile avatar URL directly from the person record
-    let sql = format!("SELECT profile.avatar FROM {} LIMIT 1", person_record);
-
     let mut response = DB
-        .query(&sql)
+        .query("SELECT profile.avatar FROM type::record('person', $id) LIMIT 1")
+        .bind(("id", id.to_string()))
         .await
         .map_err(|e| Error::Internal(format!("Failed to fetch profile avatar: {}", e)))?;
 
@@ -1419,52 +1416,6 @@ async fn delete_production_photo(
 
     info!("Production gallery photo deleted for {}", production_id);
     Ok(Json(serde_json::json!({ "success": true })))
-}
-
-/// Debug endpoint to list uploaded files
-async fn debug_list_uploads() -> Result<Json<serde_json::Value>, Error> {
-    debug!("Listing uploaded files in S3");
-
-    // Check if files exist in S3
-    let s3_service = s3()?;
-
-    // List files in the profiles directory
-    let test_keys = vec!["profiles/"];
-
-    let mut found_files = Vec::new();
-
-    for prefix in test_keys {
-        // Check if we can generate a URL for this prefix
-        match s3_service.generate_download_url(prefix).await {
-            Ok(url) => {
-                found_files.push(serde_json::json!({
-                    "prefix": prefix,
-                    "url": url,
-                    "status": "accessible"
-                }));
-            }
-            Err(e) => {
-                found_files.push(serde_json::json!({
-                    "prefix": prefix,
-                    "error": e.to_string(),
-                    "status": "error"
-                }));
-            }
-        }
-    }
-
-    // Also check the database for media records
-    let media_check_sql = "SELECT <string> id AS id, filename, object_key, url FROM media LIMIT 10";
-    let mut response = crate::db::DB.query(media_check_sql).await?;
-
-    // Try to get records without deserializing to specific type
-    let media_records: Vec<serde_json::Value> = response.take(0).unwrap_or_default();
-
-    Ok(Json(serde_json::json!({
-        "s3_files": found_files,
-        "database_records": media_records,
-        "message": "Debug info for uploaded files"
-    })))
 }
 
 /// Proxy media files from S3 through the application

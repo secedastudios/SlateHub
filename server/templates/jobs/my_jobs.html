@@ -1,0 +1,82 @@
+{% extends "_layout.html" %}
+{% block title %}My Jobs - {{ app_name }}{% endblock %}
+{% block page_name %}my-jobs{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/jobs.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section class="jobs-page">
+    <header class="jobs-header">
+        <h1>My Jobs</h1>
+        <p>Manage your job postings and applications</p>
+        <div class="jobs-header-actions">
+            <a href="/jobs/new" class="jobs-btn-primary">+ Post a Job</a>
+            <a href="/jobs" class="jobs-btn-secondary">Browse Jobs</a>
+        </div>
+    </header>
+
+    <div class="my-jobs-sections">
+        <section class="my-jobs-section">
+            <h2>My Postings</h2>
+            {% if postings.is_empty() %}
+            <div class="jobs-empty-sm">
+                <p>You haven't posted any jobs yet.</p>
+                <a href="/jobs/new" class="jobs-btn-primary">Post a Job</a>
+            </div>
+            {% else %}
+            <div class="jobs-list">
+                {% for job in postings %}
+                <article class="job-card">
+                    <div class="job-card-body">
+                        <div class="job-card-header">
+                            <h3><a href="/jobs/{{ job.id }}">{{ job.title }}</a></h3>
+                            <div class="job-card-meta">
+                                <span class="job-status-{{ job.status }}">{{ job.status }}</span>
+                                {% if job.location.is_some() %}
+                                <span class="job-location">{{ job.location.as_ref().unwrap() }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="job-card-footer">
+                            <span class="job-roles">{{ job.role_count }} role{% if job.role_count != 1 %}s{% endif %}</span>
+                            <a href="/jobs/{{ job.id }}" class="jobs-btn-sm">View</a>
+                            <a href="/jobs/{{ job.id }}/edit" class="jobs-btn-sm">Edit</a>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="my-jobs-section">
+            <h2>My Applications</h2>
+            {% if applications.is_empty() %}
+            <div class="jobs-empty-sm">
+                <p>You haven't applied to any jobs yet.</p>
+                <a href="/jobs" class="jobs-btn-secondary">Browse Jobs</a>
+            </div>
+            {% else %}
+            <div class="jobs-applications-list">
+                {% for app in applications %}
+                <div class="job-application-card">
+                    <div class="job-application-header">
+                        <h3><a href="/jobs/{{ app.job_id }}">{{ app.job_title }}</a></h3>
+                        <span class="job-application-status job-status-{{ app.status }}">{{ app.status }}</span>
+                    </div>
+                    <div class="job-application-meta">
+                        <span>Role: {{ app.role_title }}</span>
+                        <span>By: {{ app.poster_name }}</span>
+                        <span>Applied: {{ app.applied_at }}</span>
+                    </div>
+                    {% if app.cover_letter.is_some() %}
+                    <p class="job-application-letter">{{ app.cover_letter.as_ref().unwrap() }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+    </div>
+</section>
+{% endblock %}

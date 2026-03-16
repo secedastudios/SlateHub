@@ -203,7 +203,8 @@ db-seed: wait-db
 			email = 'chris@example.com', \
 			password = crypto::argon2::generate('pass123'), \
 			name = 'Chris Pacino', \
-			verification_status = 'email', \
+			verification_status = 'identity', \
+			is_admin = true, \
 			profile = { \
 				name: 'Chris Pacino', \
 				headline: 'Actor', \
@@ -219,8 +220,25 @@ db-seed: wait-db
 				education: [], \
 				awards: [] \
 			}; \
+		LET \$$chris = (SELECT id FROM person WHERE username = 'chris')[0].id; \
+		LET \$$org_type = (SELECT id FROM organization_type WHERE name = 'Production Company')[0].id; \
+		CREATE organization SET \
+			name = 'Seceda', \
+			slug = 'seceda', \
+			type = \$$org_type, \
+			description = 'Production company', \
+			location = 'Berlin', \
+			public = true, \
+			verified = false, \
+			social_links = [], \
+			services = []; \
+		LET \$$seceda = (SELECT id FROM organization WHERE slug = 'seceda')[0].id; \
+		RELATE \$$chris->member_of->\$$seceda SET \
+			role = 'owner', \
+			invitation_status = 'accepted'; \
 	"
-	@echo "✅ Seeded users: kevin (pass123), chris (pass123)"
+	@echo "✅ Seeded users: kevin (pass123), chris (pass123, admin, verified)"
+	@echo "✅ Seeded org: Seceda (owned by chris)"
 
 db-drop:
 	@echo "⚠️  WARNING: This will delete the entire database!"

@@ -1,0 +1,215 @@
+{% extends "_layout.html" %}
+{% block title %}Post a Job - {{ app_name }}{% endblock %}
+{% block page_name %}jobs{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/jobs.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section class="jobs-form-page">
+    <header class="jobs-form-header">
+        <h1>Post a Job</h1>
+        <p>Create a job listing with one or more roles</p>
+    </header>
+
+    {% if errors.is_some() %}
+    <div class="jobs-errors">
+        {% for error in errors.as_ref().unwrap() %}
+        <p>{{ error }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/jobs/new" class="jobs-form">
+        <fieldset class="jobs-fieldset">
+            <legend>Job Details</legend>
+
+            <div class="jobs-field">
+                <label for="title">Title *</label>
+                <input type="text" id="title" name="title" required placeholder="e.g., Cast & Crew for Short Film" />
+            </div>
+
+            <div class="jobs-field">
+                <label for="description">Description *</label>
+                <textarea id="description" name="description" required rows="6" placeholder="Describe the project, what you're looking for, schedule, etc."></textarea>
+            </div>
+
+            <div class="jobs-field">
+                <label for="location">Location</label>
+                <input type="text" id="location" name="location" placeholder="e.g., Los Angeles, CA" />
+            </div>
+
+            {% if !user_organizations.is_empty() %}
+            <div class="jobs-field">
+                <label for="post_as">Post as</label>
+                <select id="post_as" name="post_as">
+                    <option value="">Myself</option>
+                    {% for org in user_organizations %}
+                    <option value="{{ org.id }}">{{ org.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="jobs-field"
+                 data-signals="{jp_query: '', jp_selected_value: '', jp_selected_name: '', jp_selected_avatar: '', jp_has_selection: false}">
+                <label>Link to Production (optional)</label>
+                <div class="invite-search-wrap">
+                    <div class="invite-selected-user" data-show="$jp_has_selection">
+                        <img data-attr-src="$jp_selected_avatar" alt="" class="invite-sel-avatar"
+                             data-show="$jp_selected_avatar !== ''" style="border-radius:4px" />
+                        <span data-text="$jp_selected_name"></span>
+                        <button type="button" class="invite-sel-clear" aria-label="Clear selection"
+                                data-on:click="$jp_has_selection = false; $jp_selected_value = ''; $jp_query = ''">×</button>
+                    </div>
+                    <input type="text" autocomplete="off" placeholder="Search productions..."
+                           data-bind:jp_query
+                           data-on:input__debounce_250ms="@get('/api/productions/search-sse?scope=jp&q=' + $jp_query)"
+                           data-show="!$jp_has_selection" />
+                    <input type="hidden" name="related_production" data-bind:jp_selected_value />
+                    <div id="jp-results" class="invite-search-results"></div>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="jobs-fieldset">
+            <legend>Contact Information (optional)</legend>
+
+            <div class="jobs-field-row">
+                <div class="jobs-field">
+                    <label for="contact_name">Contact Name</label>
+                    <input type="text" id="contact_name" name="contact_name" />
+                </div>
+                <div class="jobs-field">
+                    <label for="contact_email">Contact Email</label>
+                    <input type="email" id="contact_email" name="contact_email" />
+                </div>
+            </div>
+
+            <div class="jobs-field-row">
+                <div class="jobs-field">
+                    <label for="contact_phone">Phone</label>
+                    <input type="tel" id="contact_phone" name="contact_phone" />
+                </div>
+                <div class="jobs-field">
+                    <label for="contact_website">Website</label>
+                    <input type="url" id="contact_website" name="contact_website" placeholder="https://" />
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="jobs-fieldset">
+            <legend>Settings</legend>
+
+            <div class="jobs-field">
+                <label class="jobs-checkbox">
+                    <input type="checkbox" name="applications_enabled" checked />
+                    Enable online applications
+                </label>
+            </div>
+
+            <div class="jobs-field">
+                <label>Expiration</label>
+                <div class="jobs-radio-group">
+                    <label class="jobs-radio"><input type="radio" name="expires_in" value="1day" /> 1 Day</label>
+                    <label class="jobs-radio"><input type="radio" name="expires_in" value="1week" checked /> 1 Week</label>
+                    <label class="jobs-radio"><input type="radio" name="expires_in" value="1month" /> 1 Month</label>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="jobs-fieldset" id="roles-section">
+            <legend>Roles *</legend>
+            <p class="jobs-field-help">Add one or more roles to this job posting.</p>
+
+            <div id="roles-container">
+                <div class="job-role-fieldset" data-role-index="0">
+                    <div class="job-role-fieldset-header">
+                        <h4>Role 1</h4>
+                        <button type="button" class="jobs-btn-remove" onclick="removeRole(this)" style="display:none">Remove</button>
+                    </div>
+                    <div class="jobs-field">
+                        <label>Role Title *</label>
+                        <input type="text" name="role_title[]" required placeholder="e.g., Director of Photography" />
+                    </div>
+                    <div class="jobs-field">
+                        <label>Description</label>
+                        <textarea name="role_description[]" rows="2" placeholder="Role requirements and responsibilities"></textarea>
+                    </div>
+                    <div class="jobs-field-row">
+                        <div class="jobs-field">
+                            <label>Rate Type</label>
+                            <select name="role_rate_type[]">
+                                {% for prt in pay_rate_types %}
+                                <option value="{{ prt }}"{% if prt == "TBD" %} selected{% endif %}>{{ prt }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="jobs-field">
+                            <label>Amount</label>
+                            <input type="text" name="role_rate_amount[]" placeholder="e.g., $500" />
+                        </div>
+                    </div>
+                    <div class="jobs-field">
+                        <label>Location Override</label>
+                        <input type="text" name="role_location[]" placeholder="Leave blank to use job location" />
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="jobs-btn-secondary" onclick="addRole()">+ Add Another Role</button>
+        </fieldset>
+
+        <div class="jobs-form-actions">
+            <button type="submit" class="jobs-btn-primary">Post Job</button>
+            <a href="/jobs" class="jobs-btn-secondary">Cancel</a>
+        </div>
+    </form>
+</section>
+
+<script>
+let roleIndex = 0;
+
+function addRole() {
+    roleIndex++;
+    const container = document.getElementById('roles-container');
+    const template = container.querySelector('.job-role-fieldset').cloneNode(true);
+
+    // Clear values
+    template.querySelectorAll('input[type="text"], textarea').forEach(el => {
+        el.value = '';
+    });
+    template.querySelectorAll('select').forEach(el => {
+        el.selectedIndex = el.querySelector('option[value="TBD"]')
+            ? [...el.options].findIndex(o => o.value === 'TBD')
+            : 0;
+    });
+
+    // Update header
+    template.querySelector('h4').textContent = 'Role ' + (roleIndex + 1);
+    template.querySelector('.jobs-btn-remove').style.display = '';
+
+    container.appendChild(template);
+
+    // Show remove buttons on all roles if more than one
+    if (container.children.length > 1) {
+        container.querySelectorAll('.jobs-btn-remove').forEach(btn => btn.style.display = '');
+    }
+}
+
+function removeRole(btn) {
+    const fieldset = btn.closest('.job-role-fieldset');
+    const container = document.getElementById('roles-container');
+    if (container.children.length > 1) {
+        fieldset.remove();
+        // Renumber
+        container.querySelectorAll('.job-role-fieldset h4').forEach((h, i) => {
+            h.textContent = 'Role ' + (i + 1);
+        });
+        // Hide remove if only one left
+        if (container.children.length === 1) {
+            container.querySelector('.jobs-btn-remove').style.display = 'none';
+        }
+    }
+}
+</script>
+{% endblock %}

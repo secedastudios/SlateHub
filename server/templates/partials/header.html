@@ -55,6 +55,13 @@
                     {% if active_page == "productions" %}aria-current="page"{% endif %}
                 >Productions</a>
             </li>
+            <li>
+                <a
+                    href="/jobs"
+                    id="link-nav-jobs"
+                    {% if active_page == "jobs" %}aria-current="page"{% endif %}
+                >Jobs</a>
+            </li>
         </ul>
         <ul id="nav-user" data-role="nav-user">
             {% match user %}
@@ -145,6 +152,12 @@
                                 id="link-menu-productions"
                                 role="menuitem"
                             >My Productions</a>
+                            </li>
+                            <li role="none"><a
+                                href="/my-jobs"
+                                id="link-menu-jobs"
+                                role="menuitem"
+                            >My Jobs</a>
                             </li>
                             {% if !user.is_identity_verified %}
                             <li role="none">

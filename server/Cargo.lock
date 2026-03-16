@@ -848,6 +848,7 @@ dependencies = [
  "axum-core 0.5.2",
  "bytes",
  "cookie",
+ "form_urlencoded",
  "futures-util",
  "http 1.4.0",
  "http-body 1.0.1",
@@ -856,6 +857,8 @@ dependencies = [
  "pin-project-lite",
  "rustversion",
  "serde",
+ "serde_html_form",
+ "serde_path_to_error",
  "tower",
  "tower-layer",
  "tower-service",
@@ -5785,6 +5788,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
+]
+
+[[package]]
+name = "serde_html_form"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2f2d7ff8a2140333718bb329f5c40fc5f0865b84c426183ce14c97d2ab8154f"
+dependencies = [
+ "form_urlencoded",
+ "indexmap",
+ "itoa",
+ "ryu",
+ "serde_core",
 ]
 
 [[package]]

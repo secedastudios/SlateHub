@@ -81,13 +81,24 @@
                     {{ app_name }} does not profit from this &mdash; the fee goes entirely toward
                     the verification service provider. Once verified, your status is permanent.
                 </p>
+                {% match user %}
+                    {% when Some with (_user) %}
+                    {% if has_pending_request %}
+                    <div id="verify-btn-pending">Pending</div>
+                    {% else %}
+                    <form method="post" action="/get-verified/request" style="margin-top:var(--space-md)">
+                        <button type="submit" id="verify-btn">Get Verified</button>
+                    </form>
+                    {% endif %}
+                    {% when None %}
+                {% endmatch %}
             </div>
         </section>
 
         <section id="section-cta" data-section="cta">
-            <p>Identity verification is currently being set up. Check back soon to get verified.</p>
             {% match user %}
                 {% when None %}
+                <p>Create an account or log in to get verified.</p>
                 <div id="cta-actions">
                     <a href="/signup" data-role="btn-primary">Create an Account</a>
                     <a href="/login" data-role="btn-outline">Log In</a>

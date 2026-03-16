@@ -109,6 +109,11 @@ DEFINE TABLE union TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
 DEFINE FIELD name ON union TYPE string;
 DEFINE INDEX idx_union_name ON union FIELDS name UNIQUE;
 
+-- Pay Rate Types
+DEFINE TABLE pay_rate_type TYPE NORMAL SCHEMAFULL PERMISSIONS FULL;
+DEFINE FIELD name ON pay_rate_type TYPE string;
+DEFINE INDEX idx_pay_rate_type_name ON pay_rate_type FIELDS name UNIQUE;
+
 -- ------------------------------
 -- TABLE: reserved_names
 -- ------------------------------
@@ -207,7 +212,7 @@ DEFINE INDEX idx_profile_view_time ON profile_view FIELDS profile_id, viewed_at;
 DEFINE TABLE notification TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD person_id ON notification TYPE record<person> PERMISSIONS FULL;
-DEFINE FIELD notification_type ON notification TYPE string ASSERT $value IN ['invitation', 'invitation_accepted', 'member_joined', 'general', 'message'] PERMISSIONS FULL;
+DEFINE FIELD notification_type ON notification TYPE string ASSERT $value IN ['invitation', 'invitation_accepted', 'member_joined', 'general', 'message', 'job_application', 'application_update'] PERMISSIONS FULL;
 DEFINE FIELD title ON notification TYPE string PERMISSIONS FULL;
 DEFINE FIELD message ON notification TYPE string PERMISSIONS FULL;
 DEFINE FIELD link ON notification TYPE option<string> PERMISSIONS FULL;
@@ -256,6 +261,19 @@ DEFINE FIELD created_at ON verification_codes TYPE datetime VALUE $value OR time
 
 DEFINE INDEX idx_verification_codes_person ON verification_codes FIELDS person_id;
 DEFINE INDEX idx_verification_codes_code ON verification_codes FIELDS code;
+
+-- ------------------------------
+-- TABLE: verification_request
+-- ------------------------------
+
+DEFINE TABLE verification_request TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD person ON verification_request TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD status ON verification_request TYPE string DEFAULT 'pending'
+    ASSERT $value IN ['pending', 'approved', 'rejected'] PERMISSIONS FULL;
+DEFINE FIELD created_at ON verification_request TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_verification_request_person ON verification_request FIELDS person UNIQUE;
 
 -- ------------------------------
 -- TABLE: person
@@ -480,30 +498,45 @@ DEFINE FIELD verified_at ON involvement TYPE option<datetime> PERMISSIONS FULL;
 DEFINE TABLE job_posting TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD title ON job_posting TYPE string PERMISSIONS FULL;
-DEFINE FIELD description ON job_posting TYPE string PERMISSIONS FULL;  -- Detailed text for semantic search
-DEFINE FIELD requirements ON job_posting TYPE option<string> PERMISSIONS FULL;  -- Skills/qualifications text
+DEFINE FIELD description ON job_posting TYPE string PERMISSIONS FULL;
 DEFINE FIELD location ON job_posting TYPE option<string> PERMISSIONS FULL;
-DEFINE FIELD pay_rate ON job_posting TYPE option<string> PERMISSIONS FULL;  -- e.g., "hourly $50", "union scale"
-DEFINE FIELD job_type ON job_posting TYPE string PERMISSIONS FULL;  -- e.g., "full_time", "freelance", "gig"
-DEFINE FIELD start_date ON job_posting TYPE option<datetime> PERMISSIONS FULL;
-DEFINE FIELD end_date ON job_posting TYPE option<datetime> PERMISSIONS FULL;
-DEFINE FIELD posted_by ON job_posting TYPE record<person|organization> PERMISSIONS FULL;  -- Who posted
+DEFINE FIELD posted_by ON job_posting TYPE record<person|organization> PERMISSIONS FULL;
 DEFINE FIELD related_production ON job_posting TYPE option<record<production>> PERMISSIONS FULL;
-DEFINE FIELD status ON job_posting TYPE string DEFAULT "open" ASSERT $value IN ["open", "closed", "filled"] PERMISSIONS FULL;
+DEFINE FIELD contact_name ON job_posting TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD contact_email ON job_posting TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD contact_phone ON job_posting TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD contact_website ON job_posting TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD applications_enabled ON job_posting TYPE bool DEFAULT true PERMISSIONS FULL;
+DEFINE FIELD status ON job_posting TYPE string DEFAULT 'open'
+    ASSERT $value IN ['open', 'closed', 'filled'] PERMISSIONS FULL;
+DEFINE FIELD roles ON job_posting TYPE array DEFAULT [] PERMISSIONS FULL;
+DEFINE FIELD roles.* ON job_posting TYPE object PERMISSIONS FULL;
+DEFINE FIELD roles.*.title ON job_posting TYPE string PERMISSIONS FULL;
+DEFINE FIELD roles.*.description ON job_posting TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD roles.*.rate_type ON job_posting TYPE string DEFAULT 'TBD' PERMISSIONS FULL;
+DEFINE FIELD roles.*.rate_amount ON job_posting TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD roles.*.location_override ON job_posting TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD expires_at ON job_posting TYPE datetime PERMISSIONS FULL;
 DEFINE FIELD created_at ON job_posting TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON job_posting TYPE datetime VALUE time::now() PERMISSIONS FULL;
 
-DEFINE INDEX idx_job_location ON job_posting FIELDS location;
-DEFINE INDEX idx_job_type ON job_posting FIELDS job_type;
+DEFINE INDEX idx_job_posted_by ON job_posting FIELDS posted_by;
+DEFINE INDEX idx_job_status ON job_posting FIELDS status;
+DEFINE INDEX idx_job_expires ON job_posting FIELDS expires_at;
 
 -- ------------------------------
--- RELATION: application (persons apply to jobs)
+-- RELATION: application (persons apply to job postings)
 -- ------------------------------
 
 DEFINE TABLE application TYPE RELATION FROM person TO job_posting SCHEMAFULL PERMISSIONS NONE;
 
-DEFINE FIELD cover_letter ON application TYPE option<string> PERMISSIONS FULL;  -- Application text
-DEFINE FIELD status ON application TYPE string DEFAULT "submitted" ASSERT $value IN ["submitted", "reviewed", "interviewed", "hired", "rejected"] PERMISSIONS FULL;
+DEFINE FIELD role_title ON application TYPE string PERMISSIONS FULL;
+DEFINE FIELD cover_letter ON application TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD status ON application TYPE string DEFAULT 'submitted'
+    ASSERT $value IN ['submitted', 'reviewed', 'shortlisted', 'rejected', 'withdrawn'] PERMISSIONS FULL;
 DEFINE FIELD applied_at ON application TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_application_status ON application FIELDS status;
 
 -- ------------------------------
 -- INDEXES (for performance, including semantic prep)
@@ -524,7 +557,6 @@ DEFINE INDEX idx_involvement_relation_type ON involvement FIELDS relation_type;
 DEFINE ANALYZER profile_analyzer TOKENIZERS blank,class FILTERS lowercase,snowball(english);
 DEFINE INDEX idx_person_bio ON person FIELDS profile.bio FULLTEXT ANALYZER profile_analyzer BM25;
 DEFINE INDEX idx_job_description ON job_posting FIELDS description FULLTEXT ANALYZER profile_analyzer BM25;
-DEFINE INDEX idx_job_requirements ON job_posting FIELDS requirements FULLTEXT ANALYZER profile_analyzer BM25;
 
 -- Vector indexes for semantic search (HNSW, v3 only)
 DEFINE INDEX idx_person_embedding ON person FIELDS embedding HNSW DIMENSION 1024 DIST COSINE TYPE F32 EFC 150 M 12;
@@ -565,6 +597,10 @@ INSERT INTO production_status (name, position) VALUES
 -- Budget Levels
 INSERT INTO budget_level (name, position) VALUES
 ("No Budget", 0), ("Micro Budget", 1), ("Low Budget", 2), ("Moderate Budget", 3), ("Mid Budget", 4), ("High Budget", 5);
+
+-- Pay Rate Types
+INSERT INTO pay_rate_type (name) VALUES
+("Unpaid"), ("Hourly"), ("Day Rate"), ("Weekly"), ("Flat"), ("Union Scale"), ("TBD"), ("Other");
 
 -- Production Tiers
 INSERT INTO production_tier (name, position) VALUES

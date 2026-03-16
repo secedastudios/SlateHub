@@ -1,0 +1,176 @@
+{% extends "_layout.html" %}
+{% block title %}Edit Job - {{ app_name }}{% endblock %}
+{% block page_name %}jobs{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/jobs.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section class="jobs-form-page">
+    <header class="jobs-form-header">
+        <h1>Edit Job</h1>
+    </header>
+
+    {% if errors.is_some() %}
+    <div class="jobs-errors">
+        {% for error in errors.as_ref().unwrap() %}
+        <p>{{ error }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/jobs/{{ job_id }}/edit" class="jobs-form">
+        <fieldset class="jobs-fieldset">
+            <legend>Job Details</legend>
+
+            <div class="jobs-field">
+                <label for="title">Title *</label>
+                <input type="text" id="title" name="title" required value="{{ title }}" />
+            </div>
+
+            <div class="jobs-field">
+                <label for="description">Description *</label>
+                <textarea id="description" name="description" required rows="6">{{ description }}</textarea>
+            </div>
+
+            <div class="jobs-field">
+                <label for="location">Location</label>
+                <input type="text" id="location" name="location" value="{% if location.is_some() %}{{ location.as_ref().unwrap() }}{% endif %}" />
+            </div>
+        </fieldset>
+
+        <fieldset class="jobs-fieldset">
+            <legend>Contact Information (optional)</legend>
+
+            <div class="jobs-field-row">
+                <div class="jobs-field">
+                    <label for="contact_name">Contact Name</label>
+                    <input type="text" id="contact_name" name="contact_name" value="{% if contact_name.is_some() %}{{ contact_name.as_ref().unwrap() }}{% endif %}" />
+                </div>
+                <div class="jobs-field">
+                    <label for="contact_email">Contact Email</label>
+                    <input type="email" id="contact_email" name="contact_email" value="{% if contact_email.is_some() %}{{ contact_email.as_ref().unwrap() }}{% endif %}" />
+                </div>
+            </div>
+
+            <div class="jobs-field-row">
+                <div class="jobs-field">
+                    <label for="contact_phone">Phone</label>
+                    <input type="tel" id="contact_phone" name="contact_phone" value="{% if contact_phone.is_some() %}{{ contact_phone.as_ref().unwrap() }}{% endif %}" />
+                </div>
+                <div class="jobs-field">
+                    <label for="contact_website">Website</label>
+                    <input type="url" id="contact_website" name="contact_website" value="{% if contact_website.is_some() %}{{ contact_website.as_ref().unwrap() }}{% endif %}" />
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="jobs-fieldset">
+            <legend>Settings</legend>
+
+            <div class="jobs-field">
+                <label class="jobs-checkbox">
+                    <input type="checkbox" name="applications_enabled"{% if applications_enabled %} checked{% endif %} />
+                    Enable online applications
+                </label>
+            </div>
+
+            <div class="jobs-field">
+                <label>Expiration (reset from now)</label>
+                <div class="jobs-radio-group">
+                    <label class="jobs-radio"><input type="radio" name="expires_in" value="1day" /> 1 Day</label>
+                    <label class="jobs-radio"><input type="radio" name="expires_in" value="1week" checked /> 1 Week</label>
+                    <label class="jobs-radio"><input type="radio" name="expires_in" value="1month" /> 1 Month</label>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="jobs-fieldset" id="roles-section">
+            <legend>Roles *</legend>
+
+            <div id="roles-container">
+                {% for role in roles %}
+                <div class="job-role-fieldset" data-role-index="{{ loop.index0 }}">
+                    <div class="job-role-fieldset-header">
+                        <h4>Role {{ loop.index }}</h4>
+                        <button type="button" class="jobs-btn-remove" onclick="removeRole(this)"{% if roles.len() == 1 %} style="display:none"{% endif %}>Remove</button>
+                    </div>
+                    <div class="jobs-field">
+                        <label>Role Title *</label>
+                        <input type="text" name="role_title[]" required value="{{ role.title }}" />
+                    </div>
+                    <div class="jobs-field">
+                        <label>Description</label>
+                        <textarea name="role_description[]" rows="2">{% if role.description.is_some() %}{{ role.description.as_ref().unwrap() }}{% endif %}</textarea>
+                    </div>
+                    <div class="jobs-field-row">
+                        <div class="jobs-field">
+                            <label>Rate Type</label>
+                            <select name="role_rate_type[]">
+                                {% for prt in pay_rate_types %}
+                                <option value="{{ prt }}"{% if prt.as_str() == role.rate_type.as_str() %} selected{% endif %}>{{ prt }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="jobs-field">
+                            <label>Amount</label>
+                            <input type="text" name="role_rate_amount[]" value="{% if role.rate_amount.is_some() %}{{ role.rate_amount.as_ref().unwrap() }}{% endif %}" />
+                        </div>
+                    </div>
+                    <div class="jobs-field">
+                        <label>Location Override</label>
+                        <input type="text" name="role_location[]" value="{% if role.location_override.is_some() %}{{ role.location_override.as_ref().unwrap() }}{% endif %}" />
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" class="jobs-btn-secondary" onclick="addRole()">+ Add Another Role</button>
+        </fieldset>
+
+        <div class="jobs-form-actions">
+            <button type="submit" class="jobs-btn-primary">Save Changes</button>
+            <a href="/jobs/{{ job_id }}" class="jobs-btn-secondary">Cancel</a>
+        </div>
+    </form>
+</section>
+
+<script>
+let roleIndex = {{ roles.len() }} - 1;
+
+function addRole() {
+    roleIndex++;
+    const container = document.getElementById('roles-container');
+    const first = container.querySelector('.job-role-fieldset');
+    const template = first.cloneNode(true);
+
+    template.querySelectorAll('input[type="text"], textarea').forEach(el => {
+        el.value = '';
+    });
+    template.querySelectorAll('select').forEach(el => {
+        el.selectedIndex = [...el.options].findIndex(o => o.value === 'TBD') || 0;
+    });
+
+    template.querySelector('h4').textContent = 'Role ' + (roleIndex + 1);
+    template.querySelector('.jobs-btn-remove').style.display = '';
+    container.appendChild(template);
+
+    if (container.children.length > 1) {
+        container.querySelectorAll('.jobs-btn-remove').forEach(btn => btn.style.display = '');
+    }
+}
+
+function removeRole(btn) {
+    const fieldset = btn.closest('.job-role-fieldset');
+    const container = document.getElementById('roles-container');
+    if (container.children.length > 1) {
+        fieldset.remove();
+        container.querySelectorAll('.job-role-fieldset h4').forEach((h, i) => {
+            h.textContent = 'Role ' + (i + 1);
+        });
+        if (container.children.length === 1) {
+            container.querySelector('.jobs-btn-remove').style.display = 'none';
+        }
+    }
+}
+</script>
+{% endblock %}

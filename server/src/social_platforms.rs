@@ -134,9 +134,15 @@ pub fn expand_url(platform_id: &str, value: &str) -> String {
         return String::new();
     }
 
-    // Already a URL
+    // Already a URL — only allow http/https schemes
     if value.starts_with("http://") || value.starts_with("https://") {
         return value.to_string();
+    }
+
+    // Reject dangerous URI schemes
+    let lower = value.to_lowercase();
+    if lower.starts_with("javascript:") || lower.starts_with("data:") || lower.starts_with("vbscript:") {
+        return String::new();
     }
 
     let platform = find_platform(platform_id);

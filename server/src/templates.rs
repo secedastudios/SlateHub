@@ -805,6 +805,7 @@ pub struct GetVerifiedTemplate {
     pub version: String,
     pub active_page: String,
     pub user: Option<User>,
+    pub has_pending_request: bool,
 }
 
 /// Account settings page template
@@ -855,6 +856,169 @@ pub struct ProfileAnalyticsTemplate {
     pub views_90d: crate::models::analytics::PeriodStat,
     pub views_1y: crate::models::analytics::PeriodStat,
     pub referrer_breakdown: Vec<crate::models::analytics::ReferrerCount>,
+}
+
+// ============================
+// Job Templates
+// ============================
+
+/// View struct for job list items
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobListView {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub location: Option<String>,
+    pub poster_name: String,
+    pub poster_slug: String,
+    pub poster_type: String,
+    pub is_poster_verified: bool,
+    pub role_count: i64,
+    pub status: String,
+    pub expires_at: String,
+    pub created_at: String,
+    pub production_title: Option<String>,
+    pub production_poster: Option<String>,
+    pub applications_enabled: bool,
+}
+
+pub use crate::models::job::JobRoleView;
+
+/// View struct for job detail
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobDetailView {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub location: Option<String>,
+    pub poster_name: String,
+    pub poster_slug: String,
+    pub poster_type: String,
+    pub is_poster_verified: bool,
+    pub contact_name: Option<String>,
+    pub contact_email: Option<String>,
+    pub contact_phone: Option<String>,
+    pub contact_website: Option<String>,
+    pub applications_enabled: bool,
+    pub status: String,
+    pub expires_at: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub roles: Vec<JobRoleView>,
+    pub production_title: Option<String>,
+    pub production_slug: Option<String>,
+    pub production_poster: Option<String>,
+    pub can_edit: bool,
+    pub is_expired: bool,
+    pub application_count: i64,
+    pub applications: Vec<ApplicationView>,
+}
+
+pub use crate::models::job::ApplicationView;
+
+/// User's own application view
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserApplicationView {
+    pub id: String,
+    pub job_id: String,
+    pub job_title: String,
+    pub role_title: String,
+    pub poster_name: String,
+    pub cover_letter: Option<String>,
+    pub status: String,
+    pub applied_at: String,
+}
+
+/// Organization option for job posting "post as" dropdown
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobOrgOption {
+    pub id: String,
+    pub name: String,
+}
+
+/// Job role data for edit form
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobRoleEditData {
+    pub title: String,
+    pub description: Option<String>,
+    pub rate_type: String,
+    pub rate_amount: Option<String>,
+    pub location_override: Option<String>,
+}
+
+/// Jobs list page
+#[derive(Template)]
+#[template(path = "jobs/jobs.html")]
+pub struct JobsTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub jobs: Vec<JobListView>,
+    pub search_query: Option<String>,
+}
+
+/// Job detail page
+#[derive(Template)]
+#[template(path = "jobs/job.html")]
+pub struct JobTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub job: JobDetailView,
+}
+
+/// Job create form
+#[derive(Template)]
+#[template(path = "jobs/job_create.html")]
+pub struct JobCreateTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub pay_rate_types: Vec<String>,
+    pub user_organizations: Vec<JobOrgOption>,
+    pub errors: Option<Vec<String>>,
+}
+
+/// Job edit form
+#[derive(Template)]
+#[template(path = "jobs/job_edit.html")]
+pub struct JobEditTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub job_id: String,
+    pub title: String,
+    pub description: String,
+    pub location: Option<String>,
+    pub contact_name: Option<String>,
+    pub contact_email: Option<String>,
+    pub contact_phone: Option<String>,
+    pub contact_website: Option<String>,
+    pub applications_enabled: bool,
+    pub roles: Vec<JobRoleEditData>,
+    pub pay_rate_types: Vec<String>,
+    pub errors: Option<Vec<String>>,
+}
+
+/// My jobs page (postings + applications)
+#[derive(Template)]
+#[template(path = "jobs/my_jobs.html")]
+pub struct MyJobsTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub postings: Vec<JobListView>,
+    pub applications: Vec<UserApplicationView>,
 }
 
 // ============================
