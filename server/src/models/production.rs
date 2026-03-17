@@ -88,15 +88,16 @@ fn default_source() -> String {
     "manual".to_string()
 }
 
-/// Normalize a date string to full ISO 8601 datetime for SurrealDB.
-/// HTML date inputs produce "2026-03-17" but SurrealDB expects "2026-03-17T00:00:00Z".
-fn normalize_datetime(s: Option<String>) -> Option<String> {
-    s.map(|v| {
-        if v.len() == 10 && !v.contains('T') {
+/// Parse a date string from an HTML date input into a proper DateTime<Utc>.
+/// HTML date inputs produce "2026-03-17"; we parse to a full DateTime for SurrealDB.
+fn parse_datetime(s: Option<String>) -> Option<DateTime<Utc>> {
+    s.and_then(|v| {
+        let iso = if v.len() == 10 && !v.contains('T') {
             format!("{}T00:00:00Z", v)
         } else {
             v
-        }
+        };
+        iso.parse::<DateTime<Utc>>().ok()
     })
 }
 
@@ -262,8 +263,8 @@ impl ProductionModel {
             .bind(("slug", slug))
             .bind(("type", data.production_type))
             .bind(("status", data.status))
-            .bind(("start_date", normalize_datetime(data.start_date)))
-            .bind(("end_date", normalize_datetime(data.end_date)))
+            .bind(("start_date", parse_datetime(data.start_date)))
+            .bind(("end_date", parse_datetime(data.end_date)))
             .bind(("description", data.description))
             .bind(("location", data.location))
             .bind(("budget_level", data.budget_level))
@@ -493,10 +494,10 @@ impl ProductionModel {
         if let Some(status) = data.status {
             db_query = db_query.bind(("status", status));
         }
-        if let Some(start_date) = normalize_datetime(data.start_date) {
+        if let Some(start_date) = parse_datetime(data.start_date) {
             db_query = db_query.bind(("start_date", start_date));
         }
-        if let Some(end_date) = normalize_datetime(data.end_date) {
+        if let Some(end_date) = parse_datetime(data.end_date) {
             db_query = db_query.bind(("end_date", end_date));
         }
         if let Some(description) = data.description {
