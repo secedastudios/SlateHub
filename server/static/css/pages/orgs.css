@@ -246,11 +246,7 @@ button[data-role="filter-tag"]:hover:not(:disabled) {
     margin: 0;
 }
 
-[data-role="card-grid"] {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.75rem;
-}
+/* Card grid: base styles in main.css */
 
 /* ========================================
    Cards — consistent with search/people
@@ -293,6 +289,8 @@ button[data-role="filter-tag"]:hover:not(:disabled) {
 }
 
 [data-role="card-visual"] img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -307,8 +305,8 @@ button[data-role="filter-tag"]:hover:not(:disabled) {
 }
 
 [data-role="placeholder"] {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1235,7 +1233,6 @@ dialog [data-role="modal-footer"] {
 
 @media (max-width: 1100px) {
     [data-role="card-grid"] {
-        grid-template-columns: repeat(3, 1fr);
         gap: 1.5rem;
     }
 }
@@ -1266,7 +1263,6 @@ dialog [data-role="modal-footer"] {
     }
 
     [data-role="card-grid"] {
-        grid-template-columns: repeat(2, 1fr);
         gap: 1.25rem;
     }
 
@@ -1294,7 +1290,6 @@ dialog [data-role="modal-footer"] {
     }
 
     [data-role="card-grid"] {
-        grid-template-columns: 1fr;
         gap: 2rem;
     }
 

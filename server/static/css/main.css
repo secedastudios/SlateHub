@@ -2531,6 +2531,48 @@ dd {
     gap: var(--space-lg);
 }
 
+/* ----------------------------------------
+   Card Grids — uniform wrapping, same-sized cards
+   Used by: people, search, orgs, likes, locations, productions
+   ---------------------------------------- */
+[data-role="card-grid"],
+.loc-grid,
+.prod-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.75rem;
+    width: 100%;
+    min-width: 0;
+}
+
+[data-role="card-grid"] > [data-component="card"],
+[data-role="card-grid"] > article,
+.loc-grid > .loc-card,
+.prod-grid > .prod-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+
+[data-role="card-grid"] [data-role="card-visual"],
+.loc-grid .loc-card-visual,
+.prod-grid .prod-card-visual {
+    flex-shrink: 0;
+}
+
+[data-role="card-grid"] [data-role="content"],
+.loc-grid .loc-card-content,
+.prod-grid .prod-card-content {
+    flex: 1 1 auto;
+    min-height: 4.5rem;
+    max-height: 4.5rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
 [data-layout="flex"] {
     display: flex;
     gap: var(--space-lg);

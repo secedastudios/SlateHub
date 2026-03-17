@@ -77,11 +77,11 @@
                         </div>
                     </div>
                 </a>
-                {% if !production.description.is_empty() %}
                 <div class="prod-card-content">
+                    {% if !production.description.is_empty() %}
                     <p class="prod-card-desc">{{ production.description }}</p>
+                    {% endif %}
                 </div>
-                {% endif %}
             </article>
             {% endfor %}
             {% if has_more %}
