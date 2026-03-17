@@ -226,7 +226,10 @@ document.getElementById('loc-profile-photo-input').addEventListener('change', fu
     fd.append('image', file);
     fetch('/api/media/upload/location-profile-photo/' + encodeURIComponent(locId), {
         method: 'POST', body: fd
-    }).then(function(r) { return r.json(); }).then(function(data) {
+    }).then(function(r) {
+        if (!r.ok) return r.json().then(function(e) { throw new Error(e.error || 'Upload failed'); });
+        return r.json();
+    }).then(function(data) {
         if (data.url) {
             var preview = document.getElementById('loc-profile-photo-preview');
             preview.innerHTML = '<img id="loc-profile-photo-img" src="' + data.url + '" alt="Location profile photo" style="max-width:400px;max-height:300px;border-radius:8px;object-fit:cover;" />';
@@ -275,7 +278,10 @@ if (locPhotoInput) {
             fd.append('image', file);
             fetch('/api/media/upload/location-photo/' + encodeURIComponent(locId), {
                 method: 'POST', body: fd
-            }).then(function(r) { return r.json(); }).then(function(data) {
+            }).then(function(r) {
+                if (!r.ok) return r.json().then(function(e) { throw new Error(e.error || 'Upload failed'); });
+                return r.json();
+            }).then(function(data) {
                 if (data.url) {
                     var div = document.createElement('div');
                     div.className = 'loc-photo-item';

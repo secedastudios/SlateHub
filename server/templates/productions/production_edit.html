@@ -357,12 +357,15 @@ function uploadPhoto(type) {
     const formData = new FormData();
     formData.append('image', fileInput.files[0]);
     fetch(urlMap[type], { method: 'POST', body: formData })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Upload failed'); });
+            return r.json();
+        })
         .then(data => {
             if (data.error) { alert(data.error); return; }
             location.reload();
         })
-        .catch(e => alert('Upload failed: ' + e));
+        .catch(e => alert('Upload failed: ' + e.message));
 }
 
 function deletePhoto(type) {

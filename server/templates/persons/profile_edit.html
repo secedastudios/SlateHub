@@ -1420,7 +1420,7 @@ function reindexPhotos() {
                 body: formData
             })
             .then(function(resp) {
-                if (!resp.ok) throw new Error('Upload failed');
+                if (!resp.ok) return resp.json().then(function(e) { throw new Error(e.error || 'Upload failed'); });
                 return resp.json();
             })
             .then(function(data) {

@@ -1,3 +1,4 @@
+use axum::extract::DefaultBodyLimit;
 use axum::http::{Request, Response, header, HeaderValue};
 use axum::{Router, middleware, routing::get_service};
 use std::time::Duration;
@@ -72,6 +73,8 @@ pub fn app() -> Router {
         .nest("/api", api::router())
         // Mount media routes under /api/media
         .nest("/api/media", media::router())
+        // Raise body limit to 50MB to support script uploads (individual handlers enforce their own limits)
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
         // Static files — no cache during development (change back to long cache for production)
         .nest_service(
             "/static",
