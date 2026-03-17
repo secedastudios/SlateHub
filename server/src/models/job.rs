@@ -912,7 +912,7 @@ impl JobModel {
             Err(_) => return ("Unknown".to_string(), String::new(), p_type.to_string(), false),
         };
         let pq = format!(
-            "SELECT name, slug ?? username ?? '' AS slug, verified ?? false AS verified FROM ONLY {}",
+            "SELECT name, slug ?? username ?? '' AS slug, (verified ?? false) OR (verification_status ?? '' = 'identity') AS verified FROM ONLY {}",
             poster_record.display()
         );
 
