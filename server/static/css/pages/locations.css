@@ -366,16 +366,10 @@ button.loc-btn-danger:hover:not(:disabled) {
 
 .loc-results { padding-bottom: 4rem; }
 
-.loc-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.75rem;
-}
+/* .loc-grid: base styles in main.css */
 
 .loc-card {
     position: relative;
-    display: flex;
-    flex-direction: column;
     overflow: visible;
     background: transparent;
     border: none;
@@ -402,9 +396,18 @@ button.loc-btn-danger:hover:not(:disabled) {
     background: linear-gradient(160deg, #22201c 0%, #181816 60%, #1e221c 100%);
 }
 
-.loc-card-visual .loc-card-placeholder {
+.loc-card-visual img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.loc-card-visual .loc-card-placeholder {
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1042,7 +1045,7 @@ button.loc-btn-danger:hover:not(:disabled) {
    ======================================== */
 
 @media (max-width: 1100px) {
-    .loc-grid { grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+    .loc-grid { gap: 1.5rem; }
 }
 
 @media (max-width: 960px) {
@@ -1053,12 +1056,12 @@ button.loc-btn-danger:hover:not(:disabled) {
 @media (max-width: 768px) {
     #loc-page, #loc-detail, #loc-form-page { padding: 0 var(--page-gutter, 1.25rem); }
     .loc-page-header h1 { font-size: clamp(2rem, 8vw, 3rem); }
-    .loc-grid { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+    .loc-grid { gap: 1.25rem; }
     .loc-filter-row { flex-direction: column; }
 }
 
 @media (max-width: 480px) {
     #loc-page, #loc-detail, #loc-form-page { padding: 0 var(--page-gutter, 1rem); }
-    .loc-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .loc-grid { gap: 2rem; }
     .loc-rates-grid { grid-template-columns: 1fr; }
 }

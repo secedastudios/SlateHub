@@ -871,22 +871,18 @@ fn render_org_card(org: &Organization) -> String {
     }
     html.push_str("</div></div></a>");
 
-    let has_content = org.description.is_some() || !org.services.is_empty();
-    if has_content {
-        html.push_str(r#"<div data-role="content">"#);
-        if let Some(ref desc) = org.description {
-            html.push_str(&format!(r#"<p data-role="desc">{}</p>"#, escape_html(desc)));
-        }
-        if !org.services.is_empty() {
-            html.push_str(r#"<p data-role="services">"#);
-            for service in org.services.iter().take(4) {
-                html.push_str(&format!("<span>{}</span>", escape_html(service)));
-            }
-            html.push_str("</p>");
-        }
-        html.push_str("</div>");
+    html.push_str(r#"<div data-role="content">"#);
+    if let Some(ref desc) = org.description {
+        html.push_str(&format!(r#"<p data-role="desc">{}</p>"#, escape_html(desc)));
     }
-    html.push_str("</article>");
+    if !org.services.is_empty() {
+        html.push_str(r#"<p data-role="services">"#);
+        for service in org.services.iter().take(4) {
+            html.push_str(&format!("<span>{}</span>", escape_html(service)));
+        }
+        html.push_str("</p>");
+    }
+    html.push_str("</div></article>");
 
     html
 }

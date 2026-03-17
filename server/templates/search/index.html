@@ -96,7 +96,6 @@
                             stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     </a>
                     {% endif %}
-                    {% if person.bio.is_some() || !person.skills.is_empty() %}
                     <div data-role="content">
                         {% match person.bio %}
                         {% when Some with (bio) %}
@@ -107,7 +106,6 @@
                         <p data-role="skills">{% for skill in person.skills %}<span>{{ skill }}</span>{% endfor %}</p>
                         {% endif %}
                     </div>
-                    {% endif %}
                 </article>
                 {% endfor %}
             </div>
@@ -138,7 +136,6 @@
                             </div>
                         </div>
                     </a>
-                    {% if org.description.is_some() %}
                     <div data-role="content">
                         {% match org.description %}
                         {% when Some with (desc) %}
@@ -146,7 +143,6 @@
                         {% when None %}
                         {% endmatch %}
                     </div>
-                    {% endif %}
                 </article>
                 {% endfor %}
             </div>
@@ -168,7 +164,6 @@
                             </div>
                         </div>
                     </a>
-                    {% if loc.description.is_some() %}
                     <div data-role="content">
                         {% match loc.description %}
                         {% when Some with (desc) %}
@@ -176,7 +171,6 @@
                         {% when None %}
                         {% endmatch %}
                     </div>
-                    {% endif %}
                 </article>
                 {% endfor %}
             </div>
@@ -203,7 +197,6 @@
                             </div>
                         </div>
                     </a>
-                    {% if prod.description.is_some() %}
                     <div data-role="content">
                         {% match prod.description %}
                         {% when Some with (desc) %}
@@ -211,7 +204,6 @@
                         {% when None %}
                         {% endmatch %}
                     </div>
-                    {% endif %}
                 </article>
                 {% endfor %}
             </div>

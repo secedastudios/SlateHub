@@ -51,11 +51,11 @@
                     </div>
                     <span data-role="badge">{{ membership.role }}</span>
                 </a>
-                {% if membership.organization.description.is_some() %}
                 <div data-role="content">
+                    {% if membership.organization.description.is_some() %}
                     <p data-role="desc">{{ membership.organization.description.as_ref().unwrap() }}</p>
+                    {% endif %}
                 </div>
-                {% endif %}
             </article>
             {% endfor %}
         </div>

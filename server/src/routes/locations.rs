@@ -594,13 +594,14 @@ fn render_location_card(loc: &crate::templates::LocationView) -> String {
     }
     html.push_str("</div></div></a>");
 
+    html.push_str(r#"<div class="loc-card-content">"#);
     if let Some(ref desc) = loc.description {
         html.push_str(&format!(
-            r#"<div class="loc-card-content"><p class="loc-card-desc">{}</p></div>"#,
+            r#"<p class="loc-card-desc">{}</p>"#,
             escape_html(desc)
         ));
     }
-    html.push_str("</article>");
+    html.push_str("</div></article>");
 
     html
 }

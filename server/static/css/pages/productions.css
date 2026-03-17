@@ -325,15 +325,9 @@ button.prod-btn-danger:hover:not(:disabled) {
 
 .prod-results { padding-bottom: 4rem; }
 
-.prod-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.75rem;
-}
+/* .prod-grid: base styles in main.css */
 
 .prod-card {
-    display: flex;
-    flex-direction: column;
     overflow: hidden;
     background: transparent;
     border: none;
@@ -360,14 +354,16 @@ button.prod-btn-danger:hover:not(:disabled) {
 }
 
 .prod-card-visual .prod-card-poster {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
 .prod-card-visual .prod-card-placeholder {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1216,7 +1212,7 @@ button.prod-btn-danger:hover:not(:disabled) {
 @media (max-width: 768px) {
     #prod-page, #prod-detail, #prod-form-page { padding: 0 var(--page-gutter, 1.25rem); }
     .prod-page-header h1 { font-size: clamp(2rem, 8vw, 3rem); }
-    .prod-grid { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+    .prod-grid { gap: 1.25rem; }
     .prod-filter-row { flex-direction: column; }
     #prod-add-member-form .prod-form-grid,
     #prod-add-org-form .prod-form-grid { grid-template-columns: 1fr; }
@@ -1226,5 +1222,5 @@ button.prod-btn-danger:hover:not(:disabled) {
 
 @media (max-width: 480px) {
     #prod-page, #prod-detail, #prod-form-page { padding: 0 var(--page-gutter, 1rem); }
-    .prod-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .prod-grid { gap: 2rem; }
 }
