@@ -10,10 +10,12 @@
             <div id="hero-content" data-role="hero-content">
                 <span id="hero-tag" data-role="hero-tag">Meet SlateHub</span>
                 <h1 id="heading-hero">The free, ad-free platform where filmmakers, actors, crew, creators, and brands unite to turn ideas into stories—powered by smart search and verified connections.</h1>
+                {% if user.is_none() %}
                 <nav id="hero-actions" data-role="hero-actions" aria-label="Get started">
                     <a href="/signup" id="link-hero-signup" role="button" data-type="primary">Create Account</a>
                     <p id="hero-note" data-role="hero-note">100% Free for creatives.<br/>For life.</p>
                 </nav>
+                {% endif %}
             </div>
             <div id="hero-media" data-role="hero-media">
                 <img src="/static/images/hero-search.jpg" alt="Filmmaker operating cinema camera on set" id="hero-image" loading="eager" />
@@ -60,10 +62,12 @@
                     <p>From emerging talent to industry pros, SlateHub empowers everyone to create and connect.</p>
                 </article>
             </div>
+            {% if user.is_none() %}
             <nav id="why-actions" data-role="section-actions" aria-label="Join SlateHub">
                 <a href="/signup" id="link-why-signup" role="button" data-type="primary">Join SlateHub</a>
                 <p id="why-note" data-role="section-note">100% Free for<br/>Artists &amp; Creatives.</p>
             </nav>
+            {% endif %}
         </section>
         <section id="section-who" data-section="who-its-for">
             <div id="who-intro" data-role="section-intro">
@@ -95,10 +99,12 @@
                     <dd>Scout talent and manage projects with ease.</dd>
                 </div>
             </dl>
+            {% if user.is_none() %}
             <nav id="who-actions" data-role="section-actions" aria-label="Join SlateHub">
                 <a href="/signup" id="link-who-signup" role="button" data-type="primary">Join SlateHub</a>
                 <p id="who-note" data-role="section-note">100% Free for<br/>Artists &amp; Creatives.</p>
             </nav>
+            {% endif %}
         </section>
         <section id="section-roadmap" data-section="whats-next">
             <div id="roadmap-intro" data-role="section-intro">
@@ -116,10 +122,12 @@
                 </article>
                 <div id="roadmap-cta" data-role="phase-cta">
                     <p id="roadmap-cta-text" data-role="cta-heading">Be the first to experience the future of content creation.</p>
+                    {% if user.is_none() %}
                     <nav id="roadmap-actions" data-role="section-actions" aria-label="Join SlateHub">
                         <a href="/signup" id="link-roadmap-signup" role="button" data-type="dark">Join SlateHub</a>
                         <p id="roadmap-note" data-role="section-note">100% Free for<br/>Artists &amp; Creatives.</p>
                     </nav>
+                    {% endif %}
                 </div>
             </div>
         </section>
