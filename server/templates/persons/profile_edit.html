@@ -9,25 +9,34 @@
     <header id="profile-edit-header">
         <div id="profile-edit-header-content">
             <div id="profile-edit-avatar" data-role="avatar-container">
-                {% if profile.avatar.is_some() %}
-                <img
-                    src="{{ profile.avatar.as_ref().unwrap() }}"
-                    alt="{{ profile.name }}'s profile photo"
-                    data-role="avatar"
-                    id="edit-avatar-img"
-                />
-                {% else %}
-                <div data-role="avatar-initials" id="edit-avatar-initials">
-                    {{ profile.initials }}
+                <div data-role="avatar-frame">
+                    {% if profile.avatar.is_some() %}
+                    <img
+                        src="{{ profile.avatar.as_ref().unwrap() }}"
+                        alt="{{ profile.name }}'s profile photo"
+                        data-role="avatar"
+                        id="edit-avatar-img"
+                    />
+                    {% else %}
+                    <div data-role="avatar-initials" id="edit-avatar-initials">
+                        {{ profile.initials }}
+                    </div>
+                    {% endif %}
+                    <div data-role="avatar-overlay" id="avatar-overlay" title="Change photo">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                    </div>
+                    <button type="button" id="avatar-delete-btn" data-role="avatar-delete" title="Remove photo"{% if profile.avatar.is_none() %} style="display:none"{% endif %}>&times;</button>
                 </div>
-                {% endif %}
-                <div data-role="avatar-overlay" id="avatar-overlay" title="Change photo">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <span data-role="avatar-edit-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                         <circle cx="12" cy="13" r="4"/>
                     </svg>
-                </div>
-                <button type="button" id="avatar-delete-btn" data-role="avatar-delete" title="Remove photo"{% if profile.avatar.is_none() %} style="display:none"{% endif %}>&times;</button>
+                    Change Photo
+                </span>
             </div>
             <div id="profile-edit-title">
                 <h1 id="heading-profile-edit">Edit Profile</h1>

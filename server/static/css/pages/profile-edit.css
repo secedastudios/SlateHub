@@ -36,12 +36,27 @@
 }
 
 #profile-edit-avatar {
-    width: 64px;
-    height: 64px;
-    overflow: hidden;
+    width: 120px;
     flex-shrink: 0;
     position: relative;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs, 0.25rem);
+}
+
+#profile-edit-avatar [data-role="avatar-frame"] {
+    width: 120px;
+    height: 120px;
+    position: relative;
+    overflow: hidden;
+    border: 2px dashed rgba(255, 255, 255, 0.25);
+    transition: border-color var(--transition-fast, 0.15s);
+}
+
+#profile-edit-avatar:hover [data-role="avatar-frame"] {
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 #profile-edit-avatar img[data-role="avatar"] {
@@ -64,7 +79,7 @@
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: var(--color-text-light, #d6d8ca);
     font-family: var(--font-display);
-    font-size: var(--text-xl);
+    font-size: 2.5rem;
     font-weight: var(--font-weight-bold);
     text-transform: uppercase;
     user-select: none;
@@ -75,8 +90,10 @@
     position: absolute;
     inset: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 4px;
     background: rgba(0, 0, 0, 0.55);
     opacity: 0;
     transition: opacity var(--transition-fast, 0.15s);
@@ -103,18 +120,35 @@
     to { transform: rotate(360deg); }
 }
 
+/* Always-visible edit label below avatar */
+#profile-edit-avatar [data-role="avatar-edit-label"] {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: var(--color-accent, #667eea);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    transition: color var(--transition-fast, 0.15s);
+}
+
+#profile-edit-avatar:hover [data-role="avatar-edit-label"] {
+    color: var(--color-text-light, #d6d8ca);
+}
+
 /* Avatar delete button */
 #profile-edit-avatar [data-role="avatar-delete"] {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 18px;
-    height: 18px;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     border: none;
     background: var(--color-error, #c44536);
     color: #fff;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1;
     display: flex;
     align-items: center;
@@ -1584,8 +1618,12 @@ button[data-action="remove"]:hover {
     }
 
     #profile-edit-avatar {
-        width: 48px;
-        height: 48px;
+        width: 96px;
+    }
+
+    #profile-edit-avatar [data-role="avatar-frame"] {
+        width: 96px;
+        height: 96px;
     }
 
     [data-role="experience-item"],
