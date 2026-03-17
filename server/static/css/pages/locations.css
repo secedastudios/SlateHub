@@ -13,7 +13,6 @@
 [data-page="locations"] #main-content > section {
     background: transparent;
     border-radius: 0;
-    padding: 0;
 }
 
 #loc-page,
@@ -21,7 +20,7 @@
 #loc-form-page {
     max-width: var(--container-wide, 1440px);
     margin: 0 auto;
-    padding: 0 var(--space-xl);
+    padding: 0 var(--page-gutter, 2rem);
     background: transparent;
     border-radius: 0;
     color: var(--color-text-primary, #d6d8ca);
@@ -374,9 +373,10 @@ button.loc-btn-danger:hover:not(:disabled) {
 }
 
 .loc-card {
+    position: relative;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
     background: transparent;
     border: none;
     outline: none;
@@ -480,9 +480,8 @@ button.loc-btn-danger:hover:not(:disabled) {
 .loc-card-content {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
-    padding: 1rem 0.25rem 0.25rem;
-    flex: 1;
+    gap: 0.5rem;
+    padding: 0.75rem 0.25rem 0;
 }
 
 .loc-card-desc {
@@ -506,12 +505,43 @@ button.loc-btn-danger:hover:not(:disabled) {
     line-height: 1.5;
 }
 
-.loc-card-actions {
+/* Like button — overlay on card image */
+.loc-card-like {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
-    gap: 0.65rem;
-    margin-top: auto;
-    padding-top: 0.6rem;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: none;
+    border-radius: 50%;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s, transform 0.15s;
+    min-height: 0;
+}
+
+.loc-card:hover .loc-card-like,
+.loc-card-like[data-liked="true"] {
+    opacity: 1;
+}
+
+.loc-card-like:hover {
+    background: rgba(0, 0, 0, 0.65);
+    transform: scale(1.12);
+}
+
+.loc-card-like svg {
+    display: block;
 }
 
 /* ========================================
@@ -999,41 +1029,6 @@ button.loc-btn-danger:hover:not(:disabled) {
     line-height: 1.5;
 }
 
-/* Scroll to top */
-.loc-scroll-top {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: rgba(30, 32, 28, 0.85);
-    border: 1px solid rgba(214, 216, 202, 0.2);
-    color: var(--color-text-primary, #d6d8ca);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s, transform 0.25s;
-    transform: translateY(8px);
-    z-index: 90;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-}
-
-.loc-scroll-top.visible {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-}
-
-.loc-scroll-top:hover {
-    background: rgba(50, 54, 48, 0.9);
-    border-color: rgba(214, 216, 202, 0.35);
-}
-
 /* Infinite scroll loading */
 .loc-loading {
     text-align: center;
@@ -1056,16 +1051,14 @@ button.loc-btn-danger:hover:not(:disabled) {
 }
 
 @media (max-width: 768px) {
-    #loc-page, #loc-detail, #loc-form-page { padding: 0 var(--space-md); }
+    #loc-page, #loc-detail, #loc-form-page { padding: 0 var(--page-gutter, 1.25rem); }
     .loc-page-header h1 { font-size: clamp(2rem, 8vw, 3rem); }
-    #loc-search-wrap { flex-direction: column; }
-    #loc-search-submit { width: 100%; border-top: 1px solid rgba(214, 216, 202, 0.08); }
     .loc-grid { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
     .loc-filter-row { flex-direction: column; }
 }
 
 @media (max-width: 480px) {
-    #loc-page, #loc-detail, #loc-form-page { padding: 0 var(--space-sm); }
+    #loc-page, #loc-detail, #loc-form-page { padding: 0 var(--page-gutter, 1rem); }
     .loc-grid { grid-template-columns: 1fr; gap: 2rem; }
     .loc-rates-grid { grid-template-columns: 1fr; }
 }

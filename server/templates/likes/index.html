@@ -23,84 +23,76 @@
 
     <section id="likes-people" class="likes-section" data-tab-content="people">
         {% if !liked_people.is_empty() %}
-        <div class="likes-grid">
+        <div data-role="card-grid">
             {% for person in liked_people %}
-            <article class="likes-card" data-like-card="{{ person.id }}">
-                <a href="/{{ person.username }}" class="likes-card-visual">
+            <article data-component="card" data-type="person" data-like-card="{{ person.id }}">
+                <a href="/{{ person.username }}" data-role="card-visual">
                     {% if person.avatar.is_some() %}
                     <img src="{{ person.avatar.as_ref().unwrap() }}" alt="{{ person.name }}" loading="lazy" />
                     {% else %}
-                    <div class="likes-card-placeholder">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5" aria-hidden="true">
-                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                        </svg>
-                    </div>
+                    <div data-role="placeholder"><span>{{ person.name }}</span></div>
                     {% endif %}
-                    <div class="likes-card-overlay">
+                    <div data-role="overlay">
                         <h3>{{ person.name }}</h3>
-                        {% if person.headline.is_some() %}
-                        <span>{{ person.headline.as_ref().unwrap() }}</span>
-                        {% endif %}
+                        <div data-role="meta">
+                            {% if person.headline.is_some() %}
+                            <span data-role="role">{{ person.headline.as_ref().unwrap() }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </a>
-                <div class="likes-card-actions">
-                    <a href="/{{ person.username }}" class="likes-btn-primary">View Profile</a>
-                    <button type="button" class="likes-btn-heart active"
-                        data-like-target="{{ person.id }}"
-                        data-on:click="@post('/api/likes/toggle-sse/{{ person.id }}?v=likes')"
-                        data-liked="true" aria-label="Unlike">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#e53e3e" stroke="#e53e3e" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                    </button>
-                </div>
+                <button type="button" data-role="card-like"
+                    data-like-target="{{ person.id }}"
+                    data-on:click="@post('/api/likes/toggle-sse/{{ person.id }}?v=likes')"
+                    data-liked="true" aria-label="Unlike">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#e53e3e" stroke="#e53e3e" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                </button>
             </article>
             {% endfor %}
         </div>
         {% else %}
-        <div class="likes-empty">
+        <div data-role="empty-state">
             <p>You haven't liked any people yet.</p>
-            <a href="/people" class="likes-btn-primary">Browse People</a>
+            <nav data-role="empty-actions">
+                <a href="/people" data-role="btn-primary">Browse People</a>
+            </nav>
         </div>
         {% endif %}
     </section>
 
     <section id="likes-locations" class="likes-section" data-tab-content="locations" hidden>
         {% if !liked_locations.is_empty() %}
-        <div class="likes-grid">
+        <div data-role="card-grid">
             {% for location in liked_locations %}
-            <article class="likes-card" data-like-card="location:{{ location.id }}">
-                <a href="/locations/{{ location.id }}" class="likes-card-visual">
+            <article data-component="card" data-type="location" data-like-card="location:{{ location.id }}">
+                <a href="/locations/{{ location.id }}" data-role="card-visual">
                     {% if location.profile_photo.is_some() %}
                     <img src="{{ location.profile_photo.as_ref().unwrap() }}" alt="{{ location.name }}" loading="lazy" />
                     {% else %}
-                    <div class="likes-card-placeholder">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5" aria-hidden="true">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                            <circle cx="12" cy="10" r="3"/>
-                        </svg>
-                    </div>
+                    <div data-role="placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
                     {% endif %}
-                    <div class="likes-card-overlay">
+                    <div data-role="overlay">
                         <h3>{{ location.name }}</h3>
-                        <span>{{ location.city }}, {{ location.state }}</span>
+                        <div data-role="meta">
+                            <span data-role="loc">{{ location.city }}, {{ location.state }}</span>
+                        </div>
                     </div>
                 </a>
-                <div class="likes-card-actions">
-                    <a href="/locations/{{ location.id }}" class="likes-btn-primary">View Location</a>
-                    <button type="button" class="likes-btn-heart active"
-                        data-like-target="location:{{ location.id }}"
-                        data-on:click="@post('/api/likes/toggle-sse/location:{{ location.id }}?v=likes')"
-                        data-liked="true" aria-label="Unlike">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#e53e3e" stroke="#e53e3e" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                    </button>
-                </div>
+                <button type="button" data-role="card-like"
+                    data-like-target="location:{{ location.id }}"
+                    data-on:click="@post('/api/likes/toggle-sse/location:{{ location.id }}?v=likes')"
+                    data-liked="true" aria-label="Unlike">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#e53e3e" stroke="#e53e3e" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                </button>
             </article>
             {% endfor %}
         </div>
         {% else %}
-        <div class="likes-empty">
+        <div data-role="empty-state">
             <p>You haven't liked any locations yet.</p>
-            <a href="/locations" class="likes-btn-primary">Browse Locations</a>
+            <nav data-role="empty-actions">
+                <a href="/locations" data-role="btn-primary">Browse Locations</a>
+            </nav>
         </div>
         {% endif %}
     </section>

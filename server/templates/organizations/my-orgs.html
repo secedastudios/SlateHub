@@ -51,17 +51,11 @@
                     </div>
                     <span data-role="badge">{{ membership.role }}</span>
                 </a>
+                {% if membership.organization.description.is_some() %}
                 <div data-role="content">
-                    {% if membership.organization.description.is_some() %}
                     <p data-role="desc">{{ membership.organization.description.as_ref().unwrap() }}</p>
-                    {% endif %}
-                    <div data-role="actions">
-                        <a href="/orgs/{{ membership.organization.slug }}" data-role="btn-primary">View</a>
-                        {% if membership.role == "owner" || membership.role == "admin" %}
-                        <a href="/orgs/{{ membership.organization.slug }}/edit" data-role="btn-secondary">Edit</a>
-                        {% endif %}
-                    </div>
                 </div>
+                {% endif %}
             </article>
             {% endfor %}
         </div>

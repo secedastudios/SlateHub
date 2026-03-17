@@ -39,7 +39,7 @@
 [data-component="org-form-page"] {
     max-width: var(--container-wide, 1440px);
     margin: 0 auto;
-    padding: 0 var(--space-xl);
+    padding: 0 var(--page-gutter, 2rem);
 }
 
 /* ========================================
@@ -257,9 +257,10 @@ button[data-role="filter-tag"]:hover:not(:disabled) {
    ======================================== */
 
 [data-component="card"] {
+    position: relative;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
     background: transparent;
     border: none;
     outline: none;
@@ -393,9 +394,8 @@ button[data-role="filter-tag"]:hover:not(:disabled) {
 [data-role="content"] {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
-    padding: 1rem 0.25rem 0.25rem;
-    flex: 1;
+    gap: 0.5rem;
+    padding: 0.75rem 0.25rem 0;
 }
 
 [data-role="bio"],
@@ -433,14 +433,7 @@ button[data-role="filter-tag"]:hover:not(:disabled) {
     color: rgba(156, 163, 158, 0.3);
 }
 
-[data-role="actions"] {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    margin-top: auto;
-    padding-top: 0.6rem;
-}
-
+/* Header / empty-state action buttons */
 [data-role="btn-primary"] {
     font-family: var(--font-body);
     font-size: 0.7rem;
@@ -489,45 +482,43 @@ button[data-role="filter-tag"]:hover:not(:disabled) {
     border-color: rgba(214, 216, 202, 0.35);
 }
 
-[data-role="btn-icon-bare"] {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    padding: 0.3rem;
-    margin-left: auto;
-    color: rgba(214, 216, 202, 0.3);
-    cursor: pointer;
-    transition: color 0.2s, transform 0.15s;
-    min-height: 0;
-}
-
-[data-role="btn-icon-bare"]:hover {
-    color: var(--color-accent, #eb5437);
-    transform: scale(1.15);
-}
-
-[data-role="btn-icon-outline"] {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* Like button — overlay on card image */
+[data-component="card"] [data-role="card-like"] {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
     width: 34px;
     height: 34px;
-    background: none;
-    border: 1px solid rgba(214, 216, 202, 0.15);
-    border-radius: 8px;
-    color: rgba(214, 216, 202, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: none;
+    border-radius: 50%;
+    color: rgba(255, 255, 255, 0.75);
     cursor: pointer;
     padding: 0;
-    transition: all 0.2s;
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s, transform 0.15s;
     min-height: 0;
 }
 
-[data-role="btn-icon-outline"]:hover {
-    color: var(--color-text-primary, #d6d8ca);
-    border-color: rgba(214, 216, 202, 0.4);
-    background: rgba(214, 216, 202, 0.05);
+[data-component="card"]:hover [data-role="card-like"],
+[data-component="card"] [data-role="card-like"][data-liked="true"] {
+    opacity: 1;
+}
+
+[data-component="card"] [data-role="card-like"]:hover {
+    background: rgba(0, 0, 0, 0.65);
+    transform: scale(1.12);
+}
+
+[data-component="card"] [data-role="card-like"] svg {
+    display: block;
 }
 
 /* ========================================
@@ -1265,22 +1256,13 @@ dialog [data-role="modal-footer"] {
     [data-component="org-profile"],
     [data-component="my-orgs-page"],
     [data-component="org-form-page"] {
-        padding: 0 var(--space-md);
+        padding: 0 var(--page-gutter, 1.25rem);
     }
 
     [data-role="page-header"] { padding: 2rem 0 1rem; }
 
     [data-role="page-header"] h1 {
         font-size: clamp(2rem, 8vw, 3rem);
-    }
-
-    #search-input-wrap {
-        flex-direction: column;
-    }
-
-    #button-search-submit {
-        width: 100%;
-        border-top: 1px solid rgba(214, 216, 202, 0.08);
     }
 
     [data-role="card-grid"] {
@@ -1308,7 +1290,7 @@ dialog [data-role="modal-footer"] {
     [data-component="org-profile"],
     [data-component="my-orgs-page"],
     [data-component="org-form-page"] {
-        padding: 0 var(--space-sm);
+        padding: 0 var(--page-gutter, 1rem);
     }
 
     [data-role="card-grid"] {
@@ -1712,41 +1694,6 @@ dialog [data-role="modal-footer"] {
     font-size: var(--text-sm);
     color: var(--color-text-muted, #9ca39e);
     margin: 0;
-}
-
-/* Scroll to top */
-.orgs-scroll-top {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: rgba(30, 32, 28, 0.85);
-    border: 1px solid rgba(214, 216, 202, 0.2);
-    color: var(--color-text-primary, #d6d8ca);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s, transform 0.25s;
-    transform: translateY(8px);
-    z-index: 90;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-}
-
-.orgs-scroll-top.visible {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-}
-
-.orgs-scroll-top:hover {
-    background: rgba(50, 54, 48, 0.9);
-    border-color: rgba(214, 216, 202, 0.35);
 }
 
 /* Infinite scroll loading */

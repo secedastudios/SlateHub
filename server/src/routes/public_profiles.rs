@@ -541,25 +541,25 @@ fn render_person_card(person: &PersonCard) -> String {
     }
     html.push_str("</div></div></a>");
 
-    html.push_str(r#"<div data-role="content">"#);
-    if let Some(ref bio) = person.bio {
-        html.push_str(&format!(
-            r#"<p data-role="bio">{}</p>"#,
-            escape_html(bio)
-        ));
-    }
-    if !person.skills.is_empty() {
-        html.push_str(r#"<p data-role="skills">"#);
-        for skill in &person.skills {
-            html.push_str(&format!("<span>{}</span>", escape_html(skill)));
+    let has_content = person.bio.is_some() || !person.skills.is_empty();
+    if has_content {
+        html.push_str(r#"<div data-role="content">"#);
+        if let Some(ref bio) = person.bio {
+            html.push_str(&format!(
+                r#"<p data-role="bio">{}</p>"#,
+                escape_html(bio)
+            ));
         }
-        html.push_str("</p>");
+        if !person.skills.is_empty() {
+            html.push_str(r#"<p data-role="skills">"#);
+            for skill in &person.skills {
+                html.push_str(&format!("<span>{}</span>", escape_html(skill)));
+            }
+            html.push_str("</p>");
+        }
+        html.push_str("</div>");
     }
-    html.push_str(&format!(
-        r#"<div data-role="actions"><a href="/{}" data-role="btn-primary">View Profile</a></div>"#,
-        escape_html(&person.username)
-    ));
-    html.push_str("</div></article>");
+    html.push_str("</article>");
 
     html
 }

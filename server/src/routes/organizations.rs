@@ -871,21 +871,22 @@ fn render_org_card(org: &Organization) -> String {
     }
     html.push_str("</div></div></a>");
 
-    html.push_str(r#"<div data-role="content">"#);
-    if let Some(ref desc) = org.description {
-        html.push_str(&format!(r#"<p data-role="desc">{}</p>"#, escape_html(desc)));
-    }
-    if !org.services.is_empty() {
-        html.push_str(r#"<p data-role="services">"#);
-        for service in org.services.iter().take(4) {
-            html.push_str(&format!("<span>{}</span>", escape_html(service)));
+    let has_content = org.description.is_some() || !org.services.is_empty();
+    if has_content {
+        html.push_str(r#"<div data-role="content">"#);
+        if let Some(ref desc) = org.description {
+            html.push_str(&format!(r#"<p data-role="desc">{}</p>"#, escape_html(desc)));
         }
-        html.push_str("</p>");
+        if !org.services.is_empty() {
+            html.push_str(r#"<p data-role="services">"#);
+            for service in org.services.iter().take(4) {
+                html.push_str(&format!("<span>{}</span>", escape_html(service)));
+            }
+            html.push_str("</p>");
+        }
+        html.push_str("</div>");
     }
-    html.push_str(&format!(r#"<div data-role="actions"><a href="/orgs/{}" data-role="btn-primary">View</a>"#, escape_html(&org.slug)));
-    html.push_str(r#"<button type="button" data-role="btn-icon-bare" aria-label="Save"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>"#);
-    html.push_str(r#"<button type="button" data-role="btn-icon-outline" aria-label="Follow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>"#);
-    html.push_str("</div></div></article>");
+    html.push_str("</article>");
 
     html
 }

@@ -1,107 +1,47 @@
-{% extends "_layout.html" %} {% block title %}Internal Server Error - {{
-app_name }}{% endblock %} {% block description %}An unexpected error occurred
-while processing your request.{% endblock %} {% block page_name %}error-500{%
-endblock %} {% block content %}
-<article
-    id="error-500-main"
-    data-component="error-page"
-    data-error-code="500"
-    data-error-type="server-error"
->
-    <header id="error-header" data-role="error-header">
-        <h1 id="heading-error-code">500</h1>
-        <h2 id="heading-error-title">Internal Server Error</h2>
+{% extends "_layout.html" %}
+{% block title %}Internal Server Error - {{ app_name }}{% endblock %}
+{% block description %}An unexpected error occurred while processing your request.{% endblock %}
+{% block page_name %}error-500{% endblock %}
+{% block content %}
+<article data-component="error-page" data-error-code="500">
+    <header data-role="error-header">
+        <span data-role="error-code">500</span>
+        <h1>Something Went Wrong</h1>
+        <p data-role="error-description">
+            {% if message %}{{ message }}{% else %}An unexpected error occurred on our end. We've been notified and are working on it.{% endif %}
+        </p>
     </header>
 
-    <section id="section-error-details" data-section="error-details">
-        <p id="error-description" data-role="error-description">
-            {% if message %} {{ message }} {% else %} Something went wrong on
-            our end. We've been notified and are working to fix the issue. {%
-            endif %}
-        </p>
-
-        {% if request_id or timestamp %}
-        <dl id="error-metadata" data-role="error-metadata">
-            {% if request_id %}
-            <dt id="label-request-id">Request ID</dt>
-            <dd id="detail-request-id" data-field="request-id">
-                <code>{{ request_id }}</code>
-            </dd>
-            {% endif %} {% if timestamp %}
-            <dt id="label-timestamp">Timestamp</dt>
-            <dd id="detail-timestamp" data-field="timestamp">
-                <time datetime="{{ timestamp }}">{{ timestamp }}</time>
-            </dd>
-            {% endif %}
-        </dl>
-        {% endif %}
-
-        <nav
-            id="error-actions"
-            data-role="error-actions"
-            aria-label="Error recovery actions"
-        >
-            <button
-                id="button-retry"
-                onclick="window.location.reload()"
-                data-type="primary"
-                aria-label="Reload the page"
-            >
-                <span aria-hidden="true" data-role="icon">🔄</span>
-                <span data-role="button-text">Try Again</span>
-            </button>
-
-            <a
-                href="/"
-                id="link-error-home"
-                role="button"
-                data-type="secondary"
-                aria-label="Go to homepage"
-            >
-                <span aria-hidden="true" data-role="icon">🏠</span>
-                <span data-role="button-text">Go to Homepage</span>
-            </a>
-
-            {% if user.is_some() %}
-            <a
-                href="/projects"
-                id="link-error-projects"
-                role="button"
-                data-type="secondary"
-                aria-label="View your projects"
-            >
-                <span aria-hidden="true" data-role="icon">📁</span>
-                <span data-role="button-text">View Your Projects</span>
-            </a>
-            {% else %}
-            <a
-                href="/login"
-                id="link-error-login"
-                role="button"
-                data-type="secondary"
-                aria-label="Sign in to your account"
-            >
-                <span aria-hidden="true" data-role="icon">🔑</span>
-                <span data-role="button-text">Sign In</span>
-            </a>
-            {% endif %}
-        </nav>
-    </section>
-
-    <footer id="error-footer" data-role="error-footer">
-        <div id="error-help" data-role="help-section">
-            <p id="help-contact" data-role="help-text">
-                If this problem persists, please
-                <a href="/contact" id="link-contact-support"
-                    >contact our support team</a
-                >
-                {% if request_id %}with request ID
-                <code>{{ request_id }}</code>{% endif %}.
-            </p>
-            <p id="help-apology" data-role="help-text">
-                We apologize for any inconvenience this may have caused.
-            </p>
+    {% if request_id or timestamp %}
+    <dl data-role="error-metadata">
+        {% if request_id %}
+        <div>
+            <dt>Request ID</dt>
+            <dd><code>{{ request_id }}</code></dd>
         </div>
+        {% endif %}
+        {% if timestamp %}
+        <div>
+            <dt>Timestamp</dt>
+            <dd><time datetime="{{ timestamp }}">{{ timestamp }}</time></dd>
+        </div>
+        {% endif %}
+    </dl>
+    {% endif %}
+
+    <nav data-role="error-actions" aria-label="Error recovery actions">
+        <button onclick="window.location.reload()" data-type="primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Try Again
+        </button>
+        <a href="/" role="button" data-type="secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Homepage
+        </a>
+    </nav>
+
+    <footer data-role="error-footer">
+        <p>If this persists, please <a href="/contact">contact support</a>{% if request_id %} with request ID <code>{{ request_id }}</code>{% endif %}.</p>
     </footer>
 </article>
 {% endblock %}

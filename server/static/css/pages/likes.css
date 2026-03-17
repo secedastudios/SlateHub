@@ -10,7 +10,14 @@
 #likes-page {
     max-width: var(--container-wide, 1440px);
     margin: 0 auto;
-    padding: 0 var(--space-xl);
+    padding: 0 var(--page-gutter, 2rem);
+}
+
+/* Reset global article styles */
+#likes-page article {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
 }
 
 .likes-page-header {
@@ -28,8 +35,8 @@
 }
 
 .likes-page-header p {
-    color: var(--color-text-secondary, #888);
-    font-size: 1.1rem;
+    color: var(--color-text-muted, #9ca39e);
+    font-size: var(--text-base);
     margin: 0;
 }
 
@@ -37,7 +44,7 @@
 #likes-tabs {
     display: flex;
     gap: 0;
-    border-bottom: 1px solid var(--border-color, #333);
+    border-bottom: 1px solid rgba(214, 216, 202, 0.08);
     margin-bottom: 2rem;
 }
 
@@ -45,11 +52,15 @@
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--color-text-secondary, #888);
-    font-size: 1rem;
+    color: var(--color-text-muted, #9ca39e);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
     padding: 0.75rem 1.5rem;
     cursor: pointer;
     transition: color 0.15s, border-color 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    min-height: 0;
 }
 
 .likes-tab:hover {
@@ -58,138 +69,259 @@
 
 .likes-tab.active {
     color: var(--color-text-primary, #d6d8ca);
-    border-bottom-color: var(--color-accent, #e53e3e);
+    border-bottom-color: var(--color-accent, #eb5437);
 }
 
-/* Grid */
-.likes-grid {
+/* Card grid — reuse standard pattern */
+[data-role="card-grid"] {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.75rem;
+}
+
+.likes-section {
     padding-bottom: 3rem;
 }
 
-/* Card */
-.likes-card {
-    background: var(--color-surface, #1a1a1a);
-    border: 1px solid var(--border-color, #333);
-    border-radius: 8px;
-    overflow: hidden;
-    transition: opacity 0.2s, transform 0.15s;
+/* Cards — match people/search pattern */
+[data-component="card"] {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+    transition: transform 0.25s ease;
 }
 
-.likes-card:hover {
-    transform: translateY(-2px);
+[data-component="card"]:hover {
+    transform: translateY(-4px);
+    box-shadow: none;
 }
 
-.likes-card-visual {
+[data-role="card-visual"] {
     display: block;
     position: relative;
-    aspect-ratio: 3/4;
+    width: 100%;
+    aspect-ratio: 3 / 4;
     overflow: hidden;
-    background: var(--color-bg, #111);
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+    border: none;
+    outline: none;
 }
 
-.likes-card-visual img {
+[data-type="person"] [data-role="card-visual"] {
+    background: linear-gradient(160deg, #2b2822 0%, #181816 60%, #1e1c18 100%);
+}
+
+[data-type="location"] [data-role="card-visual"] {
+    background: linear-gradient(160deg, #22201c 0%, #181816 60%, #1e221c 100%);
+}
+
+[data-role="card-visual"] img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
+    border-radius: 0;
+    border: none;
+    transition: transform 0.4s ease;
 }
 
-.likes-card-placeholder {
+[data-component="card"]:hover [data-role="card-visual"] img {
+    transform: scale(1.03);
+}
+
+[data-role="placeholder"] {
     width: 100%;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--color-text-secondary, #888);
 }
 
-.likes-card-overlay {
+[data-role="placeholder"] span {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-size: 3rem;
+    font-weight: 700;
+    color: rgba(214, 216, 202, 0.06);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    user-select: none;
+}
+
+[data-role="placeholder"] svg {
+    color: rgba(214, 216, 202, 0.07);
+}
+
+[data-role="overlay"] {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 1rem;
-    background: linear-gradient(transparent, rgba(0,0,0,0.8));
-    color: white;
-}
-
-.likes-card-overlay h3 {
-    font-size: 1rem;
-    margin: 0 0 0.25rem;
-}
-
-.likes-card-overlay span {
-    font-size: 0.85rem;
-    opacity: 0.8;
-}
-
-.likes-card-actions {
+    inset: 0;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.25rem;
+    background: linear-gradient(
+        to top,
+        rgba(8, 8, 6, 0.88) 0%,
+        rgba(8, 8, 6, 0.45) 40%,
+        transparent 70%
+    );
+    pointer-events: none;
+}
+
+[data-role="overlay"] h3 {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.15;
+    margin: 0 0 0.3rem 0;
+}
+
+[data-role="meta"] {
+    display: flex;
+    align-items: baseline;
     justify-content: space-between;
-    padding: 0.75rem;
     gap: 0.5rem;
 }
 
-/* Buttons */
-.likes-btn-primary {
-    display: inline-block;
-    padding: 0.4rem 1rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    text-decoration: none;
-    background: var(--color-accent, #fff);
-    color: var(--color-bg, #000);
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.15s;
+[data-role="role"] {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.65);
+    line-height: 1.35;
 }
 
-.likes-btn-primary:hover {
-    opacity: 0.85;
+[data-role="loc"] {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.45);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
-.likes-btn-heart {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.4rem;
-    border-radius: 50%;
+/* Like button — overlay on card image */
+[data-component="card"] [data-role="card-like"] {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.15s;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: none;
+    border-radius: 50%;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s, transform 0.15s;
+    min-height: 0;
 }
 
-.likes-btn-heart:hover {
-    transform: scale(1.15);
+[data-component="card"]:hover [data-role="card-like"],
+[data-component="card"] [data-role="card-like"][data-liked="true"] {
+    opacity: 1;
+}
+
+[data-component="card"] [data-role="card-like"]:hover {
+    background: rgba(0, 0, 0, 0.65);
+    transform: scale(1.12);
+}
+
+[data-component="card"] [data-role="card-like"] svg {
+    display: block;
 }
 
 /* Empty state */
-.likes-empty {
-    text-align: center;
-    padding: 4rem 1rem;
-    color: var(--color-text-secondary, #888);
-}
-
-.likes-empty p {
-    margin-bottom: 1.5rem;
-    font-size: 1.1rem;
-}
-
-/* Heart button in location cards */
-.loc-btn-heart {
-    display: inline-flex;
+[data-role="empty-state"] {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 0.4rem 0.6rem;
-    cursor: pointer;
-    transition: transform 0.15s;
+    text-align: center;
+    padding: 5rem 0;
 }
 
-.loc-btn-heart:hover {
-    transform: scale(1.1);
+[data-role="empty-state"] p {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+    margin: 0 0 1.5rem 0;
+}
+
+[data-role="empty-actions"] {
+    display: flex;
+    gap: 0.75rem;
+}
+
+[data-role="btn-primary"] {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #0a0a08;
+    background: var(--color-text-primary, #d6d8ca);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    padding: 0.5rem 1.3rem;
+    border-radius: 9999px;
+    border: none;
+    transition: background 0.2s, transform 0.15s;
+    white-space: nowrap;
+}
+
+[data-role="btn-primary"]:hover {
+    background: #fff;
+    transform: scale(1.03);
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+    [data-role="card-grid"] {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    #likes-page {
+        padding: 0 var(--page-gutter, 1.25rem);
+    }
+
+    .likes-page-header { padding: 2rem 0 1rem; }
+
+    .likes-page-header h1 {
+        font-size: clamp(2rem, 8vw, 3rem);
+    }
+
+    [data-role="card-grid"] {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    #likes-page {
+        padding: 0 var(--page-gutter, 1rem);
+    }
+
+    [data-role="card-grid"] {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
 }

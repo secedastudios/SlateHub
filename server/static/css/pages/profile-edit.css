@@ -12,7 +12,7 @@
 [data-component="profile-edit"] {
     max-width: var(--container-max, 1280px);
     margin: 0 auto;
-    padding: 0 var(--space-xl);
+    padding: 0 var(--page-gutter, 2rem);
     padding-bottom: var(--space-4xl);
 }
 
@@ -24,9 +24,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-2xl) 0;
+    padding: var(--space-xl) 0;
     border-bottom: 1px solid rgba(214, 216, 202, 0.1);
-    margin-bottom: var(--space-2xl);
+    margin-bottom: var(--space-xl);
 }
 
 #profile-edit-header-content {
@@ -429,9 +429,9 @@
 }
 
 #heading-profile-edit {
-    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-family: var(--font-display);
     font-weight: var(--font-weight-bold);
-    font-size: var(--text-3xl);
+    font-size: var(--text-2xl);
     color: var(--color-text-primary, #d6d8ca);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -502,7 +502,7 @@
    ---------------------------------------- */
 
 #form-profile-edit [data-section] {
-    padding: var(--space-2xl) 0;
+    padding: var(--space-xl) 0;
     border-bottom: 1px solid rgba(214, 216, 202, 0.08);
 }
 
@@ -511,14 +511,13 @@
 }
 
 #form-profile-edit [data-section] > h2 {
-    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-family: var(--font-display);
     font-weight: var(--font-weight-bold);
-    font-size: var(--text-2xl);
+    font-size: var(--text-lg);
     color: var(--color-text-primary, #d6d8ca);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin: 0 0 var(--space-xl) 0;
-    font-style: italic;
+    margin: 0 0 var(--space-lg) 0;
 }
 
 /* Section header row — heading + add button */
@@ -526,7 +525,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--space-xl);
+    margin-bottom: var(--space-lg);
 }
 
 [data-role="section-header-row"] h2 {
@@ -556,7 +555,7 @@
     font-family: var(--font-body);
     font-size: var(--text-xs);
     color: var(--color-text-muted, #9ca39e);
-    margin: calc(-1 * var(--space-md)) 0 var(--space-lg) 0;
+    margin: calc(-1 * var(--space-sm)) 0 var(--space-md) 0;
     letter-spacing: 0.02em;
 }
 
@@ -785,7 +784,7 @@
 [data-role="field-grid"] {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-lg) var(--space-xl);
+    gap: var(--space-md) var(--space-lg);
 }
 
 [data-role="field-grid"] [data-span="full"] {
@@ -1532,7 +1531,7 @@ button[data-action="remove"]:hover {
 
 @media (max-width: 768px) {
     [data-component="profile-edit"] {
-        padding: 0 var(--space-md);
+        padding: 0 var(--page-gutter, 1.25rem);
         padding-bottom: var(--space-2xl);
     }
 
@@ -1576,7 +1575,7 @@ button[data-action="remove"]:hover {
 
 @media (max-width: 480px) {
     [data-component="profile-edit"] {
-        padding: 0 var(--space-sm);
+        padding: 0 var(--page-gutter, 1rem);
         padding-bottom: var(--space-xl);
     }
 

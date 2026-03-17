@@ -101,12 +101,12 @@
     </section>
 </section>
 
-<button class="jobs-scroll-top" id="jobs-scroll-top" aria-label="Scroll to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+<button data-role="scroll-top" id="scroll-top-btn" aria-label="Scroll to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
 </button>
 <script>
 (function(){
-    var btn = document.getElementById('jobs-scroll-top');
+    var btn = document.getElementById('scroll-top-btn');
     var threshold = window.innerHeight * 1.5;
     window.addEventListener('scroll', function(){
         btn.classList.toggle('visible', window.scrollY > threshold);

@@ -1177,19 +1177,13 @@ fn render_production_card(p: &crate::templates::Production) -> String {
     ));
     html.push_str("</div></a>");
 
-    html.push_str(r#"<div class="prod-card-content">"#);
     if !p.description.is_empty() {
         html.push_str(&format!(
-            r#"<p class="prod-card-desc">{}</p>"#,
+            r#"<div class="prod-card-content"><p class="prod-card-desc">{}</p></div>"#,
             escape_html(&p.description)
         ));
     }
-    html.push_str(&format!(
-        r#"<div class="prod-card-actions"><a href="/productions/{}" class="prod-btn-primary">View</a><a href="/productions/{}" class="prod-btn-outline">Save</a></div>"#,
-        escape_html(&p.slug),
-        escape_html(&p.slug)
-    ));
-    html.push_str("</div></article>");
+    html.push_str("</article>");
 
     html
 }

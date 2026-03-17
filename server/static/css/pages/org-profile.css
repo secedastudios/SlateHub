@@ -113,7 +113,7 @@
     min-height: 420px;
     display: flex;
     align-items: flex-end;
-    padding: 0 var(--space-xl);
+    padding: 0 var(--page-gutter, 2rem);
     overflow: hidden;
 }
 
@@ -302,9 +302,35 @@
 }
 
 /* ========================================
-   Buttons — all use class selectors for
-   max specificity over global button {}
+   Buttons — override global button styles
+   that set light bg / border / min-height
    ======================================== */
+
+#org-profile button,
+#org-profile [role="button"],
+#org-profile input[type="submit"] {
+    background: transparent;
+    border: 1px solid rgba(214, 216, 202, 0.18);
+    border-radius: 9999px;
+    color: rgba(214, 216, 202, 0.7);
+    min-height: 0;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.55rem 1.3rem;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+#org-profile button:hover:not(:disabled),
+#org-profile [role="button"]:hover:not([aria-disabled="true"]),
+#org-profile input[type="submit"]:hover:not(:disabled) {
+    background: rgba(214, 216, 202, 0.05);
+    border-color: rgba(214, 216, 202, 0.4);
+    color: var(--color-text-primary, #d6d8ca);
+}
 
 .org-btn-primary {
     font-family: var(--font-body);
@@ -330,6 +356,20 @@
 .org-btn-primary:hover {
     background: #fff;
     transform: scale(1.03);
+    border-color: transparent;
+}
+
+button.org-btn-primary,
+input[type="submit"].org-btn-primary {
+    color: #0a0a08;
+    background: var(--color-text-primary, #d6d8ca);
+    border: none;
+}
+
+button.org-btn-primary:hover:not(:disabled),
+input[type="submit"].org-btn-primary:hover:not(:disabled) {
+    background: #fff;
+    color: #0a0a08;
     border-color: transparent;
 }
 
@@ -379,6 +419,7 @@ button.org-btn-danger {
 button.org-btn-danger:hover:not(:disabled) {
     background: rgba(235, 84, 55, 0.1);
     border-color: rgba(235, 84, 55, 0.5);
+    color: var(--color-accent, #eb5437);
 }
 
 .org-btn-sm {
@@ -394,7 +435,7 @@ button.org-btn-danger:hover:not(:disabled) {
     display: grid;
     grid-template-columns: 1fr 320px;
     gap: 3rem;
-    padding: 3rem var(--space-xl) 4rem;
+    padding: 3rem var(--page-gutter, 2rem) 4rem;
 }
 
 #org-main {
@@ -813,7 +854,7 @@ button.org-btn-danger:hover:not(:disabled) {
 @media (max-width: 768px) {
     #org-hero {
         min-height: 340px;
-        padding: 0 var(--space-md);
+        padding: 0 var(--page-gutter, 1.25rem);
     }
 
     #org-hero-logo {
@@ -826,7 +867,7 @@ button.org-btn-danger:hover:not(:disabled) {
     }
 
     #org-body {
-        padding: 2rem var(--space-md) 3rem;
+        padding: 2rem var(--page-gutter, 1.25rem) 3rem;
     }
 
     #org-members-grid {
@@ -837,11 +878,11 @@ button.org-btn-danger:hover:not(:disabled) {
 @media (max-width: 480px) {
     #org-hero {
         min-height: 280px;
-        padding: 0 var(--space-sm);
+        padding: 0 var(--page-gutter, 1rem);
     }
 
     #org-body {
-        padding: 1.5rem var(--space-sm) 2rem;
+        padding: 1.5rem var(--page-gutter, 1rem) 2rem;
     }
 
     #org-hero-actions {

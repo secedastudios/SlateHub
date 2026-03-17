@@ -67,12 +67,6 @@
                         <span class="prod-badge" data-role="pending">invited</span>
                         {% endif %}
                     </div>
-                    <div data-role="actions">
-                        <a href="/productions/{{ prod.slug }}" data-role="btn-primary">View</a>
-                        {% if prod.role == "owner" || prod.role == "admin" %}
-                        <a href="/productions/{{ prod.slug }}/edit" data-role="btn-secondary">Edit</a>
-                        {% endif %}
-                    </div>
                 </div>
             </article>
             {% endfor %}
