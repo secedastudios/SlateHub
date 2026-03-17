@@ -359,6 +359,9 @@ impl JobModel {
             });
         }
 
+        // Sort verified posters first, then by created_at (already DESC from query)
+        jobs.sort_by(|a, b| b.is_poster_verified.cmp(&a.is_poster_verified));
+
         Ok(jobs)
     }
 

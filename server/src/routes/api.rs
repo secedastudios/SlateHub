@@ -848,11 +848,13 @@ async fn people_search(
             <string> id AS id,
             name,
             username,
-            profile.avatar AS avatar_url
+            profile.avatar AS avatar_url,
+            verification_status = 'identity' AS _vord
         FROM person
         WHERE
             string::lowercase(name ?? '') CONTAINS $q
             OR string::lowercase(username ?? '') CONTAINS $q
+        ORDER BY _vord DESC, created_at DESC
         LIMIT 8";
 
     let results: Vec<PersonHit> = match DB.query(sql).bind(("q", query_lower)).await {
@@ -973,11 +975,13 @@ async fn people_search_sse(
             <string> id AS id,
             name,
             username,
-            profile.avatar AS avatar_url
+            profile.avatar AS avatar_url,
+            verification_status = 'identity' AS _vord
         FROM person
         WHERE
             string::lowercase(name ?? '') CONTAINS $q
             OR string::lowercase(username ?? '') CONTAINS $q
+        ORDER BY _vord DESC, created_at DESC
         LIMIT 8";
 
     let results: Vec<PersonHit> = match DB.query(sql).bind(("q", query_lower)).await {
@@ -1136,11 +1140,13 @@ async fn orgs_search_sse(
             <string> id AS id,
             name,
             slug,
-            logo
+            logo,
+            verified
         FROM organization
         WHERE
             string::lowercase(name ?? '') CONTAINS $q
             OR string::lowercase(slug ?? '') CONTAINS $q
+        ORDER BY verified DESC, created_at DESC
         LIMIT 8";
 
     let results: Vec<OrgHit> = match DB.query(sql).bind(("q", query_lower)).await {

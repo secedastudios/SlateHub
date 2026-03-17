@@ -341,7 +341,7 @@ async fn people(
     let persons = if let Some(filter_text) = filter {
         let filter_lower = filter_text.to_lowercase();
         let query = r#"
-            SELECT * FROM person
+            SELECT *, verification_status = 'identity' AS _vord FROM person
             WHERE (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL)
@@ -355,7 +355,7 @@ async fn people(
                 OR $filter IN profile.skills.map(|$v| string::lowercase($v))
                 OR $filter IN profile.languages.map(|$v| string::lowercase($v))
               )
-            ORDER BY created_at DESC
+            ORDER BY _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
         "#;
@@ -379,11 +379,11 @@ async fn people(
         }
     } else {
         let query = r#"
-            SELECT * FROM person
+            SELECT *, verification_status = 'identity' AS _vord FROM person
             WHERE profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL
-            ORDER BY created_at DESC
+            ORDER BY _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
         "#;
@@ -567,7 +567,7 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
     let persons = if let Some(filter_text) = filter {
         let filter_lower = filter_text.to_lowercase();
         let query = r#"
-            SELECT * FROM person
+            SELECT *, verification_status = 'identity' AS _vord FROM person
             WHERE (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL)
@@ -581,7 +581,7 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
                 OR $filter IN profile.skills.map(|$v| string::lowercase($v))
                 OR $filter IN profile.languages.map(|$v| string::lowercase($v))
               )
-            ORDER BY created_at DESC
+            ORDER BY _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
         "#;
@@ -597,11 +597,11 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
         }
     } else {
         let query = r#"
-            SELECT * FROM person
+            SELECT *, verification_status = 'identity' AS _vord FROM person
             WHERE profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL
-            ORDER BY created_at DESC
+            ORDER BY _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
         "#;

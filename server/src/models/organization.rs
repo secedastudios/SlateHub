@@ -314,7 +314,7 @@ impl OrganizationModel {
             sql.push_str(&conditions.join(" AND "));
         }
 
-        sql.push_str(&format!(" ORDER BY created_at DESC LIMIT {}", limit));
+        sql.push_str(&format!(" ORDER BY verified DESC, created_at DESC LIMIT {}", limit));
         if offset > 0 {
             sql.push_str(&format!(" START {}", offset));
         }
