@@ -1,7 +1,7 @@
 use axum::{
     Extension, Json, Router,
     extract::{Path, Query},
-    http::header,
+    http::{StatusCode, header},
     response::{IntoResponse, Redirect, Response},
     routing::{delete, get, post},
 };
@@ -21,6 +21,19 @@ use crate::record_id_ext::RecordIdExt;
 /// Uses ammonia::clean_text which escapes <, >, &, ", '.
 fn escape_html(s: &str) -> String {
     ammonia::clean_text(s)
+}
+
+/// Validate that a scope parameter is a safe identifier (alphanumeric, underscore, hyphen only).
+/// Prevents injection into Datastar signal keys and CSS selectors.
+fn validate_scope(scope: &str) -> Result<(), (StatusCode, &'static str)> {
+    if scope.is_empty()
+        || !scope
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err((StatusCode::BAD_REQUEST, "Invalid scope parameter"));
+    }
+    Ok(())
 }
 
 pub fn router() -> Router {
@@ -930,6 +943,9 @@ async fn people_search_sse(
 ) -> Response {
     use surrealdb::types::SurrealValue;
 
+    if let Err((status, msg)) = validate_scope(&params.scope) {
+        return (status, msg).into_response();
+    }
     let scope = &params.scope;
     let results_selector = &format!("#{scope}-results");
 
@@ -1046,6 +1062,9 @@ async fn people_select_sse(
     _user: AuthenticatedUser,
     Query(params): Query<PeopleSelectSseQuery>,
 ) -> Response {
+    if let Err((status, msg)) = validate_scope(&params.scope) {
+        return (status, msg).into_response();
+    }
     let scope = &params.scope;
     let display = if let Some(ref u) = params.username {
         if u.is_empty() {
@@ -1089,6 +1108,9 @@ async fn orgs_search_sse(
 ) -> Response {
     use surrealdb::types::SurrealValue;
 
+    if let Err((status, msg)) = validate_scope(&params.scope) {
+        return (status, msg).into_response();
+    }
     let scope = &params.scope;
     let results_selector = &format!("#{scope}-results");
 
@@ -1182,6 +1204,9 @@ async fn orgs_select_sse(
     _user: AuthenticatedUser,
     Query(params): Query<OrgSelectSseQuery>,
 ) -> Response {
+    if let Err((status, msg)) = validate_scope(&params.scope) {
+        return (status, msg).into_response();
+    }
     let scope = &params.scope;
 
     let mut sse = sse_patch_signals(&format!(
@@ -1215,6 +1240,9 @@ async fn productions_search_sse(
 ) -> Response {
     use surrealdb::types::SurrealValue;
 
+    if let Err((status, msg)) = validate_scope(&params.scope) {
+        return (status, msg).into_response();
+    }
     let scope = &params.scope;
     let results_selector = &format!("#{scope}-results");
 
@@ -1315,6 +1343,9 @@ async fn productions_select_sse(
     _user: AuthenticatedUser,
     Query(params): Query<ProdSelectSseQuery>,
 ) -> Response {
+    if let Err((status, msg)) = validate_scope(&params.scope) {
+        return (status, msg).into_response();
+    }
     let scope = &params.scope;
 
     let mut sse = sse_patch_signals(&format!(

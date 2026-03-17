@@ -24,6 +24,15 @@ pub struct LikedLocation {
 }
 
 impl LikesModel {
+    /// Validate that a RecordId has an expected table name to prevent injection via graph traversal.
+    fn validate_person_id(person_id: &RecordId) -> Result<(), Error> {
+        let raw = person_id.to_raw_string();
+        if !raw.starts_with("person:") {
+            return Err(Error::BadRequest("Expected a person record ID".to_string()));
+        }
+        Ok(())
+    }
+
     /// Toggle a like. Returns true if now liked, false if unliked.
     pub async fn toggle(person_id: &RecordId, target_id: &RecordId) -> Result<bool, Error> {
         debug!(
@@ -97,6 +106,7 @@ impl LikesModel {
 
     /// Count liked people for a user
     pub async fn count_liked_people(person_id: &RecordId) -> Result<usize, Error> {
+        Self::validate_person_id(person_id)?;
         let query = format!("SELECT count() AS count FROM {}->likes->person GROUP ALL", person_id.display());
         let mut result = DB.query(&query).await
             .map_err(|e| Error::Database(format!("Failed to count liked people: {}", e)))?;
@@ -106,6 +116,7 @@ impl LikesModel {
 
     /// Count liked locations for a user
     pub async fn count_liked_locations(person_id: &RecordId) -> Result<usize, Error> {
+        Self::validate_person_id(person_id)?;
         let query = format!("SELECT count() AS count FROM {}->likes->location GROUP ALL", person_id.display());
         let mut result = DB.query(&query).await
             .map_err(|e| Error::Database(format!("Failed to count liked locations: {}", e)))?;
@@ -115,6 +126,7 @@ impl LikesModel {
 
     /// Get all liked people for a user using graph traversal
     pub async fn get_liked_people(person_id: &RecordId) -> Result<Vec<LikedPerson>, Error> {
+        Self::validate_person_id(person_id)?;
         // Build query with record ID directly — bind params don't work in graph traversal FROM position
         let query = format!(
             "SELECT <string> id AS id, username, name, profile.avatar AS avatar, profile.headline AS headline FROM {}->likes->person",
@@ -153,6 +165,7 @@ impl LikesModel {
 
     /// Get all liked locations for a user using graph traversal
     pub async fn get_liked_locations(person_id: &RecordId) -> Result<Vec<LikedLocation>, Error> {
+        Self::validate_person_id(person_id)?;
         let query = format!(
             "SELECT <string> id AS id, name, city, state, profile_photo FROM {}->likes->location",
             person_id.display()

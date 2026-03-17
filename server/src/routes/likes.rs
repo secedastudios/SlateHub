@@ -50,6 +50,22 @@ fn parse_target_id(s: &str) -> Result<RecordId, Error> {
     RecordId::parse_simple(s).map_err(|e| Error::BadRequest(format!("Invalid target ID '{}': {}", s, e)))
 }
 
+/// Validate that a target_id string is safe for use in CSS selectors and HTML attributes.
+/// Must be in format `table:key` with only safe characters.
+fn validate_target_id_str(s: &str) -> Result<(), Error> {
+    if s.is_empty()
+        || !s
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '-')
+    {
+        return Err(Error::BadRequest(format!(
+            "Invalid target ID format: {}",
+            s
+        )));
+    }
+    Ok(())
+}
+
 /// Toggle a like (requires auth)
 async fn toggle_like(
     AuthenticatedUser(user): AuthenticatedUser,
@@ -165,6 +181,9 @@ async fn toggle_like_sse(
     AxumQuery(query): AxumQuery<ToggleSseQuery>,
 ) -> Result<Response, Error> {
     debug!("Toggle like SSE: user={} target={}", user.id, target_id_raw);
+
+    // Validate target_id is safe for use in CSS selectors and HTML attributes
+    validate_target_id_str(&target_id_raw)?;
 
     let person_id = if user.id.starts_with("person:") {
         RecordId::parse_simple(&user.id)

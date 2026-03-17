@@ -157,6 +157,30 @@ pub struct ProductionMembership {
     pub created_at: DateTime<Utc>,
 }
 
+/// Validate that a string looks like a safe RecordId ("table:key") and parse it.
+/// This prevents SQL injection when the ID must be formatted into a query string
+/// (e.g. for RELATE or WHERE in/out comparisons where bind params don't work with RecordIds).
+fn validate_record_id_str(id: &str) -> Result<RecordId, Error> {
+    let parts: Vec<&str> = id.splitn(2, ':').collect();
+    if parts.len() != 2 {
+        return Err(Error::BadRequest("Invalid record ID format".to_string()));
+    }
+    let table = parts[0];
+    let key = parts[1];
+    if table.is_empty()
+        || key.is_empty()
+        || !table
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        || !key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return Err(Error::BadRequest("Invalid record ID format".to_string()));
+    }
+    Ok(RecordId::new(table, key))
+}
+
 /// Production model for database operations
 pub struct ProductionModel;
 
@@ -168,6 +192,9 @@ impl ProductionModel {
         creator_type: &str, // "person" or "organization"
         owner_production_role: Option<&str>,
     ) -> Result<Production, Error> {
+        // Validate creator_id to prevent SQL injection in RELATE query
+        let creator_rid = validate_record_id_str(creator_id)?;
+
         debug!(
             "Creating production: {} by {} ({})",
             data.title, creator_id, creator_type
@@ -245,14 +272,14 @@ impl ProductionModel {
         let ownership_query = if let Some(prod_role) = owner_production_role.filter(|r| !r.is_empty()) {
             format!(
                 "RELATE {}->member_of->{} SET role = 'owner', invitation_status = 'accepted', production_role = '{}';",
-                creator_id,
+                creator_rid.display(),
                 production.id.display(),
                 prod_role.replace('\'', "\\'")
             )
         } else {
             format!(
                 "RELATE {}->member_of->{} SET role = 'owner', invitation_status = 'accepted';",
-                creator_id,
+                creator_rid.display(),
                 production.id.display()
             )
         };
@@ -522,6 +549,7 @@ impl ProductionModel {
 
     /// Get productions for a user or organization, with their role info
     pub async fn get_member_productions(member_id: &str) -> Result<Vec<ProductionMembership>, Error> {
+        let member_rid = validate_record_id_str(member_id)?;
         debug!("Fetching productions for member: {}", member_id);
 
         let query = format!(
@@ -542,7 +570,7 @@ impl ProductionModel {
             WHERE in = {}
             AND <string> type::table(out) = 'production'
             ORDER BY created_at DESC",
-            member_id
+            member_rid.display()
         );
 
         let mut result = DB
@@ -586,6 +614,7 @@ impl ProductionModel {
 
     /// Check if a user or organization is a member of a production
     pub async fn is_member(production_id: &RecordId, member_id: &str) -> Result<bool, Error> {
+        let member_rid = validate_record_id_str(member_id)?;
         debug!(
             "Checking membership for {} in production {}",
             member_id, production_id.display()
@@ -593,7 +622,7 @@ impl ProductionModel {
 
         let query = format!(
             "SELECT count() as count FROM member_of WHERE in = {} AND out = {}",
-            member_id,
+            member_rid.display(),
             production_id.display()
         );
 
@@ -615,6 +644,7 @@ impl ProductionModel {
     /// Also grants access if the user is owner/admin of an organization that is
     /// itself owner/admin of the production.
     pub async fn can_edit(production_id: &RecordId, member_id: &str) -> Result<bool, Error> {
+        let member_rid = validate_record_id_str(member_id)?;
         debug!(
             "Checking edit permission for {} in production {}",
             member_id, production_id.display()
@@ -623,7 +653,7 @@ impl ProductionModel {
         // Direct membership check
         let query = format!(
             "SELECT role FROM member_of WHERE in = {} AND out = {}",
-            member_id,
+            member_rid.display(),
             production_id.display()
         );
 
@@ -648,7 +678,7 @@ impl ProductionModel {
              AND <string> type::table(out) = 'organization' \
              AND role IN ['owner', 'admin'] \
              AND invitation_status = 'accepted'",
-            member_id
+            member_rid.display()
         );
 
         let mut org_result = DB
@@ -695,13 +725,15 @@ impl ProductionModel {
         production_role: Option<&str>,
         invited_by: Option<&str>,
     ) -> Result<(), Error> {
+        let member_rid = validate_record_id_str(member_id)?;
+        let invited_by_rid = invited_by.map(validate_record_id_str).transpose()?;
         debug!(
             "Adding member {} to production {} with role {} / production_role {:?}",
             member_id, production_id.display(), role, production_role
         );
 
-        let invited_by_clause = if let Some(inviter) = invited_by {
-            format!(", invited_by = {}", inviter)
+        let invited_by_clause = if let Some(ref inviter_rid) = invited_by_rid {
+            format!(", invited_by = {}", inviter_rid.display())
         } else {
             String::new()
         };
@@ -714,7 +746,7 @@ impl ProductionModel {
 
         let query = format!(
             "RELATE {}->member_of->{} SET role = $role, invitation_status = 'pending'{}{}",
-            member_id,
+            member_rid.display(),
             production_id.display(),
             prod_role_clause,
             invited_by_clause,
@@ -738,6 +770,7 @@ impl ProductionModel {
         role: &str,
         production_role: Option<&str>,
     ) -> Result<(), Error> {
+        let member_rid = validate_record_id_str(member_id)?;
         debug!(
             "Adding accepted member {} to production {} with role {}",
             member_id, production_id.display(), role
@@ -751,7 +784,7 @@ impl ProductionModel {
 
         let query = format!(
             "RELATE {}->member_of->{} SET role = $role, invitation_status = 'accepted'{}",
-            member_id,
+            member_rid.display(),
             production_id.display(),
             prod_role_clause,
         );
@@ -769,6 +802,7 @@ impl ProductionModel {
 
     /// Remove a member from a production
     pub async fn remove_member(production_id: &RecordId, member_id: &str) -> Result<(), Error> {
+        let member_rid = validate_record_id_str(member_id)?;
         debug!(
             "Removing member {} from production {}",
             member_id, production_id.display()
@@ -776,7 +810,7 @@ impl ProductionModel {
 
         let query = format!(
             "DELETE FROM member_of WHERE in = {} AND out = {}",
-            member_id,
+            member_rid.display(),
             production_id.display()
         );
 
@@ -1025,6 +1059,7 @@ impl ProductionModel {
 
     /// Claim an unclaimed production — creates owner member_of edge and promotes self-asserted credits
     pub async fn claim(production_id: &RecordId, claimer_id: &str) -> Result<(), Error> {
+        let claimer_rid = validate_record_id_str(claimer_id)?;
         debug!(
             "Claiming production {} by {}",
             production_id.display(),
@@ -1034,7 +1069,7 @@ impl ProductionModel {
         // Create owner edge
         let query = format!(
             "RELATE {}->member_of->{} SET role = 'owner', joined_at = time::now(), invitation_status = 'accepted'",
-            claimer_id,
+            claimer_rid.display(),
             production_id.display()
         );
 
