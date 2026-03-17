@@ -1115,6 +1115,49 @@ button.prod-btn-danger:hover:not(:disabled) {
     line-height: 1.5;
 }
 
+/* Scroll to top */
+.prod-scroll-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(30, 32, 28, 0.85);
+    border: 1px solid rgba(214, 216, 202, 0.2);
+    color: var(--color-text-primary, #d6d8ca);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    transform: translateY(8px);
+    z-index: 90;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.prod-scroll-top.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.prod-scroll-top:hover {
+    background: rgba(50, 54, 48, 0.9);
+    border-color: rgba(214, 216, 202, 0.35);
+}
+
+/* Infinite scroll loading */
+.prod-loading {
+    text-align: center;
+    padding: 2rem;
+    color: rgba(156, 163, 158, 0.5);
+    font-size: 0.875rem;
+}
+
 /* ========================================
    Responsive
    ======================================== */

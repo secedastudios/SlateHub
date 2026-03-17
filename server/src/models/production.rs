@@ -308,6 +308,7 @@ impl ProductionModel {
         type_filter: Option<&str>,
         filter: Option<&str>,
         sort: Option<&str>,
+        offset: usize,
     ) -> Result<Vec<Production>, Error> {
         debug!(
             "Listing productions - status: {:?}, type: {:?}, filter: {:?}, sort: {:?}",
@@ -341,6 +342,10 @@ impl ProductionModel {
 
         if let Some(limit) = limit {
             query.push_str(&format!(" LIMIT {}", limit));
+        }
+
+        if offset > 0 {
+            query.push_str(&format!(" START {}", offset));
         }
 
         let mut db_query = DB.query(&query);

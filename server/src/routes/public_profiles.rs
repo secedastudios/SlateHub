@@ -3,7 +3,7 @@ use axum::{
     Router,
     extract::{Path, Query, Request},
     http::{HeaderMap, header},
-    response::Html,
+    response::{Html, IntoResponse, Response},
     routing::get,
 };
 use serde::Deserialize;
@@ -27,9 +27,12 @@ use crate::{
 };
 use surrealdb::types::RecordId;
 
+const PAGE_SIZE: usize = 20;
+
 pub fn router() -> Router {
     Router::new()
         .route("/people", get(people))
+        .route("/api/people/more-sse", get(people_more_sse))
         // User profile route - must be last to avoid conflicts with other routes
         .route("/{username}", get(user_profile))
 }
@@ -353,8 +356,15 @@ async fn people(
                 OR $filter IN profile.languages.map(|$v| string::lowercase($v))
               )
             ORDER BY created_at DESC
+            LIMIT $limit
+            START $offset
         "#;
-        match DB.query(query).bind(("filter", filter_lower)).await {
+        match DB.query(query)
+            .bind(("filter", filter_lower))
+            .bind(("limit", PAGE_SIZE as i64 + 1))
+            .bind(("offset", 0i64))
+            .await
+        {
             Ok(mut result) => match result.take::<Vec<Person>>(0) {
                 Ok(persons) => persons,
                 Err(e) => {
@@ -374,8 +384,14 @@ async fn people(
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL
             ORDER BY created_at DESC
+            LIMIT $limit
+            START $offset
         "#;
-        match DB.query(query).await {
+        match DB.query(query)
+            .bind(("limit", PAGE_SIZE as i64 + 1))
+            .bind(("offset", 0i64))
+            .await
+        {
             Ok(mut result) => match result.take::<Vec<Person>>(0) {
                 Ok(persons) => persons,
                 Err(e) => {
@@ -390,7 +406,11 @@ async fn people(
         }
     };
 
+    let has_more = persons.len() > PAGE_SIZE;
+    let persons: Vec<Person> = persons.into_iter().take(PAGE_SIZE).collect();
+
     // Convert Person objects to PersonCard for the template
+    template.has_more = has_more;
     template.people = persons
         .into_iter()
         .filter_map(|person| {
@@ -448,4 +468,212 @@ async fn people(
     })?;
 
     Ok(Html(html))
+}
+
+#[derive(Debug, Deserialize)]
+struct PeopleMoreQuery {
+    offset: usize,
+    filter: Option<String>,
+}
+
+fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
+    let mut s = format!(
+        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
+        selector, mode
+    );
+    if !elements.is_empty() {
+        s += &format!("data: elements {}\n", elements.replace('\n', " "));
+    }
+    s += "\n";
+    s
+}
+
+fn sse_response(body: String) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "text/event-stream"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+fn escape_html(s: &str) -> String {
+    ammonia::clean_text(s)
+}
+
+const VERIFIED_BADGE_PATH: &str = "M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z";
+
+fn render_person_card(person: &PersonCard) -> String {
+    let mut html = String::new();
+    html.push_str(r#"<article data-component="card" data-type="person">"#);
+    html.push_str(&format!(
+        r#"<a href="/{}" data-role="card-visual">"#,
+        escape_html(&person.username)
+    ));
+    html.push_str(&format!(
+        r#"<img src="{}" alt="{}" loading="lazy" onerror="this.style.display='none'" />"#,
+        escape_html(&person.avatar),
+        escape_html(&person.name)
+    ));
+    html.push_str(r#"<div data-role="overlay">"#);
+    html.push_str(&format!("<h3>{}", escape_html(&person.name)));
+    if person.is_identity_verified {
+        html.push_str(&format!(
+            " <svg data-role=\"verified-badge\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"#1d9bf0\" aria-label=\"Verified\"><path d=\"{}\"/></svg>",
+            VERIFIED_BADGE_PATH
+        ));
+    }
+    html.push_str("</h3>");
+    html.push_str(r#"<div data-role="meta">"#);
+    if let Some(ref headline) = person.headline {
+        html.push_str(&format!(
+            r#"<span data-role="role">{}</span>"#,
+            escape_html(headline)
+        ));
+    }
+    if let Some(ref loc) = person.location {
+        html.push_str(&format!(
+            r#"<span data-role="loc">{}</span>"#,
+            escape_html(loc)
+        ));
+    }
+    html.push_str("</div></div></a>");
+
+    html.push_str(r#"<div data-role="content">"#);
+    if let Some(ref bio) = person.bio {
+        html.push_str(&format!(
+            r#"<p data-role="bio">{}</p>"#,
+            escape_html(bio)
+        ));
+    }
+    if !person.skills.is_empty() {
+        html.push_str(r#"<p data-role="skills">"#);
+        for skill in &person.skills {
+            html.push_str(&format!("<span>{}</span>", escape_html(skill)));
+        }
+        html.push_str("</p>");
+    }
+    html.push_str(&format!(
+        r#"<div data-role="actions"><a href="/{}" data-role="btn-primary">View Profile</a></div>"#,
+        escape_html(&person.username)
+    ));
+    html.push_str("</div></article>");
+
+    html
+}
+
+async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
+    let filter = params.filter.as_deref().filter(|s| !s.is_empty());
+    let offset = params.offset;
+
+    let persons = if let Some(filter_text) = filter {
+        let filter_lower = filter_text.to_lowercase();
+        let query = r#"
+            SELECT * FROM person
+            WHERE (profile.name IS NOT NULL
+               OR profile.headline IS NOT NULL
+               OR profile.bio IS NOT NULL)
+              AND (
+                string::lowercase(name ?? '') CONTAINS $filter
+                OR string::lowercase(username ?? '') CONTAINS $filter
+                OR string::lowercase(profile.name ?? '') CONTAINS $filter
+                OR string::lowercase(profile.headline ?? '') CONTAINS $filter
+                OR string::lowercase(profile.bio ?? '') CONTAINS $filter
+                OR string::lowercase(profile.location ?? '') CONTAINS $filter
+                OR $filter IN profile.skills.map(|$v| string::lowercase($v))
+                OR $filter IN profile.languages.map(|$v| string::lowercase($v))
+              )
+            ORDER BY created_at DESC
+            LIMIT $limit
+            START $offset
+        "#;
+        match DB
+            .query(query)
+            .bind(("filter", filter_lower))
+            .bind(("limit", PAGE_SIZE as i64 + 1))
+            .bind(("offset", offset as i64))
+            .await
+        {
+            Ok(mut result) => result.take::<Vec<Person>>(0).unwrap_or_default(),
+            Err(_) => vec![],
+        }
+    } else {
+        let query = r#"
+            SELECT * FROM person
+            WHERE profile.name IS NOT NULL
+               OR profile.headline IS NOT NULL
+               OR profile.bio IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT $limit
+            START $offset
+        "#;
+        match DB
+            .query(query)
+            .bind(("limit", PAGE_SIZE as i64 + 1))
+            .bind(("offset", offset as i64))
+            .await
+        {
+            Ok(mut result) => result.take::<Vec<Person>>(0).unwrap_or_default(),
+            Err(_) => vec![],
+        }
+    };
+
+    let has_more = persons.len() > PAGE_SIZE;
+
+    let cards: Vec<PersonCard> = persons
+        .into_iter()
+        .take(PAGE_SIZE)
+        .filter_map(|person| {
+            if let Some(profile) = person.profile {
+                if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some() {
+                    Some(PersonCard {
+                        id: person.id.to_raw_string(),
+                        name: profile
+                            .name
+                            .clone()
+                            .unwrap_or_else(|| person.username.clone()),
+                        username: person.username.clone(),
+                        headline: profile.headline.clone(),
+                        bio: profile.bio.clone(),
+                        location: profile.location.clone(),
+                        skills: profile.skills,
+                        avatar: profile
+                            .avatar
+                            .clone()
+                            .unwrap_or_else(|| "/static/images/default-avatar.png".to_string()),
+                        is_identity_verified: person.verification_status == "identity",
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if cards.is_empty() {
+        return sse_response(sse_patch_elements("#people-sentinel", "remove", ""));
+    }
+
+    let mut replacement = String::new();
+    for card in &cards {
+        replacement.push_str(&render_person_card(card));
+    }
+
+    if has_more {
+        let new_offset = offset + PAGE_SIZE;
+        let q_param = match filter {
+            Some(f) => format!("&filter={}", urlencoding::encode(f)),
+            None => String::new(),
+        };
+        replacement.push_str(&format!(
+            r#"<div id="people-sentinel" data-on-intersect="@get('/api/people/more-sse?offset={}{}')"><div class="people-loading">Loading more...</div></div>"#,
+            new_offset, q_param
+        ));
+    }
+
+    sse_response(sse_patch_elements("#people-sentinel", "outer", &replacement))
 }

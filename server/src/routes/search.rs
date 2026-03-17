@@ -239,7 +239,7 @@ async fn search_people(
         location: Option<String>,
         skills: Option<Vec<String>>,
         avatar_url: Option<String>,
-        score: f32,
+        score: f64,
     }
 
     let query_lower = query.to_lowercase();
@@ -271,7 +271,7 @@ async fn search_people(
             profile.location AS location,
             profile.skills AS skills,
             profile.avatar AS avatar_url,
-            (
+            <float> (
                 (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
                 + (IF string::lowercase(username ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
                 + (IF string::lowercase(profile.headline ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
@@ -362,7 +362,7 @@ async fn search_organizations(
         description: Option<String>,
         location: Option<String>,
         logo: Option<String>,
-        score: f32,
+        score: f64,
     }
 
     let query_lower = query.to_lowercase();
@@ -377,7 +377,7 @@ async fn search_organizations(
                 description,
                 location,
                 logo,
-                (
+                <float> (
                     (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
                     + (IF string::lowercase(slug ?? '') CONTAINS $query_lower THEN 30 ELSE 0 END)
                     + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
@@ -439,7 +439,7 @@ async fn search_locations(
         city: Option<String>,
         state: Option<String>,
         description: Option<String>,
-        score: f32,
+        score: f64,
     }
 
     let query_lower = query.to_lowercase();
@@ -454,7 +454,7 @@ async fn search_locations(
                 city,
                 state,
                 description,
-                (
+                <float> (
                     (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
                     + (IF string::lowercase(city ?? '') CONTAINS $query_lower THEN 30 ELSE 0 END)
                     + (IF string::lowercase(state ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
@@ -520,7 +520,7 @@ async fn search_productions(
         status: Option<String>,
         description: Option<String>,
         location: Option<String>,
-        score: f32,
+        score: f64,
     }
 
     let query_lower = query.to_lowercase();
@@ -534,7 +534,7 @@ async fn search_productions(
                 status,
                 description,
                 location,
-                (
+                <float> (
                     (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
                     + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
                     + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)

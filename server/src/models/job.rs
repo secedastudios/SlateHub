@@ -261,6 +261,7 @@ impl JobModel {
     pub async fn list(
         search: Option<&str>,
         limit: usize,
+        offset: usize,
     ) -> Result<Vec<JobListItem>, Error> {
         debug!("Listing jobs, search: {:?}", search);
 
@@ -285,12 +286,16 @@ impl JobModel {
         if search.is_some() {
             query.push_str(
                 " AND (string::lowercase(title) CONTAINS string::lowercase($search) \
-                 OR string::lowercase(description) CONTAINS string::lowercase($search))",
+                 OR string::lowercase(description) CONTAINS string::lowercase($search) \
+                 OR string::lowercase(string::join(' ', roles.*.title)) CONTAINS string::lowercase($search))",
             );
         }
 
         query.push_str(" ORDER BY created_at DESC");
         query.push_str(&format!(" LIMIT {}", limit));
+        if offset > 0 {
+            query.push_str(&format!(" START {}", offset));
+        }
 
         let mut db_query = DB.query(&query);
         if let Some(s) = search {

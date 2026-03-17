@@ -289,6 +289,8 @@ impl OrganizationModel {
         query: Option<&str>,
         org_type: Option<&str>,
         location: Option<&str>,
+        limit: usize,
+        offset: usize,
     ) -> Result<Vec<Organization>, Error> {
         debug!("Searching organizations with filters");
 
@@ -312,7 +314,10 @@ impl OrganizationModel {
             sql.push_str(&conditions.join(" AND "));
         }
 
-        sql.push_str(" ORDER BY created_at DESC LIMIT 50");
+        sql.push_str(&format!(" ORDER BY created_at DESC LIMIT {}", limit));
+        if offset > 0 {
+            sql.push_str(&format!(" START {}", offset));
+        }
 
         let mut result = DB.query(&sql);
         if let Some(q) = query {

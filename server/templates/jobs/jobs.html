@@ -49,7 +49,7 @@
         <div class="jobs-count">
             <p>Showing {{ jobs.len() }} job{% if jobs.len() != 1 %}s{% endif %}</p>
         </div>
-        <div class="jobs-list">
+        <div class="jobs-list" id="jobs-list">
             {% for job in jobs %}
             <article class="job-card{% if job.is_poster_verified %} job-card-verified{% endif %}">
                 {% if job.production_poster.is_some() %}
@@ -91,8 +91,26 @@
                 </div>
             </article>
             {% endfor %}
+            {% if has_more %}
+            <div id="jobs-sentinel" data-on-intersect="@get('/api/jobs/more-sse?offset=20{% if search_query.is_some() %}&q={{ search_query.as_ref().unwrap() }}{% endif %}')">
+                <div class="jobs-loading">Loading more...</div>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </section>
 </section>
+
+<button class="jobs-scroll-top" id="jobs-scroll-top" aria-label="Scroll to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+<script>
+(function(){
+    var btn = document.getElementById('jobs-scroll-top');
+    var threshold = window.innerHeight * 1.5;
+    window.addEventListener('scroll', function(){
+        btn.classList.toggle('visible', window.scrollY > threshold);
+    }, {passive: true});
+})();
+</script>
 {% endblock %}

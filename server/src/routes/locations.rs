@@ -14,12 +14,15 @@ use askama::Template;
 use axum::{
     Form, Json, Router,
     extract::{Path, Query, Request},
+    http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
 use serde::Deserialize;
 use surrealdb::types::RecordId;
 use tracing::{debug, error, info};
+
+const PAGE_SIZE: usize = 20;
 
 /// Location routes
 pub fn router() -> Router {
@@ -38,6 +41,7 @@ pub fn router() -> Router {
         .route("/locations/{id}/rates", get(get_rates))
         .route("/locations/{id}/rates/add", post(add_rate))
         .route("/locations/{id}/rates/{rate_id}/delete", post(delete_rate))
+        .route("/api/locations/more-sse", get(locations_more_sse))
 }
 
 /// Query parameters for filtering locations
@@ -75,15 +79,15 @@ async fn list_locations(
     let (locations, show_private) = if params.public_only.unwrap_or(true) || user_id.is_none() {
         (
             LocationModel::list(
-                None, true, city_text.as_deref(), None,
-                filter_text.as_deref(), Some(sort_by.as_str()),
+                Some(PAGE_SIZE + 1), true, city_text.as_deref(), None,
+                filter_text.as_deref(), Some(sort_by.as_str()), 0,
             ).await?,
             false,
         )
     } else {
         let mut all_locations = LocationModel::list(
-            None, false, city_text.as_deref(), None,
-            filter_text.as_deref(), Some(sort_by.as_str()),
+            Some(PAGE_SIZE + 1), false, city_text.as_deref(), None,
+            filter_text.as_deref(), Some(sort_by.as_str()), 0,
         ).await?;
 
         if let Some(ref uid) = user_id {
@@ -93,8 +97,10 @@ async fn list_locations(
         (all_locations, true)
     };
 
+    let has_more = locations.len() > PAGE_SIZE;
     let locations: Vec<crate::templates::LocationView> = locations
         .into_iter()
+        .take(PAGE_SIZE)
         .map(|l| crate::templates::LocationView {
             id: l.id.key_string(),
             name: l.name,
@@ -146,6 +152,7 @@ async fn list_locations(
         show_private,
         sort_by,
         liked_ids,
+        has_more,
     };
 
     let html = template.render().map_err(|e| {
@@ -536,6 +543,120 @@ async fn delete_rate(
 
     // Redirect back to location page
     Ok(Redirect::to(&format!("/locations/{}", location.id.key_string())).into_response())
+}
+
+// SSE infinite scroll
+
+#[derive(Debug, Deserialize)]
+struct MoreQuery {
+    offset: usize,
+    filter: Option<String>,
+    city: Option<String>,
+    sort: Option<String>,
+}
+
+fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
+    let mut s = format!("event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n", selector, mode);
+    if !elements.is_empty() {
+        s += &format!("data: elements {}\n", elements.replace('\n', " "));
+    }
+    s += "\n";
+    s
+}
+
+fn sse_response(body: String) -> Response {
+    ([(header::CONTENT_TYPE, "text/event-stream"), (header::CACHE_CONTROL, "no-cache")], body).into_response()
+}
+
+fn escape_html(s: &str) -> String {
+    ammonia::clean_text(s)
+}
+
+fn render_location_card(loc: &crate::templates::LocationView) -> String {
+    let mut html = String::new();
+    html.push_str(r#"<article class="loc-card">"#);
+    html.push_str(&format!(r#"<a href="/locations/{}" class="loc-card-visual">"#, escape_html(&loc.id)));
+
+    if let Some(ref photo) = loc.profile_photo {
+        html.push_str(&format!(r#"<img src="{}" alt="{}" style="width:100%;height:100%;object-fit:cover;" />"#, escape_html(photo), escape_html(&loc.name)));
+    } else {
+        html.push_str(r#"<div class="loc-card-placeholder"><svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>"#);
+    }
+
+    html.push_str(r#"<div class="loc-card-overlay">"#);
+    html.push_str(&format!("<h3>{}</h3>", escape_html(&loc.name)));
+    html.push_str(r#"<div class="loc-card-meta">"#);
+    html.push_str(&format!(r#"<span class="loc-city">{}, {}</span>"#, escape_html(&loc.city), escape_html(&loc.state)));
+    if loc.is_public {
+        html.push_str(r#"<span class="loc-badge" data-value="public">Public</span>"#);
+    } else {
+        html.push_str(r#"<span class="loc-badge" data-value="private">Private</span>"#);
+    }
+    html.push_str("</div></div></a>");
+
+    html.push_str(r#"<div class="loc-card-content">"#);
+    if let Some(ref desc) = loc.description {
+        html.push_str(&format!(r#"<p class="loc-card-desc">{}</p>"#, escape_html(desc)));
+    }
+    html.push_str(&format!(r#"<address class="loc-card-address">{}, {}</address>"#, escape_html(&loc.address), escape_html(&loc.country)));
+    html.push_str(r#"<div class="loc-card-actions">"#);
+    html.push_str(&format!(r#"<a href="/locations/{}" class="loc-btn-primary">View</a>"#, escape_html(&loc.id)));
+    // Note: Skip like button in SSE cards since we don't have liked state
+    html.push_str("</div></div></article>");
+
+    html
+}
+
+async fn locations_more_sse(Query(params): Query<MoreQuery>) -> Response {
+    let filter = params.filter.as_deref().filter(|s| !s.is_empty());
+    let city = params.city.as_deref().filter(|s| !s.is_empty());
+    let sort = params.sort.as_deref().filter(|s| !s.is_empty());
+    let offset = params.offset;
+
+    let all = LocationModel::list(Some(PAGE_SIZE + 1), true, city, None, filter, sort, offset).await.unwrap_or_default();
+    let has_more = all.len() > PAGE_SIZE;
+
+    let locs: Vec<crate::templates::LocationView> = all.into_iter().take(PAGE_SIZE).map(|l| crate::templates::LocationView {
+        id: l.id.key_string(),
+        name: l.name,
+        address: l.address,
+        city: l.city,
+        state: l.state,
+        country: l.country,
+        description: l.description,
+        is_public: l.is_public,
+        profile_photo: l.profile_photo,
+        created_at: l.created_at.to_string(),
+    }).collect();
+
+    if locs.is_empty() {
+        return sse_response(sse_patch_elements("#loc-sentinel", "remove", ""));
+    }
+
+    let mut replacement = String::new();
+    for loc in &locs {
+        replacement.push_str(&render_location_card(loc));
+    }
+
+    if has_more {
+        let new_offset = offset + PAGE_SIZE;
+        let mut q_params = format!("offset={}", new_offset);
+        if let Some(f) = filter {
+            q_params.push_str(&format!("&filter={}", urlencoding::encode(f)));
+        }
+        if let Some(c) = city {
+            q_params.push_str(&format!("&city={}", urlencoding::encode(c)));
+        }
+        if let Some(s) = sort {
+            q_params.push_str(&format!("&sort={}", urlencoding::encode(s)));
+        }
+        replacement.push_str(&format!(
+            r#"<div id="loc-sentinel" data-on-intersect="@get('/api/locations/more-sse?{}')"><div class="loc-loading">Loading more...</div></div>"#,
+            q_params
+        ));
+    }
+
+    sse_response(sse_patch_elements("#loc-sentinel", "outer", &replacement))
 }
 
 // Form structures

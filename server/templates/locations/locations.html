@@ -52,7 +52,7 @@
 
     <section class="loc-results" aria-labelledby="heading-locations">
         {% if !locations.is_empty() %}
-        <div class="loc-grid">
+        <div class="loc-grid" id="loc-grid">
             {% for location in locations %}
             <article class="loc-card">
                 <a href="/locations/{{ location.id }}" class="loc-card-visual">
@@ -107,6 +107,11 @@
                 </div>
             </article>
             {% endfor %}
+            {% if has_more %}
+            <div id="loc-sentinel" data-on-intersect="@get('/api/locations/more-sse?offset=20{% if filter.is_some() %}&filter={{ filter.as_ref().unwrap() }}{% endif %}{% if city.is_some() %}&city={{ city.as_ref().unwrap() }}{% endif %}{% if sort_by != "recent" %}&sort={{ sort_by }}{% endif %}')">
+                <div class="loc-loading">Loading more...</div>
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <div class="loc-empty">
@@ -132,4 +137,17 @@
         {% endif %}
     </section>
 </section>
+
+<button class="loc-scroll-top" id="loc-scroll-top" aria-label="Scroll to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+<script>
+(function(){
+    var btn = document.getElementById('loc-scroll-top');
+    var threshold = window.innerHeight * 1.5;
+    window.addEventListener('scroll', function(){
+        btn.classList.toggle('visible', window.scrollY > threshold);
+    }, {passive: true});
+})();
+</script>
 {% endblock %}

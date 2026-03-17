@@ -16,11 +16,14 @@ use askama::Template;
 use axum::{
     Form, Json, Router,
     extract::{Path, Query, Request, multipart::Multipart},
+    http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
 use serde::Deserialize;
 use tracing::{debug, error, info};
+
+const PAGE_SIZE: usize = 20;
 
 mod filters {
     pub fn abs_url(path: &str) -> askama::Result<String> {
@@ -60,6 +63,7 @@ pub fn router() -> Router {
             "/productions/{slug}/scripts/{script_id}/delete",
             post(delete_script),
         )
+        .route("/api/productions/more-sse", get(productions_more_sse))
 }
 
 #[derive(Template)]
@@ -130,12 +134,13 @@ async fn list_productions(
     let status_filter = params.status.filter(|s| !s.is_empty());
     let type_filter = params.production_type.filter(|s| !s.is_empty());
 
-    let productions = ProductionModel::list(
-        None,
+    let all = ProductionModel::list(
+        Some(PAGE_SIZE + 1),
         status_filter.as_deref(),
         type_filter.as_deref(),
         filter_text.as_deref(),
         Some(sort_by.as_str()),
+        0,
     )
     .await
     .map_err(|e| {
@@ -143,8 +148,11 @@ async fn list_productions(
         Error::Database(format!("Failed to fetch productions: {}", e))
     })?;
 
-    let productions: Vec<crate::templates::Production> = productions
+    let has_more = all.len() > PAGE_SIZE;
+
+    let productions: Vec<crate::templates::Production> = all
         .into_iter()
+        .take(PAGE_SIZE)
         .map(|p| crate::templates::Production {
             id: p.id.key_string(),
             slug: p.slug,
@@ -169,6 +177,7 @@ async fn list_productions(
         productions,
         filter: filter_text,
         sort_by,
+        has_more,
     };
 
     let html = template.render().map_err(|e| {
@@ -1095,4 +1104,147 @@ async fn delete_script(
     info!("Script {} deleted from production {}", script_id, slug);
 
     Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
+}
+
+// ── Infinite-scroll SSE ────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct MoreQuery {
+    offset: usize,
+    filter: Option<String>,
+    sort: Option<String>,
+}
+
+fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
+    let mut s = format!(
+        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
+        selector, mode
+    );
+    if !elements.is_empty() {
+        s += &format!("data: elements {}\n", elements.replace('\n', " "));
+    }
+    s += "\n";
+    s
+}
+
+fn sse_response(body: String) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "text/event-stream"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+fn escape_html(s: &str) -> String {
+    ammonia::clean_text(s)
+}
+
+fn render_production_card(p: &crate::templates::Production) -> String {
+    let mut html = String::new();
+    html.push_str(r#"<article class="prod-card">"#);
+    html.push_str(&format!(
+        r#"<a href="/productions/{}" class="prod-card-visual" data-status="{}">"#,
+        escape_html(&p.slug),
+        escape_html(&p.status)
+    ));
+
+    if let Some(ref photo) = p.poster_photo {
+        html.push_str(&format!(
+            r#"<img src="{}" alt="{}" class="prod-card-poster" loading="lazy" />"#,
+            escape_html(photo),
+            escape_html(&p.title)
+        ));
+    } else if let Some(ref url) = p.poster_url {
+        html.push_str(&format!(
+            r#"<img src="{}" alt="{}" class="prod-card-poster" loading="lazy" />"#,
+            escape_html(url),
+            escape_html(&p.title)
+        ));
+    } else {
+        html.push_str(r#"<div class="prod-card-placeholder"><svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg></div>"#);
+    }
+
+    html.push_str(r#"<div class="prod-card-overlay">"#);
+    html.push_str(&format!("<h3>{}</h3>", escape_html(&p.title)));
+    html.push_str(&format!(
+        r#"<div class="prod-card-badges"><span class="prod-badge" data-role="status" data-value="{}">{}</span><span class="prod-badge" data-role="type">{}</span></div>"#,
+        escape_html(&p.status),
+        escape_html(&p.status),
+        escape_html(&p.production_type)
+    ));
+    html.push_str("</div></a>");
+
+    html.push_str(r#"<div class="prod-card-content">"#);
+    if !p.description.is_empty() {
+        html.push_str(&format!(
+            r#"<p class="prod-card-desc">{}</p>"#,
+            escape_html(&p.description)
+        ));
+    }
+    html.push_str(&format!(
+        r#"<div class="prod-card-actions"><a href="/productions/{}" class="prod-btn-primary">View</a><a href="/productions/{}" class="prod-btn-outline">Save</a></div>"#,
+        escape_html(&p.slug),
+        escape_html(&p.slug)
+    ));
+    html.push_str("</div></article>");
+
+    html
+}
+
+async fn productions_more_sse(Query(params): Query<MoreQuery>) -> Response {
+    let filter = params.filter.as_deref().filter(|s| !s.is_empty());
+    let sort = params.sort.as_deref().filter(|s| !s.is_empty());
+    let offset = params.offset;
+
+    let all = ProductionModel::list(Some(PAGE_SIZE + 1), None, None, filter, sort, offset)
+        .await
+        .unwrap_or_default();
+    let has_more = all.len() > PAGE_SIZE;
+
+    let prods: Vec<crate::templates::Production> = all
+        .into_iter()
+        .take(PAGE_SIZE)
+        .map(|p| crate::templates::Production {
+            id: p.id.key_string(),
+            slug: p.slug,
+            title: p.title,
+            description: p.description.unwrap_or_default(),
+            status: p.status,
+            production_type: p.production_type,
+            created_at: p.created_at.to_string(),
+            owner: String::new(),
+            tags: vec![],
+            poster_url: p.poster_url,
+            poster_photo: p.poster_photo,
+        })
+        .collect();
+
+    if prods.is_empty() {
+        return sse_response(sse_patch_elements("#prod-sentinel", "remove", ""));
+    }
+
+    let mut replacement = String::new();
+    for p in &prods {
+        replacement.push_str(&render_production_card(p));
+    }
+
+    if has_more {
+        let new_offset = offset + PAGE_SIZE;
+        let mut q_params = format!("offset={}", new_offset);
+        if let Some(f) = filter {
+            q_params.push_str(&format!("&filter={}", urlencoding::encode(f)));
+        }
+        if let Some(s) = sort {
+            q_params.push_str(&format!("&sort={}", urlencoding::encode(s)));
+        }
+        replacement.push_str(&format!(
+            r#"<div id="prod-sentinel" data-on-intersect="@get('/api/productions/more-sse?{}')"><div class="prod-loading">Loading more...</div></div>"#,
+            q_params
+        ));
+    }
+
+    sse_response(sse_patch_elements("#prod-sentinel", "outer", &replacement))
 }

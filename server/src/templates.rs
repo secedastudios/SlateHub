@@ -427,6 +427,7 @@ pub struct ProductionsTemplate {
     pub productions: Vec<Production>,
     pub filter: Option<String>,
     pub sort_by: String,
+    pub has_more: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -617,6 +618,7 @@ pub struct LocationsTemplate {
     pub show_private: bool,
     pub sort_by: String,
     pub liked_ids: Vec<String>,
+    pub has_more: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -750,6 +752,7 @@ pub struct PeopleTemplate {
     pub specialties: Vec<String>,
     pub liked_ids: Vec<String>,
     pub current_user_id: String,
+    pub has_more: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -957,6 +960,7 @@ pub struct JobsTemplate {
     pub user: Option<User>,
     pub jobs: Vec<JobListView>,
     pub search_query: Option<String>,
+    pub has_more: bool,
 }
 
 /// Job detail page
@@ -1329,6 +1333,7 @@ impl ProductionsTemplate {
             productions: vec![],
             filter: None,
             sort_by: "recent".to_string(),
+            has_more: false,
         }
     }
 }
@@ -1346,6 +1351,7 @@ impl PeopleTemplate {
             specialties: vec![],
             liked_ids: vec![],
             current_user_id: String::new(),
+            has_more: false,
         }
     }
 }

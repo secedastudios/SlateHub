@@ -12,12 +12,15 @@ use askama::Template;
 use axum::{
     Router,
     extract::{Path, Query, Request},
+    http::header,
     response::{Html, Redirect, Response, IntoResponse},
     routing::{get, post},
 };
 use axum_extra::extract::Form;
 use serde::Deserialize;
 use tracing::{debug, error, info};
+
+const JOBS_PAGE_SIZE: usize = 20;
 
 pub fn router() -> Router {
     Router::new()
@@ -34,6 +37,7 @@ pub fn router() -> Router {
             "/jobs/{id}/applications/{app_id}/status",
             post(update_app_status),
         )
+        .route("/api/jobs/more-sse", get(jobs_more_sse))
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,10 +56,11 @@ async fn list_jobs(
     }
 
     let search = params.q.as_deref().filter(|s| !s.is_empty());
-    let jobs = JobModel::list(search, 50).await.unwrap_or_default();
-
-    let jobs: Vec<JobListView> = jobs
+    let all_jobs = JobModel::list(search, JOBS_PAGE_SIZE + 1, 0).await.unwrap_or_default();
+    let has_more = all_jobs.len() > JOBS_PAGE_SIZE;
+    let jobs: Vec<JobListView> = all_jobs
         .into_iter()
+        .take(JOBS_PAGE_SIZE)
         .map(|j| JobListView {
             id: j.id.strip_prefix("job_posting:").unwrap_or(&j.id).to_string(),
             title: j.title,
@@ -83,6 +88,7 @@ async fn list_jobs(
         user: base.user,
         jobs,
         search_query: params.q,
+        has_more,
     };
 
     Ok(Html(template.render().map_err(|e| {
@@ -552,4 +558,168 @@ async fn my_jobs(request: Request) -> Result<Html<String>, Error> {
         error!("Failed to render my jobs template: {}", e);
         Error::template(e.to_string())
     })?))
+}
+
+// === SSE infinite scroll ===
+
+fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
+    let mut s = format!(
+        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
+        selector, mode
+    );
+    if !elements.is_empty() {
+        s += &format!("data: elements {}\n", elements.replace('\n', " "));
+    }
+    s += "\n";
+    s
+}
+
+fn sse_response(body: String) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "text/event-stream"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+fn escape_html(s: &str) -> String {
+    ammonia::clean_text(s)
+}
+
+const VERIFIED_BADGE_PATH: &str = "M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z";
+
+/// Render a single job card as HTML string (must match jobs.html card markup)
+fn render_job_card(job: &JobListView) -> String {
+    let mut html = String::new();
+
+    let verified_class = if job.is_poster_verified { " job-card-verified" } else { "" };
+    html.push_str(&format!(r#"<article class="job-card{}">"#, verified_class));
+
+    if let Some(ref poster) = job.production_poster {
+        html.push_str(&format!(
+            r#"<div class="job-card-poster"><img src="{}" alt="" loading="lazy" /></div>"#,
+            escape_html(poster)
+        ));
+    }
+
+    html.push_str(r#"<div class="job-card-body"><div class="job-card-header">"#);
+    html.push_str(&format!(
+        r#"<h3><a href="/jobs/{}">{}</a></h3>"#,
+        escape_html(&job.id),
+        escape_html(&job.title)
+    ));
+
+    html.push_str(r#"<div class="job-card-meta"><span class="job-poster">"#);
+    let poster_url = if job.poster_type == "organization" {
+        format!("/orgs/{}", escape_html(&job.poster_slug))
+    } else {
+        format!("/{}", escape_html(&job.poster_slug))
+    };
+    html.push_str(&format!(
+        r#"<a href="{}">{}</a>"#,
+        poster_url,
+        escape_html(&job.poster_name)
+    ));
+
+    if job.is_poster_verified {
+        let (fill, label) = if job.poster_type == "organization" {
+            ("#FFD700", "Verified Organization")
+        } else {
+            ("#1d9bf0", "Verified")
+        };
+        html.push_str(&format!(
+            r#"<svg class="verified-badge" width="16" height="16" viewBox="0 0 24 24" fill="{}" aria-label="{}"><path d="{}"/></svg>"#,
+            fill, label, VERIFIED_BADGE_PATH
+        ));
+    }
+    html.push_str("</span>");
+
+    if let Some(ref loc) = job.location {
+        html.push_str(&format!(r#"<span class="job-location">{}</span>"#, escape_html(loc)));
+    }
+    html.push_str("</div></div>");
+
+    html.push_str(&format!(r#"<p class="job-card-desc">{}</p>"#, escape_html(&job.description)));
+
+    html.push_str(r#"<div class="job-card-footer">"#);
+    let role_s = if job.role_count != 1 { "s" } else { "" };
+    html.push_str(&format!(r#"<span class="job-roles">{} role{}</span>"#, job.role_count, role_s));
+    if let Some(ref prod) = job.production_title {
+        html.push_str(&format!(r#"<span class="job-production">{}</span>"#, escape_html(prod)));
+    }
+    html.push_str(&format!(r#"<a href="/jobs/{}" class="jobs-btn-sm">View</a>"#, escape_html(&job.id)));
+    html.push_str("</div></div></article>");
+
+    html
+}
+
+#[derive(Debug, Deserialize)]
+struct JobsMoreQuery {
+    offset: usize,
+    q: Option<String>,
+}
+
+/// SSE endpoint for infinite scroll — appends more job cards
+async fn jobs_more_sse(
+    Query(params): Query<JobsMoreQuery>,
+) -> Response {
+    let search = params.q.as_deref().filter(|s| !s.is_empty());
+    let offset = params.offset;
+
+    let all_jobs = JobModel::list(search, JOBS_PAGE_SIZE + 1, offset)
+        .await
+        .unwrap_or_default();
+
+    let has_more = all_jobs.len() > JOBS_PAGE_SIZE;
+
+    let jobs: Vec<JobListView> = all_jobs
+        .into_iter()
+        .take(JOBS_PAGE_SIZE)
+        .map(|j| JobListView {
+            id: j.id.strip_prefix("job_posting:").unwrap_or(&j.id).to_string(),
+            title: j.title,
+            description: j.description,
+            location: j.location,
+            poster_name: j.poster_name,
+            poster_slug: j.poster_slug,
+            poster_type: j.poster_type,
+            is_poster_verified: j.is_poster_verified,
+            role_count: j.role_count,
+            status: j.status,
+            expires_at: j.expires_at,
+            created_at: j.created_at,
+            production_title: j.production_title,
+            production_poster: j.production_poster,
+            applications_enabled: j.applications_enabled,
+        })
+        .collect();
+
+    if jobs.is_empty() {
+        return sse_response(sse_patch_elements("#jobs-sentinel", "remove", ""));
+    }
+
+    let mut replacement_html = String::new();
+    for job in &jobs {
+        replacement_html.push_str(&render_job_card(job));
+    }
+
+    if has_more {
+        let new_offset = offset + JOBS_PAGE_SIZE;
+        let q_param = match search {
+            Some(q) => format!("&q={}", urlencoding::encode(q)),
+            None => String::new(),
+        };
+        replacement_html.push_str(&format!(
+            r#"<div id="jobs-sentinel" data-on-intersect="@get('/api/jobs/more-sse?offset={}{}')"><div class="jobs-loading">Loading more...</div></div>"#,
+            new_offset, q_param
+        ));
+    }
+
+    // Replace sentinel with cards + new sentinel, keeping sentinel at the bottom
+    let sse = sse_patch_elements("#jobs-sentinel", "outer", &replacement_html);
+
+    sse_response(sse)
 }

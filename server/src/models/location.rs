@@ -207,6 +207,7 @@ impl LocationModel {
         creator_id: Option<&str>,
         filter: Option<&str>,
         sort: Option<&str>,
+        offset: usize,
     ) -> Result<Vec<Location>, Error> {
         debug!(
             "Listing locations - public_only: {}, city: {:?}, creator: {:?}, filter: {:?}, sort: {:?}",
@@ -245,6 +246,10 @@ impl LocationModel {
 
         if let Some(limit) = limit {
             query.push_str(&format!(" LIMIT {}", limit));
+        }
+
+        if offset > 0 {
+            query.push_str(&format!(" START {}", offset));
         }
 
         let mut db_query = DB.query(&query);

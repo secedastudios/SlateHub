@@ -75,7 +75,7 @@
         <div data-role="results-count">
             <p>Showing {{ organizations.len() }} organization{% if organizations.len() != 1 %}s{% endif %}</p>
         </div>
-        <div data-role="card-grid">
+        <div data-role="card-grid" id="orgs-grid">
             {% for org in organizations %}
             <article data-component="card" data-type="org">
                 <a href="/orgs/{{ org.slug }}" data-role="card-visual">
@@ -113,13 +113,19 @@
                 </div>
             </article>
             {% endfor %}
+            {% if has_more %}
+            <div id="orgs-sentinel" data-on-intersect="@get('/api/orgs/more-sse?offset=20{% if search_query.is_some() %}&q={{ search_query.as_ref().unwrap() }}{% endif %}')">
+                <div class="orgs-loading">Loading more...</div>
+            </div>
+            {% endif %}
         </div>
-        {% if organizations.len() >= 50 %}
-        <p data-role="results-count" style="text-align:center; margin-top:2rem;">Showing first 50 results. Use search to find specific organizations.</p>
-        {% endif %}
         {% endif %}
     </section>
 </section>
+
+<button class="orgs-scroll-top" id="orgs-scroll-top" aria-label="Scroll to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
 
 <script>
 function filterByType(typeId, typeName) {
@@ -127,5 +133,12 @@ function filterByType(typeId, typeName) {
     url.searchParams.set('org_type', typeId);
     window.location.href = url.toString();
 }
+(function(){
+    var btn = document.getElementById('orgs-scroll-top');
+    var threshold = window.innerHeight * 1.5;
+    window.addEventListener('scroll', function(){
+        btn.classList.toggle('visible', window.scrollY > threshold);
+    }, {passive: true});
+})();
 </script>
 {% endblock %}

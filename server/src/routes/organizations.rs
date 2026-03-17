@@ -2,7 +2,8 @@ use askama::Template;
 use axum::{
     Router,
     extract::{Path, Query, Request},
-    response::{Html, Json, Redirect},
+    http::header,
+    response::{Html, IntoResponse, Json, Redirect, Response},
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,8 @@ use crate::{
     record_id_ext::RecordIdExt,
     templates::{BaseContext, User},
 };
+
+const PAGE_SIZE: usize = 20;
 
 pub fn router() -> Router {
     Router::new()
@@ -50,6 +53,7 @@ pub fn router() -> Router {
         )
         .route("/orgs/{slug}/join-request", post(request_to_join))
         // API endpoints
+        .route("/api/orgs/more-sse", get(orgs_more_sse))
         .route(
             "/api/organizations/check-slug",
             get(check_slug_availability),
@@ -154,6 +158,7 @@ pub struct OrganizationsListTemplate {
     pub organizations: Vec<Organization>,
     pub search_query: Option<String>,
     pub org_types: Vec<OrgType>,
+    pub has_more: bool,
 }
 
 #[derive(Template)]
@@ -227,13 +232,17 @@ async fn list_organizations(
 
     // Use model to fetch organizations
     let model = OrganizationModel::new();
-    let organizations = model
+    let all_orgs = model
         .search(
             params.q.as_deref(),
             params.org_type.as_deref(),
             params.location.as_deref(),
+            PAGE_SIZE + 1,
+            0,
         )
         .await?;
+    let has_more = all_orgs.len() > PAGE_SIZE;
+    let organizations: Vec<Organization> = all_orgs.into_iter().take(PAGE_SIZE).collect();
 
     // Get organization types for filter
     let org_types_data = model.get_organization_types().await?;
@@ -251,6 +260,7 @@ async fn list_organizations(
         organizations,
         search_query: params.q,
         org_types,
+        has_more,
     };
 
     Ok(Html(template.render().map_err(|e| {
@@ -810,6 +820,107 @@ async fn request_to_join(
         "success": true,
         "message": "Join request sent. An admin will review your request."
     })))
+}
+
+#[derive(Debug, Deserialize)]
+struct MoreQuery {
+    offset: usize,
+    q: Option<String>,
+}
+
+fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
+    let mut s = format!("event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n", selector, mode);
+    if !elements.is_empty() {
+        s += &format!("data: elements {}\n", elements.replace('\n', " "));
+    }
+    s += "\n";
+    s
+}
+
+fn sse_response(body: String) -> Response {
+    ([(header::CONTENT_TYPE, "text/event-stream"), (header::CACHE_CONTROL, "no-cache")], body).into_response()
+}
+
+fn escape_html(s: &str) -> String {
+    ammonia::clean_text(s)
+}
+
+const VERIFIED_BADGE_PATH: &str = "M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z";
+
+fn render_org_card(org: &Organization) -> String {
+    let mut html = String::new();
+    html.push_str(r#"<article data-component="card" data-type="org">"#);
+    html.push_str(&format!(r#"<a href="/orgs/{}" data-role="card-visual">"#, escape_html(&org.slug)));
+
+    if let Some(ref logo) = org.logo {
+        html.push_str(&format!(r#"<img src="{}" alt="{}" loading="lazy" onerror="this.style.display='none'" />"#, escape_html(logo), escape_html(&org.name)));
+    } else {
+        html.push_str(&format!(r#"<div data-role="placeholder"><span>{}</span></div>"#, escape_html(&org.name)));
+    }
+
+    html.push_str(r#"<div data-role="overlay">"#);
+    html.push_str(&format!("<h3>{}", escape_html(&org.name)));
+    if org.verified {
+        html.push_str(&format!(r##" <svg data-role="verified-badge" data-verified="org" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization"><path d="{}"/></svg>"##, VERIFIED_BADGE_PATH));
+    }
+    html.push_str("</h3>");
+    html.push_str(r#"<div data-role="meta">"#);
+    html.push_str(&format!(r#"<span data-role="type-label">{}</span>"#, escape_html(&org.org_type.name)));
+    if let Some(ref loc) = org.location {
+        html.push_str(&format!(r#"<span data-role="loc">{}</span>"#, escape_html(loc)));
+    }
+    html.push_str("</div></div></a>");
+
+    html.push_str(r#"<div data-role="content">"#);
+    if let Some(ref desc) = org.description {
+        html.push_str(&format!(r#"<p data-role="desc">{}</p>"#, escape_html(desc)));
+    }
+    if !org.services.is_empty() {
+        html.push_str(r#"<p data-role="services">"#);
+        for service in org.services.iter().take(4) {
+            html.push_str(&format!("<span>{}</span>", escape_html(service)));
+        }
+        html.push_str("</p>");
+    }
+    html.push_str(&format!(r#"<div data-role="actions"><a href="/orgs/{}" data-role="btn-primary">View</a>"#, escape_html(&org.slug)));
+    html.push_str(r#"<button type="button" data-role="btn-icon-bare" aria-label="Save"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>"#);
+    html.push_str(r#"<button type="button" data-role="btn-icon-outline" aria-label="Follow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>"#);
+    html.push_str("</div></div></article>");
+
+    html
+}
+
+async fn orgs_more_sse(Query(params): Query<MoreQuery>) -> Response {
+    let search = params.q.as_deref().filter(|s| !s.is_empty());
+    let offset = params.offset;
+
+    let model = OrganizationModel::new();
+    let all = model.search(search, None, None, PAGE_SIZE + 1, offset).await.unwrap_or_default();
+    let has_more = all.len() > PAGE_SIZE;
+    let orgs: Vec<Organization> = all.into_iter().take(PAGE_SIZE).collect();
+
+    if orgs.is_empty() {
+        return sse_response(sse_patch_elements("#orgs-sentinel", "remove", ""));
+    }
+
+    let mut replacement = String::new();
+    for org in &orgs {
+        replacement.push_str(&render_org_card(org));
+    }
+
+    if has_more {
+        let new_offset = offset + PAGE_SIZE;
+        let q_param = match search {
+            Some(q) => format!("&q={}", urlencoding::encode(q)),
+            None => String::new(),
+        };
+        replacement.push_str(&format!(
+            r#"<div id="orgs-sentinel" data-on-intersect="@get('/api/orgs/more-sse?offset={}{}')"><div class="orgs-loading">Loading more...</div></div>"#,
+            new_offset, q_param
+        ));
+    }
+
+    sse_response(sse_patch_elements("#orgs-sentinel", "outer", &replacement))
 }
 
 async fn check_slug_availability(

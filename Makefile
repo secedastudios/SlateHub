@@ -240,6 +240,11 @@ db-seed: wait-db
 	@echo "✅ Seeded users: kevin (pass123), chris (pass123, admin, verified)"
 	@echo "✅ Seeded org: Seceda (owned by chris)"
 
+db-seed-jobs: wait-db
+	@echo "Seeding 100 job postings..."
+	@docker exec -i slatehub-surrealdb /surreal sql --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main --pretty < db/seed-jobs.surql
+	@echo "✅ Seeded 100 job postings (posted by chris and Seceda)"
+
 db-drop:
 	@echo "⚠️  WARNING: This will delete the entire database!"
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
