@@ -105,21 +105,30 @@
             </div>
 
             <div data-field="owner-role">
-                <label for="select-owner-role">Production Role</label>
-                <select id="select-owner-role-person" name="owner_production_role">
-                    <option value="">-- Select Role --</option>
-                    {% for r in production_roles %}
-                    <option value="{{ r }}">{{ r }}</option>
-                    {% endfor %}
-                </select>
-                <select id="select-owner-role-org" style="display:none;" disabled>
-                    <option value="">-- Select Role --</option>
-                    {% for r in org_production_roles %}
-                    <option value="{{ r }}">{{ r }}</option>
-                    {% endfor %}
-                </select>
-                <input type="text" name="custom_owner_role" placeholder="Or enter a custom role..." />
-                <small>Your role on this production (e.g. Director, Producer, Production Services)</small>
+                <label>Production Roles</label>
+                <div class="role-picker" id="owner-role-picker" data-field-name="owner_production_role">
+                    <div class="role-picker-tags" id="owner-role-tags"></div>
+                    <div class="role-picker-input">
+                        <select id="owner-role-select-person">
+                            <option value="">-- Select Role --</option>
+                            {% for r in production_roles %}
+                            <option value="{{ r }}">{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                        <select id="owner-role-select-org" style="display:none;">
+                            <option value="">-- Select Role --</option>
+                            {% for r in org_production_roles %}
+                            <option value="{{ r }}">{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="role-picker-add" onclick="addRoleFromSelect('owner-role-picker')">Add</button>
+                    </div>
+                    <div class="role-picker-custom">
+                        <input type="text" id="owner-role-custom" placeholder="Or type a custom role..." />
+                        <button type="button" class="role-picker-add-custom" onclick="addCustomRole('owner-role-picker', 'owner-role-custom')">Add Custom</button>
+                    </div>
+                </div>
+                <small>Your roles on this production (e.g. Director, Producer)</small>
             </div>
         </fieldset>
 
@@ -150,16 +159,92 @@ document.getElementById('input-start-date').addEventListener('change', function(
 });
 
 function toggleOwnerRoles() {
-    const orgSelect = document.getElementById('select-create-as');
-    const personRoles = document.getElementById('select-owner-role-person');
-    const orgRoles = document.getElementById('select-owner-role-org');
-    const isOrg = orgSelect.value !== '';
-    personRoles.style.display = isOrg ? 'none' : '';
-    personRoles.disabled = isOrg;
-    personRoles.name = isOrg ? '' : 'owner_production_role';
-    orgRoles.style.display = isOrg ? '' : 'none';
-    orgRoles.disabled = !isOrg;
-    orgRoles.name = isOrg ? 'owner_production_role' : '';
+    const isOrg = document.getElementById('select-create-as').value !== '';
+    document.getElementById('owner-role-select-person').style.display = isOrg ? 'none' : '';
+    document.getElementById('owner-role-select-org').style.display = isOrg ? '' : 'none';
+}
+
+function getActiveSelect(pickerId) {
+    const picker = document.getElementById(pickerId);
+    const selects = picker.querySelectorAll('.role-picker-input select');
+    for (const s of selects) {
+        if (s.style.display !== 'none') return s;
+    }
+    return selects[0];
+}
+
+function getRoles(pickerId) {
+    const picker = document.getElementById(pickerId);
+    const hiddens = picker.querySelectorAll('input[type="hidden"]');
+    return Array.from(hiddens).map(h => h.value);
+}
+
+function renderTags(pickerId) {
+    const picker = document.getElementById(pickerId);
+    const tagsEl = picker.querySelector('.role-picker-tags');
+    const fieldName = picker.dataset.fieldName;
+    const hiddens = picker.querySelectorAll('input[type="hidden"]');
+    const roles = Array.from(hiddens).map(h => h.value);
+    tagsEl.innerHTML = '';
+    // Remove old hidden inputs
+    hiddens.forEach(h => h.remove());
+    roles.forEach(role => {
+        // Re-create hidden input
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = fieldName;
+        input.value = role;
+        picker.appendChild(input);
+        // Create tag
+        const tag = document.createElement('span');
+        tag.className = 'role-picker-tag';
+        tag.textContent = role;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = '&times;';
+        btn.onclick = function() { removeRole(pickerId, role); };
+        tag.appendChild(btn);
+        tagsEl.appendChild(tag);
+    });
+}
+
+function addRoleFromSelect(pickerId) {
+    const sel = getActiveSelect(pickerId);
+    const val = sel.value.trim();
+    if (!val) return;
+    const roles = getRoles(pickerId);
+    if (roles.includes(val)) { sel.value = ''; return; }
+    const picker = document.getElementById(pickerId);
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = picker.dataset.fieldName;
+    input.value = val;
+    picker.appendChild(input);
+    sel.value = '';
+    renderTags(pickerId);
+}
+
+function addCustomRole(pickerId, inputId) {
+    const inp = document.getElementById(inputId);
+    const val = inp.value.trim();
+    if (!val) return;
+    const roles = getRoles(pickerId);
+    if (roles.includes(val)) { inp.value = ''; return; }
+    const picker = document.getElementById(pickerId);
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = picker.dataset.fieldName;
+    input.value = val;
+    picker.appendChild(input);
+    inp.value = '';
+    renderTags(pickerId);
+}
+
+function removeRole(pickerId, role) {
+    const picker = document.getElementById(pickerId);
+    const hiddens = picker.querySelectorAll('input[type="hidden"]');
+    hiddens.forEach(h => { if (h.value === role) h.remove(); });
+    renderTags(pickerId);
 }
 </script>
 {% endblock %}

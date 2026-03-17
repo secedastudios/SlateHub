@@ -14,16 +14,35 @@ use crate::templates::{
 };
 use askama::Template;
 use axum::{
-    Form, Json, Router,
+    Json, Router,
     extract::{Path, Query, Request, multipart::Multipart},
     http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
+use axum::Form;
+use axum_extra::extract::Form as HtmlForm;
 use serde::Deserialize;
 use tracing::{debug, error, info};
 
 const PAGE_SIZE: usize = 20;
+
+/// Merge multi-select production roles with an optional custom role into a single Vec.
+/// Filters out empty strings and deduplicates.
+fn merge_production_roles(selected: &[String], custom: &Option<String>) -> Vec<String> {
+    let mut roles: Vec<String> = selected
+        .iter()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if let Some(c) = custom {
+        let c = c.trim().to_string();
+        if !c.is_empty() && !roles.contains(&c) {
+            roles.push(c);
+        }
+    }
+    roles
+}
 
 mod filters {
     pub fn abs_url(path: &str) -> askama::Result<String> {
@@ -50,6 +69,7 @@ pub fn router() -> Router {
         .route("/productions/{slug}/members/add", post(add_member))
         .route("/productions/{slug}/members/add-org", post(add_org_member))
         .route("/productions/{slug}/members/remove", post(remove_member))
+        .route("/productions/{slug}/members/update-roles", post(update_member_roles))
         .route("/productions/{slug}/invite", post(invite_to_production))
         .route(
             "/productions/{slug}/scripts/upload",
@@ -311,7 +331,7 @@ async fn view_production(
             username: m.username,
             slug: m.slug,
             role: m.role,
-            production_role: m.production_role,
+            production_roles: m.production_roles,
             member_type: m.member_type.clone(),
             invitation_status: m.invitation_status,
             is_verified: m.is_verified,
@@ -443,7 +463,7 @@ async fn new_production_form(
 #[axum::debug_handler]
 async fn create_production(
     AuthenticatedUser(user): AuthenticatedUser,
-    Form(data): Form<CreateProductionForm>,
+    HtmlForm(data): HtmlForm<CreateProductionForm>,
 ) -> Result<Response, Error> {
     debug!("Creating new production: {}", data.title);
 
@@ -479,15 +499,15 @@ async fn create_production(
         (user.id.clone(), "person")
     };
 
-    // Resolve owner production role: custom overrides dropdown
-    let owner_production_role = data
-        .custom_owner_role
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .or(data.owner_production_role.as_deref().filter(|s| !s.is_empty()));
+    // Resolve owner production roles
+    let owner_roles: Vec<String> = data.owner_production_role.iter()
+        .map(|r| r.trim().to_string())
+        .filter(|r| !r.is_empty())
+        .collect();
+    let owner_production_roles = if owner_roles.is_empty() { None } else { Some(owner_roles) };
 
     // Create the production
-    let production = ProductionModel::create(production_data, &creator_id, creator_type, owner_production_role).await?;
+    let production = ProductionModel::create(production_data, &creator_id, creator_type, owner_production_roles).await?;
 
     info!(
         "Created production: {} ({})",
@@ -582,7 +602,7 @@ async fn edit_production_form(
                     username: m.username,
                     slug: m.slug,
                     role: m.role,
-                    production_role: m.production_role,
+                    production_roles: m.production_roles,
                     member_type: m.member_type.clone(),
                     invitation_status: m.invitation_status,
                     is_verified: m.is_verified,
@@ -689,7 +709,7 @@ async fn get_members(Path(slug): Path<String>) -> Result<Json<Vec<ProductionMemb
 async fn add_member(
     Path(slug): Path<String>,
     AuthenticatedUser(user): AuthenticatedUser,
-    Form(data): Form<AddMemberForm>,
+    HtmlForm(data): HtmlForm<AddMemberForm>,
 ) -> Result<Response, Error> {
     debug!("Adding member to production: {}", slug);
 
@@ -700,12 +720,8 @@ async fn add_member(
         return Err(Error::Forbidden);
     }
 
-    // Resolve production role: custom_role overrides dropdown selection
-    let production_role = data
-        .custom_role
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .or(data.production_role.as_deref().filter(|s| !s.is_empty()));
+    // Build production roles: combine multi-select with optional custom role
+    let production_roles = merge_production_roles(&data.production_role, &data.custom_role);
 
     let prod_id = production.id.to_raw_string();
     let user_name = if user.name.is_empty() {
@@ -721,7 +737,7 @@ async fn add_member(
         &production.slug,
         &data.member_id,
         &data.role,
-        production_role,
+        if production_roles.is_empty() { None } else { Some(production_roles) },
         &user.id,
         user_name,
         None,
@@ -742,7 +758,7 @@ async fn add_member(
 async fn add_org_member(
     Path(slug): Path<String>,
     AuthenticatedUser(user): AuthenticatedUser,
-    Form(data): Form<AddOrgMemberForm>,
+    HtmlForm(data): HtmlForm<AddOrgMemberForm>,
 ) -> Result<Response, Error> {
     debug!("Adding org member to production: {}", slug);
 
@@ -753,28 +769,25 @@ async fn add_org_member(
         return Err(Error::Forbidden);
     }
 
-    // Resolve production role: custom_role overrides dropdown selection
-    let production_role = data
-        .custom_role
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .or(data.production_role.as_deref().filter(|s| !s.is_empty()));
+    // Build production roles: combine multi-select with optional custom role
+    let production_roles = merge_production_roles(&data.production_role, &data.custom_role);
 
     // org_id comes as the full record id string like "organization:abc123"
     let org_id = &data.org_id;
 
     // Add org directly as accepted member (orgs don't need to accept invitations)
+    let roles_opt = if production_roles.is_empty() { None } else { Some(production_roles.clone()) };
     ProductionModel::add_member_accepted(
         &production.id,
         org_id,
         &data.role,
-        production_role,
+        roles_opt,
     )
     .await?;
 
     info!(
-        "Added organization {} to production {} with role {:?}",
-        org_id, production.title, production_role
+        "Added organization {} to production {} with roles {:?}",
+        org_id, production.title, production_roles
     );
 
     // Notify org owners about being added to this production
@@ -830,6 +843,40 @@ async fn remove_member(
     Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
 }
 
+/// Update production roles for an existing member
+#[axum::debug_handler]
+async fn update_member_roles(
+    Path(slug): Path<String>,
+    AuthenticatedUser(user): AuthenticatedUser,
+    HtmlForm(data): HtmlForm<UpdateMemberRolesForm>,
+) -> Result<Response, Error> {
+    debug!("Updating member roles in production: {}", slug);
+
+    let production = ProductionModel::get_by_slug(&slug).await?;
+
+    // Check if user can edit
+    if !ProductionModel::can_edit(&production.id, &user.id).await? {
+        return Err(Error::Forbidden);
+    }
+
+    let new_roles = merge_production_roles(&data.production_role, &data.custom_role);
+
+    ProductionModel::update_member_roles(
+        &production.id,
+        &data.member_id,
+        new_roles,
+    )
+    .await?;
+
+    info!(
+        "Updated roles for member {} in production {}",
+        data.member_id, production.id.display()
+    );
+
+    // Redirect back to edit page
+    Ok(Redirect::to(&format!("/productions/{}/edit", slug)).into_response())
+}
+
 // Form structures
 
 #[derive(Debug, Deserialize)]
@@ -842,8 +889,8 @@ struct CreateProductionForm {
     description: Option<String>,
     location: Option<String>,
     organization_id: Option<String>,
-    owner_production_role: Option<String>,
-    custom_owner_role: Option<String>,
+    #[serde(default)]
+    owner_production_role: Vec<String>,
     budget_level: Option<String>,
     production_tier: Option<String>,
 }
@@ -865,7 +912,8 @@ struct UpdateProductionForm {
 struct AddMemberForm {
     member_id: String,
     role: String,
-    production_role: Option<String>,
+    #[serde(default)]
+    production_role: Vec<String>,
     custom_role: Option<String>,
 }
 
@@ -873,7 +921,8 @@ struct AddMemberForm {
 struct AddOrgMemberForm {
     org_id: String,
     role: String,
-    production_role: Option<String>,
+    #[serde(default)]
+    production_role: Vec<String>,
     custom_role: Option<String>,
 }
 
@@ -886,9 +935,18 @@ struct RemoveMemberForm {
 struct InviteForm {
     identifier: String,
     role: String,
-    production_role: Option<String>,
+    #[serde(default)]
+    production_role: Vec<String>,
     custom_role: Option<String>,
     message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateMemberRolesForm {
+    member_id: String,
+    #[serde(default)]
+    production_role: Vec<String>,
+    custom_role: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -901,7 +959,7 @@ struct ToggleVisibilityForm {
 async fn invite_to_production(
     Path(slug): Path<String>,
     AuthenticatedUser(user): AuthenticatedUser,
-    Form(data): Form<InviteForm>,
+    HtmlForm(data): HtmlForm<InviteForm>,
 ) -> Result<Response, Error> {
     debug!("Inviting {} to production: {}", data.identifier, slug);
 
@@ -914,11 +972,7 @@ async fn invite_to_production(
     let prod_id = production.id.to_raw_string();
     let user_name = if user.name.is_empty() { &user.username } else { &user.name };
 
-    let production_role = data
-        .custom_role
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .or(data.production_role.as_deref().filter(|s| !s.is_empty()));
+    let production_roles = merge_production_roles(&data.production_role, &data.custom_role);
 
     let result = InvitationService::invite_to_production(
         &prod_id,
@@ -926,7 +980,7 @@ async fn invite_to_production(
         &production.slug,
         &data.identifier,
         &data.role,
-        production_role,
+        if production_roles.is_empty() { None } else { Some(production_roles) },
         &user.id,
         user_name,
         data.message.as_deref(),

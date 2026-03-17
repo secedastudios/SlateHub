@@ -122,14 +122,23 @@
                                     </div>
                                 </div>
                                 <div>
-                                    <label>Production Role</label>
-                                    <select name="production_role">
-                                        <option value="">-- Select Role --</option>
-                                        {% for r in production_roles %}
-                                        <option value="{{ r }}">{{ r }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <input type="text" name="custom_role" placeholder="Or enter a custom role..." />
+                                    <label>Production Roles</label>
+                                    <div class="role-picker" id="pd-role-picker" data-field-name="production_role">
+                                        <div class="role-picker-tags"></div>
+                                        <div class="role-picker-input">
+                                            <select>
+                                                <option value="">-- Select Role --</option>
+                                                {% for r in production_roles %}
+                                                <option value="{{ r }}">{{ r }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button type="button" class="role-picker-add" onclick="addRoleFromSelect('pd-role-picker')">Add</button>
+                                        </div>
+                                        <div class="role-picker-custom">
+                                            <input type="text" id="pd-custom-role" placeholder="Or type a custom role..." />
+                                            <button type="button" class="role-picker-add-custom" onclick="addCustomRole('pd-role-picker', 'pd-custom-role')">Add Custom</button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div>
                                     <label>Permission Level</label>
@@ -159,8 +168,10 @@
                             {% else %}
                             <strong>{{ member.name }}</strong>
                             {% endif %}
-                            {% if member.production_role.is_some() %}
-                            <span class="prod-role-badge">{{ member.production_role.as_ref().unwrap() }}</span>
+                            {% if let Some(roles) = member.production_roles %}
+                            {% for r in roles %}
+                            <span class="prod-role-badge">{{ r }}</span>
+                            {% endfor %}
                             {% endif %}
                             {% if member.role == "owner" || member.role == "admin" %}
                             <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
@@ -223,14 +234,23 @@
                                     </div>
                                 </div>
                                 <div>
-                                    <label>Production Role</label>
-                                    <select name="production_role">
-                                        <option value="">-- Select Role --</option>
-                                        {% for r in org_production_roles %}
-                                        <option value="{{ r }}">{{ r }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <input type="text" name="custom_role" placeholder="Or enter a custom role..." />
+                                    <label>Production Roles</label>
+                                    <div class="role-picker" id="og-role-picker" data-field-name="production_role">
+                                        <div class="role-picker-tags"></div>
+                                        <div class="role-picker-input">
+                                            <select>
+                                                <option value="">-- Select Role --</option>
+                                                {% for r in org_production_roles %}
+                                                <option value="{{ r }}">{{ r }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button type="button" class="role-picker-add" onclick="addRoleFromSelect('og-role-picker')">Add</button>
+                                        </div>
+                                        <div class="role-picker-custom">
+                                            <input type="text" id="og-custom-role" placeholder="Or type a custom role..." />
+                                            <button type="button" class="role-picker-add-custom" onclick="addCustomRole('og-role-picker', 'og-custom-role')">Add Custom</button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div>
                                     <label>Permission Level</label>
@@ -260,8 +280,10 @@
                             <strong>{{ member.name }}</strong>
                             {% endif %}
                             {% if member.is_verified %}<svg data-role="verified-badge" data-verified="org" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>{% endif %}
-                            {% if member.production_role.is_some() %}
-                            <span class="prod-role-badge">{{ member.production_role.as_ref().unwrap() }}</span>
+                            {% if let Some(roles) = member.production_roles %}
+                            {% for r in roles %}
+                            <span class="prod-role-badge">{{ r }}</span>
+                            {% endfor %}
                             {% endif %}
                             {% if member.role == "owner" || member.role == "admin" %}
                             <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
@@ -391,6 +413,65 @@ function rejectCredit(id) {
         .then(r => { if (!r.ok) throw new Error('Failed to reject'); return r.json(); })
         .then(() => location.reload())
         .catch(e => alert(e.message));
+}
+
+function getActiveSelect(pickerId) {
+    const picker = document.getElementById(pickerId);
+    const selects = picker.querySelectorAll('.role-picker-input select');
+    for (const s of selects) { if (s.style.display !== 'none') return s; }
+    return selects[0];
+}
+
+function getRoles(pickerId) {
+    const picker = document.getElementById(pickerId);
+    return Array.from(picker.querySelectorAll('input[type="hidden"]')).map(h => h.value);
+}
+
+function renderTags(pickerId) {
+    const picker = document.getElementById(pickerId);
+    const tagsEl = picker.querySelector('.role-picker-tags');
+    const fieldName = picker.dataset.fieldName;
+    const hiddens = picker.querySelectorAll('input[type="hidden"]');
+    const roles = Array.from(hiddens).map(h => h.value);
+    tagsEl.innerHTML = '';
+    hiddens.forEach(h => h.remove());
+    roles.forEach(role => {
+        const input = document.createElement('input');
+        input.type = 'hidden'; input.name = fieldName; input.value = role;
+        picker.appendChild(input);
+        const tag = document.createElement('span');
+        tag.className = 'role-picker-tag'; tag.textContent = role;
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.innerHTML = '&times;';
+        btn.onclick = function() { removeRole(pickerId, role); };
+        tag.appendChild(btn); tagsEl.appendChild(tag);
+    });
+}
+
+function addRoleFromSelect(pickerId) {
+    const sel = getActiveSelect(pickerId);
+    const val = sel.value.trim();
+    if (!val || getRoles(pickerId).includes(val)) { sel.value = ''; return; }
+    const picker = document.getElementById(pickerId);
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = picker.dataset.fieldName; input.value = val;
+    picker.appendChild(input); sel.value = ''; renderTags(pickerId);
+}
+
+function addCustomRole(pickerId, inputId) {
+    const inp = document.getElementById(inputId);
+    const val = inp.value.trim();
+    if (!val || getRoles(pickerId).includes(val)) { inp.value = ''; return; }
+    const picker = document.getElementById(pickerId);
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = picker.dataset.fieldName; input.value = val;
+    picker.appendChild(input); inp.value = ''; renderTags(pickerId);
+}
+
+function removeRole(pickerId, role) {
+    const picker = document.getElementById(pickerId);
+    picker.querySelectorAll('input[type="hidden"]').forEach(h => { if (h.value === role) h.remove(); });
+    renderTags(pickerId);
 }
 </script>
 {% endblock %}

@@ -698,6 +698,62 @@ button.prod-btn-danger:hover:not(:disabled) {
     color: rgba(156, 163, 158, 0.4);
 }
 
+/* Role picker component */
+.role-picker { display: flex; flex-direction: column; gap: 0.5rem; }
+.role-picker-input { display: flex; gap: 0.35rem; align-items: center; }
+.role-picker-input select { flex: 1; }
+.role-picker-input .role-picker-add {
+    padding: 0.35rem 0.75rem;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    color: var(--color-text-primary, #d6d8ca);
+    border-radius: 4px;
+}
+.role-picker-input .role-picker-add:hover {
+    border-color: var(--color-accent, #eb5437);
+    color: var(--color-accent, #eb5437);
+}
+.role-picker-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; min-height: 1.5rem; }
+.role-picker-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    color: var(--color-text-primary, #d6d8ca);
+    background: rgba(214, 216, 202, 0.05);
+}
+.role-picker-tag button {
+    all: unset;
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+    opacity: 0.5;
+    padding: 0 2px;
+}
+.role-picker-tag button:hover { opacity: 1; color: var(--color-accent, #eb5437); }
+.role-picker-custom { display: flex; gap: 0.35rem; align-items: center; }
+.role-picker-custom input { flex: 1; }
+.role-picker-custom .role-picker-add-custom {
+    padding: 0.35rem 0.75rem;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    color: var(--color-text-primary, #d6d8ca);
+    border-radius: 4px;
+}
+.role-picker-custom .role-picker-add-custom:hover {
+    border-color: var(--color-accent, #eb5437);
+    color: var(--color-accent, #eb5437);
+}
+
 /* =========================================
    Detail page — override global form/button
    defaults that set light bg / border / min-height

@@ -51,8 +51,10 @@
                             {% endif %}
                         </div>
                     </div>
-                    {% if prod.production_role.is_some() %}
-                    <span data-role="badge">{{ prod.production_role.as_ref().unwrap() }}</span>
+                    {% if let Some(roles) = prod.production_roles %}
+                    {% for r in roles %}
+                    <span data-role="badge">{{ r }}</span>
+                    {% endfor %}
                     {% else %}
                     <span data-role="badge">{{ prod.role }}</span>
                     {% endif %}

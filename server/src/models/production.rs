@@ -137,7 +137,9 @@ pub struct ProductionMember {
     pub username: Option<String>,        // For persons
     pub slug: Option<String>,            // For organizations
     pub role: String,                    // owner, admin, member (permission level)
-    pub production_role: Option<String>, // e.g. "Director", "Producer"
+    #[serde(default)]
+    #[surreal(default)]
+    pub production_roles: Option<Vec<String>>, // e.g. ["Director", "Producer"]
     pub member_type: String,             // person or organization
     pub invitation_status: String,       // pending, accepted, declined
     #[serde(default)]
@@ -165,7 +167,7 @@ pub struct ProductionMembership {
     pub role: String,
     #[serde(default)]
     #[surreal(default)]
-    pub production_role: Option<String>,
+    pub production_roles: Option<Vec<String>>,
     pub invitation_status: String,
     pub created_at: DateTime<Utc>,
 }
@@ -203,7 +205,7 @@ impl ProductionModel {
         data: CreateProductionData,
         creator_id: &str,
         creator_type: &str, // "person" or "organization"
-        owner_production_role: Option<&str>,
+        owner_production_roles: Option<Vec<String>>,
     ) -> Result<Production, Error> {
         // Validate creator_id to prevent SQL injection in RELATE query
         let creator_rid = validate_record_id_str(creator_id)?;
@@ -282,38 +284,36 @@ impl ProductionModel {
 
         // Create ownership relation — format IDs directly into query
         // because RELATE needs RecordIds, not strings
-        let ownership_query = if let Some(prod_role) = owner_production_role.filter(|r| !r.is_empty()) {
-            format!(
-                "RELATE {}->member_of->{} SET role = 'owner', invitation_status = 'accepted', production_role = '{}';",
-                creator_rid.display(),
-                production.id.display(),
-                prod_role.replace('\'', "\\'")
-            )
-        } else {
-            format!(
-                "RELATE {}->member_of->{} SET role = 'owner', invitation_status = 'accepted';",
-                creator_rid.display(),
-                production.id.display()
-            )
-        };
+        let roles = owner_production_roles
+            .as_ref()
+            .filter(|r| !r.is_empty());
+
+        let ownership_query = format!(
+            "RELATE {}->member_of->{} SET role = 'owner', invitation_status = 'accepted', production_roles = $production_roles;",
+            creator_rid.display(),
+            production.id.display(),
+        );
 
         DB.query(&ownership_query)
+            .bind(("production_roles", roles.cloned()))
             .await
             .map_err(|e| Error::Database(format!("Failed to create ownership relation: {}", e)))?;
 
-        // Also create an involvement (credit) for the owner if they have a production role
-        if let Some(prod_role) = owner_production_role.filter(|r| !r.is_empty()) {
+        // Also create involvement (credit) edges for each owner production role
+        if let Some(ref roles) = owner_production_roles {
             use crate::models::involvement::InvolvementModel;
-            let _ = InvolvementModel::create(
-                creator_id,
-                &production.id,
-                "crew",
-                Some(prod_role),
-                None,
-                None,
-                "manual",
-            )
-            .await;
+            for role in roles.iter().filter(|r| !r.is_empty()) {
+                let _ = InvolvementModel::create(
+                    creator_id,
+                    &production.id,
+                    "crew",
+                    Some(role),
+                    None,
+                    None,
+                    "manual",
+                )
+                .await;
+            }
         }
 
         // Commit transaction
@@ -591,7 +591,7 @@ impl ProductionModel {
                 out.poster_url AS poster_url,
                 out.location AS location,
                 role,
-                production_role,
+                production_roles,
                 invitation_status,
                 out.created_at AS created_at
             FROM member_of
@@ -621,7 +621,7 @@ impl ProductionModel {
                 in.username as username,
                 in.slug as slug,
                 role,
-                production_role,
+                production_roles,
                 <string> type::table(in) as member_type,
                 invitation_status,
                 in.verified ?? false as is_verified
@@ -750,14 +750,14 @@ impl ProductionModel {
         production_id: &RecordId,
         member_id: &str,
         role: &str,
-        production_role: Option<&str>,
+        production_roles: Option<Vec<String>>,
         invited_by: Option<&str>,
     ) -> Result<(), Error> {
         let member_rid = validate_record_id_str(member_id)?;
         let invited_by_rid = invited_by.map(validate_record_id_str).transpose()?;
         debug!(
-            "Adding member {} to production {} with role {} / production_role {:?}",
-            member_id, production_id.display(), role, production_role
+            "Adding member {} to production {} with role {} / production_roles {:?}",
+            member_id, production_id.display(), role, production_roles
         );
 
         let invited_by_clause = if let Some(ref inviter_rid) = invited_by_rid {
@@ -766,26 +766,19 @@ impl ProductionModel {
             String::new()
         };
 
-        let prod_role_clause = if production_role.is_some() {
-            ", production_role = $production_role".to_string()
-        } else {
-            String::new()
-        };
-
         let query = format!(
-            "RELATE {}->member_of->{} SET role = $role, invitation_status = 'pending'{}{}",
+            "RELATE {}->member_of->{} SET role = $role, invitation_status = 'pending', production_roles = $production_roles{}",
             member_rid.display(),
             production_id.display(),
-            prod_role_clause,
             invited_by_clause,
         );
 
-        let mut q = DB.query(&query).bind(("role", role.to_string()));
-        if let Some(pr) = production_role {
-            q = q.bind(("production_role", pr.to_string()));
-        }
+        let roles = production_roles.filter(|r| !r.is_empty());
 
-        q.await
+        DB.query(&query)
+            .bind(("role", role.to_string()))
+            .bind(("production_roles", roles))
+            .await
             .map_err(|e| Error::Database(format!("Failed to add member: {}", e)))?;
 
         Ok(())
@@ -796,7 +789,7 @@ impl ProductionModel {
         production_id: &RecordId,
         member_id: &str,
         role: &str,
-        production_role: Option<&str>,
+        production_roles: Option<Vec<String>>,
     ) -> Result<(), Error> {
         let member_rid = validate_record_id_str(member_id)?;
         debug!(
@@ -804,41 +797,36 @@ impl ProductionModel {
             member_id, production_id.display(), role
         );
 
-        let prod_role_clause = if production_role.is_some() {
-            ", production_role = $production_role"
-        } else {
-            ""
-        };
+        let roles = production_roles.filter(|r| !r.is_empty());
 
         let query = format!(
-            "RELATE {}->member_of->{} SET role = $role, invitation_status = 'accepted'{}",
+            "RELATE {}->member_of->{} SET role = $role, invitation_status = 'accepted', production_roles = $production_roles",
             member_rid.display(),
             production_id.display(),
-            prod_role_clause,
         );
 
-        let mut q = DB.query(&query).bind(("role", role.to_string()));
-        if let Some(pr) = production_role {
-            q = q.bind(("production_role", pr.to_string()));
-        }
-
-        q.await
+        DB.query(&query)
+            .bind(("role", role.to_string()))
+            .bind(("production_roles", roles.clone()))
+            .await
             .map_err(|e| Error::Database(format!("Failed to add member: {}", e)))?;
 
-        // Also create an involvement (credit) so the production appears on the person's profile
-        if let Some(prod_role) = production_role.filter(|r| !r.is_empty()) {
+        // Also create involvement (credit) edges so the production appears on the person's profile
+        if let Some(ref roles) = roles {
             use crate::models::involvement::InvolvementModel;
-            if !InvolvementModel::exists(member_id, production_id, Some(prod_role)).await? {
-                InvolvementModel::create(
-                    member_id,
-                    production_id,
-                    "crew",
-                    Some(prod_role),
-                    None,
-                    None,
-                    "invited",
-                )
-                .await?;
+            for prod_role in roles.iter().filter(|r| !r.is_empty()) {
+                if !InvolvementModel::exists(member_id, production_id, Some(prod_role)).await? {
+                    InvolvementModel::create(
+                        member_id,
+                        production_id,
+                        "crew",
+                        Some(prod_role),
+                        None,
+                        None,
+                        "invited",
+                    )
+                    .await?;
+                }
             }
         }
 
@@ -862,6 +850,80 @@ impl ProductionModel {
         DB.query(&query)
             .await
             .map_err(|e| Error::Database(format!("Failed to remove member: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Update production roles for an existing member
+    pub async fn update_member_roles(
+        production_id: &RecordId,
+        member_id: &str,
+        new_roles: Vec<String>,
+    ) -> Result<(), Error> {
+        let member_rid = validate_record_id_str(member_id)?;
+        debug!(
+            "Updating roles for member {} in production {} to {:?}",
+            member_id, production_id.display(), new_roles
+        );
+
+        // Get current roles from member_of
+        let get_query = format!(
+            "SELECT VALUE production_roles FROM member_of WHERE in = {} AND out = {} LIMIT 1",
+            member_rid.display(),
+            production_id.display()
+        );
+        let mut result = DB
+            .query(&get_query)
+            .await
+            .map_err(|e| Error::Database(format!("Failed to fetch member roles: {}", e)))?;
+        let current: Option<Vec<String>> = result.take(0)?;
+        let old_roles: Vec<String> = current.unwrap_or_default();
+
+        let roles_to_store = if new_roles.is_empty() {
+            None
+        } else {
+            Some(new_roles.clone())
+        };
+
+        // Update the member_of edge
+        let update_query = format!(
+            "UPDATE member_of SET production_roles = $production_roles WHERE in = {} AND out = {}",
+            member_rid.display(),
+            production_id.display()
+        );
+        DB.query(&update_query)
+            .bind(("production_roles", roles_to_store))
+            .await
+            .map_err(|e| Error::Database(format!("Failed to update member roles: {}", e)))?;
+
+        // Sync involvement edges: delete removed roles, add new ones
+        use crate::models::involvement::InvolvementModel;
+
+        // Delete involvements for roles that were removed
+        for old_role in &old_roles {
+            if !new_roles.contains(old_role) {
+                InvolvementModel::delete_by_person_production_role(member_id, production_id, old_role).await?;
+            }
+        }
+
+        // Create involvements for newly added roles
+        // Use "manual" source since this is set by a production editor (owner/admin)
+        for new_role in &new_roles {
+            if !new_role.is_empty() && !old_roles.contains(new_role) {
+                if !InvolvementModel::exists(member_id, production_id, Some(new_role)).await? {
+                    InvolvementModel::create(
+                        member_id,
+                        production_id,
+                        "crew",
+                        Some(new_role),
+                        None,
+                        None,
+                        "manual",
+                    )
+                    .await?;
+                }
+            }
+        }
 
         Ok(())
     }

@@ -20,7 +20,7 @@ pub struct PendingInvitation {
     // Production invite extras
     #[serde(default)]
     #[surreal(default)]
-    pub production_role: Option<String>,
+    pub production_roles: Option<Vec<String>>,
     #[serde(default)]
     #[surreal(default)]
     pub relation_type: Option<String>,
@@ -117,7 +117,7 @@ impl PendingInvitationModel {
         target_slug: &str,
         role: &str,
         invited_by: &str,
-        production_role: Option<&str>,
+        production_roles: Option<&[String]>,
     ) -> Result<PendingInvitation, Error> {
         debug!(
             "Creating pending production invitation for {} to '{}'",
@@ -138,7 +138,7 @@ impl PendingInvitationModel {
                     role: $role,
                     invited_by: $invited_by,
                     status: 'pending',
-                    production_role: $production_role
+                    production_roles: $production_roles
                 }",
             )
             .bind(("email", email.to_string()))
@@ -147,7 +147,7 @@ impl PendingInvitationModel {
             .bind(("target_slug", target_slug.to_string()))
             .bind(("role", role.to_string()))
             .bind(("invited_by", invited_by))
-            .bind(("production_role", production_role.map(|s| s.to_string())))
+            .bind(("production_roles", production_roles.map(|s| s.to_vec())))
             .await?
             .take(0)?;
 

@@ -171,7 +171,7 @@ DEFINE INDEX idx_organization_slug ON organization FIELDS slug UNIQUE;
 DEFINE TABLE member_of TYPE RELATION FROM person|organization TO organization|production SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD role ON member_of TYPE string PERMISSIONS FULL;  -- "owner", "admin", "member" (permission level)
-DEFINE FIELD production_role ON member_of TYPE option<string> PERMISSIONS FULL;  -- e.g. "Director", "Producer" (from role table or custom)
+DEFINE FIELD production_roles ON member_of TYPE option<array<string>> PERMISSIONS FULL;  -- e.g. ["Director", "Producer"] (from role table or custom)
 DEFINE FIELD permissions ON member_of TYPE array<string> DEFAULT [] PERMISSIONS FULL;  -- Array of permission strings
 DEFINE FIELD joined_at ON member_of TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD invitation_status ON member_of TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined"
@@ -239,7 +239,7 @@ DEFINE FIELD invited_by ON pending_invitation TYPE record<person> PERMISSIONS FU
 DEFINE FIELD status ON pending_invitation TYPE string DEFAULT 'pending' ASSERT $value IN ['pending', 'accepted', 'expired'] PERMISSIONS FULL;
 DEFINE FIELD created_at ON pending_invitation TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD expires_at ON pending_invitation TYPE option<datetime> PERMISSIONS FULL;
-DEFINE FIELD production_role ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- e.g. "Director", "Producer"
+DEFINE FIELD production_roles ON pending_invitation TYPE option<array<string>> PERMISSIONS FULL;  -- e.g. ["Director", "Producer"]
 DEFINE FIELD relation_type ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- For production invites: "cast", "crew"
 DEFINE FIELD department ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- For production crew invites
 

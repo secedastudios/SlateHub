@@ -245,6 +245,26 @@ db-seed-jobs: wait-db
 	@docker exec -i slatehub-surrealdb /surreal sql --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main --pretty < db/seed-jobs.surql
 	@echo "✅ Seeded 100 job postings (posted by chris and Seceda)"
 
+db-migrate: wait-db
+	@if [ -z "$(MIGRATION)" ]; then \
+		echo "Usage: make db-migrate MIGRATION=001_production_roles_to_array"; \
+		echo "Available migrations:"; \
+		ls db/migrations/*.surql 2>/dev/null | sed 's|db/migrations/||;s|\.surql||' | sed 's/^/  /'; \
+	elif [ ! -f "db/migrations/$(MIGRATION).surql" ]; then \
+		echo "❌ Migration not found: db/migrations/$(MIGRATION).surql"; \
+		exit 1; \
+	else \
+		echo "Running migration: $(MIGRATION)..."; \
+		RESULT=$$(curl -sf -X POST "http://localhost:8000/sql" \
+			-H "Accept: application/json" \
+			-H "surreal-ns: slatehub" \
+			-H "surreal-db: main" \
+			-u "$(DB_USER):$(DB_PASS)" \
+			--data-binary @db/migrations/$(MIGRATION).surql); \
+		echo "$$RESULT" | python3 -m json.tool 2>/dev/null || echo "$$RESULT"; \
+		echo "✅ Migration $(MIGRATION) complete."; \
+	fi
+
 db-drop:
 	@echo "⚠️  WARNING: This will delete the entire database!"
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]

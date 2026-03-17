@@ -167,7 +167,7 @@ impl InvitationService {
         production_slug: &str,
         identifier: &str,
         permission_level: &str, // "owner", "admin", "member"
-        production_role: Option<&str>, // e.g. "Director", "Producer"
+        production_roles: Option<Vec<String>>, // e.g. ["Director", "Producer"]
         inviter_id: &str,
         inviter_name: &str,
         message: Option<&str>,
@@ -189,13 +189,16 @@ impl InvitationService {
                     &prod_rid,
                     &person_id,
                     permission_level,
-                    production_role,
+                    production_roles.clone(),
                     Some(inviter_id),
                 )
                 .await?;
 
                 // Notify the invitee
-                let role_desc = production_role.unwrap_or(permission_level);
+                let role_desc = production_roles.as_ref()
+                    .filter(|r| !r.is_empty())
+                    .map(|r| r.join(", "))
+                    .unwrap_or_else(|| permission_level.to_string());
                 let mut notification_msg = format!(
                     "{} invited you to join {} as {}",
                     inviter_name, production_title, role_desc
@@ -246,7 +249,7 @@ impl InvitationService {
                         production_slug,
                         permission_level,
                         inviter_id,
-                        production_role,
+                        production_roles.as_deref(),
                     )
                     .await?;
 
@@ -379,7 +382,7 @@ impl InvitationService {
                         &prod_rid,
                         person_id,
                         &invitation.role,
-                        invitation.production_role.as_deref(),
+                        invitation.production_roles.clone(),
                     )
                     .await
                     {

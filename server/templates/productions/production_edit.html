@@ -108,8 +108,10 @@
                     {% else %}
                     <strong>{{ member.name }}</strong>
                     {% endif %}
-                    {% if member.production_role.is_some() %}
-                    <span class="prod-role-badge">{{ member.production_role.as_ref().unwrap() }}</span>
+                    {% if let Some(roles) = member.production_roles %}
+                    {% for r in roles %}
+                    <span class="prod-role-badge">{{ r }}</span>
+                    {% endfor %}
                     {% endif %}
                     {% if member.role == "owner" || member.role == "admin" %}
                     <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
@@ -118,13 +120,41 @@
                     <span class="prod-role-badge" data-role="pending">invited</span>
                     {% endif %}
                 </div>
-                {% if member.role != "owner" %}
-                <form action="/productions/{{ production.slug }}/members/remove" method="post"
-                      onsubmit="return confirm('Remove {{ member.name }} from this production?');">
-                    <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
-                    <button type="submit" class="prod-btn-danger">Remove</button>
-                </form>
-                {% endif %}
+                <div class="prod-member-actions">
+                    <button type="button" class="prod-btn-outline" onclick="toggleEditRoles('person-{{ member.id }}')">Edit Roles</button>
+                    {% if member.role != "owner" %}
+                    <form action="/productions/{{ production.slug }}/members/remove" method="post" style="display:inline"
+                          onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                        <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                        <button type="submit" class="prod-btn-danger">Remove</button>
+                    </form>
+                    {% endif %}
+                </div>
+                <div id="edit-roles-person-{{ member.id }}" class="prod-edit-roles-form" hidden>
+                    <form action="/productions/{{ production.slug }}/members/update-roles" method="post">
+                        <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                        <div class="role-picker" id="edit-rp-person-{{ member.id }}" data-field-name="production_role">
+                            <div class="role-picker-tags"></div>
+                            <div class="role-picker-input">
+                                <select>
+                                    <option value="">-- Select Role --</option>
+                                    {% for r in production_roles %}
+                                    <option value="{{ r }}">{{ r }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="role-picker-add" onclick="addRoleFromSelect('edit-rp-person-{{ member.id }}')">Add</button>
+                            </div>
+                            <div class="role-picker-custom">
+                                <input type="text" id="edit-rp-custom-person-{{ member.id }}" placeholder="Or type a custom role..." />
+                                <button type="button" class="role-picker-add-custom" onclick="addCustomRole('edit-rp-person-{{ member.id }}', 'edit-rp-custom-person-{{ member.id }}')">Add Custom</button>
+                            </div>
+                        </div>
+                        <div style="margin-top:0.5rem;">
+                            <button type="submit" class="prod-btn-primary">Save Roles</button>
+                            <button type="button" class="prod-btn-outline" onclick="toggleEditRoles('person-{{ member.id }}')">Cancel</button>
+                        </div>
+                    </form>
+                </div>
             </li>
             {% endfor %}
         </ul>
@@ -156,14 +186,23 @@
                         </div>
                     </div>
                     <div>
-                        <label for="select-prod-role">Production Role</label>
-                        <select id="select-prod-role" name="production_role">
-                            <option value="">-- Select Role --</option>
-                            {% for r in production_roles %}
-                            <option value="{{ r }}">{{ r }}</option>
-                            {% endfor %}
-                        </select>
-                        <input type="text" name="custom_role" placeholder="Or enter a custom role..." />
+                        <label>Production Roles</label>
+                        <div class="role-picker" id="pm-role-picker" data-field-name="production_role">
+                            <div class="role-picker-tags"></div>
+                            <div class="role-picker-input">
+                                <select>
+                                    <option value="">-- Select Role --</option>
+                                    {% for r in production_roles %}
+                                    <option value="{{ r }}">{{ r }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="role-picker-add" onclick="addRoleFromSelect('pm-role-picker')">Add</button>
+                            </div>
+                            <div class="role-picker-custom">
+                                <input type="text" id="pm-custom-role" placeholder="Or type a custom role..." />
+                                <button type="button" class="role-picker-add-custom" onclick="addCustomRole('pm-role-picker', 'pm-custom-role')">Add Custom</button>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label for="select-member-perm">Permission Level</label>
@@ -195,20 +234,50 @@
                     <strong>{{ member.name }}</strong>
                     {% endif %}
                     {% if member.is_verified %}<svg data-role="verified-badge" data-verified="org" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>{% endif %}
-                    {% if member.production_role.is_some() %}
-                    <span class="prod-role-badge">{{ member.production_role.as_ref().unwrap() }}</span>
+                    {% if let Some(roles) = member.production_roles %}
+                    {% for r in roles %}
+                    <span class="prod-role-badge">{{ r }}</span>
+                    {% endfor %}
                     {% endif %}
                     {% if member.role == "owner" || member.role == "admin" %}
                     <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
                     {% endif %}
                 </div>
-                {% if member.role != "owner" %}
-                <form action="/productions/{{ production.slug }}/members/remove" method="post"
-                      onsubmit="return confirm('Remove {{ member.name }} from this production?');">
-                    <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
-                    <button type="submit" class="prod-btn-danger">Remove</button>
-                </form>
-                {% endif %}
+                <div class="prod-member-actions">
+                    <button type="button" class="prod-btn-outline" onclick="toggleEditRoles('org-{{ member.id }}')">Edit Roles</button>
+                    {% if member.role != "owner" %}
+                    <form action="/productions/{{ production.slug }}/members/remove" method="post" style="display:inline"
+                          onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                        <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                        <button type="submit" class="prod-btn-danger">Remove</button>
+                    </form>
+                    {% endif %}
+                </div>
+                <div id="edit-roles-org-{{ member.id }}" class="prod-edit-roles-form" hidden>
+                    <form action="/productions/{{ production.slug }}/members/update-roles" method="post">
+                        <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                        <div class="role-picker" id="edit-rp-org-{{ member.id }}" data-field-name="production_role">
+                            <div class="role-picker-tags"></div>
+                            <div class="role-picker-input">
+                                <select>
+                                    <option value="">-- Select Role --</option>
+                                    {% for r in org_production_roles %}
+                                    <option value="{{ r }}">{{ r }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="role-picker-add" onclick="addRoleFromSelect('edit-rp-org-{{ member.id }}')">Add</button>
+                            </div>
+                            <div class="role-picker-custom">
+                                <input type="text" id="edit-rp-custom-org-{{ member.id }}" placeholder="Or type a custom role..." />
+                                <button type="button" class="role-picker-add-custom" onclick="addCustomRole('edit-rp-org-{{ member.id }}', 'edit-rp-custom-org-{{ member.id }}')">Add Custom</button>
+                            </div>
+                        </div>
+                        <div style="margin-top:0.5rem;">
+                            <button type="submit" class="prod-btn-primary">Save Roles</button>
+                            <button type="button" class="prod-btn-outline" onclick="toggleEditRoles('org-{{ member.id }}')">Cancel</button>
+                        </div>
+                    </form>
+                </div>
             </li>
             {% endfor %}
         </ul>
@@ -240,14 +309,23 @@
                         </div>
                     </div>
                     <div>
-                        <label for="select-org-role">Organization Role</label>
-                        <select id="select-org-role" name="production_role">
-                            <option value="">-- Select Role --</option>
-                            {% for r in org_production_roles %}
-                            <option value="{{ r }}">{{ r }}</option>
-                            {% endfor %}
-                        </select>
-                        <input type="text" name="custom_role" placeholder="Or enter a custom role..." />
+                        <label>Organization Roles</label>
+                        <div class="role-picker" id="oe-role-picker" data-field-name="production_role">
+                            <div class="role-picker-tags"></div>
+                            <div class="role-picker-input">
+                                <select>
+                                    <option value="">-- Select Role --</option>
+                                    {% for r in org_production_roles %}
+                                    <option value="{{ r }}">{{ r }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="role-picker-add" onclick="addRoleFromSelect('oe-role-picker')">Add</button>
+                            </div>
+                            <div class="role-picker-custom">
+                                <input type="text" id="oe-custom-role" placeholder="Or type a custom role..." />
+                                <button type="button" class="role-picker-add-custom" onclick="addCustomRole('oe-role-picker', 'oe-custom-role')">Add Custom</button>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label for="select-org-perm">Permission Level</label>
@@ -345,6 +423,81 @@ document.getElementById('input-start-date').addEventListener('change', function(
 
 const prodId = '{{ production.id }}';
 
+function toggleEditRoles(memberId) {
+    const el = document.getElementById('edit-roles-' + memberId);
+    if (el) el.toggleAttribute('hidden');
+}
+
+function getActiveSelect(pickerId) {
+    const picker = document.getElementById(pickerId);
+    const selects = picker.querySelectorAll('.role-picker-input select');
+    for (const s of selects) { if (s.style.display !== 'none') return s; }
+    return selects[0];
+}
+
+function getRoles(pickerId) {
+    const picker = document.getElementById(pickerId);
+    return Array.from(picker.querySelectorAll('input[type="hidden"]')).map(h => h.value);
+}
+
+function renderTags(pickerId) {
+    const picker = document.getElementById(pickerId);
+    const tagsEl = picker.querySelector('.role-picker-tags');
+    const fieldName = picker.dataset.fieldName;
+    const hiddens = picker.querySelectorAll('input[type="hidden"]');
+    const roles = Array.from(hiddens).map(h => h.value);
+    tagsEl.innerHTML = '';
+    hiddens.forEach(h => h.remove());
+    roles.forEach(role => {
+        const input = document.createElement('input');
+        input.type = 'hidden'; input.name = fieldName; input.value = role;
+        picker.appendChild(input);
+        const tag = document.createElement('span');
+        tag.className = 'role-picker-tag'; tag.textContent = role;
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.innerHTML = '&times;';
+        btn.onclick = function() { removeRole(pickerId, role); };
+        tag.appendChild(btn); tagsEl.appendChild(tag);
+    });
+}
+
+function addRoleFromSelect(pickerId) {
+    const sel = getActiveSelect(pickerId);
+    const val = sel.value.trim();
+    if (!val || getRoles(pickerId).includes(val)) { sel.value = ''; return; }
+    const picker = document.getElementById(pickerId);
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = picker.dataset.fieldName; input.value = val;
+    picker.appendChild(input); sel.value = ''; renderTags(pickerId);
+}
+
+function addCustomRole(pickerId, inputId) {
+    const inp = document.getElementById(inputId);
+    const val = inp.value.trim();
+    if (!val || getRoles(pickerId).includes(val)) { inp.value = ''; return; }
+    const picker = document.getElementById(pickerId);
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = picker.dataset.fieldName; input.value = val;
+    picker.appendChild(input); inp.value = ''; renderTags(pickerId);
+}
+
+function removeRole(pickerId, role) {
+    const picker = document.getElementById(pickerId);
+    picker.querySelectorAll('input[type="hidden"]').forEach(h => { if (h.value === role) h.remove(); });
+    renderTags(pickerId);
+}
+
+function initPickerWithRoles(pickerId, roles) {
+    const picker = document.getElementById(pickerId);
+    if (!picker) return;
+    roles.forEach(role => {
+        const input = document.createElement('input');
+        input.type = 'hidden'; input.name = picker.dataset.fieldName; input.value = role;
+        picker.appendChild(input);
+    });
+    renderTags(pickerId);
+}
+
 function uploadPhoto(type) {
     const fileMap = { header: 'header-file', poster: 'poster-file', gallery: 'gallery-file' };
     const urlMap = {
@@ -396,5 +549,17 @@ function deleteGalleryPhoto(photoUrl) {
         })
         .catch(e => alert('Delete failed: ' + e));
 }
+
+// Pre-populate existing roles for edit-roles pickers
+{% for member in person_members %}
+{% if let Some(roles) = member.production_roles %}
+initPickerWithRoles('edit-rp-person-{{ member.id }}', [{% for r in roles %}'{{ r }}'{% if !loop.last %},{% endif %}{% endfor %}]);
+{% endif %}
+{% endfor %}
+{% for member in org_members %}
+{% if let Some(roles) = member.production_roles %}
+initPickerWithRoles('edit-rp-org-{{ member.id }}', [{% for r in roles %}'{{ r }}'{% if !loop.last %},{% endif %}{% endfor %}]);
+{% endif %}
+{% endfor %}
 </script>
 {% endblock %}

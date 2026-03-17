@@ -140,7 +140,7 @@ impl InvolvementModel {
                 out.title AS production_title,
                 out.slug AS production_slug,
                 out.`type` AS production_type,
-                out.poster_url AS poster_url,
+                IF out.poster_photo IS NOT NONE THEN out.poster_photo ELSE out.poster_url END AS poster_url,
                 out.tmdb_url AS tmdb_url,
                 out.tmdb_id AS tmdb_id,
                 out.media_type AS media_type,
@@ -273,6 +273,28 @@ impl InvolvementModel {
             }
         }
         Ok(false)
+    }
+
+    /// Delete involvement edges for a specific person+production+role combination
+    pub async fn delete_by_person_production_role(
+        person_id: &str,
+        production_id: &RecordId,
+        role: &str,
+    ) -> Result<(), Error> {
+        let person_rid = to_record_id(person_id);
+
+        let query = r#"
+            DELETE FROM involvement WHERE in = $person AND out = $production_id AND role = $role
+        "#;
+
+        DB.query(query)
+            .bind(("person", person_rid))
+            .bind(("production_id", production_id.clone()))
+            .bind(("role", role.to_string()))
+            .await
+            .map_err(|e| Error::Database(format!("Failed to delete involvement by role: {}", e)))?;
+
+        Ok(())
     }
 
     /// Delete an involvement edge

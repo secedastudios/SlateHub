@@ -538,8 +538,6 @@
                             <span data-role="verification-badge" data-status="verified" title="Verified credit">Verified</span>
                             {% else if inv.verification_status == "externally_sourced" %}
                             <span data-role="verification-badge" data-status="external" title="From TMDb">TMDb</span>
-                            {% else if inv.verification_status == "self_asserted" %}
-                            <span data-role="verification-badge" data-status="pending" title="Self-asserted">Pending</span>
                             {% endif %}
                         </div>
                         {% if inv.tmdb_url.is_some() %}
