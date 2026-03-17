@@ -25,6 +25,7 @@ pub fn router() -> Router {
     Router::new()
         .route("/account", get(account_settings_page))
         .route("/account/change-password", post(change_password))
+        .route("/account/change-email", post(change_email))
         .route("/account/change-username", post(change_username))
         .route("/account/messaging-preference", post(change_messaging_preference))
         .route("/account/contact-visibility", post(change_contact_visibility))
@@ -107,6 +108,80 @@ async fn change_password(
     info!("Password changed for user: {}", current_user.username);
 
     render_settings_with_success(&current_user.id, "Password changed successfully.").await
+}
+
+// -- Change Email --
+
+#[derive(Debug, Deserialize)]
+struct ChangeEmailForm {
+    new_email: String,
+    password: String,
+}
+
+async fn change_email(
+    AuthenticatedUser(current_user): AuthenticatedUser,
+    Form(form): Form<ChangeEmailForm>,
+) -> Result<Response, Error> {
+    let new_email = form.new_email.trim().to_lowercase();
+
+    if new_email.is_empty() {
+        return render_settings_with_error(&current_user.id, "Email cannot be empty.").await;
+    }
+
+    // Verify password
+    let person = Person::authenticate(&current_user.username, &form.password)
+        .await
+        .map_err(|_| Error::BadRequest("Password is incorrect.".to_string()))?
+        .ok_or_else(|| Error::BadRequest("Password is incorrect.".to_string()))?;
+
+    if new_email == person.email {
+        return render_settings_with_error(
+            &current_user.id,
+            "New email is the same as your current email.",
+        )
+        .await;
+    }
+
+    // Check if email is already taken
+    if Person::find_by_email(&new_email).await?.is_some() {
+        return render_settings_with_error(&current_user.id, "That email is already in use.")
+            .await;
+    }
+
+    // Update email
+    let sql = "UPDATE person SET email = $email WHERE id = $id";
+    DB.query(sql)
+        .bind(("email", new_email.clone()))
+        .bind(("id", person.id.clone()))
+        .await
+        .map_err(|e| Error::Database(e.to_string()))?;
+
+    info!(
+        "Email changed from {} to {} for user {}",
+        person.email,
+        new_email,
+        person.id.to_raw_string()
+    );
+
+    // Issue new JWT with updated email
+    let token = auth::create_jwt(
+        &person.id.to_raw_string(),
+        &person.username,
+        &new_email,
+    )?;
+
+    let cookie = Cookie::build(("auth_token", token))
+        .path("/")
+        .same_site(SameSite::Lax)
+        .http_only(true)
+        .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
+        .build();
+
+    Ok((
+        CookieJar::new().add(cookie),
+        response::redirect("/account?success=Email+changed+successfully."),
+    )
+        .into_response())
 }
 
 // -- Change Username --
