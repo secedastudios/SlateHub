@@ -517,11 +517,13 @@ RELATE $chris->member_of->$frostbite SET role = 'member', production_role = 'Dir
 
 -- Org memberships on productions
 RELATE $ember->member_of->$redclay SET role = 'owner', invitation_status = 'accepted';
-RELATE $lichtwerk->member_of->$winter SET role = 'member', invitation_status = 'accepted';
-RELATE $parallax->member_of->$neon SET role = 'member', invitation_status = 'accepted';
-RELATE $nordic->member_of->$meridian SET role = 'owner', invitation_status = 'accepted';
-RELATE $nordic->member_of->$frostbite SET role = 'owner', invitation_status = 'accepted';
-RELATE $moralescast->member_of->$redclay SET role = 'member', invitation_status = 'accepted';
+RELATE $lichtwerk->member_of->$winter SET role = 'admin', production_role = 'Studio Partner', invitation_status = 'accepted';
+RELATE $parallax->member_of->$neon SET role = 'admin', production_role = 'VFX Vendor', invitation_status = 'accepted';
+RELATE $nordic->member_of->$meridian SET role = 'owner', production_role = 'Lead Production Company', invitation_status = 'accepted';
+RELATE $nordic->member_of->$frostbite SET role = 'owner', production_role = 'Production Company', invitation_status = 'accepted';
+RELATE $moralescast->member_of->$redclay SET role = 'member', production_role = 'Casting', invitation_status = 'accepted';
+RELATE $seceda->member_of->$winter SET role = 'admin', production_role = 'Producer', invitation_status = 'accepted';
+RELATE $seceda->member_of->$neon SET role = 'admin', production_role = 'Executive Production', invitation_status = 'accepted';
 
 -- ============================================================================
 -- 6. LOCATIONS (8 filming locations)

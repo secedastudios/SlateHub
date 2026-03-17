@@ -619,6 +619,10 @@ button.prod-btn-danger:hover:not(:disabled) {
 #prod-members-header .prod-section-title,
 #prod-orgs-header .prod-section-title { margin-bottom: 0; }
 
+#prod-orgs-header {
+    margin-top: 3rem;
+}
+
 .prod-members-list {
     list-style: none;
     padding: 0;
@@ -630,7 +634,7 @@ button.prod-btn-danger:hover:not(:disabled) {
 
 .prod-member-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem;
     padding: 0.9rem 1rem;
@@ -638,6 +642,11 @@ button.prod-btn-danger:hover:not(:disabled) {
     border: 1px solid rgba(214, 216, 202, 0.06);
     border-radius: 10px;
     transition: border-color 0.2s;
+}
+
+.prod-member-item > form {
+    flex-shrink: 0;
+    width: auto;
 }
 
 .prod-member-item:hover { border-color: rgba(214, 216, 202, 0.15); }

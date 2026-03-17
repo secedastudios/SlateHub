@@ -503,6 +503,12 @@ ul#nav-user {
     display: inline-flex;
 }
 
+/* Mobile-only elements — hidden on desktop */
+[data-role="account-label"],
+[data-role="menu-chevron"] {
+    display: none;
+}
+
 #notification-badge {
     position: absolute;
     top: -4px;
@@ -2609,54 +2615,129 @@ dd {
         padding: var(--space-lg) var(--page-gutter, 1.25rem);
     }
 
-    /* Navigation — mobile hamburger menu */
+    /* ================================================
+       MOBILE MENU — Full-screen overlay redesign
+       ================================================ */
+
+    /* Lock body scroll when menu is open */
+    body:has(#site-header [data-role="nav-toggle"][aria-expanded="true"]) {
+        overflow: hidden;
+    }
+
+    /* Base nav — flex row for logo + hamburger */
     #site-header nav#main-nav {
         display: flex;
         flex-wrap: wrap;
+        align-content: flex-start;
         padding: var(--space-sm) var(--space-lg);
         min-height: 48px;
     }
 
-    /* Show hamburger toggle on mobile */
+    /* Full-screen dark overlay when menu is open */
+    #site-header:has([data-role="nav-toggle"][aria-expanded="true"]) {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        background: var(--color-bg-primary);
+    }
+
+    /* Hamburger toggle */
     #main-nav [data-role="nav-toggle"] {
         display: flex;
         order: 2;
         margin-left: auto;
     }
 
-    /* Brand stays in top row */
+    /* Brand top row */
     #main-nav [data-role="nav-brand"] {
         order: 1;
         flex-shrink: 0;
     }
 
-    /* Primary nav hidden by default on mobile */
+    /* ---- Primary nav links ---- */
     #site-header #main-nav #nav-primary {
         display: none !important;
         order: 3;
         flex-basis: 100%;
         flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-md);
-        padding-top: var(--space-lg);
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        margin-top: var(--space-sm);
+        align-items: stretch;
+        gap: 0;
+        padding: var(--space-lg) 0 0 0;
+        margin-top: var(--space-md);
+        border-top: 1px solid rgba(214, 216, 202, 0.1);
     }
 
-    /* User nav hidden by default on mobile */
+    #site-header #main-nav #nav-primary li {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    #main-nav #nav-primary a {
+        display: block;
+        padding: 14px 0 !important;
+        font-size: 0.9375rem !important;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: var(--color-text-primary);
+    }
+
+    #main-nav #nav-primary a[aria-current="page"] {
+        color: var(--color-accent);
+    }
+
+    #main-nav #nav-primary a[aria-current="page"]::after {
+        display: none;
+    }
+
+    /* ---- User nav section ---- */
     #site-header #main-nav [data-role="nav-user"] {
         display: none !important;
         order: 4;
         flex-basis: 100%;
         flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-md);
-        padding-top: var(--space-md);
-        padding-bottom: var(--space-md);
+        align-items: stretch;
+        gap: 0;
+        padding: var(--space-sm) 0 calc(var(--space-xl) + env(safe-area-inset-bottom, 0px)) 0;
+        border-top: 1px solid rgba(214, 216, 202, 0.1);
+        margin-top: var(--space-xs);
     }
 
-    /* Show nav lists when hamburger is expanded
-       Specificity must beat the hide rules above */
+    /* "About" link in user nav — matches primary nav style */
+    #main-nav [data-role="nav-user"] > li:first-child {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    #main-nav [data-role="nav-user"] > li:first-child a {
+        display: block;
+        padding: 14px 0 !important;
+        font-size: 0.9375rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: var(--color-text-primary) !important;
+    }
+
+    /* Logged-out nav items (Login, Create Account) */
+    #main-nav [data-role="nav-user"] > li > a#link-nav-login,
+    #main-nav [data-role="nav-user"] > li > a#link-nav-about {
+        display: block;
+        padding: 14px 0 !important;
+        font-size: 0.9375rem !important;
+        font-weight: 700 !important;
+    }
+
+    #main-nav [data-role="nav-cta"] {
+        padding: 14px 0 !important;
+        font-size: 0.9375rem !important;
+    }
+
+    /* ---- Show menu sections when hamburger is expanded ---- */
     #site-header
         #main-nav
         [data-role="nav-toggle"][aria-expanded="true"]
@@ -2671,19 +2752,161 @@ dd {
         display: flex !important;
     }
 
-    /* Mobile nav links — larger touch targets */
-    #main-nav #nav-primary a,
-    #main-nav [data-role="nav-user"] a,
-    #main-nav [data-role="nav-cta"] {
-        padding: var(--space-sm) 0;
-        font-size: var(--text-sm);
+    /* ================================================
+       User dropdown — accordion on mobile
+       ================================================ */
+
+    /* User-menu li fills width */
+    [data-component="user-menu"] {
+        width: 100%;
     }
 
-    /* Keep dropdown menu positioned on mobile */
-    #user-menu-dropdown [data-role="dropdown-menu"] {
-        right: 0;
-        left: 0;
+    #user-menu-dropdown {
+        width: 100%;
+    }
+
+    /* Summary becomes a full-width tappable row: avatar + name + chevron */
+    #user-menu-dropdown summary {
+        display: flex !important;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0 !important;
+        border-radius: 0 !important;
+        width: 100%;
+        background: transparent !important;
+    }
+
+    /* Kill the desktop caret */
+    #user-menu-dropdown summary::after {
+        display: none !important;
+    }
+
+    /* Show account label */
+    #user-menu-dropdown summary [data-role="account-label"] {
+        display: block;
+        font-size: 0.9375rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: var(--color-text-primary);
+    }
+
+    /* Show chevron */
+    #user-menu-dropdown summary [data-role="menu-chevron"] {
+        display: block;
+        margin-left: auto;
+        color: var(--color-text-muted);
+        flex-shrink: 0;
+        transition: transform 0.25s ease;
+    }
+
+    #user-menu-dropdown[open] summary [data-role="menu-chevron"] {
+        transform: rotate(180deg);
+    }
+
+    /* Open state — subtle highlight on the row */
+    #user-menu-dropdown[open] summary {
+        background: transparent !important;
+    }
+
+    /* ---- Accordion content (dropdown list) ---- */
+    [data-component="user-menu"] #user-menu-dropdown [data-role="dropdown-menu"] {
+        position: static !important;
         min-width: 100%;
+        background: rgba(214, 216, 202, 0.03) !important;
+        border: none !important;
+        border-radius: var(--radius-lg) !important;
+        box-shadow: none !important;
+        padding: var(--space-xs) 0 var(--space-xs) 44px !important;
+        margin: 0 0 var(--space-sm) 0;
+        animation: none !important;
+    }
+
+    /* Menu items */
+    #user-menu-dropdown [data-role="dropdown-menu"] li {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    #user-menu-dropdown [data-role="dropdown-menu"] a {
+        display: flex !important;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 0 !important;
+        color: rgba(214, 216, 202, 0.6) !important;
+        font-size: 0.875rem !important;
+        font-weight: var(--font-weight-regular) !important;
+        text-transform: none !important;
+        letter-spacing: 0 !important;
+        background: transparent !important;
+    }
+
+    #user-menu-dropdown [data-role="dropdown-menu"] a:hover {
+        color: var(--color-text-primary) !important;
+        background: transparent !important;
+    }
+
+    #user-menu-dropdown [data-role="dropdown-menu"] a svg {
+        width: 17px;
+        height: 17px;
+        opacity: 0.35;
+        flex-shrink: 0;
+    }
+
+    #user-menu-dropdown [data-role="dropdown-menu"] a:hover svg {
+        opacity: 0.7;
+    }
+
+    /* CTA items (Get Verified) */
+    #user-menu-dropdown [data-role="dropdown-menu"] a[data-role="cta-item"] {
+        color: #1d9bf0 !important;
+    }
+
+    /* Dividers */
+    #user-menu-dropdown [data-role="dropdown-menu"] hr[data-role="divider"] {
+        margin: 4px 0;
+        border-top-color: rgba(214, 216, 202, 0.06);
+    }
+
+    /* Logout button */
+    #user-menu-dropdown [data-role="dropdown-menu"] #form-logout {
+        margin: 0;
+        padding: 0;
+    }
+
+    #user-menu-dropdown [data-role="dropdown-menu"] #button-logout {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 0;
+        font-size: 0.875rem;
+        font-weight: var(--font-weight-regular);
+        color: var(--color-accent);
+        background: transparent;
+        border: none;
+        text-transform: none;
+        letter-spacing: 0;
+        min-height: auto;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    #user-menu-dropdown [data-role="dropdown-menu"] #button-logout:hover {
+        color: #ff6b4a;
+        background: transparent;
+    }
+
+    #user-menu-dropdown [data-role="dropdown-menu"] #button-logout svg {
+        opacity: 0.35;
+        width: 17px;
+        height: 17px;
+    }
+
+    /* Notification badge in menu */
+    #user-menu-dropdown [data-role="dropdown-menu"] [data-role="menu-badge"] {
+        margin-left: auto;
     }
 
     /* Forms */
