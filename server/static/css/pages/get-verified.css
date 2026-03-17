@@ -1,194 +1,374 @@
 /* ========================================
-   Get Verified Page
+   Get Verified Page — Dark Cinematic
    ======================================== */
 
-[data-component="get-verified"] {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: var(--space-xl) var(--space-lg);
-    color: var(--color-text-secondary, #a3a390);
+[data-page="get-verified"] #main-content {
+    max-width: 100%;
+    padding: 0;
 }
 
-/* Hero */
+[data-component="get-verified"],
+[data-component="get-verified"] section,
+[data-component="get-verified"] div:not(#cost-card):not([data-role="benefit-icon"]),
+[data-component="get-verified"] header,
+[data-component="get-verified"] ul,
+[data-component="get-verified"] li,
+[data-component="get-verified"] p,
+[data-component="get-verified"] h1,
+[data-component="get-verified"] h2,
+[data-component="get-verified"] form {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0;
+}
+
+[data-component="get-verified"] {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 var(--page-gutter, 2rem);
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+/* ========================================
+   Hero
+   ======================================== */
+
 #get-verified-hero {
     text-align: center;
-    margin-bottom: var(--space-2xl, 3rem);
+    padding: 4rem 0 3rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+    margin-bottom: 3rem;
 }
 
 #verified-badge-large {
-    margin-bottom: var(--space-md);
+    margin-bottom: 1.5rem;
+}
+
+#verified-badge-large svg {
+    filter: drop-shadow(0 0 20px rgba(29, 155, 240, 0.25));
 }
 
 #heading-get-verified {
-    font-family: var(--font-heading, Georgia, serif);
-    font-size: clamp(1.5rem, 4vw, 2.25rem);
-    color: var(--color-text-primary, #d6d8ca);
-    margin: 0 0 var(--space-sm);
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 3rem);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    margin: 0 0 0.75rem 0;
 }
 
 #get-verified-subtitle {
-    font-size: var(--text-md, 1rem);
-    color: var(--color-text-secondary, #a3a390);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: var(--color-text-muted, #9ca39e);
     margin: 0;
+    line-height: 1.6;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-/* Content sections */
+/* ========================================
+   Content sections
+   ======================================== */
+
 #get-verified-content section {
-    margin-bottom: var(--space-2xl, 3rem);
+    margin-bottom: 3rem;
 }
 
 #get-verified-content h2 {
-    font-family: var(--font-heading, Georgia, serif);
-    font-size: var(--text-lg, 1.25rem);
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-weight: 700;
+    font-size: 1.2rem;
     color: var(--color-text-primary, #d6d8ca);
-    margin: 0 0 var(--space-md);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 1.25rem 0;
 }
 
 #get-verified-content p {
-    font-size: var(--text-sm, 0.875rem);
-    color: var(--color-text-secondary, #a3a390);
-    line-height: 1.7;
-    margin: 0 0 var(--space-sm);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+    line-height: 1.75;
+    margin: 0 0 0.65rem 0;
 }
 
-/* Benefits list */
+/* ========================================
+   Why section
+   ======================================== */
+
+[data-section="why"] {
+    padding-bottom: 3rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+}
+
+/* ========================================
+   Benefits
+   ======================================== */
+
 #benefits-list {
     list-style: none;
     padding: 0;
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-lg);
+    gap: 1.5rem;
 }
 
 #benefits-list li {
     display: flex;
-    gap: var(--space-md);
+    gap: 1.25rem;
     align-items: flex-start;
+    padding: 1.25rem;
+    background: rgba(214, 216, 202, 0.025) !important;
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    transition: border-color 0.2s;
+}
+
+#benefits-list li:hover {
+    border-color: rgba(214, 216, 202, 0.12);
 }
 
 #benefits-list [data-role="benefit-icon"] {
     flex-shrink: 0;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgba(29, 155, 240, 0.08);
-    border-radius: var(--radius-md, 8px);
-    color: var(--color-text-secondary, #a3a390);
+    border: 1px solid rgba(29, 155, 240, 0.12);
+}
+
+#benefits-list [data-role="benefit-icon"] svg {
+    color: rgba(29, 155, 240, 0.7);
 }
 
 #benefits-list strong {
     display: block;
-    font-size: var(--text-sm, 0.875rem);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 600;
     color: var(--color-text-primary, #d6d8ca);
-    margin-bottom: 2px;
+    margin-bottom: 0.25rem;
 }
 
 #benefits-list p {
     margin: 0;
-    font-size: var(--text-xs, 0.8125rem);
-    color: var(--color-text-secondary, #a3a390);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--color-text-muted, #9ca39e);
+    line-height: 1.6;
 }
 
-/* Cost card */
+/* ========================================
+   Cost card
+   ======================================== */
+
+[data-section="cost"] {
+    padding-bottom: 3rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.06);
+}
+
 #cost-card {
     text-align: center;
-    padding: var(--space-xl);
-    border: 1px solid rgba(29, 155, 240, 0.2);
-    border-radius: var(--radius-lg, 12px);
-    background: rgba(29, 155, 240, 0.04);
+    padding: 2.5rem 2rem;
+    border: 1px solid rgba(214, 216, 202, 0.08);
+    background: rgba(214, 216, 202, 0.02) !important;
 }
 
 #cost-amount {
-    font-family: var(--font-heading, Georgia, serif);
-    font-size: 3rem;
-    color: var(--color-text-primary, #d6d8ca);
     line-height: 1;
-    margin-bottom: var(--space-xs);
+    margin-bottom: 0.35rem;
 }
 
 #cost-currency {
+    font-family: var(--font-body);
     font-size: 1.5rem;
+    font-weight: 400;
+    color: var(--color-text-muted, #9ca39e);
     vertical-align: super;
     margin-right: 2px;
 }
 
+#cost-value {
+    font-family: "Onsite Condensed TRIAL", var(--font-display);
+    font-size: 4rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+}
+
 #cost-label {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted, #6b6b5a);
+    font-family: var(--font-body);
+    font-size: 0.65rem;
+    color: var(--color-text-muted, #9ca39e);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin: 0 0 var(--space-md) !important;
+    letter-spacing: 0.12em;
+    margin: 0 0 1.5rem 0 !important;
 }
 
 #cost-description {
-    max-width: 480px;
+    max-width: 420px;
     margin: 0 auto !important;
     text-align: center;
+    font-size: 0.8rem !important;
+    color: rgba(156, 163, 158, 0.7) !important;
+    line-height: 1.7 !important;
 }
 
-/* CTA */
-#section-cta {
-    text-align: center;
-}
-
-#section-cta p {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted, #6b6b5a);
-}
-
-#cta-actions {
-    display: flex;
-    gap: var(--space-md);
-    justify-content: center;
-    margin-top: var(--space-md);
-}
-
-#cta-actions [data-role="btn-primary"],
+/* Verify button */
 #verify-btn {
-    display: inline-block;
-    padding: var(--space-sm) var(--space-lg);
-    background: #1d9bf0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1.5rem;
+    padding: 0.65rem 2.5rem;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 700;
     color: #fff;
+    background: #1d9bf0;
     border: none;
-    border-radius: var(--radius-sm);
-    text-decoration: none;
-    font-size: var(--text-sm);
-    font-weight: 600;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
     cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    min-height: 0;
 }
 
-#cta-actions [data-role="btn-primary"]:hover,
 #verify-btn:hover {
     background: #1a8cd8;
+    transform: scale(1.03);
 }
 
 #verify-btn-pending {
     display: inline-block;
-    padding: var(--space-sm) var(--space-lg);
+    margin-top: 1.5rem;
+    padding: 0.65rem 2.5rem;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-text-muted, #9ca39e);
     background: transparent;
-    color: var(--color-text-muted, #6b6b5a);
-    border: 1px solid rgba(214, 216, 202, 0.2);
-    border-radius: var(--radius-sm);
-    font-size: var(--text-sm);
-    font-weight: 600;
+    border: 1px solid rgba(214, 216, 202, 0.15);
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
     cursor: default;
 }
 
-#cta-actions [data-role="btn-outline"] {
-    display: inline-block;
-    padding: var(--space-sm) var(--space-lg);
-    background: transparent;
-    color: var(--color-text-primary, #d6d8ca);
-    border: 1px solid rgba(214, 216, 202, 0.3);
-    border-radius: var(--radius-sm);
-    text-decoration: none;
+/* ========================================
+   CTA (logged-out users)
+   ======================================== */
+
+#section-cta {
+    text-align: center;
+    padding: 2rem 0 4rem;
+}
+
+#section-cta p {
+    font-family: var(--font-body);
     font-size: var(--text-sm);
-    font-weight: 600;
+    color: var(--color-text-muted, #9ca39e);
+    margin: 0 0 1.25rem 0;
+}
+
+#cta-actions {
+    display: flex;
+    gap: 0.65rem;
+    justify-content: center;
+}
+
+#cta-actions [data-role="btn-primary"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1.4rem;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #0a0a08;
+    background: var(--color-text-primary, #d6d8ca);
+    border: none;
+    border-radius: 9999px;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    transition: background 0.2s, transform 0.15s;
+    min-height: 0;
+}
+
+#cta-actions [data-role="btn-primary"]:hover {
+    background: #fff;
+    transform: scale(1.03);
+}
+
+#cta-actions [data-role="btn-outline"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1.3rem;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: rgba(214, 216, 202, 0.7);
+    background: transparent;
+    border: 1px solid rgba(214, 216, 202, 0.18);
+    border-radius: 9999px;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+    min-height: 0;
 }
 
 #cta-actions [data-role="btn-outline"]:hover {
-    border-color: var(--color-text-secondary, #a3a390);
+    color: var(--color-text-primary, #d6d8ca);
+    border-color: rgba(214, 216, 202, 0.4);
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+
+@media (max-width: 768px) {
+    [data-component="get-verified"] {
+        padding: 0 var(--page-gutter, 1.25rem);
+    }
+
+    #get-verified-hero {
+        padding: 3rem 0 2rem;
+    }
+
+    #heading-get-verified {
+        font-size: clamp(1.75rem, 8vw, 2.5rem);
+    }
+
+    #benefits-list li {
+        padding: 1rem;
+    }
+
+    #cost-card {
+        padding: 2rem 1.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    [data-component="get-verified"] {
+        padding: 0 var(--page-gutter, 1rem);
+    }
+
+    #benefits-list li {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    #cta-actions {
+        flex-direction: column;
+    }
 }

@@ -130,18 +130,7 @@ fn render_html_error(
         ),
     };
 
-    let request_path_html = request_path
-        .map(|p| {
-            format!(
-                r#"<p><strong>Requested path:</strong> <code>{}</code></p>"#,
-                p
-            )
-        })
-        .unwrap_or_default();
-
-    let request_id_html = request_id
-        .map(|id| format!(r#"<p><strong>Request ID:</strong> <code>{}</code></p>"#, id))
-        .unwrap_or_default();
+    let _ = (request_path, request_id);
 
     let html = format!(
         r#"<!DOCTYPE html>
@@ -149,61 +138,38 @@ fn render_html_error(
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light dark">
-    <title>{} - SlateHub</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <meta name="color-scheme" content="dark">
+    <title>{title} - SlateHub</title>
+    <link rel="stylesheet" href="/static/css/main.css">
     <link rel="stylesheet" href="/static/css/pages/errors.css">
-    <script>
-        const savedTheme = localStorage.getItem("theme") || "dark";
-        document.documentElement.setAttribute("data-theme", savedTheme);
-    </script>
 </head>
-<body data-page="error-{}">
+<body data-page="error-{status_code}" style="background:#171717;color:#d6d8ca">
     <main id="main-content">
-        <section data-component="error-page" data-type="{}">
+        <article data-component="error-page" data-error-code="{status_code}">
+            <a href="/" data-role="error-brand" aria-label="SlateHub Home">
+                <img src="/static/images/logo.svg" alt="SlateHub" height="14" />
+            </a>
             <header data-role="error-header">
-                <h1 id="heading-error-code">{}</h1>
-                <h2 id="heading-error-message">{}</h2>
+                <span data-role="error-code">{heading}</span>
+                <h1>{status_text}</h1>
+                <p data-role="error-description">{description}</p>
             </header>
-
-            <div data-role="error-body">
-                <p id="error-description">{}</p>
-
-                <div data-role="error-details">
-                    {}
-                    {}
-                </div>
-
-                <nav data-role="error-actions">
-                    <a href="/" role="button" data-type="primary">
-                        <span aria-hidden="true">🏠</span> Go to Homepage
-                    </a>
-                    <a href="/login" role="button" data-type="secondary">
-                        <span aria-hidden="true">🔑</span> Sign In
-                    </a>
-                    <a href="/signup" role="button" data-type="secondary">
-                        <span aria-hidden="true">✨</span> Create Account
-                    </a>
-                </nav>
-            </div>
-
+            <nav data-role="error-actions">
+                <a href="/" role="button" data-type="primary">Homepage</a>
+                <a href="/login" role="button" data-type="secondary">Sign In</a>
+            </nav>
             <footer data-role="error-footer">
-                <div data-role="help-text">
-                    <p>If you continue to experience problems, please contact support.</p>
-                </div>
+                <p>If this persists, please <a href="/contact">contact support</a>.</p>
             </footer>
-        </section>
+        </article>
     </main>
 </body>
 </html>"#,
-        title,
-        status_code,
-        status_code,
-        heading,
-        status_text,
-        description,
-        request_path_html,
-        request_id_html,
+        title = title,
+        status_code = status_code,
+        heading = heading,
+        status_text = status_text,
+        description = description,
     );
 
     (status, Html(html)).into_response()

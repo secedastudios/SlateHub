@@ -77,15 +77,11 @@
                         </div>
                     </div>
                 </a>
+                {% if !production.description.is_empty() %}
                 <div class="prod-card-content">
-                    {% if !production.description.is_empty() %}
                     <p class="prod-card-desc">{{ production.description }}</p>
-                    {% endif %}
-                    <div class="prod-card-actions">
-                        <a href="/productions/{{ production.slug }}" class="prod-btn-primary">View</a>
-                        <a href="/productions/{{ production.slug }}" class="prod-btn-outline">Save</a>
-                    </div>
                 </div>
+                {% endif %}
             </article>
             {% endfor %}
             {% if has_more %}
@@ -119,12 +115,12 @@
     </section>
 </section>
 
-<button class="prod-scroll-top" id="prod-scroll-top" aria-label="Scroll to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+<button data-role="scroll-top" id="scroll-top-btn" aria-label="Scroll to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
 </button>
 <script>
 (function(){
-    var btn = document.getElementById('prod-scroll-top');
+    var btn = document.getElementById('scroll-top-btn');
     var threshold = window.innerHeight * 1.5;
     window.addEventListener('scroll', function(){
         btn.classList.toggle('visible', window.scrollY > threshold);

@@ -594,15 +594,13 @@ fn render_location_card(loc: &crate::templates::LocationView) -> String {
     }
     html.push_str("</div></div></a>");
 
-    html.push_str(r#"<div class="loc-card-content">"#);
     if let Some(ref desc) = loc.description {
-        html.push_str(&format!(r#"<p class="loc-card-desc">{}</p>"#, escape_html(desc)));
+        html.push_str(&format!(
+            r#"<div class="loc-card-content"><p class="loc-card-desc">{}</p></div>"#,
+            escape_html(desc)
+        ));
     }
-    html.push_str(&format!(r#"<address class="loc-card-address">{}, {}</address>"#, escape_html(&loc.address), escape_html(&loc.country)));
-    html.push_str(r#"<div class="loc-card-actions">"#);
-    html.push_str(&format!(r#"<a href="/locations/{}" class="loc-btn-primary">View</a>"#, escape_html(&loc.id)));
-    // Note: Skip like button in SSE cards since we don't have liked state
-    html.push_str("</div></div></article>");
+    html.push_str("</article>");
 
     html
 }

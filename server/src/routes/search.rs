@@ -12,15 +12,22 @@ use tracing::{debug, error};
 
 use regex::Regex;
 
+use surrealdb::types::RecordId;
+
 use crate::db::DB;
 use crate::error::Error;
 use crate::middleware::UserExtractor;
+use crate::models::likes::LikesModel;
 use crate::services::embedding::generate_embedding_async;
 use crate::templates::User;
 
 mod filters {
     pub fn abs_url(path: &str) -> askama::Result<String> {
         Ok(format!("{}{}", crate::config::app_url(), path))
+    }
+
+    pub fn contains(list: &[String], value: &String) -> askama::Result<bool> {
+        Ok(list.contains(value))
     }
 }
 
@@ -39,6 +46,8 @@ struct SearchTemplate {
     organizations: Vec<OrganizationSearchResult>,
     locations: Vec<LocationSearchResult>,
     productions: Vec<ProductionSearchResult>,
+    liked_ids: Vec<String>,
+    current_user_id: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -107,10 +116,11 @@ async fn search_page(
     let query = params.q.as_deref().unwrap_or("").trim();
 
     // Extract user from request
-    let user = if let Some(session_user) = request.get_user() {
-        Some(User::from_session_user(&session_user).await)
+    let (user, current_user_id) = if let Some(session_user) = request.get_user() {
+        let uid = session_user.id.clone();
+        (Some(User::from_session_user(&session_user).await), Some(uid))
     } else {
-        None
+        (None, None)
     };
 
     if query.is_empty() {
@@ -128,6 +138,8 @@ async fn search_page(
             organizations: vec![],
             locations: vec![],
             productions: vec![],
+            liked_ids: vec![],
+            current_user_id: current_user_id.clone().unwrap_or_default(),
         };
 
         let html = template.render().map_err(|e| {
@@ -161,6 +173,28 @@ async fn search_page(
 
     let total_results = people.len() + organizations.len() + locations.len() + productions.len();
 
+    // Fetch liked IDs for people results if user is logged in
+    let liked_ids = if let Some(ref uid) = current_user_id {
+        let person_rid = if uid.starts_with("person:") {
+            RecordId::parse_simple(uid).ok()
+        } else {
+            Some(RecordId::new("person", uid.as_str()))
+        };
+        if let Some(rid) = person_rid {
+            let target_ids: Vec<RecordId> = people
+                .iter()
+                .filter_map(|p| RecordId::parse_simple(&p.id).ok())
+                .collect();
+            LikesModel::get_liked_ids(&rid, &target_ids)
+                .await
+                .unwrap_or_default()
+        } else {
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+
     let template = SearchTemplate {
         app_name: "SlateHub".to_string(),
         year: chrono::Utc::now().year(),
@@ -174,6 +208,8 @@ async fn search_page(
         organizations,
         locations,
         productions,
+        liked_ids,
+        current_user_id: current_user_id.unwrap_or_default(),
     };
 
     let html = template.render().map_err(|e| {

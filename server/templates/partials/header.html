@@ -38,7 +38,7 @@
                 <a
                     href="/orgs"
                     id="link-nav-organizations"
-                    {% if active_page == "orgs" %}aria-current="page"{% endif %}
+                    {% if active_page == "orgs" || active_page == "organizations" || active_page == "my-organizations" || active_page == "organization-profile" %}aria-current="page"{% endif %}
                 >Orgs</a>
             </li>
             <li>
@@ -52,14 +52,14 @@
                 <a
                     href="/productions"
                     id="link-nav-productions"
-                    {% if active_page == "productions" %}aria-current="page"{% endif %}
+                    {% if active_page == "productions" || active_page == "my-productions" %}aria-current="page"{% endif %}
                 >Productions</a>
             </li>
             <li>
                 <a
                     href="/jobs"
                     id="link-nav-jobs"
-                    {% if active_page == "jobs" %}aria-current="page"{% endif %}
+                    {% if active_page == "jobs" || active_page == "my-jobs" %}aria-current="page"{% endif %}
                 >Jobs</a>
             </li>
         </ul>
@@ -109,111 +109,79 @@
                         aria-labelledby="button-user-menu"
                     >
                             <li role="none">
-                                <a
-                                href="/profile"
-                                id="link-menu-profile"
-                                role="menuitem"
-                            >Profile</a>
+                                <a href="/profile" id="link-menu-profile" role="menuitem">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                    Profile
+                                </a>
                             </li>
                             <li role="none">
-                                <a
-                                href="/likes"
-                                id="link-menu-likes"
-                                role="menuitem"
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="#e53e3e" stroke="#e53e3e" stroke-width="1.5" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                                Likes
-                            </a>
+                                <a href="/messages" id="link-menu-messages" role="menuitem">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                    Messages
+                                </a>
                             </li>
                             <li role="none">
-                                <a
-                                href="/messages"
-                                id="link-menu-messages"
-                                role="menuitem"
-                            >Messages</a>
+                                <a href="/notifications" id="link-menu-notifications" role="menuitem">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                                    Notifications{% if user.notification_count > 0 %} <span data-role="menu-badge">{{ user.notification_count }}</span>{% endif %}
+                                </a>
                             </li>
                             <li role="none">
-                                <a
-                                href="/notifications"
-                                id="link-menu-notifications"
-                                role="menuitem"
-                            >Notifications{% if user.notification_count > 0 %} ({{ user.notification_count }}){% endif %}</a>
+                                <a href="/likes" id="link-menu-likes" role="menuitem">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                                    Likes
+                                </a>
+                            </li>
+                            <li role="none"><hr data-role="divider" aria-hidden="true" /></li>
+                            <li role="none">
+                                <a href="/my-orgs" id="link-menu-organizations" role="menuitem">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                                    Organizations
+                                </a>
                             </li>
                             <li role="none">
-                                <a
-                                href="/my-orgs"
-                                id="link-menu-organizations"
-                                role="menuitem"
-                            >My Organizations</a>
+                                <a href="/my-productions" id="link-menu-productions" role="menuitem">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                                    Productions
+                                </a>
                             </li>
                             <li role="none">
-                                <a
-                                href="/my-productions"
-                                id="link-menu-productions"
-                                role="menuitem"
-                            >My Productions</a>
+                                <a href="/my-jobs" id="link-menu-jobs" role="menuitem">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                    Jobs
+                                </a>
                             </li>
-                            <li role="none"><a
-                                href="/my-jobs"
-                                id="link-menu-jobs"
-                                role="menuitem"
-                            >My Jobs</a>
+                            <li role="none"><hr data-role="divider" aria-hidden="true" /></li>
+                            <li role="none">
+                                <a href="/account" id="link-menu-account" role="menuitem">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                    Settings
+                                </a>
                             </li>
                             {% if !user.is_identity_verified %}
                             <li role="none">
-                                <a
-                                href="/get-verified"
-                                id="link-menu-get-verified"
-                                role="menuitem"
-                                data-role="cta-item"
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="#1d9bf0" aria-hidden="true" style="vertical-align:middle;margin-right:4px">
-                                    <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
-                                </svg>
-                                Get Verified
-                            </a>
+                                <a href="/get-verified" id="link-menu-get-verified" role="menuitem" data-role="cta-item">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="#1d9bf0" aria-hidden="true"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>
+                                    Get Verified
+                                </a>
                             </li>
                             {% endif %}
-                            <li role="none">
-                                <a
-                                href="/account"
-                                id="link-menu-account"
-                                role="menuitem"
-                            >Account Settings</a>
-                            </li>
                             {% if user.is_admin %}
+                            <li role="none"><hr data-role="divider" aria-hidden="true" /></li>
                             <li role="none">
-                                <hr data-role="divider" aria-hidden="true" />
-                            </li>
-                            <li role="none">
-                                <a
-                                href="/admin"
-                                id="link-menu-admin"
-                                role="menuitem"
-                                data-role="admin-item"
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:middle;margin-right:4px">
-                                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
-                                </svg>
-                                Admin
-                            </a>
+                                <a href="/admin" id="link-menu-admin" role="menuitem" data-role="admin-item">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                                    Admin
+                                </a>
                             </li>
                             {% endif %}
+                            <li role="none"><hr data-role="divider" aria-hidden="true" /></li>
                             <li role="none">
-                                <hr data-role="divider" aria-hidden="true" />
-                            </li>
-                            <li role="none">
-                                <form
-                                id="form-logout"
-                                action="/logout"
-                                method="post"
-                                data-component="form"
-                            >
-                                    <button
-                                    type="submit"
-                                    id="button-logout"
-                                    role="menuitem"
-                                >Logout</button>
+                                <form id="form-logout" action="/logout" method="post" data-component="form">
+                                    <button type="submit" id="button-logout" role="menuitem">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                        Logout
+                                    </button>
                                 </form>
                             </li>
                         </ul>
@@ -251,6 +219,21 @@
         toggle.addEventListener('click', function() {
             var expanded = this.getAttribute('aria-expanded') === 'true';
             this.setAttribute('aria-expanded', String(!expanded));
+        });
+    }
+
+    var dropdown = document.getElementById('user-menu-dropdown');
+    if (dropdown) {
+        document.addEventListener('click', function(e) {
+            if (dropdown.open && !dropdown.contains(e.target)) {
+                dropdown.open = false;
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && dropdown.open) {
+                dropdown.open = false;
+                dropdown.querySelector('summary').focus();
+            }
         });
     }
 })();

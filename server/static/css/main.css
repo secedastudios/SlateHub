@@ -96,6 +96,7 @@
     --container-max: 1280px;
     --container-narrow: 768px;
     --container-wide: 1440px;
+    --page-gutter: 2rem;
 
     /* Borders & Radii */
     --radius-sm: 2px;
@@ -266,7 +267,7 @@ blockquote {
     flex: 1;
     width: 100%;
     margin: 0 auto;
-    padding: var(--space-2xl) var(--space-lg);
+    padding: var(--space-2xl) var(--page-gutter, 2rem);
 }
 
 .container,
@@ -534,7 +535,7 @@ ul[data-role="dropdown-menu"] {
     border: 1px solid rgba(214, 216, 202, 0.1);
     border-radius: var(--radius-lg);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    padding: var(--space-xs) 0;
+    padding: 4px 0;
     z-index: 1000;
     animation: slideDown 0.2s ease-out;
     list-style: none;
@@ -562,12 +563,16 @@ ul[data-role="dropdown-menu"] li {
 
 #user-menu-dropdown [data-role="dropdown-menu"] a,
 ul[data-role="dropdown-menu"] a {
-    display: block !important;
-    padding: var(--space-sm) var(--space-lg);
-    color: rgba(214, 216, 202, 0.8);
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    color: rgba(214, 216, 202, 0.7);
     text-decoration: none;
-    font-size: var(--text-sm);
-    font-weight: var(--font-weight-medium);
+    font-size: 0.8rem;
+    font-weight: var(--font-weight-regular);
+    text-transform: none;
+    letter-spacing: 0;
     transition:
         background-color var(--transition-fast),
         color var(--transition-fast);
@@ -588,9 +593,39 @@ ul[data-role="dropdown-menu"] a {
     outline-offset: -2px;
 }
 
+/* Dropdown menu icons */
+#user-menu-dropdown [data-role="dropdown-menu"] a svg,
+#user-menu-dropdown [data-role="dropdown-menu"] button svg {
+    flex-shrink: 0;
+    opacity: 0.5;
+    transition: opacity var(--transition-fast);
+}
+
+#user-menu-dropdown [data-role="dropdown-menu"] a:hover svg,
+#user-menu-dropdown [data-role="dropdown-menu"] button:hover svg {
+    opacity: 0.85;
+}
+
+/* Notification badge inline */
+[data-role="menu-badge"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    margin-left: auto;
+    border-radius: var(--radius-full);
+    background: #22c55e;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+}
+
 /* Dropdown divider */
 #user-menu-dropdown [data-role="dropdown-menu"] hr[data-role="divider"] {
-    margin: var(--space-sm) 0;
+    margin: 4px 0;
     border: none;
     border-top: 1px solid rgba(214, 216, 202, 0.08);
     display: block;
@@ -606,19 +641,21 @@ ul[data-role="dropdown-menu"] a {
 #user-menu-dropdown [data-role="dropdown-menu"] #button-logout {
     width: 100%;
     text-align: left;
-    display: block;
-    padding: var(--space-sm) var(--space-lg);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
     background: none;
     border: none;
     color: var(--color-accent, #eb5437);
-    font-size: var(--text-sm);
-    font-weight: var(--font-weight-medium);
+    font-size: 0.8rem;
+    font-weight: var(--font-weight-regular);
     cursor: pointer;
     transition:
         background-color var(--transition-fast),
         color var(--transition-fast);
     text-transform: none;
-    letter-spacing: normal;
+    letter-spacing: 0;
     min-height: auto;
     box-sizing: border-box;
 }
@@ -730,9 +767,10 @@ footer#site-footer {
 #site-footer {
     position: relative;
     background: rgba(214, 216, 202, 0.03);
-    margin-top: auto;
+    margin-top: var(--space-3xl);
     padding: 0;
     color: var(--color-text-primary);
+    border-top: 1px solid rgba(214, 216, 202, 0.08);
 }
 
 #site-footer::before {
@@ -755,12 +793,10 @@ footer#site-footer {
     z-index: 1;
 }
 
-/* Main footer content — 5-column grid */
+/* Main footer content — full-width grid */
 #footer-main {
-    max-width: var(--container-wide);
     background: rgba(214, 216, 202, 0.03);
-    margin: 0 auto;
-    padding: var(--space-4xl) var(--space-xl) var(--space-3xl);
+    padding: var(--space-4xl) var(--page-gutter, 2rem) var(--space-3xl);
     display: grid;
     grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr;
     gap: var(--space-3xl);
@@ -892,7 +928,7 @@ footer#site-footer {
     #footer-main {
         grid-template-columns: 1fr 1fr;
         gap: var(--space-2xl) var(--space-xl);
-        padding: var(--space-3xl) var(--space-lg) var(--space-2xl);
+        padding: var(--space-3xl) var(--page-gutter, 1.25rem) var(--space-2xl);
     }
 
     #footer-brand {
@@ -906,6 +942,55 @@ footer#site-footer {
         grid-template-columns: 1fr;
         gap: var(--space-2xl);
     }
+}
+
+/* ========================================
+   6b. SCROLL-TO-TOP BUTTON
+   ======================================== */
+
+[data-role="scroll-top"] {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    min-height: 0;
+    border-radius: 50%;
+    background: rgba(30, 32, 28, 0.85);
+    border: 1px solid rgba(214, 216, 202, 0.2);
+    color: var(--color-text-primary, #d6d8ca);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    transform: translateY(8px);
+    z-index: 90;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+[data-role="scroll-top"].visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+[data-role="scroll-top"]:hover {
+    background: rgba(50, 54, 48, 0.9) !important;
+    border-color: rgba(214, 216, 202, 0.35) !important;
+    transform: translateY(-2px);
+}
+
+[data-role="scroll-top"] svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
 }
 
 /* ========================================
@@ -2463,6 +2548,7 @@ dd {
         --space-xl: 1.5rem;
         --space-2xl: 2rem;
         --space-3xl: 3rem;
+        --page-gutter: 1.25rem;
     }
 
     h1 {
@@ -2478,7 +2564,7 @@ dd {
     }
 
     #main-content {
-        padding: var(--space-lg) var(--space-md);
+        padding: var(--space-lg) var(--page-gutter, 1.25rem);
     }
 
     /* Navigation — mobile hamburger menu */
@@ -2596,6 +2682,7 @@ dd {
 @media (max-width: 480px) {
     :root {
         --text-base: 0.875rem;
+        --page-gutter: 1rem;
     }
 
     h1 {

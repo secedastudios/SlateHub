@@ -127,12 +127,12 @@ fn like_button_html(target_id: &str, liked: bool, variant: &str) -> String {
 
     match variant {
         "people" => format!(
-            r#"<button type="button" data-role="btn-icon-bare" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=people')" aria-label="{label}"><svg width="20" height="20" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
-            tid = target_id, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
+            r#"<button type="button" data-role="card-like" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=people')" data-liked="{liked}" aria-label="{label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
+            tid = target_id, liked = liked, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
         ),
         "locations" => format!(
-            r#"<button type="button" class="loc-btn-outline loc-btn-heart" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=locations')" aria-label="{label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
-            tid = target_id, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
+            r#"<button type="button" class="loc-card-like" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=locations')" data-liked="{liked}" aria-label="{label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
+            tid = target_id, liked = liked, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
         ),
         "profile" => {
             let type_val = if liked { "liked" } else { "outline" };
@@ -142,13 +142,10 @@ fn like_button_html(target_id: &str, liked: bool, variant: &str) -> String {
                 tid = target_id, liked = liked, type_val = type_val, label = label, fill = fill, stroke = stroke, hp = HEART_PATH, text = text
             )
         },
-        "likes" => {
-            let active = if liked { " active" } else { "" };
-            format!(
-                r#"<button type="button" class="likes-btn-heart{active}" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=likes')" data-liked="{liked}" aria-label="{label}"><svg width="20" height="20" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
-                active = active, tid = target_id, liked = liked, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
-            )
-        },
+        "likes" => format!(
+            r#"<button type="button" data-role="card-like" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=likes')" data-liked="{liked}" aria-label="{label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
+            tid = target_id, liked = liked, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
+        ),
         _ => format!(
             r#"<button type="button" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}')" data-liked="{liked}" aria-label="{label}"><svg width="20" height="20" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
             tid = target_id, liked = liked, label = label, fill = fill, stroke = stroke, hp = HEART_PATH

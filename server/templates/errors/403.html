@@ -1,143 +1,37 @@
-{% extends "_layout.html" %} {% block title %}Access Forbidden - {{ app_name
-}}{% endblock %} {% block description %}You don't have permission to access this
-resource.{% endblock %} {% block page_name %}error-403{% endblock %} {% block
-content %}
-<article
-    id="error-403-main"
-    data-component="error-page"
-    data-error-code="403"
-    data-error-type="forbidden"
->
-    <header id="error-header" data-role="error-header">
-        <h1 id="heading-error-code">403</h1>
-        <h2 id="heading-error-title">Access Forbidden</h2>
+{% extends "_layout.html" %}
+{% block title %}Access Forbidden - {{ app_name }}{% endblock %}
+{% block description %}You don't have permission to access this resource.{% endblock %}
+{% block page_name %}error-403{% endblock %}
+{% block content %}
+<article data-component="error-page" data-error-code="403">
+    <header data-role="error-header">
+        <span data-role="error-code">403</span>
+        <h1>Access Denied</h1>
+        <p data-role="error-description">
+            {% if message %}{{ message }}{% else %}You don't have permission to access this resource.{% endif %}
+        </p>
     </header>
 
-    <section id="section-error-details" data-section="error-details">
-        <p id="error-description" data-role="error-description">
-            {% if message %} {{ message }} {% else %} You don't have permission
-            to access this resource. This area may be restricted to certain
-            users or require special privileges. {% endif %}
-        </p>
-
-        {% if request_path or request_id or required_role %}
-        <dl id="error-metadata" data-role="error-metadata">
-            {% if request_path %}
-            <dt id="label-request-path">Requested path</dt>
-            <dd id="detail-request-path" data-field="request-path">
-                <code>{{ request_path }}</code>
-            </dd>
-            {% endif %} {% if request_id %}
-            <dt id="label-request-id">Request ID</dt>
-            <dd id="detail-request-id" data-field="request-id">
-                <code>{{ request_id }}</code>
-            </dd>
-            {% endif %} {% if required_role %}
-            <dt id="label-required-role">Required role</dt>
-            <dd id="detail-required-role" data-field="required-role">
-                <code>{{ required_role }}</code>
-            </dd>
-            {% endif %}
-        </dl>
+    <nav data-role="error-actions" aria-label="Error recovery actions">
+        {% if user.is_some() %}
+        <a href="/profile" role="button" data-type="primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Your Profile
+        </a>
+        {% else %}
+        <a href="/login" role="button" data-type="primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Sign In
+        </a>
         {% endif %}
+        <a href="/" role="button" data-type="secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Homepage
+        </a>
+    </nav>
 
-        <nav
-            id="error-actions"
-            data-role="error-actions"
-            aria-label="Error recovery actions"
-        >
-            {% if user.is_some() %}
-            <a
-                href="/projects"
-                id="link-error-projects"
-                role="button"
-                data-type="primary"
-                aria-label="View your projects"
-            >
-                <span aria-hidden="true" data-role="icon">📁</span>
-                <span data-role="button-text">View Your Projects</span>
-            </a>
-            <a
-                href="/profile"
-                id="link-error-profile"
-                role="button"
-                data-type="secondary"
-                aria-label="Go to your profile"
-            >
-                <span aria-hidden="true" data-role="icon">👤</span>
-                <span data-role="button-text">Your Profile</span>
-            </a>
-            {% else %}
-            <a
-                href="/login"
-                id="link-error-login"
-                role="button"
-                data-type="primary"
-                aria-label="Sign in to your account"
-            >
-                <span aria-hidden="true" data-role="icon">🔑</span>
-                <span data-role="button-text">Sign In</span>
-            </a>
-            <a
-                href="/signup"
-                id="link-error-signup"
-                role="button"
-                data-type="secondary"
-                aria-label="Create a new account"
-            >
-                <span aria-hidden="true" data-role="icon">✨</span>
-                <span data-role="button-text">Create Account</span>
-            </a>
-            {% endif %}
-
-            <a
-                href="/"
-                id="link-error-home"
-                role="button"
-                data-type="secondary"
-                aria-label="Go to homepage"
-            >
-                <span aria-hidden="true" data-role="icon">🏠</span>
-                <span data-role="button-text">Go to Homepage</span>
-            </a>
-        </nav>
-
-        <details
-            id="error-help-details"
-            data-component="collapsible"
-            data-type="help"
-        >
-            <summary id="button-show-help" role="button">
-                Why don't I have access?
-            </summary>
-            <div id="help-content" data-role="details-content">
-                <p id="help-explanation" data-role="help-text">
-                    Access may be restricted because:
-                </p>
-                <ul id="help-reasons" data-role="reason-list">
-                    <li>This content belongs to another user</li>
-                    <li>You need to be a member of a specific organization</li>
-                    <li>Your account doesn't have the required permissions</li>
-                    <li>This feature requires a premium subscription</li>
-                    <li>The resource owner has set it to private</li>
-                </ul>
-                <p id="help-additional" data-role="help-text">
-                    If you believe you should have access, please contact the
-                    resource owner or an administrator.
-                </p>
-            </div>
-        </details>
-    </section>
-
-    <footer id="error-footer" data-role="error-footer">
-        <div id="error-help" data-role="help-section">
-            <p id="help-contact" data-role="help-text">
-                If you believe this is an error, please
-                <a href="/contact" id="link-contact-support">contact support</a>
-                {% if request_id %}with request ID
-                <code>{{ request_id }}</code>{% endif %}.
-            </p>
-        </div>
+    <footer data-role="error-footer">
+        <p>If you believe this is an error, please <a href="/contact">contact support</a>{% if request_id %} with request ID <code>{{ request_id }}</code>{% endif %}.</p>
     </footer>
 </article>
 {% endblock %}
