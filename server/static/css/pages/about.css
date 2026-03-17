@@ -285,7 +285,7 @@
 
 .about-stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 0;
     max-width: 1100px;
     margin: 0 auto;
@@ -293,7 +293,7 @@
 }
 
 .about-stat-item {
-    padding: var(--space-lg);
+    padding: var(--space-md) var(--space-sm);
 }
 
 .about-stat-item + .about-stat-item {
@@ -304,15 +304,15 @@
     display: block;
     font-family: "Onsite Condensed TRIAL", var(--font-display);
     font-weight: 700;
-    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-size: clamp(1.8rem, 3.5vw, 3rem);
     color: #d6d8ca;
     line-height: 1;
-    margin-bottom: var(--space-sm);
+    margin-bottom: var(--space-xs);
 }
 
 .about-stat-item h3 {
     font-family: var(--font-body);
-    font-size: var(--text-xs);
+    font-size: 0.65rem;
     font-weight: var(--font-weight-medium);
     color: rgba(156, 163, 158, 0.6);
     text-transform: uppercase;
@@ -434,18 +434,20 @@
     }
 
     .about-stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
     }
 
     .about-stat-item + .about-stat-item {
         border-left: none;
     }
 
-    .about-stat-item:nth-child(even) {
+    .about-stat-item:nth-child(2),
+    .about-stat-item:nth-child(3),
+    .about-stat-item:nth-child(5) {
         border-left: 1px solid rgba(214, 216, 202, 0.08);
     }
 
-    .about-stat-item:nth-child(n+3) {
+    .about-stat-item:nth-child(n+4) {
         border-top: 1px solid rgba(214, 216, 202, 0.08);
     }
 }
@@ -468,15 +470,30 @@
     }
 
     .about-stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(5, 1fr);
     }
 
-    .about-stat-item:nth-child(even) {
-        border-left: none;
+    .about-stat-item {
+        padding: var(--space-sm) var(--space-xs);
     }
 
     .about-stat-item + .about-stat-item {
-        border-top: 1px solid rgba(214, 216, 202, 0.08);
+        border-left: 1px solid rgba(214, 216, 202, 0.08);
+        border-top: none;
+    }
+
+    .about-stat-item:nth-child(2),
+    .about-stat-item:nth-child(3),
+    .about-stat-item:nth-child(5) {
+        border-left: 1px solid rgba(214, 216, 202, 0.08);
+    }
+
+    .about-stat-item data {
+        font-size: 1.4rem;
+    }
+
+    .about-stat-item h3 {
+        font-size: 0.55rem;
     }
 
     .about-cta-actions {

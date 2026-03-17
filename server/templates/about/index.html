@@ -150,20 +150,24 @@
         </header>
         <div class="about-stats-grid">
             <article class="about-stat-item">
-                <data value="10000">10,000+</data>
-                <h3>Creative Professionals</h3>
+                <data value="{{ stat_creatives }}">{{ stat_creatives|abbr_usize }}</data>
+                <h3>Creatives</h3>
             </article>
             <article class="about-stat-item">
-                <data value="2500">2,500+</data>
-                <h3>Active Projects</h3>
+                <data value="{{ stat_organizations }}">{{ stat_organizations|abbr_usize }}</data>
+                <h3>Organizations</h3>
             </article>
             <article class="about-stat-item">
-                <data value="50">50+</data>
-                <h3>Countries Represented</h3>
+                <data value="{{ stat_locations }}">{{ stat_locations|abbr_usize }}</data>
+                <h3>Locations</h3>
             </article>
             <article class="about-stat-item">
-                <data value="95">95%</data>
-                <h3>Success Rate</h3>
+                <data value="{{ stat_jobs }}">{{ stat_jobs|abbr_usize }}</data>
+                <h3>Jobs</h3>
+            </article>
+            <article class="about-stat-item">
+                <data value="{{ stat_connections }}">{{ stat_connections|abbr_usize }}</data>
+                <h3>Connections</h3>
             </article>
         </div>
     </section>

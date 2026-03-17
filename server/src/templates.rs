@@ -32,7 +32,15 @@ mod filters {
 
     /// Abbreviate large numbers: 1500 → "1.5k", 200000 → "200k", 1500000 → "1.5M"
     pub fn abbr(value: &u64) -> askama::Result<String> {
-        let n = *value;
+        abbr_num(*value as usize)
+    }
+
+    /// Abbreviate large usize numbers
+    pub fn abbr_usize(value: &usize) -> askama::Result<String> {
+        abbr_num(*value)
+    }
+
+    fn abbr_num(n: usize) -> askama::Result<String> {
         let (divisor, suffix) = if n >= 1_000_000 {
             (1_000_000.0, "M")
         } else if n >= 1_000 {
@@ -777,6 +785,11 @@ pub struct AboutTemplate {
     pub version: String,
     pub active_page: String,
     pub user: Option<User>,
+    pub stat_creatives: usize,
+    pub stat_organizations: usize,
+    pub stat_locations: usize,
+    pub stat_jobs: usize,
+    pub stat_connections: usize,
 }
 
 #[derive(Template)]
@@ -1357,13 +1370,25 @@ impl PeopleTemplate {
 }
 
 impl AboutTemplate {
-    pub fn new(base: BaseContext) -> Self {
+    pub fn new(
+        base: BaseContext,
+        stat_creatives: usize,
+        stat_organizations: usize,
+        stat_locations: usize,
+        stat_jobs: usize,
+        stat_connections: usize,
+    ) -> Self {
         Self {
             app_name: base.app_name,
             year: base.year,
             version: base.version,
             active_page: base.active_page,
             user: base.user,
+            stat_creatives,
+            stat_organizations,
+            stat_locations,
+            stat_jobs,
+            stat_connections,
         }
     }
 }

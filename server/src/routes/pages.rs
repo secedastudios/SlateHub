@@ -3,6 +3,7 @@ use axum::{Router, extract::Request, response::Html, routing::get};
 use tracing::{debug, error};
 
 use crate::{
+    db::DB,
     error::Error,
     middleware::UserExtractor,
     templates::{
@@ -125,7 +126,45 @@ async fn about(request: Request) -> Result<Html<String>, Error> {
         base = base.with_user(User::from_session_user(&user).await);
     }
 
-    let template = AboutTemplate::new(base);
+    // Query real stats from the database
+    fn extract_count(row: Option<serde_json::Value>) -> usize {
+        row.and_then(|v| v.get("count").and_then(|c| c.as_u64()))
+            .unwrap_or(0) as usize
+    }
+
+    let (stat_creatives, stat_organizations, stat_locations, stat_jobs, stat_connections) =
+        match DB
+            .query(
+                "SELECT count() AS count FROM person GROUP ALL;
+                 SELECT count() AS count FROM organization GROUP ALL;
+                 SELECT count() AS count FROM location GROUP ALL;
+                 SELECT count() AS count FROM job_posting GROUP ALL;
+                 SELECT count() AS count FROM member_of GROUP ALL;
+                 SELECT count() AS count FROM likes GROUP ALL;
+                 SELECT count() AS count FROM involvement GROUP ALL;
+                 SELECT count() AS count FROM application GROUP ALL",
+            )
+            .await
+        {
+            Ok(mut response) => {
+                let creatives = extract_count(response.take(0).unwrap_or(None));
+                let organizations = extract_count(response.take(1).unwrap_or(None));
+                let locations = extract_count(response.take(2).unwrap_or(None));
+                let jobs = extract_count(response.take(3).unwrap_or(None));
+                let connections = extract_count(response.take(4).unwrap_or(None))
+                    + extract_count(response.take(5).unwrap_or(None))
+                    + extract_count(response.take(6).unwrap_or(None))
+                    + extract_count(response.take(7).unwrap_or(None));
+
+                (creatives, organizations, locations, jobs, connections)
+            }
+            Err(e) => {
+                error!("Failed to query about page stats: {}", e);
+                (0, 0, 0, 0, 0)
+            }
+        };
+
+    let template = AboutTemplate::new(base, stat_creatives, stat_organizations, stat_locations, stat_jobs, stat_connections);
 
     let html = template.render().map_err(|e| {
         error!("Failed to render about template: {}", e);
