@@ -183,6 +183,7 @@
     align-items: center;
     gap: var(--space-md);
     flex-shrink: 0;
+    position: relative;
 }
 
 #profile-social-links [data-role="social-link"] {
@@ -205,6 +206,26 @@
 #profile-social-links [data-role="social-link"]:hover {
     border-color: var(--color-accent);
     color: var(--color-accent);
+}
+
+#profile-social-links [data-role="copy-toast"] {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    background: var(--color-surface-alt, #2a2a2a);
+    color: var(--color-text-light, #d6d8ca);
+    font-size: var(--text-xs, 0.75rem);
+    padding: 6px 12px;
+    border-radius: 4px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    animation: copyToastIn 0.15s ease-out;
+    z-index: 10;
+}
+
+@keyframes copyToastIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Description / Bio */

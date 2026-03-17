@@ -588,7 +588,7 @@ INSERT INTO organization_type (name) VALUES
 -- Production Types
 INSERT INTO production_type (name) VALUES
 ("Film"), ("TV Series"), ("Season"), ("Episode"), ("Documentary"), ("Music Video"), ("Commercial"),
-("Podcast"), ("Webseries"), ("Short Film"), ("Animation"), ("Reality TV"), ("Corporate Video"), ("Other");
+("Podcast"), ("Webseries"), ("Short Film"), ("Animation"), ("Reality TV"), ("Corporate Video"), ("Vertical Series"), ("Other");
 
 -- Production Statuses
 INSERT INTO production_status (name, position) VALUES

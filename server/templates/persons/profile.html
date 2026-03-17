@@ -1,232 +1,322 @@
 {% extends "_layout.html" %}
-{% block title %}{{ profile.name }} (@{{ profile.username }}) — {% if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }} | {% endif %}{{ app_name }}{% endblock %}
-{% block page_name %}profile{% endblock %}
-{% block description %}{{ profile.name }} (@{{ profile.username }}) — {% if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}{% else %}Film & TV professional{% endif %} on {{ app_name }}{% if profile.bio.is_some() %}. {{ profile.bio.as_ref().unwrap() }}{% endif %}{% endblock %}
-{% block og_type %}profile{% endblock %}
-{% block og_url %}<meta property="og:url" content="{{ "/"|abs_url }}{{ profile.username }}" />{% endblock %}
-{% block og_title %}{{ profile.name }}{% if profile.headline.is_some() %} — {{ profile.headline.as_ref().unwrap() }}{% endif %} | {{ app_name }}{% endblock %}
-{% block og_description %}{% if profile.bio.is_some() %}{{ profile.bio.as_ref().unwrap() }} — {% else if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}. {% endif %}{% if profile.location.is_some() %}Based in {{ profile.location.as_ref().unwrap() }}. {% endif %}Connect and collaborate with {{ profile.name }} on {{ app_name }}.{% endblock %}
-{% block og_image %}<meta property="og:image" content="{{ "/api/og/profile/"|abs_url }}{{ profile.username }}" />{% endblock %}
-{% block og_extra %}<meta property="profile:username" content="{{ profile.username }}" />{% endblock %}
-{% block twitter_title %}{{ profile.name }}{% if profile.headline.is_some() %} — {{ profile.headline.as_ref().unwrap() }}{% endif %} | {{ app_name }}{% endblock %}
-{% block twitter_description %}{% if profile.bio.is_some() %}{{ profile.bio.as_ref().unwrap() }} — {% else if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}. {% endif %}{% if profile.location.is_some() %}Based in {{ profile.location.as_ref().unwrap() }}. {% endif %}Connect and collaborate with {{ profile.name }} on {{ app_name }}.{% endblock %}
-{% block twitter_image %}<meta name="twitter:image" content="{{ "/api/og/profile/"|abs_url }}{{ profile.username }}" />{% endblock %}
-{% block head %}
-<link rel="stylesheet" href="/static/css/pages/profile.css?v={{ version }}" />
+{% block title %}
+    {{ profile.name }}
+    (@
+    {{ profile.username }}
+    ) —
+    {% if profile.headline.is_some() %}
+        {{ profile.headline.as_ref().unwrap() }}
+        |
+    {% endif %}
+    {{ app_name }}
 {% endblock %}
-{% block content %}
-<section
+{% block page_name %}
+    profile
+{% endblock %}
+{% block description %}
+    {{ profile.name }}
+    (@
+    {{ profile.username }}
+    ) —
+    {% if profile.headline.is_some() %}
+        {{ profile.headline.as_ref().unwrap() }}
+    {% else %}
+        Film
+        & TV professional{% endif %} on {{ app_name }}{% if profile.bio.is_some() %}. {{ profile.bio.as_ref().unwrap() }}{% endif %}{% endblock %}{% block og_type %}profile{% endblock %}{% block og_url %}
+        <meta property="og:url" content="{{ "/"|abs_url }}{{ profile.username }}" />
+    {% endblock %}
+    {% block og_title %}
+        {{ profile.name }}
+        {% if profile.headline.is_some() %}
+            —
+            {{ profile.headline.as_ref().unwrap() }}
+        {% endif %}
+        |
+        {{ app_name }}
+    {% endblock %}
+    {% block og_description %}
+        {% if profile.bio.is_some() %}
+            {{ profile.bio.as_ref().unwrap() }}
+            —
+        {% else if profile.headline.is_some() %}
+            {{ profile.headline.as_ref().unwrap() }}
+            .
+        {% endif %}
+        {% if profile.location.is_some() %}
+            Based in
+            {{ profile.location.as_ref().unwrap() }}
+            .
+        {% endif %}
+        Connect and collaborate with
+        {{ profile.name }}
+        on
+        {{ app_name }}
+        .
+    {% endblock %}
+    {% block og_image %}
+        <meta property="og:image" content="{{ "/api/og/profile/"|abs_url }}{{ profile.username }}" />
+    {% endblock %}
+    {% block og_extra %}
+        <meta property="profile:username" content="{{ profile.username }}" />
+    {% endblock %}
+    {% block twitter_title %}
+        {{ profile.name }}
+        {% if profile.headline.is_some() %}
+            —
+            {{ profile.headline.as_ref().unwrap() }}
+        {% endif %}
+        |
+        {{ app_name }}
+    {% endblock %}
+    {% block twitter_description %}
+        {% if profile.bio.is_some() %}
+            {{ profile.bio.as_ref().unwrap() }}
+            —
+        {% else if profile.headline.is_some() %}
+            {{ profile.headline.as_ref().unwrap() }}
+            .
+        {% endif %}
+        {% if profile.location.is_some() %}
+            Based in
+            {{ profile.location.as_ref().unwrap() }}
+            .
+        {% endif %}
+        Connect and collaborate with
+        {{ profile.name }}
+        on
+        {{ app_name }}
+        .
+    {% endblock %}
+    {% block twitter_image %}
+        <meta name="twitter:image" content="{{ "/api/og/profile/"|abs_url }}{{ profile.username }}" />
+    {% endblock %}
+    {% block head %}
+        <link rel="stylesheet" href="/static/css/pages/profile.css?v={{ version }}" />
+    {% endblock %}
+    {% block content %}
+        <section
     id="profile-main"
     data-component="profile"
     data-user-id="{{ profile.id }}"
     data-username="{{ profile.username }}"
     data-profile-type="{% if profile.is_own_profile %}own{% else %}public{% endif %}"
 >
-    <header id="profile-hero" data-role="profile-hero">
-        <div id="profile-hero-content">
-            <div id="profile-media-column">
-                <div id="profile-avatar-container" data-role="avatar-container">
-                    {% if profile.avatar.is_some() %}
-                    <img
+            <header id="profile-hero" data-role="profile-hero">
+                <div id="profile-hero-content">
+                    <div id="profile-media-column">
+                        <div id="profile-avatar-container" data-role="avatar-container">
+                            {% if profile.avatar.is_some() %}
+                                <img
                         src="{{ profile.avatar.as_ref().unwrap() }}"
                         alt="{{ profile.name }}'s profile photo"
                         id="profile-avatar"
                         data-role="avatar"
                     />
-                    {% else %}
-                    <div id="profile-avatar-initials" data-role="avatar-initials">
-                        {{ profile.initials }}
-                    </div>
-                    {% endif %}
-                </div>
-                {% if profile.is_own_profile %}
-                <nav id="profile-owner-actions" aria-label="Profile management">
-                    <a href="/profile/edit">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                        Edit Profile
-                    </a>
-                    <a href="/profile/analytics">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <line x1="18" y1="20" x2="18" y2="10"/>
-                            <line x1="12" y1="20" x2="12" y2="4"/>
-                            <line x1="6" y1="20" x2="6" y2="14"/>
-                        </svg>
-                        Analytics
-                    </a>
-                </nav>
-                {% endif %}
-            </div>
-
-            <div id="profile-info" data-role="profile-info">
-                <div id="profile-info-top">
-                    <div id="profile-name-group">
-                        <h1 id="heading-profile-name">{{ profile.name }}</h1>
-                        {% if profile.verification_status == "identity" %}
-                        <svg id="profile-verified-badge" data-role="verified-badge" width="22" height="22" viewBox="0 0 24 24" fill="#1d9bf0" aria-label="Identity Verified">
-                            <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
-                        </svg>
+                            {% else %}
+                                <div id="profile-avatar-initials" data-role="avatar-initials">{{ profile.initials }}</div>
+                            {% endif %}
+                        </div>
+                        {% if profile.is_own_profile %}
+                            <nav id="profile-owner-actions" aria-label="Profile management">
+                                <a href="/profile/edit">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                    </svg>
+                                    Edit Profile
+                                </a>
+                                <a href="/profile/analytics">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <line x1="18" y1="20" x2="18" y2="10"/>
+                                        <line x1="12" y1="20" x2="12" y2="4"/>
+                                        <line x1="6" y1="20" x2="6" y2="14"/>
+                                    </svg>
+                                    Analytics
+                                </a>
+                            </nav>
                         {% endif %}
                     </div>
-
-                    <nav id="profile-social-links" aria-label="External links">
-                        {% for link in profile.social_links %}
-                        <a
+                    <div id="profile-info" data-role="profile-info">
+                        <div id="profile-info-top">
+                            <div id="profile-name-group">
+                                <h1 id="heading-profile-name">{{ profile.name }}</h1>
+                                {% if profile.verification_status == "identity" %}
+                                    <svg id="profile-verified-badge" data-role="verified-badge" width="22" height="22" viewBox="0 0 24 24" fill="#1d9bf0" aria-label="Identity Verified">
+                                        <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
+                                    </svg>
+                                {% endif %}
+                            </div>
+                            <nav id="profile-social-links" aria-label="External links">
+                                {% for link in profile.social_links %}
+                                    <a
                             href="{{ link.url }}"
                             target="_blank"
                             rel="noopener noreferrer"
                             data-role="social-link"
                             title="{{ link.name }}"
-                        >
-                            {{ link.icon_svg|safe }}
-                        </a>
-                        {% endfor %}
-                        {% if profile.website.is_some() %}
-                        <a
+                        >{{ link.icon_svg|safe }}</a>
+                                {% endfor %}
+                                {% if profile.website.is_some() %}
+                                    <a
                             href="{{ profile.website.as_ref().unwrap() }}"
                             target="_blank"
                             rel="noopener noreferrer"
                             data-role="social-link"
                             title="Website"
                         >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <circle cx="12" cy="12" r="10"/>
-                                <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                            </svg>
-                        </a>
-                        {% endif %}
-                        <button
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                                        </svg>
+                                    </a>
+                                {% endif %}
+                                <button
                             type="button"
                             data-role="social-link"
                             data-action="open-qr"
                             title="QR Code"
                             aria-label="Show QR code for this profile"
                         >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="2" y="2" width="8" height="8" rx="1"/>
-                                <rect x="14" y="2" width="8" height="8" rx="1"/>
-                                <rect x="2" y="14" width="8" height="8" rx="1"/>
-                                <rect x="5" y="5" width="2" height="2"/>
-                                <rect x="17" y="5" width="2" height="2"/>
-                                <rect x="5" y="17" width="2" height="2"/>
-                                <path d="M14 14h2v2h-2zM20 14h2v2h-2zM14 20h2v2h-2zM20 20h2v2h-2zM17 17h2v2h-2z"/>
-                            </svg>
-                        </button>
-                    </nav>
-                </div>
-
-                {% if profile.bio.is_some() || profile.headline.is_some() %}
-                <div id="profile-description">
-                    {% if profile.headline.is_some() %}
-                    <p id="profile-headline" data-role="headline">
-                        {{ profile.headline.as_ref().unwrap() }}
-                    </p>
-                    {% endif %}
-                    {% if profile.bio.is_some() %}
-                    <p id="profile-bio" data-role="bio">
-                        {{ profile.bio.as_ref().unwrap() }}
-                    </p>
-                    {% endif %}
-                </div>
-                {% else if profile.is_own_profile %}
-                <div id="profile-description">
-                    <p id="profile-bio-empty" data-role="bio-empty">
-                        Tell the industry about yourself. Add a bio to let people know who you are and what you do.
-                    </p>
-                </div>
-                {% endif %}
-
-                {% if !profile.skills.is_empty() %}
-                <ul id="profile-skills" data-role="skills-list" role="list">
-                    {% for skill in profile.skills %}
-                    <li data-role="skill-tag">{{ skill }}</li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-
-                {% if !profile.is_own_profile %}
-                <nav id="profile-actions" data-role="profile-actions" aria-label="Profile actions">
-                    {% if user.is_some() && profile.messaging_preference != "nobody" %}
-                    <a
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <rect x="2" y="2" width="8" height="8" rx="1"/>
+                                        <rect x="14" y="2" width="8" height="8" rx="1"/>
+                                        <rect x="2" y="14" width="8" height="8" rx="1"/>
+                                        <rect x="5" y="5" width="2" height="2"/>
+                                        <rect x="17" y="5" width="2" height="2"/>
+                                        <rect x="5" y="17" width="2" height="2"/>
+                                        <path d="M14 14h2v2h-2zM20 14h2v2h-2zM14 20h2v2h-2zM20 20h2v2h-2zM17 17h2v2h-2z"/>
+                                    </svg>
+                                </button>
+                                <button
+                            type="button"
+                            data-role="social-link"
+                            data-action="copy-profile-url"
+                            title="Copy profile link"
+                            aria-label="Copy profile link to clipboard"
+                        >
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                    </svg>
+                                </button>
+                                <div id="copy-toast" data-role="copy-toast" aria-live="polite" hidden>Profile Link copied!</div>
+                            </nav>
+                        </div>
+                        {% if profile.bio.is_some() || profile.headline.is_some() %}
+                            <div id="profile-description">
+                                {% if profile.headline.is_some() %}
+                                    <p id="profile-headline" data-role="headline">{{ profile.headline.as_ref().unwrap() }}</p>
+                                {% endif %}
+                                {% if profile.bio.is_some() %}
+                                    <p id="profile-bio" data-role="bio">{{ profile.bio.as_ref().unwrap() }}</p>
+                                {% endif %}
+                            </div>
+                        {% else if profile.is_own_profile %}
+                            <div id="profile-description">
+                                <p id="profile-bio-empty" data-role="bio-empty">
+                                    Tell the industry about yourself. Add a
+                                    bio to let people know who you are and what
+                                    you do.
+                                </p>
+                            </div>
+                        {% endif %}
+                        {% if !profile.skills.is_empty() %}
+                            <ul id="profile-skills" data-role="skills-list" role="list">
+                                {% for skill in profile.skills %}
+                                    <li data-role="skill-tag">{{ skill }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                        {% if !profile.is_own_profile %}
+                            <nav id="profile-actions" data-role="profile-actions" aria-label="Profile actions">
+                                {% if user.is_some() && profile.messaging_preference != "nobody" %}
+                                    <a
                         href="/messages/new/{{ profile.username }}"
                         id="link-send-message"
                         role="button"
                         data-type="primary"
                     >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px" aria-hidden="true">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                        </svg>
-                        Message
-                    </a>
-                    {% endif %}
-                    <button type="button"
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px" aria-hidden="true">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                        </svg>
+                                        Message
+                                    </a>
+                                {% endif %}
+                                <button type="button"
                         data-like-target="{{ profile.id }}"
                         data-on:click="@post('/api/likes/toggle-sse/{{ profile.id }}?v=profile')"
                         data-liked="{% if is_liked %}true{% else %}false{% endif %}"
                         data-type="{% if is_liked %}liked{% else %}outline{% endif %}"
                         aria-label="{% if is_liked %}Unlike{% else %}Like{% endif %}"
                     >
-                        <svg width="18" height="18" viewBox="0 0 24 24"
+                                    <svg width="18" height="18" viewBox="0 0 24 24"
                             fill="{% if is_liked %}#e53e3e{% else %}none{% endif %}"
                             stroke="{% if is_liked %}#e53e3e{% else %}currentColor{% endif %}"
-                            stroke-width="1.5" style="vertical-align:middle;margin-right:4px"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                        {% if is_liked %}Liked{% else %}Like{% endif %}
-                    </button>
-                </nav>
-                {% endif %}
-                {% if profile.is_own_profile && profile.verification_status != "identity" %}
-                <aside id="verification-reminder" data-role="verification-reminder">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#1d9bf0" aria-hidden="true">
-                        <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
-                    </svg>
-                    <p>Get verified to unlock more uploads and show a verified badge on your profile.</p>
-                    <a href="/get-verified" data-role="cta-link">Get Verified</a>
-                </aside>
-                {% endif %}
-            </div>
-        </div>
-    </header>
-
-    <dialog id="modal-qr-code" data-component="modal" aria-labelledby="modal-title-qr">
-        <div id="modal-qr-inner">
-            <header id="modal-qr-header">
-                <h2 id="modal-title-qr">QR Code</h2>
-                <button type="button" data-action="close-qr" aria-label="Close">&times;</button>
+                            stroke-width="1.5" style="vertical-align:middle;margin-right:4px">
+                                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                                    </svg>
+                                    {% if is_liked %}
+                                        Liked
+                                    {% else %}
+                                        Like
+                                    {% endif %}
+                                </button>
+                            </nav>
+                        {% endif %}
+                        {% if profile.is_own_profile && profile.verification_status != "identity" %}
+                            <aside id="verification-reminder" data-role="verification-reminder">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="#1d9bf0" aria-hidden="true">
+                                    <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
+                                </svg>
+                                <p>
+                                    Get verified to unlock more uploads and show a verified badge on your profile.
+                                </p>
+                                <a href="/get-verified" data-role="cta-link">Get Verified</a>
+                            </aside>
+                        {% endif %}
+                    </div>
+                </div>
             </header>
-            <div id="modal-qr-body">
-                <div id="qr-image-wrapper">
-                    <img
+            <dialog id="modal-qr-code" data-component="modal" aria-labelledby="modal-title-qr">
+                <div id="modal-qr-inner">
+                    <header id="modal-qr-header">
+                        <h2 id="modal-title-qr">QR Code</h2>
+                        <button type="button" data-action="close-qr" aria-label="Close">&times;</button>
+                    </header>
+                    <div id="modal-qr-body">
+                        <div id="qr-image-wrapper">
+                            <img
                         id="qr-code-image"
                         src="/api/qr/profile/{{ profile.username }}"
                         alt="QR code linking to {{ profile.name }}'s profile"
                         width="400"
                         height="400"
                     />
-                </div>
-                <p id="qr-profile-url">{{ "/"|abs_url }}{{ profile.username }}</p>
-                <a
+                        </div>
+                        <p id="qr-profile-url">
+                            {{ "/"|abs_url }}
+                            {{ profile.username }}
+                        </p>
+                        <a
                     id="qr-save-link"
                     href="/api/qr/profile/{{ profile.username }}"
                     download="{{ profile.username }}-qr.png"
-                >
-                    Save Image
-                </a>
-            </div>
-        </div>
-    </dialog>
-
-    {% if !profile.photos.is_empty() %}
-    <section id="section-photos" data-section="photos" aria-labelledby="heading-photos">
-        <h2 id="heading-photos">Photos</h2>
-        <div id="photos-carousel" data-role="photos-carousel">
-            <button type="button" id="photos-scroll-left" data-action="scroll-photos-left" aria-label="Scroll left" disabled>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <div id="photos-track" data-role="photos-track">
-                {% for photo in profile.photos %}
-                <button
+                >Save Image</a>
+                    </div>
+                </div>
+            </dialog>
+            {% if !profile.photos.is_empty() %}
+                <section id="section-photos" data-section="photos" aria-labelledby="heading-photos">
+                    <h2 id="heading-photos">Photos</h2>
+                    <div id="photos-carousel" data-role="photos-carousel">
+                        <button type="button" id="photos-scroll-left" data-action="scroll-photos-left" aria-label="Scroll left" disabled>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                        </button>
+                        <div id="photos-track" data-role="photos-track">
+                            {% for photo in profile.photos %}
+                                <button
                     type="button"
                     data-component="photo-card"
                     data-action="view-photo"
@@ -235,39 +325,42 @@
                     data-photo-index="{{ loop.index0 }}"
                     aria-label="{% if !photo.caption.is_empty() %}{{ photo.caption }}{% else %}Photo {{ loop.index }}{% endif %}"
                 >
-                    <div data-role="photo-thumb-wrap">
-                        <img
+                                    <div data-role="photo-thumb-wrap">
+                                        <img
                             src="{{ photo.thumbnail_url }}"
                             alt="{% if !photo.caption.is_empty() %}{{ photo.caption }}{% else %}Photo {{ loop.index }}{% endif %}"
                             loading="lazy"
                             data-role="photo-thumbnail"
                         />
+                                    </div>
+                                    {% if !photo.caption.is_empty() %}
+                                        <div data-role="photo-info">
+                                            <span data-role="photo-caption">{{ photo.caption }}</span>
+                                        </div>
+                                    {% endif %}
+                                </button>
+                            {% endfor %}
+                        </div>
+                        <button type="button" id="photos-scroll-right" data-action="scroll-photos-right" aria-label="Scroll right">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </button>
                     </div>
-                    {% if !photo.caption.is_empty() %}
-                    <div data-role="photo-info">
-                        <span data-role="photo-caption">{{ photo.caption }}</span>
-                    </div>
-                    {% endif %}
-                </button>
-                {% endfor %}
-            </div>
-            <button type="button" id="photos-scroll-right" data-action="scroll-photos-right" aria-label="Scroll right">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-        </div>
-    </section>
-    {% endif %}
-
-    {% if !profile.reels.is_empty() %}
-    <section id="section-reels" data-section="reels" aria-labelledby="heading-reels">
-        <h2 id="heading-reels">Reels</h2>
-        <div id="reels-carousel" data-role="reels-carousel">
-            <button type="button" id="reels-scroll-left" data-action="scroll-reels-left" aria-label="Scroll left" disabled>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <div id="reels-track" data-role="reels-track">
-                {% for reel in profile.reels %}
-                <button
+                </section>
+            {% endif %}
+            {% if !profile.reels.is_empty() %}
+                <section id="section-reels" data-section="reels" aria-labelledby="heading-reels">
+                    <h2 id="heading-reels">Reels</h2>
+                    <div id="reels-carousel" data-role="reels-carousel">
+                        <button type="button" id="reels-scroll-left" data-action="scroll-reels-left" aria-label="Scroll left" disabled>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                        </button>
+                        <div id="reels-track" data-role="reels-track">
+                            {% for reel in profile.reels %}
+                                <button
                     type="button"
                     data-component="reel-card"
                     data-action="play-reel"
@@ -275,339 +368,331 @@
                     data-reel-title="{{ reel.title }}"
                     aria-label="Play {{ reel.title }}"
                 >
-                    <div data-role="reel-thumb-wrap">
-                        {% if !reel.thumbnail_url.is_empty() %}
-                        <img
+                                    <div data-role="reel-thumb-wrap">
+                                        {% if !reel.thumbnail_url.is_empty() %}
+                                            <img
                             src="{{ reel.thumbnail_url }}"
                             alt="{{ reel.title }}"
                             loading="lazy"
                             data-role="reel-thumbnail"
                         />
-                        {% else %}
-                        <div data-role="reel-placeholder">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                        {% else %}
+                                            <div data-role="reel-placeholder">
+                                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                                </svg>
+                                            </div>
+                                        {% endif %}
+                                        <div data-role="reel-overlay">
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5 3 19 12 5 21 5 3"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div data-role="reel-info">
+                                        <span data-role="reel-title">{{ reel.title }}</span>
+                                        <span data-role="reel-platform">{{ reel.platform_name }}</span>
+                                    </div>
+                                </button>
+                            {% endfor %}
                         </div>
-                        {% endif %}
-                        <div data-role="reel-overlay">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        </div>
+                        <button type="button" id="reels-scroll-right" data-action="scroll-reels-right" aria-label="Scroll right">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </button>
                     </div>
-                    <div data-role="reel-info">
-                        <span data-role="reel-title">{{ reel.title }}</span>
-                        <span data-role="reel-platform">{{ reel.platform_name }}</span>
-                    </div>
-                </button>
-                {% endfor %}
-            </div>
-            <button type="button" id="reels-scroll-right" data-action="scroll-reels-right" aria-label="Scroll right">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-        </div>
-    </section>
-    {% endif %}
-
-    <dialog id="modal-video" data-component="modal" aria-labelledby="modal-title-video">
-        <div id="modal-video-inner">
-            <header id="modal-video-header">
-                <h2 id="modal-title-video">Video</h2>
-                <button type="button" data-action="close-video" aria-label="Close">&times;</button>
-            </header>
-            <div id="modal-video-body">
-                <iframe
+                </section>
+            {% endif %}
+            <dialog id="modal-video" data-component="modal" aria-labelledby="modal-title-video">
+                <div id="modal-video-inner">
+                    <header id="modal-video-header">
+                        <h2 id="modal-title-video">Video</h2>
+                        <button type="button" data-action="close-video" aria-label="Close">&times;</button>
+                    </header>
+                    <div id="modal-video-body">
+                        <iframe
                     id="video-embed-frame"
                     src=""
                     frameborder="0"
                     allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                     allowfullscreen
                     title="Video player"
-                ></iframe>
-            </div>
-        </div>
-    </dialog>
-
-    <dialog id="modal-photo" data-component="modal" aria-labelledby="modal-title-photo">
-        <div id="modal-photo-inner">
-            <header id="modal-photo-header">
-                <h2 id="modal-title-photo">Photo</h2>
-                <button type="button" data-action="close-photo" aria-label="Close">&times;</button>
-            </header>
-            <div id="modal-photo-body">
-                <button type="button" id="photo-prev" data-action="photo-prev" aria-label="Previous photo">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                </button>
-                <img id="photo-lightbox-img" src="" alt="" />
-                <button type="button" id="photo-next" data-action="photo-next" aria-label="Next photo">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                </button>
-            </div>
-            <p id="photo-lightbox-caption"></p>
-        </div>
-    </dialog>
-
-    {% if profile.bio.is_none() && profile.headline.is_none() &&
-    profile.skills.is_empty() && profile.involvements.is_empty() &&
-    profile.education.is_empty() && profile.location.is_none() &&
-    profile.languages.is_empty() && profile.availability.is_none() &&
-    profile.website.is_none() && profile.reels.is_empty() &&
-    profile.photos.is_empty() %}
-    <section id="section-empty-profile" data-role="empty-state" data-state="empty">
-        <div id="empty-profile-content">
-            <h2 id="heading-empty-profile">Profile Not Set Up</h2>
-            <p>
-                {% if profile.is_own_profile %}
-                Your profile hasn't been set up yet. Add some information about yourself to get started.
-                {% else %}
-                This user hasn't set up their profile yet.
-                {% endif %}
-            </p>
-            {% if profile.is_own_profile %}
-            <nav aria-label="Profile setup actions">
-                <a href="/profile/edit" role="button" data-type="primary">
-                    Set Up Your Profile
-                </a>
-            </nav>
-            {% endif %}
-        </div>
-    </section>
-    {% else %}
-    <div id="profile-details-grid" data-role="details-grid">
-        <section id="section-about" data-section="about" aria-labelledby="heading-about">
-            <h2 id="heading-about">Details</h2>
-
-            {% if profile.location.is_some() || profile.availability.is_some() || !profile.languages.is_empty() || profile.website.is_some() || profile.gender.is_some() || profile.nationality.is_some() || (profile.height_mm.is_some() && profile.height_mm.unwrap() > 0) || (profile.weight_kg.is_some() && profile.weight_kg.unwrap() > 0) || profile.body_type.is_some() || profile.hair_color.is_some() || profile.eye_color.is_some() || !profile.ethnicity.is_empty() || profile.acting_age_range_min.is_some() || !profile.acting_ethnicities.is_empty() || profile.is_own_profile %}
-            <dl id="profile-details-list" data-role="details-list">
-                {% if profile.location.is_some() %}
-                <div data-role="detail-row">
-                    <dt>Location</dt>
-                    <dd>{{ profile.location.as_ref().unwrap() }}</dd>
+                >
+                        </iframe>
+                    </div>
                 </div>
-                {% endif %}
-
-                {% if !profile.languages.is_empty() %}
-                <div data-role="detail-row">
-                    <dt>Languages</dt>
-                    <dd>{{ profile.languages.join(", ") }}</dd>
+            </dialog>
+            <dialog id="modal-photo" data-component="modal" aria-labelledby="modal-title-photo">
+                <div id="modal-photo-inner">
+                    <header id="modal-photo-header">
+                        <h2 id="modal-title-photo">Photo</h2>
+                        <button type="button" data-action="close-photo" aria-label="Close">&times;</button>
+                    </header>
+                    <div id="modal-photo-body">
+                        <button type="button" id="photo-prev" data-action="photo-prev" aria-label="Previous photo">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                        </button>
+                        <img id="photo-lightbox-img" src="" alt="" />
+                        <button type="button" id="photo-next" data-action="photo-next" aria-label="Next photo">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p id="photo-lightbox-caption">
+                    </p>
                 </div>
-                {% endif %}
-
-                {% if profile.availability.is_some() %}
-                <div data-role="detail-row">
-                    <dt>Availability</dt>
-                    <dd>{{ profile.availability.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-
-                {% if profile.website.is_some() %}
-                <div data-role="detail-row">
-                    <dt>Website</dt>
-                    <dd>
-                        <a
+            </dialog>
+            {%
+                if profile.bio.is_none() && profile.headline.is_none() &&
+                profile.skills.is_empty() && profile.involvements.is_empty() &&
+                profile.education.is_empty() && profile.location.is_none() &&
+                profile.languages.is_empty() && profile.availability.is_none() &&
+                profile.website.is_none() && profile.reels.is_empty() &&
+                profile.photos.is_empty()
+            %}
+                <section id="section-empty-profile" data-role="empty-state" data-state="empty">
+                    <div id="empty-profile-content">
+                        <h2 id="heading-empty-profile">Profile Not Set Up</h2>
+                        <p>
+                            {% if profile.is_own_profile %}
+                                Your profile hasn't been set up yet. Add some
+                                information about yourself to get started.
+                            {% else %}
+                                This user hasn't set up their profile yet.
+                            {% endif %}
+                        </p>
+                        {% if profile.is_own_profile %}
+                            <nav aria-label="Profile setup actions">
+                                <a href="/profile/edit" role="button" data-type="primary">Set Up Your Profile</a>
+                            </nav>
+                        {% endif %}
+                    </div>
+                </section>
+            {% else %}
+                <div id="profile-details-grid" data-role="details-grid">
+                    <section id="section-about" data-section="about" aria-labelledby="heading-about">
+                        <h2 id="heading-about">Details</h2>
+                        {%
+                            if profile.location.is_some() || profile.availability.is_some() || !profile.languages.is_empty() || profile.website.is_some() || profile.gender.is_some() || profile.nationality.is_some() || (profile.height_mm.is_some() && profile.height_mm.unwrap() > 0) || (profile.weight_kg.is_some() && profile.weight_kg.unwrap() > 0) || profile.body_type.is_some() || profile.hair_color.is_some() || profile.eye_color.is_some() || !profile.ethnicity.is_empty() || profile.acting_age_range_min.is_some() || !profile.acting_ethnicities.is_empty() || profile.is_own_profile
+                        %}
+                            <dl id="profile-details-list" data-role="details-list">
+                                {% if profile.location.is_some() %}
+                                    <div data-role="detail-row">
+                                        <dt>Location</dt>
+                                        <dd>{{ profile.location.as_ref().unwrap() }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if !profile.languages.is_empty() %}
+                                    <div data-role="detail-row">
+                                        <dt>Languages</dt>
+                                        <dd>{{ profile.languages.join(", ") }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.availability.is_some() %}
+                                    <div data-role="detail-row">
+                                        <dt>Availability</dt>
+                                        <dd>{{ profile.availability.as_ref().unwrap() }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.website.is_some() %}
+                                    <div data-role="detail-row">
+                                        <dt>Website</dt>
+                                        <dd>
+                                            <a
                             href="{{ profile.website.as_ref().unwrap() }}"
                             target="_blank"
                             rel="noopener noreferrer"
-                        >
-                            {{ profile.website.as_ref().unwrap() }}
-                        </a>
-                    </dd>
-                </div>
-                {% endif %}
-
-                {% if profile.is_own_profile || profile.is_public %}
-                <div data-role="detail-row">
-                    <dt>Email</dt>
-                    <dd {% if profile.is_own_profile && !profile.is_public %}data-private="true"{% endif %}>{{ profile.email }}</dd>
-                </div>
-                {% endif %}
-                {% if profile.phone.is_some() && (profile.is_own_profile || profile.is_public) %}
-                <div data-role="detail-row">
-                    <dt>Phone</dt>
-                    <dd {% if profile.is_own_profile && !profile.is_public %}data-private="true"{% endif %}>{{ profile.phone.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-
-                {% if profile.gender.is_some() %}
-                <div data-role="detail-row">
-                    <dt>Gender</dt>
-                    <dd>{{ profile.gender.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-
-                {% if profile.nationality.is_some() %}
-                <div data-role="detail-row">
-                    <dt>Nationality</dt>
-                    <dd>{{ profile.nationality.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-
-                {% if profile.height_mm.is_some() && profile.height_mm.unwrap() > 0 %}
-                <div data-role="detail-row">
-                    <dt>Height</dt>
-                    <dd data-role="height-value" data-mm="{{ profile.height_mm.unwrap() }}">
-                        {{ profile.height_mm.unwrap() / 10 }} cm
-                    </dd>
-                </div>
-                {% endif %}
-
-                {% if profile.weight_kg.is_some() && profile.weight_kg.unwrap() > 0 %}
-                <div data-role="detail-row">
-                    <dt>Weight</dt>
-                    <dd data-role="weight-value" data-kg="{{ profile.weight_kg.unwrap() }}">
-                        {{ profile.weight_kg.unwrap() }} kg
-                    </dd>
-                </div>
-                {% endif %}
-
-                {% if profile.body_type.is_some() %}
-                <div data-role="detail-row">
-                    <dt>Body Type</dt>
-                    <dd>{{ profile.body_type.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-
-                {% if profile.hair_color.is_some() %}
-                <div data-role="detail-row">
-                    <dt>Hair</dt>
-                    <dd>{{ profile.hair_color.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-
-                {% if profile.eye_color.is_some() %}
-                <div data-role="detail-row">
-                    <dt>Eyes</dt>
-                    <dd>{{ profile.eye_color.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-
-                {% if !profile.ethnicity.is_empty() %}
-                <div data-role="detail-row">
-                    <dt>Ethnicity</dt>
-                    <dd>{{ profile.ethnicity.join(", ") }}</dd>
-                </div>
-                {% endif %}
-
-                {% if profile.acting_age_range_min.is_some() && profile.acting_age_range_max.is_some() %}
-                <div data-role="detail-row">
-                    <dt>Playing Age</dt>
-                    <dd>{{ profile.acting_age_range_min.unwrap() }}–{{ profile.acting_age_range_max.unwrap() }}</dd>
-                </div>
-                {% endif %}
-
-                {% if !profile.acting_ethnicities.is_empty() %}
-                <div data-role="detail-row">
-                    <dt>Can Portray</dt>
-                    <dd>{{ profile.acting_ethnicities.join(", ") }}</dd>
-                </div>
-                {% endif %}
-            </dl>
-            {% else %}
-            <div data-role="section-empty" data-state="empty">
-                <p>No details available.</p>
-            </div>
-            {% endif %}
-        </section>
-
-        <section id="section-credits" data-section="credits" aria-labelledby="heading-credits">
-            <h2 id="heading-credits">Credits</h2>
-
-            {% if !profile.involvements.is_empty() %}
-            <div id="credits-grid" data-role="credits-grid">
-                {% for inv in profile.involvements %}
-                <article data-component="credit-card" {% if inv.poster_url.is_some() %}data-has-poster{% endif %}>
-                    {% if inv.poster_url.is_some() %}
-                    <div data-role="credit-poster">
-                        <img src="{{ inv.poster_url.as_ref().unwrap() }}" alt="" loading="lazy" />
-                    </div>
-                    {% endif %}
-                    <div data-role="credit-details">
-                        <h3>
-                            {% if inv.role.is_some() %}
-                            {{ inv.role.as_ref().unwrap() }}
-                            {% else %}
-                            {{ inv.relation_type }}
-                            {% endif %}
-                        </h3>
-                        <p data-role="production-name">
-                            <a href="/productions/{{ inv.production_slug }}">{{ inv.production_title }}</a>
-                        </p>
-                        {% if inv.release_date.is_some() %}
-                        <p data-role="release-date">{{ inv.release_date.as_ref().unwrap() }}</p>
+                        >{{ profile.website.as_ref().unwrap() }}</a>
+                                        </dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.is_own_profile || profile.is_public %}
+                                    <div data-role="detail-row">
+                                        <dt>Email</dt>
+                                        <dd {% if profile.is_own_profile && !profile.is_public %}data-private="true"{% endif %}>{{ profile.email }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.phone.is_some() && (profile.is_own_profile || profile.is_public) %}
+                                    <div data-role="detail-row">
+                                        <dt>Phone</dt>
+                                        <dd {% if profile.is_own_profile && !profile.is_public %}data-private="true"{% endif %}>{{ profile.phone.as_ref().unwrap() }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.gender.is_some() %}
+                                    <div data-role="detail-row">
+                                        <dt>Gender</dt>
+                                        <dd>{{ profile.gender.as_ref().unwrap() }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.nationality.is_some() %}
+                                    <div data-role="detail-row">
+                                        <dt>Nationality</dt>
+                                        <dd>{{ profile.nationality.as_ref().unwrap() }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.height_mm.is_some() && profile.height_mm.unwrap() > 0 %}
+                                    <div data-role="detail-row">
+                                        <dt>Height</dt>
+                                        <dd data-role="height-value" data-mm="{{ profile.height_mm.unwrap() }}">{{ profile.height_mm.unwrap() / 10 }} cm</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.weight_kg.is_some() && profile.weight_kg.unwrap() > 0 %}
+                                    <div data-role="detail-row">
+                                        <dt>Weight</dt>
+                                        <dd data-role="weight-value" data-kg="{{ profile.weight_kg.unwrap() }}">{{ profile.weight_kg.unwrap() }} kg</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.body_type.is_some() %}
+                                    <div data-role="detail-row">
+                                        <dt>Body Type</dt>
+                                        <dd>{{ profile.body_type.as_ref().unwrap() }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.hair_color.is_some() %}
+                                    <div data-role="detail-row">
+                                        <dt>Hair</dt>
+                                        <dd>{{ profile.hair_color.as_ref().unwrap() }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.eye_color.is_some() %}
+                                    <div data-role="detail-row">
+                                        <dt>Eyes</dt>
+                                        <dd>{{ profile.eye_color.as_ref().unwrap() }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if !profile.ethnicity.is_empty() %}
+                                    <div data-role="detail-row">
+                                        <dt>Ethnicity</dt>
+                                        <dd>{{ profile.ethnicity.join(", ") }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if profile.acting_age_range_min.is_some() && profile.acting_age_range_max.is_some() %}
+                                    <div data-role="detail-row">
+                                        <dt>Playing Age</dt>
+                                        <dd>
+                                            {{ profile.acting_age_range_min.unwrap() }}
+                                            –
+                                            {{ profile.acting_age_range_max.unwrap() }}
+                                        </dd>
+                                    </div>
+                                {% endif %}
+                                {% if !profile.acting_ethnicities.is_empty() %}
+                                    <div data-role="detail-row">
+                                        <dt>Can Portray</dt>
+                                        <dd>{{ profile.acting_ethnicities.join(", ") }}</dd>
+                                    </div>
+                                {% endif %}
+                            </dl>
+                        {% else %}
+                            <div data-role="section-empty" data-state="empty">
+                                <p>No details available.</p>
+                            </div>
                         {% endif %}
-                        <div data-role="credit-badges">
-                            <span data-role="credit-type-badge" data-type="{{ inv.production_type }}">{{ inv.production_type }}</span>
-                            {% if inv.verification_status == "verified" %}
-                            <span data-role="verification-badge" data-status="verified" title="Verified credit">Verified</span>
-                            {% else if inv.verification_status == "externally_sourced" %}
-                            <span data-role="verification-badge" data-status="external" title="From TMDb">TMDb</span>
-                            {% endif %}
+                    </section>
+                    <section id="section-credits" data-section="credits" aria-labelledby="heading-credits">
+                        <h2 id="heading-credits">Credits</h2>
+                        {% if !profile.involvements.is_empty() %}
+                            <div id="credits-grid" data-role="credits-grid">
+                                {% for inv in profile.involvements %}
+                                    <article data-component="credit-card" {% if inv.poster_url.is_some() %}data-has-poster{% endif %}>
+                                        {% if inv.poster_url.is_some() %}
+                                            <div data-role="credit-poster">
+                                                <img src="{{ inv.poster_url.as_ref().unwrap() }}" alt="" loading="lazy" />
+                                            </div>
+                                        {% endif %}
+                                        <div data-role="credit-details">
+                                            <h3>
+                                                {% if inv.role.is_some() %}
+                                                    {{ inv.role.as_ref().unwrap() }}
+                                                {% else %}
+                                                    {{ inv.relation_type }}
+                                                {% endif %}
+                                            </h3>
+                                            <p data-role="production-name">
+                                                <a href="/productions/{{ inv.production_slug }}">{{ inv.production_title }}</a>
+                                            </p>
+                                            {% if inv.release_date.is_some() %}
+                                                <p data-role="release-date">{{ inv.release_date.as_ref().unwrap() }}</p>
+                                            {% endif %}
+                                            <div data-role="credit-badges">
+                                                <span data-role="credit-type-badge" data-type="{{ inv.production_type }}">{{ inv.production_type }}</span>
+                                                {% if inv.verification_status == "verified" %}
+                                                    <span data-role="verification-badge" data-status="verified" title="Verified credit">Verified</span>
+                                                {% else if inv.verification_status == "externally_sourced" %}
+                                                    <span data-role="verification-badge" data-status="external" title="From TMDb">TMDb</span>
+                                                {% endif %}
+                                            </div>
+                                            {% if inv.tmdb_url.is_some() %}
+                                                <a href="{{ inv.tmdb_url.as_ref().unwrap() }}" target="_blank" rel="noopener noreferrer" data-role="tmdb-link" title="View on TMDb">TMDb</a>
+                                            {% endif %}
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div data-role="section-empty" data-state="empty">
+                                <p>
+                                    {% if profile.is_own_profile %}
+                                        No credits yet. Add your roles and productions to showcase your work.
+                                    {% else %}
+                                        No credits listed.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        {% endif %}
+                    </section>
+                </div>
+                {% if !profile.education.is_empty() %}
+                    <section id="section-education" data-section="education" aria-labelledby="heading-education">
+                        <h2 id="heading-education">Education</h2>
+                        <div id="education-grid" data-role="education-grid">
+                            {% for edu in profile.education %}
+                                <article data-component="education-card">
+                                    <h3>{{ edu.institution }}</h3>
+                                    {% if edu.degree.is_some() %}
+                                        <p data-role="degree">{{ edu.degree.as_ref().unwrap() }}</p>
+                                    {% endif %}
+                                    {% if edu.field.is_some() %}
+                                        <p data-role="field-of-study">{{ edu.field.as_ref().unwrap() }}</p>
+                                    {% endif %}
+                                    {% if edu.dates.is_some() %}
+                                        {% let dates = edu.dates.as_ref().unwrap() %}
+                                        <div data-role="date-range">
+                                            {% if dates.start.is_some() %}
+                                                <time datetime="{{ dates.start.as_ref().unwrap() }}">{{ dates.start.as_ref().unwrap() }}</time>
+                                            {% endif %}
+                                            {% if dates.start.is_some() && dates.end.is_some() %}
+                                                <span aria-hidden="true">–</span>
+                                            {% endif %}
+                                            {% if dates.end.is_some() %}
+                                                <time datetime="{{ dates.end.as_ref().unwrap() }}">{{ dates.end.as_ref().unwrap() }}</time>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </article>
+                            {% endfor %}
                         </div>
-                        {% if inv.tmdb_url.is_some() %}
-                        <a href="{{ inv.tmdb_url.as_ref().unwrap() }}" target="_blank" rel="noopener noreferrer" data-role="tmdb-link" title="View on TMDb">TMDb</a>
-                        {% endif %}
-                    </div>
-                </article>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div data-role="section-empty" data-state="empty">
-                <p>
-                    {% if profile.is_own_profile %}
-                    No credits yet. Add your roles and productions to showcase your work.
-                    {% else %}
-                    No credits listed.
-                    {% endif %}
-                </p>
-            </div>
+                    </section>
+                {% endif %}
+            {% endif %}
+            {% if !profile.is_own_profile && !profile.is_public %}
+                <footer id="profile-footer" data-role="profile-footer">
+                    <p>
+                        <small>
+                            This is a limited view of the profile. Some
+                            information may be hidden for privacy.
+                        </small>
+                    </p>
+                </footer>
             {% endif %}
         </section>
-    </div>
-
-    {% if !profile.education.is_empty() %}
-    <section id="section-education" data-section="education" aria-labelledby="heading-education">
-        <h2 id="heading-education">Education</h2>
-        <div id="education-grid" data-role="education-grid">
-            {% for edu in profile.education %}
-            <article data-component="education-card">
-                <h3>{{ edu.institution }}</h3>
-                {% if edu.degree.is_some() %}
-                <p data-role="degree">{{ edu.degree.as_ref().unwrap() }}</p>
-                {% endif %}
-                {% if edu.field.is_some() %}
-                <p data-role="field-of-study">{{ edu.field.as_ref().unwrap() }}</p>
-                {% endif %}
-                {% if edu.dates.is_some() %}
-                {% let dates = edu.dates.as_ref().unwrap() %}
-                <div data-role="date-range">
-                    {% if dates.start.is_some() %}
-                    <time datetime="{{ dates.start.as_ref().unwrap() }}">{{ dates.start.as_ref().unwrap() }}</time>
-                    {% endif %}
-                    {% if dates.start.is_some() && dates.end.is_some() %}
-                    <span aria-hidden="true">–</span>
-                    {% endif %}
-                    {% if dates.end.is_some() %}
-                    <time datetime="{{ dates.end.as_ref().unwrap() }}">{{ dates.end.as_ref().unwrap() }}</time>
-                    {% endif %}
-                </div>
-                {% endif %}
-            </article>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-    {% endif %}
-
-    {% if !profile.is_own_profile && !profile.is_public %}
-    <footer id="profile-footer" data-role="profile-footer">
-        <p>
-            <small>
-                This is a limited view of the profile. Some information may be hidden for privacy.
-            </small>
-        </p>
-    </footer>
-    {% endif %}
-</section>
-{% endblock %}
-{% block scripts %}
-<script>
+    {% endblock %}
+    {% block scripts %}
+        <script>
 (function() {
     var qrBtn = document.querySelector('[data-action="open-qr"]');
     var modal = document.getElementById('modal-qr-code');
@@ -618,6 +703,18 @@
     });
     modal.addEventListener('click', function(e) {
         if (e.target === modal) modal.close();
+    });
+})();
+(function() {
+    var copyBtn = document.querySelector('[data-action="copy-profile-url"]');
+    var toast = document.getElementById('copy-toast');
+    if (!copyBtn || !toast) return;
+    copyBtn.addEventListener('click', function() {
+        var url = window.location.origin + '/{{ profile.username }}';
+        navigator.clipboard.writeText(url).then(function() {
+            toast.hidden = false;
+            setTimeout(function() { toast.hidden = true; }, 2000);
+        });
     });
 })();
 (function() {
@@ -768,4 +865,4 @@
     }
 })();
 </script>
-{% endblock %}
+    {% endblock %}
