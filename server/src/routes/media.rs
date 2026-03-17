@@ -202,11 +202,11 @@ async fn upload_profile_image(
         format!("person:{}", user.id)
     };
 
-    // Use MERGE to ensure profile object is created if it doesn't exist yet
+    // Use SET to update only the avatar field without replacing the entire profile object
     let person_rid = surrealdb::types::RecordId::parse_simple(&person_id)
         .map_err(|e| Error::BadRequest(e.to_string()))?;
 
-    DB.query("UPDATE $pid MERGE { profile: { avatar: $avatar } } RETURN NONE")
+    DB.query("UPDATE $pid SET profile.avatar = $avatar RETURN NONE")
         .bind(("pid", person_rid))
         .bind(("avatar", main_url.clone()))
         .await
