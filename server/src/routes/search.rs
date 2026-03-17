@@ -94,9 +94,12 @@ struct LocationSearchResult {
 struct ProductionSearchResult {
     id: String,
     title: String,
+    slug: String,
     status: String,
     description: Option<String>,
     location: Option<String>,
+    poster_url: Option<String>,
+    poster_photo: Option<String>,
     score: i32,
 }
 
@@ -553,9 +556,12 @@ async fn search_productions(
     struct ProductionSearchDb {
         id: String,
         title: Option<String>,
+        slug: Option<String>,
         status: Option<String>,
         description: Option<String>,
         location: Option<String>,
+        poster_url: Option<String>,
+        poster_photo: Option<String>,
         score: f64,
     }
 
@@ -567,9 +573,12 @@ async fn search_productions(
             "SELECT
                 <string> id AS id,
                 title,
+                slug,
                 status,
                 description,
                 location,
+                poster_url,
+                poster_photo,
                 <float> (
                     (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
                     + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
@@ -609,9 +618,12 @@ async fn search_productions(
         .map(|p| ProductionSearchResult {
             id: p.id,
             title: p.title.unwrap_or_default(),
+            slug: p.slug.unwrap_or_default(),
             status: p.status.unwrap_or_default(),
             description: p.description,
             location: p.location,
+            poster_url: p.poster_url,
+            poster_photo: p.poster_photo,
             score: p.score.round() as i32,
         })
         .collect();

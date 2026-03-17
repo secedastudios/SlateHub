@@ -183,8 +183,14 @@
             <div data-role="card-grid">
                 {% for prod in productions %}
                 <article data-component="card" data-type="production">
-                    <a href="/productions/{{ prod.id }}" data-role="card-visual">
+                    <a href="/productions/{{ prod.slug }}" data-role="card-visual">
+                        {% if prod.poster_photo.is_some() %}
+                        <img src="{{ prod.poster_photo.as_ref().unwrap() }}" alt="{{ prod.title }}" loading="lazy" onerror="this.style.display='none'" />
+                        {% else if prod.poster_url.is_some() %}
+                        <img src="{{ prod.poster_url.as_ref().unwrap() }}" alt="{{ prod.title }}" loading="lazy" onerror="this.style.display='none'" />
+                        {% else %}
                         <div data-role="placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg></div>
+                        {% endif %}
                         <div data-role="overlay">
                             <h3>{{ prod.title }}</h3>
                             <div data-role="meta">
