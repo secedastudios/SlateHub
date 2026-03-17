@@ -301,6 +301,21 @@ impl ProductionModel {
             .await
             .map_err(|e| Error::Database(format!("Failed to create ownership relation: {}", e)))?;
 
+        // Also create an involvement (credit) for the owner if they have a production role
+        if let Some(prod_role) = owner_production_role.filter(|r| !r.is_empty()) {
+            use crate::models::involvement::InvolvementModel;
+            let _ = InvolvementModel::create(
+                creator_id,
+                &production.id,
+                "crew",
+                Some(prod_role),
+                None,
+                None,
+                "manual",
+            )
+            .await;
+        }
+
         // Commit transaction
         DB.query("COMMIT TRANSACTION")
             .await
@@ -809,6 +824,23 @@ impl ProductionModel {
 
         q.await
             .map_err(|e| Error::Database(format!("Failed to add member: {}", e)))?;
+
+        // Also create an involvement (credit) so the production appears on the person's profile
+        if let Some(prod_role) = production_role.filter(|r| !r.is_empty()) {
+            use crate::models::involvement::InvolvementModel;
+            if !InvolvementModel::exists(member_id, production_id, Some(prod_role)).await? {
+                InvolvementModel::create(
+                    member_id,
+                    production_id,
+                    "crew",
+                    Some(prod_role),
+                    None,
+                    None,
+                    "invited",
+                )
+                .await?;
+            }
+        }
 
         Ok(())
     }
