@@ -88,6 +88,18 @@ fn default_source() -> String {
     "manual".to_string()
 }
 
+/// Normalize a date string to full ISO 8601 datetime for SurrealDB.
+/// HTML date inputs produce "2026-03-17" but SurrealDB expects "2026-03-17T00:00:00Z".
+fn normalize_datetime(s: Option<String>) -> Option<String> {
+    s.map(|v| {
+        if v.len() == 10 && !v.contains('T') {
+            format!("{}T00:00:00Z", v)
+        } else {
+            v
+        }
+    })
+}
+
 /// Data required to create a new production
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateProductionData {
@@ -250,8 +262,8 @@ impl ProductionModel {
             .bind(("slug", slug))
             .bind(("type", data.production_type))
             .bind(("status", data.status))
-            .bind(("start_date", data.start_date))
-            .bind(("end_date", data.end_date))
+            .bind(("start_date", normalize_datetime(data.start_date)))
+            .bind(("end_date", normalize_datetime(data.end_date)))
             .bind(("description", data.description))
             .bind(("location", data.location))
             .bind(("budget_level", data.budget_level))
@@ -481,10 +493,10 @@ impl ProductionModel {
         if let Some(status) = data.status {
             db_query = db_query.bind(("status", status));
         }
-        if let Some(start_date) = data.start_date {
+        if let Some(start_date) = normalize_datetime(data.start_date) {
             db_query = db_query.bind(("start_date", start_date));
         }
-        if let Some(end_date) = data.end_date {
+        if let Some(end_date) = normalize_datetime(data.end_date) {
             db_query = db_query.bind(("end_date", end_date));
         }
         if let Some(description) = data.description {
