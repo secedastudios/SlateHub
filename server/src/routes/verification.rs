@@ -5,6 +5,7 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
+use surrealdb::types::RecordId;
 use tracing::error;
 
 use crate::{
@@ -20,10 +21,21 @@ pub fn router() -> Router {
         .route("/get-verified/request", post(request_verification))
 }
 
+fn parse_person_rid(person_id: &str) -> Option<RecordId> {
+    if person_id.starts_with("person:") {
+        RecordId::parse_simple(person_id).ok()
+    } else {
+        Some(RecordId::new("person", person_id))
+    }
+}
+
 async fn has_pending_verification(person_id: &str) -> bool {
+    let Some(rid) = parse_person_rid(person_id) else {
+        return false;
+    };
     if let Ok(mut result) = DB
-        .query("SELECT count() AS c FROM verification_request WHERE person = type::record('person', $pid) AND status = 'pending' GROUP ALL")
-        .bind(("pid", person_id.to_string()))
+        .query("SELECT count() AS c FROM verification_request WHERE person = $pid AND status = 'pending' GROUP ALL")
+        .bind(("pid", rid))
         .await
     {
         if let Ok(Some(row)) = result.take::<Option<serde_json::Value>>(0) {
@@ -71,9 +83,12 @@ async fn request_verification(
         return Ok(Redirect::to("/get-verified").into_response());
     }
 
+    let rid = parse_person_rid(person_id)
+        .ok_or_else(|| Error::BadRequest("Invalid person ID".to_string()))?;
+
     if let Err(e) = DB
-        .query("CREATE verification_request SET person = type::record('person', $pid)")
-        .bind(("pid", person_id.to_string()))
+        .query("CREATE verification_request SET person = $pid, status = 'pending', created_at = time::now()")
+        .bind(("pid", rid))
         .await
     {
         error!("Failed to create verification request: {}", e);
