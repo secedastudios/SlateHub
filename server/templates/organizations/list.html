@@ -1,31 +1,38 @@
 {% extends "_layout.html" %}
-{% block title %}Organizations - {{ app_name }}{% endblock %}
-{% block page_name %}organizations{% endblock %}
+{% block title %}
+    Organizations -
+    {{ app_name }}
+{% endblock %}
+{% block page_name %}
+    organizations
+{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="/static/css/pages/orgs.css?v={{ version }}" />
+    <link rel="stylesheet" href="/static/css/pages/orgs.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
-<section data-component="orgs-page">
-    <header data-role="page-header">
-        <h1>Organizations</h1>
-        <p data-role="subtitle">Discover production companies, studios, agencies, and service providers in the industry</p>
-        <div data-role="header-actions">
-            {% if user.is_some() %}
-            <a href="/orgs/new" data-role="btn-primary">+ Create Organization</a>
-            {% else %}
-            <a href="/login?redirect=/orgs/new" data-role="btn-primary">+ Create Organization</a>
-            {% endif %}
-        </div>
-    </header>
-
-    <section data-section="controls">
-        <form id="form-search-orgs" method="get" action="/orgs" data-component="search-form">
-            <div id="search-input-wrap">
-                <svg id="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="M21 21l-4.35-4.35"/>
-                </svg>
-                <input
+    <section data-component="orgs-page">
+        <header data-role="page-header">
+            <h1>Organizations</h1>
+            <p data-role="subtitle">
+                Discover production companies, studios, agencies, film schools,
+                filmmaker communities and service providers in the industry
+            </p>
+            <div data-role="header-actions">
+                {% if user.is_some() %}
+                    <a href="/orgs/new" data-role="btn-primary">+ Create Organization</a>
+                {% else %}
+                    <a href="/login?redirect=/orgs/new" data-role="btn-primary">+ Create Organization</a>
+                {% endif %}
+            </div>
+        </header>
+        <section data-section="controls">
+            <form id="form-search-orgs" method="get" action="/orgs" data-component="search-form">
+                <div id="search-input-wrap">
+                    <svg id="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                    <input
                     type="search"
                     id="input-search"
                     name="q"
@@ -33,92 +40,114 @@
                     value="{% if search_query.is_some() %}{{ search_query.as_ref().unwrap() }}{% endif %}"
                     autocomplete="off"
                 />
-                <button type="submit" id="button-search-submit">Search</button>
-            </div>
-        </form>
-
-        {% if !org_types.is_empty() %}
-        <div data-component="filter-tags">
-            <h3>Filter by type</h3>
-            <ul data-role="tag-list">
-                {% for org_type in org_types %}
-                <li>
-                    <button type="button" data-role="filter-tag" data-filter="{{ org_type.id }}" onclick="filterByType('{{ org_type.id }}', '{{ org_type.name }}')">{{ org_type.name }}</button>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-    </section>
-
-    <section data-section="results">
-        {% if organizations.is_empty() %}
-        <div data-role="empty-state">
-            <h2>No organizations found</h2>
-            {% if search_query.is_some() %}
-            <p>No organizations match your search criteria. Try adjusting your filters.</p>
-            {% else %}
-            <p>Be the first to create an organization on SlateHub!</p>
+                    <button type="submit" id="button-search-submit">Search</button>
+                </div>
+            </form>
+            {% if !org_types.is_empty() %}
+                <div data-component="filter-tags">
+                    <h3>Filter by type</h3>
+                    <ul data-role="tag-list">
+                        {% for org_type in org_types %}
+                            <li>
+                                <button type="button" data-role="filter-tag" data-filter="{{ org_type.id }}" onclick="filterByType('{{ org_type.id }}', '{{ org_type.name }}')">{{ org_type.name }}</button>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
             {% endif %}
-            <nav data-role="empty-actions">
-                {% if search_query.is_some() %}
-                <a href="/orgs" data-role="btn-secondary">Clear Search</a>
-                {% endif %}
-                {% if user.is_some() %}
-                <a href="/orgs/new" data-role="btn-primary">Create Organization</a>
-                {% else %}
-                <a href="/login?redirect=/orgs/new" data-role="btn-primary">Create Organization</a>
-                {% endif %}
-            </nav>
-        </div>
-        {% else %}
-        <div data-role="results-count">
-            <p>Showing {{ organizations.len() }} organization{% if organizations.len() != 1 %}s{% endif %}</p>
-        </div>
-        <div data-role="card-grid" id="orgs-grid">
-            {% for org in organizations %}
-            <article data-component="card" data-type="org">
-                <a href="/orgs/{{ org.slug }}" data-role="card-visual">
-                    {% if org.logo.is_some() %}
-                    <img src="{{ org.logo.as_ref().unwrap() }}" alt="{{ org.name }}" loading="lazy" onerror="this.style.display='none'" />
+        </section>
+        <section data-section="results">
+            {% if organizations.is_empty() %}
+                <div data-role="empty-state">
+                    <h2>No organizations found</h2>
+                    {% if search_query.is_some() %}
+                        <p>
+                            No organizations match your search criteria. Try adjusting your filters.
+                        </p>
                     {% else %}
-                    <div data-role="placeholder"><span>{{ org.name }}</span></div>
+                        <p>
+                            Be the first to create an organization on SlateHub!
+                        </p>
                     {% endif %}
-                    <div data-role="overlay">
-                        <h3>{{ org.name }}{% if org.verified %} <svg data-role="verified-badge" data-verified="org" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>{% endif %}</h3>
-                        <div data-role="meta">
-                            <span data-role="type-label">{{ org.org_type.name }}</span>
-                            {% if org.location.is_some() %}
-                            <span data-role="loc">{{ org.location.as_ref().unwrap() }}</span>
-                            {% endif %}
+                    <nav data-role="empty-actions">
+                        {% if search_query.is_some() %}
+                            <a href="/orgs" data-role="btn-secondary">Clear Search</a>
+                        {% endif %}
+                        {% if user.is_some() %}
+                            <a href="/orgs/new" data-role="btn-primary">Create Organization</a>
+                        {% else %}
+                            <a href="/login?redirect=/orgs/new" data-role="btn-primary">Create Organization</a>
+                        {% endif %}
+                    </nav>
+                </div>
+            {% else %}
+                <div data-role="results-count">
+                    <p>
+                        Showing
+                        {{ organizations.len() }}
+                        organization
+                        {% if organizations.len() != 1 %}
+                            s
+                        {% endif %}
+                    </p>
+                </div>
+                <div data-role="card-grid" id="orgs-grid">
+                    {% for org in organizations %}
+                        <article data-component="card" data-type="org">
+                            <a href="/orgs/{{ org.slug }}" data-role="card-visual">
+                                {% if org.logo.is_some() %}
+                                    <img src="{{ org.logo.as_ref().unwrap() }}" alt="{{ org.name }}" loading="lazy" onerror="this.style.display='none'" />
+                                {% else %}
+                                    <div data-role="placeholder">
+                                        <span>{{ org.name }}</span>
+                                    </div>
+                                {% endif %}
+                                <div data-role="overlay">
+                                    <h3>
+                                        {{ org.name }}
+                                        {% if org.verified %}
+                                            <svg data-role="verified-badge" data-verified="org" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization">
+                                                <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
+                                            </svg>
+                                        {% endif %}
+                                    </h3>
+                                    <div data-role="meta">
+                                        <span data-role="type-label">{{ org.org_type.name }}</span>
+                                        {% if org.location.is_some() %}
+                                            <span data-role="loc">{{ org.location.as_ref().unwrap() }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </a>
+                            <div data-role="content">
+                                {% if org.description.is_some() %}
+                                    <p data-role="desc">{{ org.description.as_ref().unwrap() }}</p>
+                                {% endif %}
+                                {% if !org.services.is_empty() %}
+                                    <p data-role="services">
+                                        {% for service in org.services.iter().take(4) %}
+                                            <span>{{ service }}</span>
+                                        {% endfor %}
+                                    </p>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                    {% if has_more %}
+                        <div id="orgs-sentinel" data-on-intersect="@get('/api/orgs/more-sse?offset=20{% if search_query.is_some() %}&q={{ search_query.as_ref().unwrap() }}{% endif %}')">
+                            <div class="orgs-loading">Loading more...</div>
                         </div>
-                    </div>
-                </a>
-                <div data-role="content">
-                    {% if org.description.is_some() %}
-                    <p data-role="desc">{{ org.description.as_ref().unwrap() }}</p>
-                    {% endif %}
-                    {% if !org.services.is_empty() %}
-                    <p data-role="services">{% for service in org.services.iter().take(4) %}<span>{{ service }}</span>{% endfor %}</p>
                     {% endif %}
                 </div>
-            </article>
-            {% endfor %}
-            {% if has_more %}
-            <div id="orgs-sentinel" data-on-intersect="@get('/api/orgs/more-sse?offset=20{% if search_query.is_some() %}&q={{ search_query.as_ref().unwrap() }}{% endif %}')">
-                <div class="orgs-loading">Loading more...</div>
-            </div>
             {% endif %}
-        </div>
-        {% endif %}
+        </section>
     </section>
-</section>
-
-<button data-role="scroll-top" id="scroll-top-btn" aria-label="Scroll to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-</button>
-
-<script>
+    <button data-role="scroll-top" id="scroll-top-btn" aria-label="Scroll to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"/>
+        </svg>
+    </button>
+    <script>
 function filterByType(typeId, typeName) {
     const url = new URL(window.location);
     url.searchParams.set('org_type', typeId);
