@@ -10,6 +10,7 @@ use rmcp::{ServerHandler, schemars, tool, tool_handler, tool_router};
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 use regex::Regex;
+use crate::config::search_weights;
 use crate::db::DB;
 use crate::services::embedding::generate_embedding_async;
 use crate::services::search_log::log_search;
@@ -483,21 +484,22 @@ impl SlateHubMcp {
 
         let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+        let w = search_weights();
 
         // When hard filters are present, the text/vector match is optional —
         // it only boosts scoring. Without hard filters, require at least a text or vector match.
         let text_vector_gate = if has_hard_filters {
             "true".to_string()
         } else {
-            "(
+            format!("(
                     string::lowercase(name ?? '') CONTAINS $query_lower
                     OR string::lowercase(username ?? '') CONTAINS $query_lower
                     OR string::lowercase(profile.headline ?? '') CONTAINS $query_lower
                     OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower
                     OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
                     OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
-                )".to_string()
+                        AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
+                )", threshold = w.vector_threshold)
         };
 
         let sql = format!(
@@ -510,12 +512,12 @@ impl SlateHubMcp {
                 profile.skills AS skills,
                 profile.avatar AS avatar_url,
                 <float> (
-                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(username ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(profile.headline ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
-                    + (IF string::lowercase(profile.location ?? '') CONTAINS $query_lower THEN 10 ELSE 0 END)
+                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
+                    + (IF string::lowercase(username ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
+                    + (IF string::lowercase(profile.headline ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
+                    + (IF string::lowercase(profile.location ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
                     + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * 50
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
                         ELSE 0
                     END)
                 ) AS score
@@ -524,7 +526,11 @@ impl SlateHubMcp {
                 {text_vector_gate}
                 {hard_filter}
             ORDER BY score DESC
-            LIMIT $limit"
+            LIMIT $limit",
+            w_name = w.name_match,
+            w_headline = w.headline_match,
+            w_location = w.location_match,
+            w_vector = w.vector_multiplier,
         );
 
         let has_embedding = query_embedding.is_some();
@@ -611,17 +617,18 @@ impl SlateHubMcp {
 
         let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+        let w = search_weights();
 
         let text_vector_gate = if has_hard_filters {
             "true".to_string()
         } else {
-            "(
+            format!("(
                     string::lowercase(title ?? '') CONTAINS $query_lower
                     OR string::lowercase(description ?? '') CONTAINS $query_lower
                     OR string::lowercase(location ?? '') CONTAINS $query_lower
                     OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
-                )".to_string()
+                        AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
+                )", threshold = w.vector_threshold)
         };
 
         let sql = format!(
@@ -633,11 +640,11 @@ impl SlateHubMcp {
                 description,
                 location,
                 <float> (
-                    (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
-                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
+                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
                     + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
                         ELSE 0
                     END)
                 ) AS score
@@ -646,7 +653,11 @@ impl SlateHubMcp {
                 {text_vector_gate}
                 {hard_filter}
             ORDER BY score DESC
-            LIMIT $limit"
+            LIMIT $limit",
+            w_name = w.name_match,
+            w_headline = w.headline_match,
+            w_location = w.location_match,
+            w_vector = w.vector_multiplier,
         );
 
         let has_embedding = query_embedding.is_some();
@@ -726,17 +737,18 @@ impl SlateHubMcp {
 
         let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+        let w = search_weights();
 
         let text_vector_gate = if has_hard_filters {
             "true".to_string()
         } else {
-            "(
+            format!("(
                     string::lowercase(name ?? '') CONTAINS $query_lower
                     OR string::lowercase(description ?? '') CONTAINS $query_lower
                     OR string::lowercase(location ?? '') CONTAINS $query_lower
                     OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
-                )".to_string()
+                        AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
+                )", threshold = w.vector_threshold)
         };
 
         let sql = format!(
@@ -747,11 +759,11 @@ impl SlateHubMcp {
                 description,
                 location,
                 <float> (
-                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
-                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
+                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
                     + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
                         ELSE 0
                     END)
                 ) AS score
@@ -760,7 +772,11 @@ impl SlateHubMcp {
                 {text_vector_gate}
                 {hard_filter}
             ORDER BY score DESC
-            LIMIT $limit"
+            LIMIT $limit",
+            w_name = w.name_match,
+            w_headline = w.headline_match,
+            w_location = w.location_match,
+            w_vector = w.vector_multiplier,
         );
 
         let has_embedding = query_embedding.is_some();
@@ -845,18 +861,19 @@ impl SlateHubMcp {
 
         let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+        let w = search_weights();
 
         let text_vector_gate = if has_hard_filters {
             "true".to_string()
         } else {
-            "(
+            format!("(
                 string::lowercase(name ?? '') CONTAINS $query_lower
                 OR string::lowercase(city ?? '') CONTAINS $query_lower
                 OR string::lowercase(state ?? '') CONTAINS $query_lower
                 OR string::lowercase(description ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
-            )".to_string()
+                    AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
+            )", threshold = w.vector_threshold)
         };
 
         let sql = format!(
@@ -869,12 +886,12 @@ impl SlateHubMcp {
                 state,
                 description,
                 <float> (
-                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(city ?? '') CONTAINS $query_lower THEN 30 ELSE 0 END)
-                    + (IF string::lowercase(state ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
-                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 10 ELSE 0 END)
+                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
+                    + (IF string::lowercase(city ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
+                    + (IF string::lowercase(state ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
                     + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
                         ELSE 0
                     END)
                 ) AS score
@@ -882,7 +899,11 @@ impl SlateHubMcp {
             WHERE is_public = true AND {text_vector_gate}
             {hard_filter}
             ORDER BY score DESC
-            LIMIT $limit"
+            LIMIT $limit",
+            w_name = w.name_match,
+            w_headline = w.headline_match,
+            w_location = w.location_match,
+            w_vector = w.vector_multiplier,
         );
 
         let has_embedding = query_embedding.is_some();
@@ -978,17 +999,18 @@ impl SlateHubMcp {
 
         let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+        let w = search_weights();
 
         let text_vector_gate = if has_hard_filters {
             "true".to_string()
         } else {
-            "(
+            format!("(
                     string::lowercase(title ?? '') CONTAINS $query_lower
                     OR string::lowercase(description ?? '') CONTAINS $query_lower
                     OR string::lowercase(location ?? '') CONTAINS $query_lower
                     OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
-                )".to_string()
+                        AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
+                )", threshold = w.vector_threshold)
         };
 
         let sql = format!(
@@ -1000,11 +1022,11 @@ impl SlateHubMcp {
                 location,
                 status,
                 <float> (
-                    (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
-                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
+                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
                     + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
                         ELSE 0
                     END)
                 ) AS score
@@ -1013,7 +1035,11 @@ impl SlateHubMcp {
                 {text_vector_gate}
                 {hard_filter}
             ORDER BY score DESC
-            LIMIT $limit"
+            LIMIT $limit",
+            w_name = w.name_match,
+            w_headline = w.headline_match,
+            w_location = w.location_match,
+            w_vector = w.vector_multiplier,
         );
 
         let has_embedding = query_embedding.is_some();

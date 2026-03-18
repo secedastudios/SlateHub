@@ -337,7 +337,7 @@ impl JobModel {
                 text_or_vector.push("string::lowercase(string::join(' ', roles.*.title)) CONTAINS string::lowercase($search)".to_string());
             }
             if has_embedding {
-                text_or_vector.push("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)".to_string());
+                text_or_vector.push(format!("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > {})", crate::config::search_weights().vector_threshold));
             }
             query.push_str(&format!(" AND ({})", text_or_vector.join(" OR ")));
         }

@@ -94,6 +94,45 @@ pub fn app_url() -> String {
         .to_string()
 }
 
+/// Search scoring weights — configurable via env vars.
+#[derive(Debug, Clone)]
+pub struct SearchWeights {
+    pub name_match: i32,
+    pub headline_match: i32,
+    pub location_match: i32,
+    pub vector_multiplier: i32,
+    pub vector_threshold: f64,
+}
+
+impl SearchWeights {
+    pub fn from_env() -> Self {
+        fn parse_or(var: &str, default: i32) -> i32 {
+            env::var(var).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+        }
+        fn parse_f64_or(var: &str, default: f64) -> f64 {
+            env::var(var).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+        }
+        Self {
+            name_match: parse_or("SEARCH_WEIGHT_NAME", 50),
+            headline_match: parse_or("SEARCH_WEIGHT_HEADLINE", 20),
+            location_match: parse_or("SEARCH_WEIGHT_LOCATION", 10),
+            vector_multiplier: parse_or("SEARCH_WEIGHT_VECTOR", 50),
+            vector_threshold: parse_f64_or("SEARCH_VECTOR_THRESHOLD", 0.75),
+        }
+    }
+}
+
+/// Global search weights — loaded once from env at first access.
+static SEARCH_WEIGHTS: std::sync::LazyLock<SearchWeights> =
+    std::sync::LazyLock::new(|| {
+        dotenv::dotenv().ok();
+        SearchWeights::from_env()
+    });
+
+pub fn search_weights() -> &'static SearchWeights {
+    &SEARCH_WEIGHTS
+}
+
 impl ServerConfig {
     fn from_env() -> Result<Self, ConfigError> {
         Ok(ServerConfig {

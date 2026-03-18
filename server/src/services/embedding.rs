@@ -233,9 +233,13 @@ pub fn build_person_embedding_text(
         parts.push(format!("Eyes: {}", ec));
     }
 
-    // Location for geographical search
+    // Location for geographical search — enrich with full geographic context
     if let Some(loc) = location {
         parts.push(format!("Location: {}", loc));
+        let geo = super::geodata::expand_location(loc);
+        if geo != loc.to_lowercase() {
+            parts.push(format!("Geographic area: {}", geo));
+        }
     }
 
     // Skills and abilities (critical for matching)
@@ -263,7 +267,167 @@ pub fn build_person_embedding_text(
         parts.push(format!("Experience: {}", experience.join(". ")));
     }
 
+    // Parse headline into individual roles and enrich with department + synonyms
+    let mut detected_roles = Vec::new();
+    if let Some(h) = headline {
+        // Split headline by common separators: "Director | Cinematographer, Editor"
+        for role_text in h.split(|c: char| c == ',' || c == '|' || c == '/') {
+            let role = role_text.trim();
+            if !role.is_empty() {
+                detected_roles.push(role.to_lowercase());
+            }
+        }
+    }
+    // Also check skills for roles
+    for skill in skills {
+        detected_roles.push(skill.to_lowercase());
+    }
+
+    // Enrich with department context and synonyms for each detected role
+    let enrichment = enrich_roles(&detected_roles);
+    if !enrichment.is_empty() {
+        parts.push(format!("Department and role context: {}", enrichment));
+    }
+
+    // Repeat headline roles for extra weight — headline is the person's primary identity
+    if let Some(h) = headline {
+        parts.push(format!("Primary role: {}", h));
+        parts.push(format!("Specialization: {}", h));
+    }
+
     parts.join(". ").to_lowercase()
+}
+
+/// Role-to-department mapping and synonyms based on the production role schema.
+/// Returns enrichment text with department context and alternate role names.
+fn enrich_roles(roles: &[String]) -> String {
+    // (match trigger, department, synonyms for this specific role)
+    let role_data: &[(&[&str], &str, &[&str])] = &[
+        // Above The Line
+        (&["director"], "directing", &["helmer"]),
+        (&["producer"], "above the line", &["prod"]),
+        (&["executive producer"], "above the line", &["ep", "exec producer"]),
+        (&["writer"], "above the line", &[]),
+        (&["screenwriter"], "above the line", &["scriptwriter", "screenplay writer"]),
+
+        // Cast
+        (&["actor", "actress"], "cast", &["performer"]),
+        (&["principal cast"], "cast", &["lead actor", "lead"]),
+
+        // Art Department
+        (&["production designer"], "art department", &["pd"]),
+        (&["art director"], "art department", &[]),
+        (&["set designer"], "art department", &[]),
+        (&["set decorator"], "art department", &[]),
+        (&["prop master"], "art department", &["props"]),
+        (&["graphic designer"], "art department", &[]),
+
+        // Camera
+        (&["director of photography"], "camera department", &["dop", "dp", "cinematographer"]),
+        (&["cinematographer"], "camera department", &["dop", "dp", "director of photography"]),
+        (&["camera operator"], "camera department", &["camera op", "cameraman"]),
+        (&["first ac", "1st ac"], "camera department", &["focus puller", "first assistant camera"]),
+        (&["second ac", "2nd ac"], "camera department", &["clapper loader", "second assistant camera"]),
+        (&["dit"], "camera department", &["digital imaging technician"]),
+        (&["photographer"], "camera department", &["still photographer", "stills"]),
+        (&["videographer"], "camera department", &["video shooter"]),
+
+        // Sound
+        (&["production sound mixer"], "sound department", &["sound mixer", "location sound"]),
+        (&["boom operator"], "sound department", &["boom op"]),
+        (&["sound assistant"], "sound department", &[]),
+
+        // Lighting
+        (&["gaffer"], "lighting department", &["chief lighting technician"]),
+        (&["best boy electric"], "lighting department", &["bbe"]),
+
+        // Grip
+        (&["key grip"], "grip department", &[]),
+        (&["best boy grip"], "grip department", &["bbg"]),
+
+        // Wardrobe
+        (&["costume designer"], "wardrobe department", &["wardrobe designer"]),
+        (&["costume coordinator"], "wardrobe department", &[]),
+
+        // Makeup & Hair
+        (&["makeup artist"], "makeup and hair department", &["mua", "make-up artist"]),
+        (&["key makeup artist"], "makeup and hair department", &["head mua"]),
+        (&["hair stylist"], "makeup and hair department", &["hairdresser"]),
+
+        // Production Management
+        (&["line producer"], "production management", &["physical producer"]),
+        (&["unit production manager"], "production management", &["upm"]),
+        (&["production coordinator"], "production management", &["poc"]),
+        (&["production assistant"], "production management", &["pa"]),
+
+        // Locations
+        (&["location manager"], "locations department", &[]),
+        (&["location scout"], "locations department", &[]),
+
+        // Directing Department (AD team)
+        (&["first ad", "1st ad", "first assistant director"], "directing department", &["first assistant director", "1st assistant director"]),
+        (&["second ad", "2nd ad", "second assistant director"], "directing department", &["second assistant director", "2nd assistant director"]),
+        (&["script supervisor"], "directing department", &["scripty"]),
+
+        // Post-Production
+        (&["editor"], "post-production", &["film editor"]),
+        (&["video editor"], "post-production", &[]),
+        (&["colorist"], "post-production", &["color grader", "colourist"]),
+        (&["sound editor"], "post-production", &["dialogue editor"]),
+        (&["on set editor"], "post-production", &[]),
+
+        // VFX
+        (&["vfx supervisor"], "vfx department", &["visual effects supervisor"]),
+        (&["vfx artist"], "vfx department", &["visual effects artist", "compositor"]),
+
+        // Casting
+        (&["casting director"], "casting", &["cd", "casting"]),
+
+        // Stunts
+        (&["stunt coordinator"], "stunts department", &["fight coordinator", "action coordinator"]),
+        (&["stunt performer"], "stunts department", &["stunt double", "stunt actor"]),
+
+        // Social Media / Marketing
+        (&["influencer"], "social media", &["content influencer"]),
+        (&["content creator"], "social media", &[]),
+        (&["social media manager"], "social media", &["smm"]),
+        (&["marketing manager"], "marketing", &[]),
+        (&["publicist"], "marketing", &["pr"]),
+        (&["copywriter"], "marketing", &[]),
+
+        // Non-film roles that might appear in bios/skills
+        (&["mma", "mixed martial art"], "combat sports", &["mma fighter", "cage fighter"]),
+        (&["boxer", "boxing"], "combat sports", &["prizefighter", "pugilist"]),
+        (&["bjj", "jiu-jitsu", "jiu jitsu"], "combat sports", &["grappler", "brazilian jiu-jitsu"]),
+        (&["wrestler", "wrestling"], "combat sports", &["grappler"]),
+        (&["dancer", "choreograph"], "performance", &["movement artist"]),
+        (&["musician"], "music", &[]),
+        (&["composer"], "music", &["film composer", "score composer"]),
+    ];
+
+    let mut added = Vec::new();
+    let mut departments_added = std::collections::HashSet::new();
+
+    for role in roles {
+        let role_lower = role.to_lowercase();
+        for (triggers, department, synonyms) in role_data {
+            if triggers.iter().any(|t| role_lower.contains(t)) {
+                // Add department context once per department
+                if departments_added.insert(*department) {
+                    added.push(format!("{} department", department));
+                }
+                // Add synonyms not already present
+                for syn in *synonyms {
+                    let syn_lower = syn.to_lowercase();
+                    if !roles.iter().any(|r| r.contains(&syn_lower)) && !added.iter().any(|a: &String| a.contains(&syn_lower)) {
+                        added.push(syn_lower);
+                    }
+                }
+            }
+        }
+    }
+
+    added.join(", ")
 }
 
 /// Build optimized text for organization embedding
@@ -283,9 +447,13 @@ pub fn build_organization_embedding_text(
     parts.push(format!("Organization: {}", name));
     parts.push(format!("Type: {}", org_type));
 
-    // Location
+    // Location — enrich with geographic context
     if let Some(loc) = location {
         parts.push(format!("Location: {}", loc));
+        let geo = super::geodata::expand_location(loc);
+        if geo != loc.to_lowercase() {
+            parts.push(format!("Geographic area: {}", geo));
+        }
     }
 
     // Services and capabilities (critical for matching)
@@ -392,9 +560,13 @@ pub fn build_production_embedding_text(
         }
     }
 
-    // Location
+    // Location — enrich with geographic context
     if let Some(loc) = location {
         parts.push(format!("Filming location: {}", loc));
+        let geo = super::geodata::expand_location(loc);
+        if geo != loc.to_lowercase() {
+            parts.push(format!("Geographic area: {}", geo));
+        }
     }
 
     // Description is critical for understanding the project
