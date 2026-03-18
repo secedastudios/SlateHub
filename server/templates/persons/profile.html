@@ -208,7 +208,7 @@
                                     <p id="profile-headline" data-role="headline">{{ profile.headline.as_ref().unwrap() }}</p>
                                 {% endif %}
                                 {% if profile.bio.is_some() %}
-                                    <p id="profile-bio" data-role="bio">{{ profile.bio.as_ref().unwrap() }}</p>
+                                    <p id="profile-bio" data-role="bio" style="white-space: pre-line;">{{ profile.bio.as_ref().unwrap() }}</p>
                                 {% endif %}
                             </div>
                         {% else if profile.is_own_profile %}

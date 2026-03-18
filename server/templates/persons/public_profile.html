@@ -99,7 +99,7 @@
                     profile.bio
                 %}
                     {% when Some with (bio) %}
-                    <p id="public-profile-bio" data-role="bio">{{ bio }}</p>
+                    <p id="public-profile-bio" data-role="bio" style="white-space: pre-line;">{{ bio }}</p>
                     {% when None %}
                     <p data-state="empty">No bio provided yet.</p>
                 {% endmatch %}
