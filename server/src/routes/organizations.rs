@@ -18,6 +18,8 @@ use crate::{
         UpdateOrganizationData,
     },
     record_id_ext::RecordIdExt,
+    services::embedding::generate_embedding_async,
+    services::search_log::log_search,
     templates::{BaseContext, User},
 };
 
@@ -231,16 +233,27 @@ async fn list_organizations(
     }
 
     // Use model to fetch organizations
+    let query_embedding = if let Some(ref q) = params.q {
+        generate_embedding_async(q).await.ok()
+    } else {
+        None
+    };
+
     let model = OrganizationModel::new();
     let all_orgs = model
         .search(
             params.q.as_deref(),
             params.org_type.as_deref(),
             params.location.as_deref(),
+            query_embedding,
             PAGE_SIZE + 1,
             0,
         )
         .await?;
+
+    if let Some(ref q) = params.q {
+        log_search(q, "web", "organizations", Some(all_orgs.len()));
+    }
     let has_more = all_orgs.len() > PAGE_SIZE;
     let organizations: Vec<Organization> = all_orgs.into_iter().take(PAGE_SIZE).collect();
 
@@ -891,8 +904,14 @@ async fn orgs_more_sse(Query(params): Query<MoreQuery>) -> Response {
     let search = params.q.as_deref().filter(|s| !s.is_empty());
     let offset = params.offset;
 
+    let query_embedding = if let Some(s) = search {
+        generate_embedding_async(s).await.ok()
+    } else {
+        None
+    };
+
     let model = OrganizationModel::new();
-    let all = model.search(search, None, None, PAGE_SIZE + 1, offset).await.unwrap_or_default();
+    let all = model.search(search, None, None, query_embedding, PAGE_SIZE + 1, offset).await.unwrap_or_default();
     let has_more = all.len() > PAGE_SIZE;
     let orgs: Vec<Organization> = all.into_iter().take(PAGE_SIZE).collect();
 

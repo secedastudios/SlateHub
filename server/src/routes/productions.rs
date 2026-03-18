@@ -24,6 +24,8 @@ use axum::Form;
 use axum_extra::extract::Form as HtmlForm;
 use serde::Deserialize;
 use tracing::{debug, error, info};
+use crate::services::embedding::generate_embedding_async;
+use crate::services::search_log::log_search;
 
 const PAGE_SIZE: usize = 20;
 
@@ -154,11 +156,18 @@ async fn list_productions(
     let status_filter = params.status.filter(|s| !s.is_empty());
     let type_filter = params.production_type.filter(|s| !s.is_empty());
 
+    let query_embedding = if let Some(ref f) = filter_text {
+        generate_embedding_async(f).await.ok()
+    } else {
+        None
+    };
+
     let all = ProductionModel::list(
         Some(PAGE_SIZE + 1),
         status_filter.as_deref(),
         type_filter.as_deref(),
         filter_text.as_deref(),
+        query_embedding,
         Some(sort_by.as_str()),
         0,
     )
@@ -167,6 +176,10 @@ async fn list_productions(
         error!("Failed to fetch productions: {}", e);
         Error::Database(format!("Failed to fetch productions: {}", e))
     })?;
+
+    if let Some(ref f) = filter_text {
+        log_search(f, "web", "productions", Some(all.len()));
+    }
 
     let has_more = all.len() > PAGE_SIZE;
 
@@ -1248,7 +1261,12 @@ async fn productions_more_sse(Query(params): Query<MoreQuery>) -> Response {
     let sort = params.sort.as_deref().filter(|s| !s.is_empty());
     let offset = params.offset;
 
-    let all = ProductionModel::list(Some(PAGE_SIZE + 1), None, None, filter, sort, offset)
+    let query_embedding = if let Some(f) = filter {
+        generate_embedding_async(f).await.ok()
+    } else {
+        None
+    };
+    let all = ProductionModel::list(Some(PAGE_SIZE + 1), None, None, filter, query_embedding, sort, offset)
         .await
         .unwrap_or_default();
     let has_more = all.len() > PAGE_SIZE;

@@ -289,16 +289,44 @@ impl OrganizationModel {
         query: Option<&str>,
         org_type: Option<&str>,
         location: Option<&str>,
+        query_embedding: Option<Vec<f32>>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<Organization>, Error> {
         debug!("Searching organizations with filters");
 
-        let mut sql = "SELECT *, type.* FROM organization".to_string();
+        let has_embedding = query_embedding.is_some();
+        let empty_emb: Vec<f32> = vec![];
+
+        let mut sql = "SELECT *, type.*".to_string();
+
+        // Add scoring if we have a text query or embedding
+        if query.is_some() || has_embedding {
+            sql.push_str(
+                ", <float> (
+                    (IF string::lowercase(name ?? '') CONTAINS string::lowercase($query ?? '') THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS string::lowercase($query ?? '') THEN 20 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        ELSE 0
+                    END)
+                ) AS _score"
+            );
+        }
+
+        sql.push_str(" FROM organization");
         let mut conditions = Vec::new();
 
-        if query.is_some() {
-            conditions.push("(string::lowercase(name) CONTAINS string::lowercase($query) OR string::lowercase(description ?? '') CONTAINS string::lowercase($query))".to_string());
+        if query.is_some() || has_embedding {
+            let mut text_or_vector = Vec::new();
+            if query.is_some() {
+                text_or_vector.push("string::lowercase(name) CONTAINS string::lowercase($query)".to_string());
+                text_or_vector.push("string::lowercase(description ?? '') CONTAINS string::lowercase($query)".to_string());
+            }
+            if has_embedding {
+                text_or_vector.push("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)".to_string());
+            }
+            conditions.push(format!("({})", text_or_vector.join(" OR ")));
         }
 
         if org_type.is_some() {
@@ -314,7 +342,11 @@ impl OrganizationModel {
             sql.push_str(&conditions.join(" AND "));
         }
 
-        sql.push_str(&format!(" ORDER BY verified DESC, created_at DESC LIMIT {}", limit));
+        if query.is_some() || has_embedding {
+            sql.push_str(&format!(" ORDER BY _score DESC, verified DESC, created_at DESC LIMIT {}", limit));
+        } else {
+            sql.push_str(&format!(" ORDER BY verified DESC, created_at DESC LIMIT {}", limit));
+        }
         if offset > 0 {
             sql.push_str(&format!(" START {}", offset));
         }
@@ -323,6 +355,8 @@ impl OrganizationModel {
         if let Some(q) = query {
             result = result.bind(("query", q.to_string()));
         }
+        result = result.bind(("has_embedding", has_embedding));
+        result = result.bind(("query_embedding", query_embedding.unwrap_or(empty_emb)));
         if let Some(ot) = org_type {
             result = result.bind(("org_type", ot.to_string()));
         }

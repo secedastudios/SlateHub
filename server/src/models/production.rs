@@ -362,6 +362,7 @@ impl ProductionModel {
         status_filter: Option<&str>,
         type_filter: Option<&str>,
         filter: Option<&str>,
+        query_embedding: Option<Vec<f32>>,
         sort: Option<&str>,
         offset: usize,
     ) -> Result<Vec<Production>, Error> {
@@ -370,7 +371,26 @@ impl ProductionModel {
             status_filter, type_filter, filter, sort
         );
 
-        let mut query = String::from("SELECT * FROM production WHERE 1=1");
+        let has_embedding = query_embedding.is_some();
+        let empty_emb: Vec<f32> = vec![];
+
+        let mut query = String::from("SELECT *");
+
+        if filter.is_some() || has_embedding {
+            query.push_str(
+                ", <float> (
+                    (IF string::lowercase(title ?? '') CONTAINS string::lowercase($filter ?? '') THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS string::lowercase($filter ?? '') THEN 20 ELSE 0 END)
+                    + (IF string::lowercase(location ?? '') CONTAINS string::lowercase($filter ?? '') THEN 20 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        ELSE 0
+                    END)
+                ) AS _score"
+            );
+        }
+
+        query.push_str(" FROM production WHERE 1=1");
 
         if status_filter.is_some() {
             query.push_str(" AND status = $status");
@@ -380,20 +400,29 @@ impl ProductionModel {
             query.push_str(" AND type = $type");
         }
 
-        if filter.is_some() {
-            query.push_str(
-                " AND (string::lowercase(title) CONTAINS string::lowercase($filter) \
-                 OR string::lowercase(description ?? '') CONTAINS string::lowercase($filter) \
-                 OR string::lowercase(location ?? '') CONTAINS string::lowercase($filter))",
-            );
+        if filter.is_some() || has_embedding {
+            let mut text_or_vector = Vec::new();
+            if filter.is_some() {
+                text_or_vector.push("string::lowercase(title) CONTAINS string::lowercase($filter)".to_string());
+                text_or_vector.push("string::lowercase(description ?? '') CONTAINS string::lowercase($filter)".to_string());
+                text_or_vector.push("string::lowercase(location ?? '') CONTAINS string::lowercase($filter)".to_string());
+            }
+            if has_embedding {
+                text_or_vector.push("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)".to_string());
+            }
+            query.push_str(&format!(" AND ({})", text_or_vector.join(" OR ")));
         }
 
-        let order_clause = match sort {
-            Some("title") => " ORDER BY title ASC",
-            Some("status") => " ORDER BY status ASC, created_at DESC",
-            _ => " ORDER BY created_at DESC",
-        };
-        query.push_str(order_clause);
+        if filter.is_some() || has_embedding {
+            query.push_str(" ORDER BY _score DESC, created_at DESC");
+        } else {
+            let order_clause = match sort {
+                Some("title") => " ORDER BY title ASC",
+                Some("status") => " ORDER BY status ASC, created_at DESC",
+                _ => " ORDER BY created_at DESC",
+            };
+            query.push_str(order_clause);
+        }
 
         if let Some(limit) = limit {
             query.push_str(&format!(" LIMIT {}", limit));
@@ -416,6 +445,9 @@ impl ProductionModel {
         if let Some(filter) = filter {
             db_query = db_query.bind(("filter", filter.to_string()));
         }
+
+        db_query = db_query.bind(("has_embedding", has_embedding));
+        db_query = db_query.bind(("query_embedding", query_embedding.unwrap_or(empty_emb)));
 
         let mut result = db_query
             .await

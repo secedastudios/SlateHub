@@ -19,6 +19,8 @@ use axum::{
 use axum_extra::extract::Form;
 use serde::Deserialize;
 use tracing::{debug, error, info};
+use crate::services::embedding::generate_embedding_async;
+use crate::services::search_log::log_search;
 
 const JOBS_PAGE_SIZE: usize = 20;
 
@@ -56,7 +58,16 @@ async fn list_jobs(
     }
 
     let search = params.q.as_deref().filter(|s| !s.is_empty());
-    let all_jobs = JobModel::list(search, JOBS_PAGE_SIZE + 1, 0).await.unwrap_or_default();
+    let query_embedding = if let Some(s) = search {
+        generate_embedding_async(s).await.ok()
+    } else {
+        None
+    };
+    let all_jobs = JobModel::list(search, query_embedding, JOBS_PAGE_SIZE + 1, 0).await.unwrap_or_default();
+
+    if let Some(s) = search {
+        log_search(s, "web", "jobs", Some(all_jobs.len()));
+    }
     let has_more = all_jobs.len() > JOBS_PAGE_SIZE;
     let jobs: Vec<JobListView> = all_jobs
         .into_iter()
@@ -669,7 +680,12 @@ async fn jobs_more_sse(
     let search = params.q.as_deref().filter(|s| !s.is_empty());
     let offset = params.offset;
 
-    let all_jobs = JobModel::list(search, JOBS_PAGE_SIZE + 1, offset)
+    let query_embedding = if let Some(s) = search {
+        generate_embedding_async(s).await.ok()
+    } else {
+        None
+    };
+    let all_jobs = JobModel::list(search, query_embedding, JOBS_PAGE_SIZE + 1, offset)
         .await
         .unwrap_or_default();
 

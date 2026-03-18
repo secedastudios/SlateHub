@@ -18,6 +18,7 @@ use crate::db::DB;
 use crate::error::Error;
 use crate::middleware::UserExtractor;
 use crate::models::likes::LikesModel;
+use crate::services::search_log::log_search;
 use crate::services::embedding::generate_embedding_async;
 use crate::templates::User;
 
@@ -176,6 +177,8 @@ async fn search_page(
 
     let total_results = people.len() + organizations.len() + locations.len() + productions.len();
 
+    log_search(query, "web", "all", Some(total_results));
+
     // Fetch liked IDs for people results if user is logged in
     let liked_ids = if let Some(ref uid) = current_user_id {
         let person_rid = if uid.starts_with("person:") {
@@ -331,7 +334,7 @@ async fn search_people(
                 OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
                 OR string::lowercase(profile.gender ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.5)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
             )
             {extra_where}
         ORDER BY score DESC
@@ -431,7 +434,7 @@ async fn search_organizations(
                 OR string::lowercase(slug ?? '') CONTAINS $query_lower
                 OR string::lowercase(description ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
             ORDER BY score DESC
             LIMIT 10",
         )
@@ -512,7 +515,7 @@ async fn search_locations(
                 OR string::lowercase(address ?? '') CONTAINS $query_lower
                 OR string::lowercase(description ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
             )
             ORDER BY score DESC
             LIMIT 10",
@@ -594,7 +597,7 @@ async fn search_productions(
                 OR string::lowercase(description ?? '') CONTAINS $query_lower
                 OR string::lowercase(location ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
             ORDER BY score DESC
             LIMIT 10",
         )

@@ -284,10 +284,14 @@ impl JobModel {
     /// List jobs with optional search
     pub async fn list(
         search: Option<&str>,
+        query_embedding: Option<Vec<f32>>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<JobListItem>, Error> {
         debug!("Listing jobs, search: {:?}", search);
+
+        let has_embedding = query_embedding.is_some();
+        let empty_emb: Vec<f32> = vec![];
 
         let mut query = String::from(
             r#"SELECT
@@ -301,21 +305,48 @@ impl JobModel {
                 <string> expires_at AS expires_at,
                 <string> created_at AS created_at,
                 <string> related_production AS related_production_id,
-                applications_enabled
+                applications_enabled"#,
+        );
+
+        if search.is_some() || has_embedding {
+            query.push_str(
+                ", <float> (
+                    (IF string::lowercase(title ?? '') CONTAINS string::lowercase($search ?? '') THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS string::lowercase($search ?? '') THEN 20 ELSE 0 END)
+                    + (IF string::lowercase(location ?? '') CONTAINS string::lowercase($search ?? '') THEN 20 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        ELSE 0
+                    END)
+                ) AS _score"
+            );
+        }
+
+        query.push_str(
+            r#"
             FROM job_posting
             WHERE status = 'open'
             AND expires_at > time::now()"#,
         );
 
-        if search.is_some() {
-            query.push_str(
-                " AND (string::lowercase(title) CONTAINS string::lowercase($search) \
-                 OR string::lowercase(description) CONTAINS string::lowercase($search) \
-                 OR string::lowercase(string::join(' ', roles.*.title)) CONTAINS string::lowercase($search))",
-            );
+        if search.is_some() || has_embedding {
+            let mut text_or_vector = Vec::new();
+            if search.is_some() {
+                text_or_vector.push("string::lowercase(title) CONTAINS string::lowercase($search)".to_string());
+                text_or_vector.push("string::lowercase(description) CONTAINS string::lowercase($search)".to_string());
+                text_or_vector.push("string::lowercase(string::join(' ', roles.*.title)) CONTAINS string::lowercase($search)".to_string());
+            }
+            if has_embedding {
+                text_or_vector.push("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)".to_string());
+            }
+            query.push_str(&format!(" AND ({})", text_or_vector.join(" OR ")));
         }
 
-        query.push_str(" ORDER BY created_at DESC");
+        if search.is_some() || has_embedding {
+            query.push_str(" ORDER BY _score DESC, created_at DESC");
+        } else {
+            query.push_str(" ORDER BY created_at DESC");
+        }
         query.push_str(&format!(" LIMIT {}", limit));
         if offset > 0 {
             query.push_str(&format!(" START {}", offset));
@@ -325,6 +356,8 @@ impl JobModel {
         if let Some(s) = search {
             db_query = db_query.bind(("search", s.to_string()));
         }
+        db_query = db_query.bind(("has_embedding", has_embedding));
+        db_query = db_query.bind(("query_embedding", query_embedding.unwrap_or(empty_emb)));
 
         let mut result = db_query
             .await

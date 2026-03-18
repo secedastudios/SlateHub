@@ -206,6 +206,7 @@ impl LocationModel {
         city: Option<&str>,
         creator_id: Option<&str>,
         filter: Option<&str>,
+        query_embedding: Option<Vec<f32>>,
         sort: Option<&str>,
         offset: usize,
     ) -> Result<Vec<Location>, Error> {
@@ -214,7 +215,26 @@ impl LocationModel {
             public_only, city, creator_id, filter, sort
         );
 
-        let mut query = String::from("SELECT * FROM location WHERE 1=1");
+        let has_embedding = query_embedding.is_some();
+        let empty_emb: Vec<f32> = vec![];
+
+        let mut query = String::from("SELECT *");
+
+        if filter.is_some() || has_embedding {
+            query.push_str(
+                ", <float> (
+                    (IF string::lowercase(name ?? '') CONTAINS string::lowercase($filter ?? '') THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(city ?? '') CONTAINS string::lowercase($filter ?? '') THEN 30 ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS string::lowercase($filter ?? '') THEN 10 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        ELSE 0
+                    END)
+                ) AS _score"
+            );
+        }
+
+        query.push_str(" FROM location WHERE 1=1");
 
         if public_only {
             query.push_str(" AND is_public = true");
@@ -228,21 +248,30 @@ impl LocationModel {
             query.push_str(" AND created_by = $creator_id");
         }
 
-        if filter.is_some() {
-            query.push_str(
-                " AND (string::lowercase(name) CONTAINS string::lowercase($filter) \
-                 OR string::lowercase(city) CONTAINS string::lowercase($filter) \
-                 OR string::lowercase(description ?? '') CONTAINS string::lowercase($filter) \
-                 OR string::lowercase(address) CONTAINS string::lowercase($filter))",
-            );
+        if filter.is_some() || has_embedding {
+            let mut text_or_vector = Vec::new();
+            if filter.is_some() {
+                text_or_vector.push("string::lowercase(name) CONTAINS string::lowercase($filter)".to_string());
+                text_or_vector.push("string::lowercase(city) CONTAINS string::lowercase($filter)".to_string());
+                text_or_vector.push("string::lowercase(description ?? '') CONTAINS string::lowercase($filter)".to_string());
+                text_or_vector.push("string::lowercase(address) CONTAINS string::lowercase($filter)".to_string());
+            }
+            if has_embedding {
+                text_or_vector.push("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)".to_string());
+            }
+            query.push_str(&format!(" AND ({})", text_or_vector.join(" OR ")));
         }
 
-        let order_clause = match sort {
-            Some("name") => " ORDER BY name ASC",
-            Some("city") => " ORDER BY city ASC",
-            _ => " ORDER BY created_at DESC",
-        };
-        query.push_str(order_clause);
+        if filter.is_some() || has_embedding {
+            query.push_str(" ORDER BY _score DESC, created_at DESC");
+        } else {
+            let order_clause = match sort {
+                Some("name") => " ORDER BY name ASC",
+                Some("city") => " ORDER BY city ASC",
+                _ => " ORDER BY created_at DESC",
+            };
+            query.push_str(order_clause);
+        }
 
         if let Some(limit) = limit {
             query.push_str(&format!(" LIMIT {}", limit));
@@ -265,6 +294,9 @@ impl LocationModel {
         if let Some(filter) = filter {
             db_query = db_query.bind(("filter", filter.to_string()));
         }
+
+        db_query = db_query.bind(("has_embedding", has_embedding));
+        db_query = db_query.bind(("query_embedding", query_embedding.unwrap_or(empty_emb)));
 
         let mut result = db_query
             .await

@@ -18,6 +18,8 @@ use crate::{
     models::likes::LikesModel,
     models::person::Person,
     record_id_ext::RecordIdExt,
+    services::embedding::generate_embedding_async,
+    services::search_log::log_search,
     social_platforms,
     templates::{
         BaseContext, DateRange, Education, InvolvementDisplay, PeopleTemplate, PersonCard,
@@ -340,8 +342,22 @@ async fn people(
     // Fetch profiles from the database, optionally filtered
     let persons = if let Some(filter_text) = filter {
         let filter_lower = filter_text.to_lowercase();
+        let query_embedding = generate_embedding_async(filter_text).await.ok();
+        let has_embedding = query_embedding.is_some();
+        let empty_emb: Vec<f32> = vec![];
+
         let query = r#"
-            SELECT *, verification_status = 'identity' AS _vord FROM person
+            SELECT *, verification_status = 'identity' AS _vord,
+                <float> (
+                    (IF string::lowercase(name ?? '') CONTAINS $filter THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(profile.headline ?? '') CONTAINS $filter THEN 20 ELSE 0 END)
+                    + (IF string::lowercase(profile.bio ?? '') CONTAINS $filter THEN 10 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 50
+                        ELSE 0
+                    END)
+                ) AS _score
+            FROM person
             WHERE (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL)
@@ -354,13 +370,17 @@ async fn people(
                 OR string::lowercase(profile.location ?? '') CONTAINS $filter
                 OR $filter IN profile.skills.map(|$v| string::lowercase($v))
                 OR $filter IN profile.languages.map(|$v| string::lowercase($v))
+                OR (embedding IS NOT NONE AND $has_embedding = true
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
               )
-            ORDER BY _vord DESC, created_at DESC
+            ORDER BY _score DESC, _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
         "#;
-        match DB.query(query)
+        let result = match DB.query(query)
             .bind(("filter", filter_lower))
+            .bind(("has_embedding", has_embedding))
+            .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
             .bind(("limit", PAGE_SIZE as i64 + 1))
             .bind(("offset", 0i64))
             .await
@@ -376,7 +396,10 @@ async fn people(
                 error!("Failed to query filtered persons: {}", e);
                 vec![]
             }
-        }
+        };
+
+        log_search(filter_text, "web", "people", Some(result.len()));
+        result
     } else {
         let query = r#"
             SELECT *, verification_status = 'identity' AS _vord FROM person
@@ -566,8 +589,22 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
 
     let persons = if let Some(filter_text) = filter {
         let filter_lower = filter_text.to_lowercase();
+        let query_embedding = generate_embedding_async(filter_text).await.ok();
+        let has_embedding = query_embedding.is_some();
+        let empty_emb: Vec<f32> = vec![];
+
         let query = r#"
-            SELECT *, verification_status = 'identity' AS _vord FROM person
+            SELECT *, verification_status = 'identity' AS _vord,
+                <float> (
+                    (IF string::lowercase(name ?? '') CONTAINS $filter THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(profile.headline ?? '') CONTAINS $filter THEN 20 ELSE 0 END)
+                    + (IF string::lowercase(profile.bio ?? '') CONTAINS $filter THEN 10 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 50
+                        ELSE 0
+                    END)
+                ) AS _score
+            FROM person
             WHERE (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL)
@@ -580,14 +617,18 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
                 OR string::lowercase(profile.location ?? '') CONTAINS $filter
                 OR $filter IN profile.skills.map(|$v| string::lowercase($v))
                 OR $filter IN profile.languages.map(|$v| string::lowercase($v))
+                OR (embedding IS NOT NONE AND $has_embedding = true
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
               )
-            ORDER BY _vord DESC, created_at DESC
+            ORDER BY _score DESC, _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
         "#;
         match DB
             .query(query)
             .bind(("filter", filter_lower))
+            .bind(("has_embedding", has_embedding))
+            .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
             .bind(("limit", PAGE_SIZE as i64 + 1))
             .bind(("offset", offset as i64))
             .await

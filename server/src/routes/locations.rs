@@ -21,6 +21,8 @@ use axum::{
 use serde::Deserialize;
 use surrealdb::types::RecordId;
 use tracing::{debug, error, info};
+use crate::services::embedding::generate_embedding_async;
+use crate::services::search_log::log_search;
 
 const PAGE_SIZE: usize = 20;
 
@@ -75,19 +77,29 @@ async fn list_locations(
     let filter_text = params.filter.filter(|s| !s.is_empty());
     let city_text = params.city.filter(|s| !s.is_empty());
 
+    let query_embedding = if let Some(ref f) = filter_text {
+        generate_embedding_async(f).await.ok()
+    } else {
+        None
+    };
+
+    if let Some(ref f) = filter_text {
+        log_search(f, "web", "locations", None);
+    }
+
     // Determine if showing only public locations or user's locations
     let (locations, show_private) = if params.public_only.unwrap_or(true) || user_id.is_none() {
         (
             LocationModel::list(
                 Some(PAGE_SIZE + 1), true, city_text.as_deref(), None,
-                filter_text.as_deref(), Some(sort_by.as_str()), 0,
+                filter_text.as_deref(), query_embedding.clone(), Some(sort_by.as_str()), 0,
             ).await?,
             false,
         )
     } else {
         let mut all_locations = LocationModel::list(
             Some(PAGE_SIZE + 1), false, city_text.as_deref(), None,
-            filter_text.as_deref(), Some(sort_by.as_str()), 0,
+            filter_text.as_deref(), query_embedding.clone(), Some(sort_by.as_str()), 0,
         ).await?;
 
         if let Some(ref uid) = user_id {
@@ -612,7 +624,12 @@ async fn locations_more_sse(Query(params): Query<MoreQuery>) -> Response {
     let sort = params.sort.as_deref().filter(|s| !s.is_empty());
     let offset = params.offset;
 
-    let all = LocationModel::list(Some(PAGE_SIZE + 1), true, city, None, filter, sort, offset).await.unwrap_or_default();
+    let query_embedding = if let Some(f) = filter {
+        generate_embedding_async(f).await.ok()
+    } else {
+        None
+    };
+    let all = LocationModel::list(Some(PAGE_SIZE + 1), true, city, None, filter, query_embedding, sort, offset).await.unwrap_or_default();
     let has_more = all.len() > PAGE_SIZE;
 
     let locs: Vec<crate::templates::LocationView> = all.into_iter().take(PAGE_SIZE).map(|l| crate::templates::LocationView {

@@ -893,6 +893,17 @@ DEFINE FIELD embedding_text ON pending_embedding TYPE string PERMISSIONS FULL;
 DEFINE FIELD created_at ON pending_embedding TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE INDEX idx_pending_embedding_target ON pending_embedding FIELDS target UNIQUE;
 
+-- Search logs for analytics and search optimization
+DEFINE TABLE search_log TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD query ON search_log TYPE string PERMISSIONS FULL;
+DEFINE FIELD source ON search_log TYPE string PERMISSIONS FULL;         -- "web", "mcp", "api"
+DEFINE FIELD category ON search_log TYPE string PERMISSIONS FULL;       -- "all", "people", "productions", "organizations", "locations", "jobs"
+DEFINE FIELD result_count ON search_log TYPE option<int> PERMISSIONS FULL;
+DEFINE FIELD created_at ON search_log TYPE datetime VALUE time::now() PERMISSIONS FULL;
+DEFINE INDEX idx_search_log_created ON search_log FIELDS created_at;
+DEFINE INDEX idx_search_log_source ON search_log FIELDS source;
+DEFINE INDEX idx_search_log_category ON search_log FIELDS category;
+
 -- Seed Equipment Conditions
 INSERT INTO equipment_condition (name, description) VALUES
 ("new", "Brand new, unused"),

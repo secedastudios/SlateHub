@@ -9,8 +9,10 @@ use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, Stream
 use rmcp::{ServerHandler, schemars, tool, tool_handler, tool_router};
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
+use regex::Regex;
 use crate::db::DB;
 use crate::services::embedding::generate_embedding_async;
+use crate::services::search_log::log_search;
 
 // ---------------------------------------------------------------------------
 // Tool parameter types
@@ -115,6 +117,182 @@ impl SlateHubMcp {
 
 fn clamp_limit(limit: Option<usize>) -> usize {
     limit.unwrap_or(20).min(50)
+}
+
+#[derive(Debug, Default)]
+struct ParsedQuery {
+    location: Option<String>,
+    gender: Option<String>,
+    age_min: Option<i32>,
+    age_max: Option<i32>,
+    hair_color: Option<String>,
+    eye_color: Option<String>,
+    body_type: Option<String>,
+    cleaned: String,
+}
+
+/// Parse natural language query into structured filters + cleaned search text.
+/// Handles: "blonde female actors ages 20-30 in Berlin", "bald men with blue eyes in LA"
+fn parse_query(query: &str) -> ParsedQuery {
+    let mut cleaned = query.to_string();
+    let mut parsed = ParsedQuery::default();
+
+    // Location: "in <city/region>" at end of query (must be parsed first before other removals)
+    let loc_re = Regex::new(r"(?i)\bin\s+(.+)$").unwrap();
+    if let Some(caps) = loc_re.captures(&cleaned) {
+        parsed.location = caps.get(1).map(|m| m.as_str().trim().to_string());
+        cleaned = loc_re.replace(&cleaned, "").to_string();
+    }
+
+    // Age range: "age(s) 20-30", "ages 20 to 30", "age range 25-35"
+    let age_re = Regex::new(r"(?i)\bage(?:s|\s+range)?\s+(\d+)\s*[-–to]+\s*(\d+)").unwrap();
+    if let Some(caps) = age_re.captures(&cleaned) {
+        parsed.age_min = caps.get(1).and_then(|m| m.as_str().parse().ok());
+        parsed.age_max = caps.get(2).and_then(|m| m.as_str().parse().ok());
+        cleaned = age_re.replace(&cleaned, "").to_string();
+    }
+
+    // Gender: "male", "female", "non-binary", "men", "women", "man", "woman"
+    let gender_re = Regex::new(r"(?i)\b(male|female|non[- ]?binary|men|women|man|woman)\b").unwrap();
+    if let Some(m) = gender_re.find(&cleaned) {
+        let g = m.as_str().to_lowercase();
+        parsed.gender = Some(match g.as_str() {
+            "male" | "man" | "men" => "Male".to_string(),
+            "female" | "woman" | "women" => "Female".to_string(),
+            _ => "Non-Binary".to_string(),
+        });
+        cleaned = gender_re.replace(&cleaned, "").to_string();
+    }
+
+    // Hair color: "blonde hair", "brown-haired", "with red hair", "bald"
+    let hair_re = Regex::new(
+        r"(?i)\b(black|brown|blonde|blond|red|gray|grey|white|bald)(?:[- ]?haired|\s+hair)?\b"
+    ).unwrap();
+    if let Some(m) = hair_re.find(&cleaned) {
+        let h = m.as_str().to_lowercase();
+        parsed.hair_color = Some(match h.as_str() {
+            s if s.contains("black") => "Black",
+            s if s.contains("brown") => "Brown",
+            s if s.contains("blond") => "Blonde",
+            s if s.contains("red") => "Red",
+            s if s.contains("gray") || s.contains("grey") => "Gray",
+            s if s.contains("white") => "White",
+            s if s.contains("bald") => "Bald",
+            _ => "Other",
+        }.to_string());
+        cleaned = hair_re.replace(&cleaned, "").to_string();
+    }
+
+    // Eye color: "blue eyes", "brown-eyed", "with green eyes"
+    let eye_re = Regex::new(
+        r"(?i)\b(?:with\s+)?(brown|blue|green|hazel|gray|grey|black)(?:[- ]?eyed|\s+eyes?)\b"
+    ).unwrap();
+    if let Some(caps) = eye_re.captures(&cleaned) {
+        let e = caps.get(1).unwrap().as_str().to_lowercase();
+        parsed.eye_color = Some(match e.as_str() {
+            "brown" => "Brown",
+            "blue" => "Blue",
+            "green" => "Green",
+            "hazel" => "Hazel",
+            "gray" | "grey" => "Gray",
+            "black" => "Black",
+            _ => "Other",
+        }.to_string());
+        cleaned = eye_re.replace(&cleaned, "").to_string();
+    }
+
+    // Body type: "athletic", "slim", "muscular", "petite", "plus size", "curvy"
+    let body_re = Regex::new(
+        r"(?i)\b(athletic|average|slim|slender|curvy|muscular|petite|plus[- ]?size|tall)\b"
+    ).unwrap();
+    if let Some(m) = body_re.find(&cleaned) {
+        let b = m.as_str().to_lowercase();
+        parsed.body_type = Some(match b.as_str() {
+            "athletic" => "Athletic",
+            "average" => "Average",
+            "slim" => "Slim",
+            "slender" => "Slender",
+            "curvy" => "Curvy",
+            "muscular" => "Muscular",
+            "petite" => "Petite",
+            s if s.contains("plus") => "Plus Size",
+            "tall" => "Tall",
+            _ => "Other",
+        }.to_string());
+        cleaned = body_re.replace(&cleaned, "").to_string();
+    }
+
+    // Clean up filler words left behind
+    let filler_re = Regex::new(r"(?i)\b(with|and|who|are|is|that|the|a|an)\b").unwrap();
+    cleaned = filler_re.replace_all(&cleaned, "").to_string();
+
+    // Normalize role plurals
+    let role_terms: &[(&str, &str)] = &[
+        ("actresses", "actor"), ("actress", "actor"), ("actors", "actor"),
+        ("cinematographers", "cinematographer"),
+        ("directors", "director"), ("producers", "producer"),
+        ("writers", "writer"), ("editors", "editor"),
+        ("composers", "composer"), ("gaffers", "gaffer"),
+        ("grips", "grip"), ("colorists", "colorist"),
+        ("animators", "animator"), ("stunt performers", "stunt performer"),
+        ("choreographers", "choreographer"), ("screenwriters", "screenwriter"),
+        ("showrunners", "showrunner"),
+        ("production designers", "production designer"),
+        ("costume designers", "costume designer"),
+        ("sound designers", "sound designer"),
+        ("makeup artists", "makeup artist"),
+        ("filmmakers", "filmmaker"), ("photographers", "photographer"),
+        ("videographers", "videographer"), ("models", "model"),
+    ];
+    for (plural, singular) in role_terms {
+        let re = Regex::new(&format!(r"(?i)\b{}\b", regex::escape(plural))).unwrap();
+        cleaned = re.replace_all(&cleaned, *singular).to_string();
+    }
+
+    // Collapse whitespace
+    cleaned = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+    parsed.cleaned = cleaned;
+    parsed
+}
+
+/// Simple location-only extraction for non-people searches.
+fn extract_location(query: &str) -> (Option<String>, String) {
+    let loc_re = Regex::new(r"(?i)\bin\s+(.+)$").unwrap();
+    if let Some(caps) = loc_re.captures(query) {
+        let location = caps.get(1).map(|m| m.as_str().trim().to_string());
+        let cleaned = loc_re.replace(query, "").to_string();
+        let cleaned = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+        (location, cleaned)
+    } else {
+        (None, query.to_string())
+    }
+}
+
+/// Normalize common industry search terms to their singular profile form.
+fn normalize_query(query: &str) -> String {
+    let terms: &[(&str, &str)] = &[
+        ("actresses", "actor"), ("actress", "actor"), ("actors", "actor"),
+        ("cinematographers", "cinematographer"),
+        ("directors", "director"), ("producers", "producer"),
+        ("writers", "writer"), ("editors", "editor"),
+        ("composers", "composer"), ("gaffers", "gaffer"),
+        ("grips", "grip"), ("colorists", "colorist"),
+        ("animators", "animator"), ("stunt performers", "stunt performer"),
+        ("choreographers", "choreographer"), ("screenwriters", "screenwriter"),
+        ("showrunners", "showrunner"),
+        ("production designers", "production designer"),
+        ("costume designers", "costume designer"),
+        ("sound designers", "sound designer"),
+        ("makeup artists", "makeup artist"),
+        ("filmmakers", "filmmaker"), ("photographers", "photographer"),
+        ("videographers", "videographer"), ("models", "model"),
+    ];
+    let mut result = query.to_lowercase();
+    for (plural, singular) in terms {
+        let re = Regex::new(&format!(r"(?i)\b{}\b", regex::escape(plural))).unwrap();
+        result = re.replace_all(&result, *singular).to_string();
+    }
+    result
 }
 
 #[tool_router]
@@ -231,13 +409,21 @@ impl ServerHandler for SlateHubMcp {
 impl SlateHubMcp {
     async fn do_search_people(&self, params: SearchPeopleParams) -> Result<String, String> {
         let limit = clamp_limit(params.limit);
-        let query_embedding = generate_embedding_async(&params.query)
+
+        // Parse natural language query into structured filters
+        let parsed = parse_query(&params.query);
+        let cleaned_query = parsed.cleaned.clone();
+
+        // Explicit params override parsed values
+        let effective_location = params.location.as_ref().or(parsed.location.as_ref());
+
+        let query_embedding = generate_embedding_async(&cleaned_query)
             .await
             .ok();
 
         let mut where_clauses = Vec::new();
 
-        if let Some(ref loc) = params.location {
+        if let Some(loc) = effective_location {
             where_clauses.push(format!(
                 "string::lowercase(profile.location ?? '') CONTAINS string::lowercase('{}')",
                 loc.replace('\'', "''")
@@ -253,14 +439,66 @@ impl SlateHubMcp {
             ));
         }
 
-        let hard_filter = if where_clauses.is_empty() {
-            String::new()
-        } else {
+        if let Some(ref gender) = parsed.gender {
+            where_clauses.push(format!(
+                "string::lowercase(profile.gender ?? '') = string::lowercase('{}')",
+                gender.replace('\'', "''")
+            ));
+        }
+
+        if let (Some(age_min), Some(age_max)) = (parsed.age_min, parsed.age_max) {
+            where_clauses.push(format!(
+                "profile.acting_age_range.min <= {} AND profile.acting_age_range.max >= {}",
+                age_max, age_min
+            ));
+        }
+
+        if let Some(ref hair) = parsed.hair_color {
+            where_clauses.push(format!(
+                "string::lowercase(profile.hair_color ?? '') = string::lowercase('{}')",
+                hair.replace('\'', "''")
+            ));
+        }
+
+        if let Some(ref eyes) = parsed.eye_color {
+            where_clauses.push(format!(
+                "string::lowercase(profile.eye_color ?? '') = string::lowercase('{}')",
+                eyes.replace('\'', "''")
+            ));
+        }
+
+        if let Some(ref body) = parsed.body_type {
+            where_clauses.push(format!(
+                "string::lowercase(profile.body_type ?? '') = string::lowercase('{}')",
+                body.replace('\'', "''")
+            ));
+        }
+
+        let has_hard_filters = !where_clauses.is_empty();
+        let hard_filter = if has_hard_filters {
             format!("AND {}", where_clauses.join(" AND "))
+        } else {
+            String::new()
         };
 
-        let query_lower = params.query.to_lowercase();
+        let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+
+        // When hard filters are present, the text/vector match is optional —
+        // it only boosts scoring. Without hard filters, require at least a text or vector match.
+        let text_vector_gate = if has_hard_filters {
+            "true".to_string()
+        } else {
+            "(
+                    string::lowercase(name ?? '') CONTAINS $query_lower
+                    OR string::lowercase(username ?? '') CONTAINS $query_lower
+                    OR string::lowercase(profile.headline ?? '') CONTAINS $query_lower
+                    OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower
+                    OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
+                    OR (embedding IS NOT NONE AND $has_embedding = true
+                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                )".to_string()
+        };
 
         let sql = format!(
             "SELECT
@@ -283,15 +521,7 @@ impl SlateHubMcp {
                 ) AS score
             FROM person
             WHERE
-                (
-                    string::lowercase(name ?? '') CONTAINS $query_lower
-                    OR string::lowercase(username ?? '') CONTAINS $query_lower
-                    OR string::lowercase(profile.headline ?? '') CONTAINS $query_lower
-                    OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower
-                    OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
-                    OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.45)
-                )
+                {text_vector_gate}
                 {hard_filter}
             ORDER BY score DESC
             LIMIT $limit"
@@ -308,6 +538,8 @@ impl SlateHubMcp {
             .map_err(|e| e.to_string())?;
 
         let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
+
+        log_search(&params.query, "mcp", "people", Some(rows.len()));
 
         if rows.is_empty() {
             return Ok("No people found matching your search.".to_string());
@@ -343,11 +575,20 @@ impl SlateHubMcp {
 
     async fn do_search_productions(&self, params: SearchProductionsParams) -> Result<String, String> {
         let limit = clamp_limit(params.limit);
-        let query_embedding = generate_embedding_async(&params.query).await.ok();
+
+        let (parsed_location, cleaned_query) = if params.location.is_none() {
+            extract_location(&params.query)
+        } else {
+            (None, params.query.clone())
+        };
+        let cleaned_query = normalize_query(&cleaned_query);
+        let effective_location = params.location.as_ref().or(parsed_location.as_ref());
+
+        let query_embedding = generate_embedding_async(&cleaned_query).await.ok();
 
         let mut where_clauses = Vec::new();
 
-        if let Some(ref loc) = params.location {
+        if let Some(loc) = effective_location {
             where_clauses.push(format!(
                 "string::lowercase(location ?? '') CONTAINS string::lowercase('{}')",
                 loc.replace('\'', "''")
@@ -361,14 +602,27 @@ impl SlateHubMcp {
             ));
         }
 
-        let hard_filter = if where_clauses.is_empty() {
-            String::new()
-        } else {
+        let has_hard_filters = !where_clauses.is_empty();
+        let hard_filter = if has_hard_filters {
             format!("AND {}", where_clauses.join(" AND "))
+        } else {
+            String::new()
         };
 
-        let query_lower = params.query.to_lowercase();
+        let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+
+        let text_vector_gate = if has_hard_filters {
+            "true".to_string()
+        } else {
+            "(
+                    string::lowercase(title ?? '') CONTAINS $query_lower
+                    OR string::lowercase(description ?? '') CONTAINS $query_lower
+                    OR string::lowercase(location ?? '') CONTAINS $query_lower
+                    OR (embedding IS NOT NONE AND $has_embedding = true
+                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                )".to_string()
+        };
 
         let sql = format!(
             "SELECT
@@ -389,13 +643,7 @@ impl SlateHubMcp {
                 ) AS score
             FROM production
             WHERE
-                (
-                    string::lowercase(title ?? '') CONTAINS $query_lower
-                    OR string::lowercase(description ?? '') CONTAINS $query_lower
-                    OR string::lowercase(location ?? '') CONTAINS $query_lower
-                    OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.45)
-                )
+                {text_vector_gate}
                 {hard_filter}
             ORDER BY score DESC
             LIMIT $limit"
@@ -412,6 +660,8 @@ impl SlateHubMcp {
             .map_err(|e| e.to_string())?;
 
         let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
+
+        log_search(&params.query, "mcp", "productions", Some(rows.len()));
 
         if rows.is_empty() {
             return Ok("No productions found matching your search.".to_string());
@@ -452,9 +702,19 @@ impl SlateHubMcp {
 
     async fn do_search_organizations(&self, params: SearchOrganizationsParams) -> Result<String, String> {
         let limit = clamp_limit(params.limit);
-        let query_embedding = generate_embedding_async(&params.query).await.ok();
 
-        let hard_filter = if let Some(ref loc) = params.location {
+        let (parsed_location, cleaned_query) = if params.location.is_none() {
+            extract_location(&params.query)
+        } else {
+            (None, params.query.clone())
+        };
+        let cleaned_query = normalize_query(&cleaned_query);
+        let effective_location = params.location.as_ref().or(parsed_location.as_ref());
+
+        let query_embedding = generate_embedding_async(&cleaned_query).await.ok();
+
+        let has_hard_filters = effective_location.is_some();
+        let hard_filter = if let Some(loc) = effective_location {
             format!(
                 "AND string::lowercase(location ?? '') CONTAINS string::lowercase('{}')",
                 loc.replace('\'', "''")
@@ -463,8 +723,20 @@ impl SlateHubMcp {
             String::new()
         };
 
-        let query_lower = params.query.to_lowercase();
+        let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+
+        let text_vector_gate = if has_hard_filters {
+            "true".to_string()
+        } else {
+            "(
+                    string::lowercase(name ?? '') CONTAINS $query_lower
+                    OR string::lowercase(description ?? '') CONTAINS $query_lower
+                    OR string::lowercase(location ?? '') CONTAINS $query_lower
+                    OR (embedding IS NOT NONE AND $has_embedding = true
+                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                )".to_string()
+        };
 
         let sql = format!(
             "SELECT
@@ -484,13 +756,7 @@ impl SlateHubMcp {
                 ) AS score
             FROM organization
             WHERE
-                (
-                    string::lowercase(name ?? '') CONTAINS $query_lower
-                    OR string::lowercase(description ?? '') CONTAINS $query_lower
-                    OR string::lowercase(location ?? '') CONTAINS $query_lower
-                    OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.45)
-                )
+                {text_vector_gate}
                 {hard_filter}
             ORDER BY score DESC
             LIMIT $limit"
@@ -507,6 +773,8 @@ impl SlateHubMcp {
             .map_err(|e| e.to_string())?;
 
         let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
+
+        log_search(&params.query, "mcp", "organizations", Some(rows.len()));
 
         if rows.is_empty() {
             return Ok("No organizations found matching your search.".to_string());
@@ -539,11 +807,20 @@ impl SlateHubMcp {
 
     async fn do_search_locations(&self, params: SearchLocationsParams) -> Result<String, String> {
         let limit = clamp_limit(params.limit);
-        let query_embedding = generate_embedding_async(&params.query).await.ok();
+
+        let (parsed_city, cleaned_query) = if params.city.is_none() {
+            extract_location(&params.query)
+        } else {
+            (None, params.query.clone())
+        };
+        let cleaned_query = normalize_query(&cleaned_query);
+        let effective_city = params.city.as_ref().or(parsed_city.as_ref());
+
+        let query_embedding = generate_embedding_async(&cleaned_query).await.ok();
 
         let mut where_clauses = Vec::new();
 
-        if let Some(ref city) = params.city {
+        if let Some(city) = effective_city {
             where_clauses.push(format!(
                 "string::lowercase(city ?? '') CONTAINS string::lowercase('{}')",
                 city.replace('\'', "''")
@@ -557,14 +834,28 @@ impl SlateHubMcp {
             ));
         }
 
-        let hard_filter = if where_clauses.is_empty() {
-            String::new()
-        } else {
+        let has_hard_filters = !where_clauses.is_empty();
+        let hard_filter = if has_hard_filters {
             format!("AND {}", where_clauses.join(" AND "))
+        } else {
+            String::new()
         };
 
-        let query_lower = params.query.to_lowercase();
+        let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+
+        let text_vector_gate = if has_hard_filters {
+            "true".to_string()
+        } else {
+            "(
+                string::lowercase(name ?? '') CONTAINS $query_lower
+                OR string::lowercase(city ?? '') CONTAINS $query_lower
+                OR string::lowercase(state ?? '') CONTAINS $query_lower
+                OR string::lowercase(description ?? '') CONTAINS $query_lower
+                OR (embedding IS NOT NONE AND $has_embedding = true
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+            )".to_string()
+        };
 
         let sql = format!(
             "SELECT
@@ -586,14 +877,7 @@ impl SlateHubMcp {
                     END)
                 ) AS score
             FROM location
-            WHERE is_public = true AND (
-                string::lowercase(name ?? '') CONTAINS $query_lower
-                OR string::lowercase(city ?? '') CONTAINS $query_lower
-                OR string::lowercase(state ?? '') CONTAINS $query_lower
-                OR string::lowercase(description ?? '') CONTAINS $query_lower
-                OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.45)
-            )
+            WHERE is_public = true AND {text_vector_gate}
             {hard_filter}
             ORDER BY score DESC
             LIMIT $limit"
@@ -610,6 +894,8 @@ impl SlateHubMcp {
             .map_err(|e| e.to_string())?;
 
         let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
+
+        log_search(&params.query, "mcp", "locations", Some(rows.len()));
 
         if rows.is_empty() {
             return Ok("No locations found matching your search.".to_string());
@@ -654,7 +940,16 @@ impl SlateHubMcp {
 
     async fn do_search_jobs(&self, params: SearchJobsParams) -> Result<String, String> {
         let limit = clamp_limit(params.limit);
-        let query_embedding = generate_embedding_async(&params.query).await.ok();
+
+        let (parsed_location, cleaned_query) = if params.location.is_none() {
+            extract_location(&params.query)
+        } else {
+            (None, params.query.clone())
+        };
+        let cleaned_query = normalize_query(&cleaned_query);
+        let effective_location = params.location.as_ref().or(parsed_location.as_ref());
+
+        let query_embedding = generate_embedding_async(&cleaned_query).await.ok();
 
         let open_only = params.open_only.unwrap_or(true);
 
@@ -664,21 +959,34 @@ impl SlateHubMcp {
             where_clauses.push("status = 'open'".to_string());
         }
 
-        if let Some(ref loc) = params.location {
+        if let Some(loc) = effective_location {
             where_clauses.push(format!(
                 "string::lowercase(location ?? '') CONTAINS string::lowercase('{}')",
                 loc.replace('\'', "''")
             ));
         }
 
-        let hard_filter = if where_clauses.is_empty() {
-            String::new()
-        } else {
+        let has_hard_filters = !where_clauses.is_empty();
+        let hard_filter = if has_hard_filters {
             format!("AND {}", where_clauses.join(" AND "))
+        } else {
+            String::new()
         };
 
-        let query_lower = params.query.to_lowercase();
+        let query_lower = cleaned_query.to_lowercase();
         let empty_emb: Vec<f32> = vec![];
+
+        let text_vector_gate = if has_hard_filters {
+            "true".to_string()
+        } else {
+            "(
+                    string::lowercase(title ?? '') CONTAINS $query_lower
+                    OR string::lowercase(description ?? '') CONTAINS $query_lower
+                    OR string::lowercase(location ?? '') CONTAINS $query_lower
+                    OR (embedding IS NOT NONE AND $has_embedding = true
+                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                )".to_string()
+        };
 
         let sql = format!(
             "SELECT
@@ -699,13 +1007,7 @@ impl SlateHubMcp {
                 ) AS score
             FROM job_posting
             WHERE
-                (
-                    string::lowercase(title ?? '') CONTAINS $query_lower
-                    OR string::lowercase(description ?? '') CONTAINS $query_lower
-                    OR string::lowercase(location ?? '') CONTAINS $query_lower
-                    OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.45)
-                )
+                {text_vector_gate}
                 {hard_filter}
             ORDER BY score DESC
             LIMIT $limit"
@@ -722,6 +1024,8 @@ impl SlateHubMcp {
             .map_err(|e| e.to_string())?;
 
         let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
+
+        log_search(&params.query, "mcp", "jobs", Some(rows.len()));
 
         if rows.is_empty() {
             return Ok("No job postings found matching your search.".to_string());
