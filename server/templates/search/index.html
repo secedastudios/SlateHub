@@ -215,6 +215,39 @@
             </div>
         </section>
         {% endif %}
+
+        {% if !jobs.is_empty() %}
+        <section data-result-type="jobs">
+            <h2 data-role="section-heading">Jobs <span data-role="count">{{ jobs.len() }}</span></h2>
+            <div data-role="card-grid">
+                {% for job in jobs %}
+                <article data-component="card" data-type="job">
+                    <a href="/jobs/{{ job.id }}" data-role="card-link">
+                        <div data-role="content">
+                            <h3>{{ job.title }}</h3>
+                            <div data-role="meta">
+                                {% if !job.poster_name.is_empty() %}
+                                <span data-role="poster">{{ job.poster_name }}</span>
+                                {% endif %}
+                                {% match job.location %}
+                                {% when Some with (location) %}
+                                <span data-role="loc">{{ location }}</span>
+                                {% when None %}
+                                {% endmatch %}
+                                {% if job.role_count > 0 %}
+                                <span data-role="badge">{{ job.role_count }} role{% if job.role_count != 1 %}s{% endif %}</span>
+                                {% endif %}
+                            </div>
+                            {% if !job.description.is_empty() %}
+                            <p data-role="bio">{{ job.description }}</p>
+                            {% endif %}
+                        </div>
+                    </a>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
     </div>
 
     {% else %}

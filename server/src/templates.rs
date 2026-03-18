@@ -53,6 +53,28 @@ mod filters {
         let s = s.strip_suffix(".0").unwrap_or(&s);
         Ok(format!("{}{}", s, suffix))
     }
+
+    /// Format an ISO 8601 date string as relative time: "2 days ago", "in 1 week", "just now"
+    pub fn time_ago(date_str: &str) -> askama::Result<String> {
+        use chrono::{DateTime, Utc};
+
+        let dt = date_str
+            .parse::<DateTime<Utc>>()
+            .map_err(|_| askama::Error::Fmt(std::fmt::Error))?;
+        let now = Utc::now();
+        let diff = now.signed_duration_since(dt);
+
+        let formatter = timeago::Formatter::new();
+        if diff.num_seconds() < 0 {
+            // Future date: "in 3 days"
+            let abs_dur = (-diff).to_std().unwrap_or_default();
+            Ok(format!("in {}", formatter.convert(abs_dur)))
+        } else {
+            // Past date: "3 days ago"
+            let dur = diff.to_std().unwrap_or_default();
+            Ok(formatter.convert(dur))
+        }
+    }
 }
 
 /// Represents a user for template rendering

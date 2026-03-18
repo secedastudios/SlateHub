@@ -275,31 +275,8 @@ fn extract_location(query: &str) -> (Option<String>, String) {
     }
 }
 
-/// Normalize common industry search terms to their singular profile form.
 fn normalize_query(query: &str) -> String {
-    let terms: &[(&str, &str)] = &[
-        ("actresses", "actor"), ("actress", "actor"), ("actors", "actor"),
-        ("cinematographers", "cinematographer"),
-        ("directors", "director"), ("producers", "producer"),
-        ("writers", "writer"), ("editors", "editor"),
-        ("composers", "composer"), ("gaffers", "gaffer"),
-        ("grips", "grip"), ("colorists", "colorist"),
-        ("animators", "animator"), ("stunt performers", "stunt performer"),
-        ("choreographers", "choreographer"), ("screenwriters", "screenwriter"),
-        ("showrunners", "showrunner"),
-        ("production designers", "production designer"),
-        ("costume designers", "costume designer"),
-        ("sound designers", "sound designer"),
-        ("makeup artists", "makeup artist"),
-        ("filmmakers", "filmmaker"), ("photographers", "photographer"),
-        ("videographers", "videographer"), ("models", "model"),
-    ];
-    let mut result = query.to_lowercase();
-    for (plural, singular) in terms {
-        let re = Regex::new(&format!(r"(?i)\b{}\b", regex::escape(plural))).unwrap();
-        result = re.replace_all(&result, *singular).to_string();
-    }
-    result
+    crate::services::search_utils::normalize_query(query)
 }
 
 #[tool_router]
@@ -466,9 +443,10 @@ impl SlateHubMcp {
         let mut where_clauses = Vec::new();
 
         if let Some(loc) = effective_location {
+            let escaped = loc.replace('\'', "''");
             where_clauses.push(format!(
-                "string::lowercase(profile.location ?? '') CONTAINS string::lowercase('{}')",
-                loc.replace('\'', "''")
+                "(string::lowercase(profile.location ?? '') CONTAINS string::lowercase('{escaped}') \
+                 OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase('{escaped}'))"
             ));
         }
 
@@ -645,9 +623,10 @@ impl SlateHubMcp {
         let mut where_clauses = Vec::new();
 
         if let Some(loc) = effective_location {
+            let escaped = loc.replace('\'', "''");
             where_clauses.push(format!(
-                "string::lowercase(location ?? '') CONTAINS string::lowercase('{}')",
-                loc.replace('\'', "''")
+                "(string::lowercase(location ?? '') CONTAINS string::lowercase('{escaped}') \
+                 OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase('{escaped}'))"
             ));
         }
 
@@ -780,9 +759,10 @@ impl SlateHubMcp {
 
         let has_hard_filters = effective_location.is_some();
         let hard_filter = if let Some(loc) = effective_location {
+            let escaped = loc.replace('\'', "''");
             format!(
-                "AND string::lowercase(location ?? '') CONTAINS string::lowercase('{}')",
-                loc.replace('\'', "''")
+                "AND (string::lowercase(location ?? '') CONTAINS string::lowercase('{escaped}') \
+                 OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase('{escaped}'))"
             )
         } else {
             String::new()
@@ -1041,9 +1021,10 @@ impl SlateHubMcp {
         }
 
         if let Some(loc) = effective_location {
+            let escaped = loc.replace('\'', "''");
             where_clauses.push(format!(
-                "string::lowercase(location ?? '') CONTAINS string::lowercase('{}')",
-                loc.replace('\'', "''")
+                "(string::lowercase(location ?? '') CONTAINS string::lowercase('{escaped}') \
+                 OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase('{escaped}'))"
             ));
         }
 

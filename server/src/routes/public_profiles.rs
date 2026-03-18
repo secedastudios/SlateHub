@@ -20,6 +20,7 @@ use crate::{
     record_id_ext::RecordIdExt,
     services::embedding::generate_embedding_async,
     services::search_log::log_search,
+    services::search_utils::normalize_query,
     social_platforms,
     templates::{
         BaseContext, DateRange, Education, InvolvementDisplay, PeopleTemplate, PersonCard,
@@ -341,12 +342,48 @@ async fn people(
 
     // Fetch profiles from the database, optionally filtered
     let persons = if let Some(filter_text) = filter {
-        let filter_lower = filter_text.to_lowercase();
-        let query_embedding = generate_embedding_async(filter_text).await.ok();
+        // Extract location from "actors in berlin" → filter: "actors", location: "berlin"
+        let loc_re = regex::Regex::new(r"(?i)\bin\s+(.+)$").unwrap();
+        let (location_filter, cleaned_filter) = if let Some(caps) = loc_re.captures(filter_text) {
+            let loc = caps.get(1).map(|m| m.as_str().trim().to_string());
+            let cleaned = loc_re.replace(filter_text, "").to_string();
+            let cleaned = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+            (loc, cleaned)
+        } else {
+            (None, filter_text.to_string())
+        };
+
+        let filter_lower = normalize_query(&cleaned_filter);
+        let has_location = location_filter.is_some();
+        let query_embedding = generate_embedding_async(&cleaned_filter).await.ok();
         let has_embedding = query_embedding.is_some();
         let empty_emb: Vec<f32> = vec![];
 
-        let query = r#"
+        // When location filter is extracted, text/vector gate is optional
+        let text_gate = if has_location {
+            "true".to_string()
+        } else {
+            "(\
+                string::lowercase(name ?? '') CONTAINS $filter \
+                OR string::lowercase(username ?? '') CONTAINS $filter \
+                OR string::lowercase(profile.name ?? '') CONTAINS $filter \
+                OR string::lowercase(profile.headline ?? '') CONTAINS $filter \
+                OR string::lowercase(profile.bio ?? '') CONTAINS $filter \
+                OR string::lowercase(profile.location ?? '') CONTAINS $filter \
+                OR $filter IN profile.skills.map(|$v| string::lowercase($v)) \
+                OR $filter IN profile.languages.map(|$v| string::lowercase($v)) \
+                OR (embedding IS NOT NONE AND $has_embedding = true \
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)\
+            )".to_string()
+        };
+
+        let location_clause = if has_location {
+            "AND (string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))"
+        } else {
+            ""
+        };
+
+        let query = format!(r#"
             SELECT *, verification_status = 'identity' AS _vord,
                 <float> (
                     (IF string::lowercase(name ?? '') CONTAINS $filter THEN 50 ELSE 0 END)
@@ -361,24 +398,15 @@ async fn people(
             WHERE (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL)
-              AND (
-                string::lowercase(name ?? '') CONTAINS $filter
-                OR string::lowercase(username ?? '') CONTAINS $filter
-                OR string::lowercase(profile.name ?? '') CONTAINS $filter
-                OR string::lowercase(profile.headline ?? '') CONTAINS $filter
-                OR string::lowercase(profile.bio ?? '') CONTAINS $filter
-                OR string::lowercase(profile.location ?? '') CONTAINS $filter
-                OR $filter IN profile.skills.map(|$v| string::lowercase($v))
-                OR $filter IN profile.languages.map(|$v| string::lowercase($v))
-                OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
-              )
+              AND {text_gate}
+              {location_clause}
             ORDER BY _score DESC, _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
-        "#;
-        let result = match DB.query(query)
+        "#);
+        let result = match DB.query(&query)
             .bind(("filter", filter_lower))
+            .bind(("location_filter", location_filter.unwrap_or_default()))
             .bind(("has_embedding", has_embedding))
             .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
             .bind(("limit", PAGE_SIZE as i64 + 1))
@@ -588,12 +616,46 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
     let offset = params.offset;
 
     let persons = if let Some(filter_text) = filter {
-        let filter_lower = filter_text.to_lowercase();
-        let query_embedding = generate_embedding_async(filter_text).await.ok();
+        let loc_re = regex::Regex::new(r"(?i)\bin\s+(.+)$").unwrap();
+        let (location_filter, cleaned_filter) = if let Some(caps) = loc_re.captures(filter_text) {
+            let loc = caps.get(1).map(|m| m.as_str().trim().to_string());
+            let cleaned = loc_re.replace(filter_text, "").to_string();
+            let cleaned = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+            (loc, cleaned)
+        } else {
+            (None, filter_text.to_string())
+        };
+
+        let filter_lower = normalize_query(&cleaned_filter);
+        let has_location = location_filter.is_some();
+        let query_embedding = generate_embedding_async(&cleaned_filter).await.ok();
         let has_embedding = query_embedding.is_some();
         let empty_emb: Vec<f32> = vec![];
 
-        let query = r#"
+        let text_gate = if has_location {
+            "true".to_string()
+        } else {
+            "(\
+                string::lowercase(name ?? '') CONTAINS $filter \
+                OR string::lowercase(username ?? '') CONTAINS $filter \
+                OR string::lowercase(profile.name ?? '') CONTAINS $filter \
+                OR string::lowercase(profile.headline ?? '') CONTAINS $filter \
+                OR string::lowercase(profile.bio ?? '') CONTAINS $filter \
+                OR string::lowercase(profile.location ?? '') CONTAINS $filter \
+                OR $filter IN profile.skills.map(|$v| string::lowercase($v)) \
+                OR $filter IN profile.languages.map(|$v| string::lowercase($v)) \
+                OR (embedding IS NOT NONE AND $has_embedding = true \
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)\
+            )".to_string()
+        };
+
+        let location_clause = if has_location {
+            "AND (string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))"
+        } else {
+            ""
+        };
+
+        let query = format!(r#"
             SELECT *, verification_status = 'identity' AS _vord,
                 <float> (
                     (IF string::lowercase(name ?? '') CONTAINS $filter THEN 50 ELSE 0 END)
@@ -608,25 +670,16 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
             WHERE (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL)
-              AND (
-                string::lowercase(name ?? '') CONTAINS $filter
-                OR string::lowercase(username ?? '') CONTAINS $filter
-                OR string::lowercase(profile.name ?? '') CONTAINS $filter
-                OR string::lowercase(profile.headline ?? '') CONTAINS $filter
-                OR string::lowercase(profile.bio ?? '') CONTAINS $filter
-                OR string::lowercase(profile.location ?? '') CONTAINS $filter
-                OR $filter IN profile.skills.map(|$v| string::lowercase($v))
-                OR $filter IN profile.languages.map(|$v| string::lowercase($v))
-                OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
-              )
+              AND {text_gate}
+              {location_clause}
             ORDER BY _score DESC, _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
-        "#;
+        "#);
         match DB
-            .query(query)
+            .query(&query)
             .bind(("filter", filter_lower))
+            .bind(("location_filter", location_filter.unwrap_or_default()))
             .bind(("has_embedding", has_embedding))
             .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
             .bind(("limit", PAGE_SIZE as i64 + 1))

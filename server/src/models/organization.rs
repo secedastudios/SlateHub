@@ -334,7 +334,7 @@ impl OrganizationModel {
         }
 
         if location.is_some() {
-            conditions.push("string::lowercase(location ?? '') CONTAINS string::lowercase($location)".to_string());
+            conditions.push("(string::lowercase(location ?? '') CONTAINS string::lowercase($location) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location))".to_string());
         }
 
         if !conditions.is_empty() {

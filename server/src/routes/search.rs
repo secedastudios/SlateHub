@@ -19,6 +19,7 @@ use crate::error::Error;
 use crate::middleware::UserExtractor;
 use crate::models::likes::LikesModel;
 use crate::services::search_log::log_search;
+use crate::services::search_utils::normalize_query;
 use crate::services::embedding::generate_embedding_async;
 use crate::templates::User;
 
@@ -47,6 +48,7 @@ struct SearchTemplate {
     organizations: Vec<OrganizationSearchResult>,
     locations: Vec<LocationSearchResult>,
     productions: Vec<ProductionSearchResult>,
+    jobs: Vec<JobSearchResult>,
     liked_ids: Vec<String>,
     current_user_id: String,
 }
@@ -104,6 +106,19 @@ struct ProductionSearchResult {
     score: i32,
 }
 
+#[derive(Debug)]
+#[allow(dead_code)]
+struct JobSearchResult {
+    id: String,
+    title: String,
+    location: Option<String>,
+    poster_name: String,
+    poster_type: String,
+    role_count: i64,
+    description: String,
+    score: i32,
+}
+
 #[derive(Deserialize)]
 pub struct SearchQuery {
     q: Option<String>,
@@ -142,6 +157,7 @@ async fn search_page(
             organizations: vec![],
             locations: vec![],
             productions: vec![],
+            jobs: vec![],
             liked_ids: vec![],
             current_user_id: current_user_id.clone().unwrap_or_default(),
         };
@@ -156,6 +172,10 @@ async fn search_page(
 
     debug!("Search query: {}", query);
 
+    // Detect which entity types the query targets
+    let intent = detect_search_intent(query);
+    debug!("Search intent: {:?}", intent);
+
     // Generate embedding for the search query (optional — text search works without it)
     let query_embedding = match generate_embedding_async(query).await {
         Ok(emb) => Some(emb),
@@ -169,13 +189,24 @@ async fn search_page(
         }
     };
 
-    // Search all entity types
-    let people = search_people(query, query_embedding.clone()).await?;
-    let organizations = search_organizations(query, query_embedding.clone()).await?;
-    let locations = search_locations(query, query_embedding.clone()).await?;
-    let productions = search_productions(query, query_embedding).await?;
+    // Only search entity types matching the detected intent
+    let people = if intent.people {
+        search_people(query, query_embedding.clone()).await?
+    } else { vec![] };
+    let organizations = if intent.organizations {
+        search_organizations(query, query_embedding.clone()).await?
+    } else { vec![] };
+    let locations = if intent.locations {
+        search_locations(query, query_embedding.clone()).await?
+    } else { vec![] };
+    let productions = if intent.productions {
+        search_productions(query, query_embedding.clone()).await?
+    } else { vec![] };
+    let jobs = if intent.jobs {
+        search_jobs(query, query_embedding).await?
+    } else { vec![] };
 
-    let total_results = people.len() + organizations.len() + locations.len() + productions.len();
+    let total_results = people.len() + organizations.len() + locations.len() + productions.len() + jobs.len();
 
     log_search(query, "web", "all", Some(total_results));
 
@@ -214,6 +245,7 @@ async fn search_page(
         organizations,
         locations,
         productions,
+        jobs,
         liked_ids,
         current_user_id: current_user_id.unwrap_or_default(),
     };
@@ -228,6 +260,66 @@ async fn search_page(
 
 /// Parse structured filters from a natural-language casting query.
 /// Returns (gender_filter, age_min, age_max, location_filter, cleaned_query).
+/// Which entity types a search query targets.
+#[derive(Debug)]
+struct SearchIntent {
+    people: bool,
+    organizations: bool,
+    locations: bool,
+    productions: bool,
+    jobs: bool,
+}
+
+/// Detect which entity types the query is targeting based on keywords.
+/// Returns all true (search everything) if no clear intent is detected.
+fn detect_search_intent(query: &str) -> SearchIntent {
+    let q = query.to_lowercase();
+
+    // Location signals — physical places, venues, spaces
+    let is_locations = Regex::new(
+        r"(?i)\b(location|locations|venue|venues|sound stage|soundstage|stage|warehouse|rooftop|loft|desert|beach|forest|outdoor|indoor|studio space|filming location|shoot location)\b"
+    ).unwrap().is_match(&q);
+
+    // Organization signals — companies, agencies, service providers
+    let is_orgs = Regex::new(
+        r"(?i)\b(company|companies|agency|agencies|house|houses|rental|rentals|post house|vfx house|production company|production companies|talent agency|casting agency|studio|studios)\b"
+    ).unwrap().is_match(&q)
+        // "studio" alone is ambiguous — only count as org if combined with service words
+        // but "studios" (plural) is more likely an org
+        && !is_locations; // location takes priority if both match (e.g. "studio space")
+
+    // Production signals — films, shows, credits
+    let is_productions = Regex::new(
+        r"(?i)\b(film|films|movie|movies|show|shows|series|season|documentary|documentaries|short film|shorts|feature|features|directed by|starring|produced by|written by|credits)\b"
+    ).unwrap().is_match(&q);
+
+    // Job signals — employment, gigs, hiring
+    let is_jobs = Regex::new(
+        r"(?i)\b(job|jobs|hiring|position|positions|opening|openings|gig|gigs|vacancy|vacancies|opportunity|opportunities|looking for work|seeking work|casting call|audition|auditions)\b"
+    ).unwrap().is_match(&q);
+
+    let any_specific = is_locations || is_orgs || is_productions || is_jobs;
+
+    if any_specific {
+        SearchIntent {
+            people: is_productions, // include people for "films directed by chris"
+            organizations: is_orgs,
+            locations: is_locations,
+            productions: is_productions,
+            jobs: is_jobs,
+        }
+    } else {
+        // No specific entity keyword — search everything
+        SearchIntent {
+            people: true,
+            organizations: true,
+            locations: true,
+            productions: true,
+            jobs: true,
+        }
+    }
+}
+
 fn parse_structured_filters(query: &str) -> (Option<String>, Option<i32>, Option<i32>, Option<String>, String) {
     let mut cleaned = query.to_string();
     let mut gender = None;
@@ -284,12 +376,19 @@ async fn search_people(
         score: f64,
     }
 
-    let query_lower = query.to_lowercase();
     let empty_embedding: Vec<f32> = vec![];
 
     // Parse structured filters from query
-    let (gender_filter, age_min, age_max, location_filter, _cleaned) =
+    let (gender_filter, age_min, age_max, location_filter, cleaned) =
         parse_structured_filters(query);
+
+    // Normalize role plurals and use cleaned query for text matching
+    let query_lower = normalize_query(&cleaned);
+
+    // When hard filters are present, text/vector gate is optional (just for scoring)
+    let has_hard_filters = gender_filter.is_some()
+        || (age_min.is_some() && age_max.is_some())
+        || location_filter.is_some();
 
     // Build dynamic WHERE clauses for structured filters
     let mut extra_where = String::new();
@@ -300,8 +399,23 @@ async fn search_people(
         extra_where.push_str(" AND profile.acting_age_range.min <= $age_max AND profile.acting_age_range.max >= $age_min");
     }
     if location_filter.is_some() {
-        extra_where.push_str(" AND string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter)");
+        extra_where.push_str(" AND (string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))");
     }
+
+    let text_vector_gate = if has_hard_filters {
+        "true".to_string()
+    } else {
+        "(\
+            string::lowercase(name ?? '') CONTAINS $query_lower \
+            OR string::lowercase(username ?? '') CONTAINS $query_lower \
+            OR string::lowercase(profile.headline ?? '') CONTAINS $query_lower \
+            OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower \
+            OR string::lowercase(profile.location ?? '') CONTAINS $query_lower \
+            OR string::lowercase(profile.gender ?? '') CONTAINS $query_lower \
+            OR (embedding IS NOT NONE AND $has_embedding = true \
+                AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)\
+        )".to_string()
+    };
 
     let sql = format!(
         "SELECT
@@ -326,16 +440,7 @@ async fn search_people(
             ) AS score
         FROM person
         WHERE
-            (
-                string::lowercase(name ?? '') CONTAINS $query_lower
-                OR string::lowercase(username ?? '') CONTAINS $query_lower
-                OR string::lowercase(profile.headline ?? '') CONTAINS $query_lower
-                OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower
-                OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
-                OR string::lowercase(profile.gender ?? '') CONTAINS $query_lower
-                OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
-            )
+            {text_vector_gate}
             {extra_where}
         ORDER BY score DESC
         LIMIT 20"
@@ -632,4 +737,101 @@ async fn search_productions(
         .collect();
 
     Ok(productions)
+}
+
+async fn search_jobs(
+    query: &str,
+    query_embedding: Option<Vec<f32>>,
+) -> Result<Vec<JobSearchResult>, Error> {
+    let query_lower = normalize_query(query);
+    let empty_embedding: Vec<f32> = vec![];
+
+    let mut response = DB
+        .query(
+            "SELECT
+                <string> id AS id,
+                title,
+                description,
+                location,
+                <string> posted_by AS posted_by_id,
+                array::len(roles) AS role_count,
+                <float> (
+                    (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN 50 ELSE 0 END)
+                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN 20 ELSE 0 END)
+                    + (IF embedding IS NOT NONE AND $has_embedding = true
+                        THEN vector::similarity::cosine(embedding, $query_embedding) * 30
+                        ELSE 0
+                    END)
+                ) AS score
+            FROM job_posting
+            WHERE status = 'open' AND expires_at > time::now() AND (
+                string::lowercase(title ?? '') CONTAINS $query_lower
+                OR string::lowercase(description ?? '') CONTAINS $query_lower
+                OR string::lowercase(location ?? '') CONTAINS $query_lower
+                OR string::lowercase(string::join(' ', roles.*.title)) CONTAINS $query_lower
+                OR (embedding IS NOT NONE AND $has_embedding = true
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
+            )
+            ORDER BY score DESC
+            LIMIT 10",
+        )
+        .bind(("query_lower", query_lower))
+        .bind(("has_embedding", query_embedding.is_some()))
+        .bind(("query_embedding", query_embedding.unwrap_or(empty_embedding)))
+        .await
+        .map_err(|e| {
+            error!(error = %e, table = "job_posting", "Database error during search");
+            Error::Database(e.to_string())
+        })?;
+
+    let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| {
+        error!(error = %e, table = "job_posting", "Failed to deserialize search results");
+        Error::Database(e.to_string())
+    })?;
+
+    let mut jobs = Vec::new();
+    for row in &rows {
+        let score = row["score"].as_f64().unwrap_or(0.0);
+        if score <= 0.0 { continue; }
+
+        // Resolve poster name from posted_by (person or org)
+        let posted_by_id = row["posted_by_id"].as_str().unwrap_or("");
+        let (poster_name, poster_type) = if !posted_by_id.is_empty() {
+            if posted_by_id.starts_with("person:") {
+                let name: Option<String> = DB
+                    .query("SELECT VALUE name FROM $id")
+                    .bind(("id", surrealdb::types::RecordId::parse_simple(posted_by_id).ok()))
+                    .await.ok()
+                    .and_then(|mut r| r.take(0).ok())
+                    .flatten();
+                (name.unwrap_or_default(), "person".to_string())
+            } else if posted_by_id.starts_with("organization:") {
+                let name: Option<String> = DB
+                    .query("SELECT VALUE name FROM $id")
+                    .bind(("id", surrealdb::types::RecordId::parse_simple(posted_by_id).ok()))
+                    .await.ok()
+                    .and_then(|mut r| r.take(0).ok())
+                    .flatten();
+                (name.unwrap_or_default(), "organization".to_string())
+            } else {
+                (String::new(), String::new())
+            }
+        } else {
+            (String::new(), String::new())
+        };
+
+        jobs.push(JobSearchResult {
+            id: row["id"].as_str().unwrap_or("").strip_prefix("job_posting:").unwrap_or(row["id"].as_str().unwrap_or("")).to_string(),
+            title: row["title"].as_str().unwrap_or("").to_string(),
+            location: row["location"].as_str().map(String::from),
+            poster_name,
+            poster_type,
+            role_count: row["role_count"].as_i64().unwrap_or(0),
+            description: row["description"].as_str().unwrap_or("").to_string(),
+            score: score.round() as i32,
+        });
+    }
+
+    Ok(jobs)
 }

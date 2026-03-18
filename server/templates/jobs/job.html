@@ -183,11 +183,11 @@
             <div class="job-sidebar-info">
                 <div class="job-sidebar-item">
                     <span class="job-sidebar-label">Posted</span>
-                    <span>{{ job.created_at }}</span>
+                    <span>{{ job.created_at|time_ago }}</span>
                 </div>
                 <div class="job-sidebar-item">
                     <span class="job-sidebar-label">Expires</span>
-                    <span>{{ job.expires_at }}</span>
+                    <span>{{ job.expires_at|time_ago }}</span>
                 </div>
                 <div class="job-sidebar-item">
                     <span class="job-sidebar-label">Status</span>
