@@ -387,7 +387,23 @@ impl SlateHubMcp {
 #[tool_handler]
 impl ServerHandler for SlateHubMcp {
     fn get_info(&self) -> ServerInfo {
+        use rmcp::model::{Icon, Implementation};
+
+        let mut server_impl = Implementation::new("slatehub", env!("CARGO_PKG_VERSION"))
+            .with_title("SlateHub")
+            .with_description("Creative networking platform for the film, TV, and content creation industry")
+            .with_icons(vec![
+                Icon::new(format!("{}/favicon.svg", self.app_url))
+                    .with_mime_type("image/svg+xml")
+                    .with_sizes(vec!["any".to_string()]),
+                Icon::new(format!("{}/apple-touch-icon.png", self.app_url))
+                    .with_mime_type("image/png")
+                    .with_sizes(vec!["180x180".to_string()]),
+            ]);
+        server_impl.website_url = Some("https://slatehub.com".to_string());
+
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(server_impl)
             .with_instructions(concat!(
                 "SlateHub MCP Server — read-only access to a creative networking platform for the film, TV, ",
                 "and content creation industry. You have access to profiles of actors, crew, filmmakers, ",
