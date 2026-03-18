@@ -233,28 +233,8 @@ fn parse_query(query: &str) -> ParsedQuery {
     let filler_re = Regex::new(r"(?i)\b(with|and|who|are|is|that|the|a|an)\b").unwrap();
     cleaned = filler_re.replace_all(&cleaned, "").to_string();
 
-    // Normalize role plurals
-    let role_terms: &[(&str, &str)] = &[
-        ("actresses", "actor"), ("actress", "actor"), ("actors", "actor"),
-        ("cinematographers", "cinematographer"),
-        ("directors", "director"), ("producers", "producer"),
-        ("writers", "writer"), ("editors", "editor"),
-        ("composers", "composer"), ("gaffers", "gaffer"),
-        ("grips", "grip"), ("colorists", "colorist"),
-        ("animators", "animator"), ("stunt performers", "stunt performer"),
-        ("choreographers", "choreographer"), ("screenwriters", "screenwriter"),
-        ("showrunners", "showrunner"),
-        ("production designers", "production designer"),
-        ("costume designers", "costume designer"),
-        ("sound designers", "sound designer"),
-        ("makeup artists", "makeup artist"),
-        ("filmmakers", "filmmaker"), ("photographers", "photographer"),
-        ("videographers", "videographer"), ("models", "model"),
-    ];
-    for (plural, singular) in role_terms {
-        let re = Regex::new(&format!(r"(?i)\b{}\b", regex::escape(plural))).unwrap();
-        cleaned = re.replace_all(&cleaned, *singular).to_string();
-    }
+    // Normalize role plurals (depluralize only, don't cross-map)
+    cleaned = crate::services::search_utils::normalize_query(&cleaned);
 
     // Collapse whitespace
     cleaned = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -532,6 +512,7 @@ impl SlateHubMcp {
                     OR string::lowercase(profile.headline ?? '') CONTAINS $query_lower
                     OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower
                     OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
+                    OR string::lowercase(embedding_text ?? '') CONTAINS $query_lower
                     OR (embedding IS NOT NONE AND $has_embedding = true
                         AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
                 )", threshold = w.vector_threshold)

@@ -364,7 +364,8 @@ async fn people(
             // Location only, no role query (e.g., "in berlin") — return everyone in that location
             "true".to_string()
         } else {
-            // Always require text/vector match when there's a query term
+            // Always require text/vector match when there's a query term.
+            // embedding_text check catches role synonyms (e.g., "dop" finds cinematographers).
             "(\
                 string::lowercase(name ?? '') CONTAINS $filter \
                 OR string::lowercase(username ?? '') CONTAINS $filter \
@@ -372,6 +373,7 @@ async fn people(
                 OR string::lowercase(profile.headline ?? '') CONTAINS $filter \
                 OR string::lowercase(profile.bio ?? '') CONTAINS $filter \
                 OR string::lowercase(profile.location ?? '') CONTAINS $filter \
+                OR string::lowercase(embedding_text ?? '') CONTAINS $filter \
                 OR $filter IN profile.skills.map(|$v| string::lowercase($v)) \
                 OR $filter IN profile.languages.map(|$v| string::lowercase($v)) \
                 OR (embedding IS NOT NONE AND $has_embedding = true \
@@ -638,7 +640,8 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
             // Location only, no role query (e.g., "in berlin") — return everyone in that location
             "true".to_string()
         } else {
-            // Always require text/vector match when there's a query term
+            // Always require text/vector match when there's a query term.
+            // embedding_text check catches role synonyms (e.g., "dop" finds cinematographers).
             "(\
                 string::lowercase(name ?? '') CONTAINS $filter \
                 OR string::lowercase(username ?? '') CONTAINS $filter \
@@ -646,6 +649,7 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
                 OR string::lowercase(profile.headline ?? '') CONTAINS $filter \
                 OR string::lowercase(profile.bio ?? '') CONTAINS $filter \
                 OR string::lowercase(profile.location ?? '') CONTAINS $filter \
+                OR string::lowercase(embedding_text ?? '') CONTAINS $filter \
                 OR $filter IN profile.skills.map(|$v| string::lowercase($v)) \
                 OR $filter IN profile.languages.map(|$v| string::lowercase($v)) \
                 OR (embedding IS NOT NONE AND $has_embedding = true \

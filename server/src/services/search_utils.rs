@@ -1,10 +1,13 @@
 use regex::Regex;
 
-/// Normalize common industry search terms to their singular profile form.
-/// "directors" → "director", "actors" → "actor", "actresses" → "actor"
+/// Normalize common industry search terms to their singular form.
+/// Only depluralize — don't cross-map between different words (e.g., actress stays actress, not actor).
+/// The embedding synonyms handle cross-matching via vector similarity.
 pub fn normalize_query(query: &str) -> String {
     let terms: &[(&str, &str)] = &[
-        ("actresses", "actor"), ("actress", "actor"), ("actors", "actor"),
+        // Depluralize only — keep the root word intact for CONTAINS matching
+        ("actresses", "actress"),
+        ("actors", "actor"),
         ("cinematographers", "cinematographer"),
         ("directors", "director"), ("producers", "producer"),
         ("writers", "writer"), ("editors", "editor"),
@@ -19,7 +22,7 @@ pub fn normalize_query(query: &str) -> String {
         ("makeup artists", "makeup artist"),
         ("filmmakers", "filmmaker"), ("photographers", "photographer"),
         ("videographers", "videographer"), ("models", "model"),
-        // Common abbreviations
+        // Common abbreviations — depluralize only
         ("dps", "dp"), ("dops", "dop"),
         ("ads", "ad"), ("pas", "pa"),
     ];

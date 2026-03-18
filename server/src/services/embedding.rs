@@ -311,7 +311,7 @@ fn enrich_roles(roles: &[String]) -> String {
         (&["screenwriter"], "above the line", &["scriptwriter", "screenplay writer"]),
 
         // Cast
-        (&["actor", "actress"], "cast", &["performer"]),
+        (&["actor", "actress"], "cast", &["performer", "actor", "actress"]),
         (&["principal cast"], "cast", &["lead actor", "lead"]),
 
         // Art Department

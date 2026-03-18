@@ -414,6 +414,7 @@ async fn search_people(
             OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower \
             OR string::lowercase(profile.location ?? '') CONTAINS $query_lower \
             OR string::lowercase(profile.gender ?? '') CONTAINS $query_lower \
+            OR string::lowercase(embedding_text ?? '') CONTAINS $query_lower \
             OR (embedding IS NOT NONE AND $has_embedding = true \
                 AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)\
         )".to_string()
