@@ -521,9 +521,9 @@ impl SlateHubMcp {
         let empty_emb: Vec<f32> = vec![];
         let w = mcp_search_weights();
 
-        // When hard filters are present, the text/vector match is optional —
-        // it only boosts scoring. Without hard filters, require at least a text or vector match.
-        let text_vector_gate = if has_hard_filters {
+        // Only skip the text gate when hard filters exist AND the cleaned query is empty
+        // (e.g., just physical attributes or location with no role term).
+        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
             "true".to_string()
         } else {
             format!("(
@@ -664,7 +664,7 @@ impl SlateHubMcp {
         let empty_emb: Vec<f32> = vec![];
         let w = mcp_search_weights();
 
-        let text_vector_gate = if has_hard_filters {
+        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
             "true".to_string()
         } else {
             format!("(
@@ -788,7 +788,7 @@ impl SlateHubMcp {
         let empty_emb: Vec<f32> = vec![];
         let w = mcp_search_weights();
 
-        let text_vector_gate = if has_hard_filters {
+        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
             "true".to_string()
         } else {
             format!("(
@@ -914,7 +914,7 @@ impl SlateHubMcp {
         let empty_emb: Vec<f32> = vec![];
         let w = mcp_search_weights();
 
-        let text_vector_gate = if has_hard_filters {
+        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
             "true".to_string()
         } else {
             format!("(
@@ -1055,7 +1055,7 @@ impl SlateHubMcp {
         let empty_emb: Vec<f32> = vec![];
         let w = mcp_search_weights();
 
-        let text_vector_gate = if has_hard_filters {
+        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
             "true".to_string()
         } else {
             format!("(

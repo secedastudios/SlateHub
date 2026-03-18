@@ -402,7 +402,9 @@ async fn search_people(
         extra_where.push_str(" AND (string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))");
     }
 
-    let text_vector_gate = if has_hard_filters {
+    // When hard filters are present AND we still have a query term, require both.
+    // Only skip the text gate when the cleaned query is empty (e.g., just "in berlin").
+    let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
         "true".to_string()
     } else {
         "(\

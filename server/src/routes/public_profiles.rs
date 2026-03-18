@@ -360,9 +360,11 @@ async fn people(
         let empty_emb: Vec<f32> = vec![];
 
         // When location filter is extracted, text/vector gate is optional
-        let text_gate = if has_location {
+        let text_gate = if has_location && filter_lower.trim().is_empty() {
+            // Location only, no role query (e.g., "in berlin") — return everyone in that location
             "true".to_string()
         } else {
+            // Always require text/vector match when there's a query term
             "(\
                 string::lowercase(name ?? '') CONTAINS $filter \
                 OR string::lowercase(username ?? '') CONTAINS $filter \
@@ -632,9 +634,11 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
         let has_embedding = query_embedding.is_some();
         let empty_emb: Vec<f32> = vec![];
 
-        let text_gate = if has_location {
+        let text_gate = if has_location && filter_lower.trim().is_empty() {
+            // Location only, no role query (e.g., "in berlin") — return everyone in that location
             "true".to_string()
         } else {
+            // Always require text/vector match when there's a query term
             "(\
                 string::lowercase(name ?? '') CONTAINS $filter \
                 OR string::lowercase(username ?? '') CONTAINS $filter \
