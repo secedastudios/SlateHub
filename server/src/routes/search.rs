@@ -334,7 +334,7 @@ async fn search_people(
                 OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
                 OR string::lowercase(profile.gender ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
             )
             {extra_where}
         ORDER BY score DESC
@@ -434,7 +434,7 @@ async fn search_organizations(
                 OR string::lowercase(slug ?? '') CONTAINS $query_lower
                 OR string::lowercase(description ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
             ORDER BY score DESC
             LIMIT 10",
         )
@@ -515,7 +515,7 @@ async fn search_locations(
                 OR string::lowercase(address ?? '') CONTAINS $query_lower
                 OR string::lowercase(description ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
             )
             ORDER BY score DESC
             LIMIT 10",
@@ -597,7 +597,7 @@ async fn search_productions(
                 OR string::lowercase(description ?? '') CONTAINS $query_lower
                 OR string::lowercase(location ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
             ORDER BY score DESC
             LIMIT 10",
         )

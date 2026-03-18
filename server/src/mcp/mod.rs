@@ -496,7 +496,7 @@ impl SlateHubMcp {
                     OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower
                     OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
                     OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
                 )".to_string()
         };
 
@@ -620,7 +620,7 @@ impl SlateHubMcp {
                     OR string::lowercase(description ?? '') CONTAINS $query_lower
                     OR string::lowercase(location ?? '') CONTAINS $query_lower
                     OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
                 )".to_string()
         };
 
@@ -735,7 +735,7 @@ impl SlateHubMcp {
                     OR string::lowercase(description ?? '') CONTAINS $query_lower
                     OR string::lowercase(location ?? '') CONTAINS $query_lower
                     OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
                 )".to_string()
         };
 
@@ -855,7 +855,7 @@ impl SlateHubMcp {
                 OR string::lowercase(state ?? '') CONTAINS $query_lower
                 OR string::lowercase(description ?? '') CONTAINS $query_lower
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
             )".to_string()
         };
 
@@ -987,7 +987,7 @@ impl SlateHubMcp {
                     OR string::lowercase(description ?? '') CONTAINS $query_lower
                     OR string::lowercase(location ?? '') CONTAINS $query_lower
                     OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                        AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
                 )".to_string()
         };
 

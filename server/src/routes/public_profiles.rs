@@ -371,7 +371,7 @@ async fn people(
                 OR $filter IN profile.skills.map(|$v| string::lowercase($v))
                 OR $filter IN profile.languages.map(|$v| string::lowercase($v))
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
               )
             ORDER BY _score DESC, _vord DESC, created_at DESC
             LIMIT $limit
@@ -618,7 +618,7 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
                 OR $filter IN profile.skills.map(|$v| string::lowercase($v))
                 OR $filter IN profile.languages.map(|$v| string::lowercase($v))
                 OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)
+                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)
               )
             ORDER BY _score DESC, _vord DESC, created_at DESC
             LIMIT $limit

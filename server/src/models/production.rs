@@ -408,7 +408,7 @@ impl ProductionModel {
                 text_or_vector.push("string::lowercase(location ?? '') CONTAINS string::lowercase($filter)".to_string());
             }
             if has_embedding {
-                text_or_vector.push("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > 0.55)".to_string());
+                text_or_vector.push("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)".to_string());
             }
             query.push_str(&format!(" AND ({})", text_or_vector.join(" OR ")));
         }
