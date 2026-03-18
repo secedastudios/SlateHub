@@ -68,6 +68,10 @@
                                 {% if person.is_admin %}Revoke{% else %}Grant{% endif %}
                             </button>
                         </form>
+                        <form method="post" action="/admin/people/{{ person.id }}/reset-password" class="admin-inline-form" onsubmit="var p=prompt('New password for {{ person.username }}:'); if(!p||p.length<8){alert('Password must be at least 8 characters');return false;} this.querySelector('[name=new_password]').value=p; return confirm('Reset password for {{ person.username }}?');">
+                            <input type="hidden" name="new_password" value="">
+                            <button type="submit" class="admin-btn-sm" title="Reset password">Reset PW</button>
+                        </form>
                         <form method="post" action="/admin/people/{{ person.id }}/delete" class="admin-inline-form" onsubmit="return confirm('Permanently delete user {{ person.username }}? This cannot be undone.')">
                             <button type="submit" class="admin-btn-danger-sm">Delete</button>
                         </form>

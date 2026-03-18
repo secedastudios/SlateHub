@@ -182,6 +182,7 @@ pub fn router() -> Router {
         .route("/admin/people", get(list_people))
         .route("/admin/people/{id}/delete", post(delete_person))
         .route("/admin/people/{id}/toggle-admin", post(toggle_admin))
+        .route("/admin/people/{id}/reset-password", post(admin_reset_password))
         .route("/admin/people/{id}/verification", post(update_verification))
         .route("/admin/productions", get(list_productions))
         .route("/admin/productions/{id}/delete", post(delete_production))
@@ -442,6 +443,35 @@ async fn toggle_admin(
         .map_err(|e| Error::Database(e.to_string()))?;
 
     info!("Admin {} toggled admin for {}", user.username, id);
+    Ok(Redirect::to("/admin/people"))
+}
+
+#[derive(Deserialize)]
+struct AdminResetPasswordForm {
+    new_password: String,
+}
+
+async fn admin_reset_password(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(id): Path<String>,
+    axum::Form(form): axum::Form<AdminResetPasswordForm>,
+) -> Result<Redirect, Error> {
+    require_admin(&user).await?;
+
+    if form.new_password.len() < 8 {
+        return Err(Error::BadRequest("Password must be at least 8 characters".to_string()));
+    }
+
+    let record_id = surrealdb::types::RecordId::new("person", id.as_str());
+    let password_hash = crate::auth::hash_password(&form.new_password)?;
+
+    DB.query("UPDATE $pid SET password = $password")
+        .bind(("pid", record_id))
+        .bind(("password", password_hash))
+        .await
+        .map_err(|e| Error::Database(e.to_string()))?;
+
+    info!("Admin {} reset password for person:{}", user.username, id);
     Ok(Redirect::to("/admin/people"))
 }
 

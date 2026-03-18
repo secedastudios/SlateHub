@@ -944,7 +944,7 @@ impl Person {
     pub async fn signin(identifier: String, password: String) -> Result<String> {
         // Find the user by username or email, including the password field
         // Note: password field must be explicitly requested in SurrealDB
-        let sql = "SELECT *, password FROM person WHERE username = string::lowercase($identifier)";
+        let sql = "SELECT *, password FROM person WHERE username = string::lowercase($identifier) OR email = string::lowercase($identifier)";
         let mut response = DB
             .query(sql)
             .bind(("identifier", identifier.clone()))
