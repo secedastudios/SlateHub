@@ -712,9 +712,10 @@ async fn send_new_message_notification(
 }
 
 fn truncate_body(body: &str, max_len: usize) -> String {
-    if body.len() <= max_len {
-        body.to_string()
+    let truncated: String = body.chars().take(max_len).collect();
+    if truncated.len() == body.len() {
+        truncated
     } else {
-        format!("{}...", &body[..max_len])
+        format!("{}...", truncated)
     }
 }

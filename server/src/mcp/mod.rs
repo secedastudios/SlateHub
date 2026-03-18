@@ -684,10 +684,11 @@ impl SlateHubMcp {
                 out.push_str(&format!("  Location: {}\n", location));
             }
             if !description.is_empty() {
-                let desc = if description.len() > 200 {
-                    format!("{}...", &description[..200])
+                let desc: String = description.chars().take(200).collect();
+                let desc = if desc.len() < description.len() {
+                    format!("{}...", desc)
                 } else {
-                    description.to_string()
+                    desc
                 };
                 out.push_str(&format!("  Description: {}\n", desc));
             }
@@ -792,10 +793,11 @@ impl SlateHubMcp {
                 out.push_str(&format!("  Location: {}\n", location));
             }
             if !description.is_empty() {
-                let desc = if description.len() > 200 {
-                    format!("{}...", &description[..200])
+                let desc: String = description.chars().take(200).collect();
+                let desc = if desc.len() < description.len() {
+                    format!("{}...", desc)
                 } else {
-                    description.to_string()
+                    desc
                 };
                 out.push_str(&format!("  Description: {}\n", desc));
             }
@@ -922,10 +924,11 @@ impl SlateHubMcp {
                 ));
             }
             if !description.is_empty() {
-                let desc = if description.len() > 200 {
-                    format!("{}...", &description[..200])
+                let desc: String = description.chars().take(200).collect();
+                let desc = if desc.len() < description.len() {
+                    format!("{}...", desc)
                 } else {
-                    description.to_string()
+                    desc
                 };
                 out.push_str(&format!("  Description: {}\n", desc));
             }
@@ -1048,10 +1051,11 @@ impl SlateHubMcp {
                 out.push_str(&format!("  Location: {}\n", location));
             }
             if !description.is_empty() {
-                let desc = if description.len() > 200 {
-                    format!("{}...", &description[..200])
+                let desc: String = description.chars().take(200).collect();
+                let desc = if desc.len() < description.len() {
+                    format!("{}...", desc)
                 } else {
-                    description.to_string()
+                    desc
                 };
                 out.push_str(&format!("  Description: {}\n", desc));
             }
