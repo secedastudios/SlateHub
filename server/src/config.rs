@@ -133,6 +133,29 @@ pub fn search_weights() -> &'static SearchWeights {
     &SEARCH_WEIGHTS
 }
 
+/// MCP-specific search weights — typically lower thresholds since the LLM filters results itself.
+static MCP_SEARCH_WEIGHTS: std::sync::LazyLock<SearchWeights> =
+    std::sync::LazyLock::new(|| {
+        dotenv::dotenv().ok();
+        fn parse_or(var: &str, default: i32) -> i32 {
+            env::var(var).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+        }
+        fn parse_f64_or(var: &str, default: f64) -> f64 {
+            env::var(var).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+        }
+        SearchWeights {
+            name_match: parse_or("MCP_SEARCH_WEIGHT_NAME", 50),
+            headline_match: parse_or("MCP_SEARCH_WEIGHT_HEADLINE", 20),
+            location_match: parse_or("MCP_SEARCH_WEIGHT_LOCATION", 10),
+            vector_multiplier: parse_or("MCP_SEARCH_WEIGHT_VECTOR", 50),
+            vector_threshold: parse_f64_or("MCP_SEARCH_VECTOR_THRESHOLD", 0.55),
+        }
+    });
+
+pub fn mcp_search_weights() -> &'static SearchWeights {
+    &MCP_SEARCH_WEIGHTS
+}
+
 impl ServerConfig {
     fn from_env() -> Result<Self, ConfigError> {
         Ok(ServerConfig {
