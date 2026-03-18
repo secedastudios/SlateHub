@@ -70,10 +70,8 @@
             </div>
             <div class="admin-stat-card" style="text-align: left;">
                 <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary, #eee); margin-bottom: 0.5rem;">Clean Orphaned Files</div>
-                <div style="font-size: 0.8rem; color: var(--text-muted, #888); margin-bottom: 0.75rem;">Delete uploaded files that are no longer referenced by any database record (e.g. after a profile or organization is deleted).</div>
-                <form method="post" action="/admin/cleanup-files" onsubmit="return confirm('This will permanently delete all unreferenced files from storage. Continue?')">
-                    <button type="submit" class="admin-btn-danger-sm">Clean Up Files</button>
-                </form>
+                <div style="font-size: 0.8rem; color: var(--text-muted, #888); margin-bottom: 0.75rem;">Preview and delete uploaded files that are no longer referenced by any database record (e.g. after a profile or organization is deleted).</div>
+                <a href="/admin/cleanup-files" class="admin-btn-danger-sm" style="text-decoration: none; display: inline-block;">Preview Orphaned Files</a>
             </div>
         </div>
     </div>

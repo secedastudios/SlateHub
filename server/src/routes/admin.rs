@@ -192,6 +192,7 @@ pub fn router() -> Router {
         .route("/admin/locations/{id}/delete", post(delete_location))
         .route("/admin/rebuild-embeddings", post(rebuild_embeddings))
         .route("/admin/backup", post(backup_all))
+        .route("/admin/cleanup-files", get(preview_orphaned_files))
         .route("/admin/cleanup-files", post(cleanup_orphaned_files))
 }
 
@@ -1139,128 +1140,413 @@ async fn backup_all(
 
 // -- Cleanup orphaned files --
 
-async fn cleanup_orphaned_files(
-    AuthenticatedUser(user): AuthenticatedUser,
-) -> Result<Redirect, Error> {
-    require_admin(&user).await?;
+/// A file reference from the database: S3 key + source info for broken link reporting.
+#[derive(Debug, Clone)]
+struct FileRef {
+    key: String,
+    entity: String,  // e.g. "person:abc123"
+    field: String,    // e.g. "avatar", "photos[2].url"
+}
 
-    info!("Admin {} initiated orphaned file cleanup", user.username);
+/// Collect all referenced S3 keys from every table that stores file URLs.
+/// Returns (set of all keys for orphan detection, vec of all refs for broken link detection).
+async fn collect_all_referenced_files() -> Result<(std::collections::HashSet<String>, Vec<FileRef>), Error> {
+    let mut keys: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut refs: Vec<FileRef> = Vec::new();
 
-    // 1. List all S3 keys
-    let s3_service = s3()?;
-    let all_keys = s3_service.list_all_objects().await?;
-    info!("Total S3 objects: {}", all_keys.len());
+    #[derive(Debug, Deserialize, SurrealValue)]
+    struct PhotoRef {
+        url: Option<String>,
+        thumbnail_url: Option<String>,
+    }
 
-    // 2. Collect all referenced file paths from DB
-    let mut referenced: std::collections::HashSet<String> = std::collections::HashSet::new();
+    /// Helper: extract key, insert into set, and record the reference.
+    fn track(keys: &mut std::collections::HashSet<String>, refs: &mut Vec<FileRef>, url: &str, entity: &str, field: &str) {
+        let key = url.strip_prefix("/api/media/").unwrap_or(url).to_string();
+        keys.insert(key.clone());
+        // Also derive thumbnail key
+        if let Some(slash_pos) = key.rfind('/') {
+            let dir = &key[..slash_pos];
+            let filename = &key[slash_pos + 1..];
+            if !filename.starts_with("thumb_") {
+                keys.insert(format!("{}/thumb_{}", dir, filename));
+            }
+        }
+        refs.push(FileRef { key, entity: entity.to_string(), field: field.to_string() });
+    }
 
-    // Person avatars and photos
+    // Person: avatar + photo gallery
     {
         #[derive(Debug, Deserialize, SurrealValue)]
         struct PersonFiles {
+            id: String,
+            name: Option<String>,
             avatar: Option<String>,
             photos: Option<Vec<PhotoRef>>,
         }
-        #[derive(Debug, Deserialize, SurrealValue)]
-        struct PhotoRef {
-            url: Option<String>,
-            thumbnail_url: Option<String>,
-        }
 
         let rows: Vec<PersonFiles> = DB
-            .query("SELECT profile.avatar AS avatar, profile.photos AS photos FROM person")
+            .query("SELECT <string> id AS id, name, profile.avatar AS avatar, profile.photos AS photos FROM person")
             .await
             .map_err(|e| Error::Database(e.to_string()))?
             .take(0)
             .unwrap_or_default();
 
         for row in rows {
+            let entity = format!("person {} ({})", row.name.as_deref().unwrap_or("?"), row.id);
             if let Some(avatar) = row.avatar {
-                add_media_path(&mut referenced, &avatar);
+                track(&mut keys, &mut refs, &avatar, &entity, "avatar");
             }
             if let Some(photos) = row.photos {
-                for photo in photos {
-                    if let Some(url) = photo.url {
-                        add_media_path(&mut referenced, &url);
+                for (i, photo) in photos.iter().enumerate() {
+                    if let Some(ref url) = photo.url {
+                        track(&mut keys, &mut refs, url, &entity, &format!("photos[{}]", i));
                     }
-                    if let Some(thumb) = photo.thumbnail_url {
-                        add_media_path(&mut referenced, &thumb);
+                    if let Some(ref thumb) = photo.thumbnail_url {
+                        track(&mut keys, &mut refs, thumb, &entity, &format!("photos[{}].thumb", i));
                     }
                 }
             }
         }
     }
 
-    // Organization logos
+    // Organization: logo
     {
         #[derive(Debug, Deserialize, SurrealValue)]
         struct OrgFiles {
+            id: String,
+            name: Option<String>,
             logo: Option<String>,
         }
 
         let rows: Vec<OrgFiles> = DB
-            .query("SELECT logo FROM organization")
+            .query("SELECT <string> id AS id, name, logo FROM organization")
             .await
             .map_err(|e| Error::Database(e.to_string()))?
             .take(0)
             .unwrap_or_default();
 
         for row in rows {
+            let entity = format!("org {} ({})", row.name.as_deref().unwrap_or("?"), row.id);
             if let Some(logo) = row.logo {
-                add_media_path(&mut referenced, &logo);
+                track(&mut keys, &mut refs, &logo, &entity, "logo");
             }
         }
     }
 
-    info!("Referenced file paths: {}", referenced.len());
+    // Production: header_photo, poster_photo, poster_url, photo gallery
+    {
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct ProdFiles {
+            id: String,
+            title: Option<String>,
+            header_photo: Option<String>,
+            poster_photo: Option<String>,
+            poster_url: Option<String>,
+            photos: Option<Vec<PhotoRef>>,
+        }
 
-    // 3. Find and delete orphaned files
+        let rows: Vec<ProdFiles> = DB
+            .query("SELECT <string> id AS id, title, header_photo, poster_photo, poster_url, photos FROM production")
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?
+            .take(0)
+            .unwrap_or_default();
+
+        for row in rows {
+            let entity = format!("production {} ({})", row.title.as_deref().unwrap_or("?"), row.id);
+            if let Some(v) = row.header_photo { track(&mut keys, &mut refs, &v, &entity, "header_photo"); }
+            if let Some(v) = row.poster_photo { track(&mut keys, &mut refs, &v, &entity, "poster_photo"); }
+            if let Some(v) = row.poster_url {
+                if v.starts_with("/api/media/") { track(&mut keys, &mut refs, &v, &entity, "poster_url"); }
+            }
+            if let Some(photos) = row.photos {
+                for (i, photo) in photos.iter().enumerate() {
+                    if let Some(ref url) = photo.url { track(&mut keys, &mut refs, url, &entity, &format!("photos[{}]", i)); }
+                    if let Some(ref thumb) = photo.thumbnail_url { track(&mut keys, &mut refs, thumb, &entity, &format!("photos[{}].thumb", i)); }
+                }
+            }
+        }
+    }
+
+    // Location: profile_photo + photo gallery
+    {
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct LocFiles {
+            id: String,
+            name: Option<String>,
+            profile_photo: Option<String>,
+            photos: Option<Vec<PhotoRef>>,
+        }
+
+        let rows: Vec<LocFiles> = DB
+            .query("SELECT <string> id AS id, name, profile_photo, photos FROM location")
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?
+            .take(0)
+            .unwrap_or_default();
+
+        for row in rows {
+            let entity = format!("location {} ({})", row.name.as_deref().unwrap_or("?"), row.id);
+            if let Some(v) = row.profile_photo { track(&mut keys, &mut refs, &v, &entity, "profile_photo"); }
+            if let Some(photos) = row.photos {
+                for (i, photo) in photos.iter().enumerate() {
+                    if let Some(ref url) = photo.url { track(&mut keys, &mut refs, url, &entity, &format!("photos[{}]", i)); }
+                    if let Some(ref thumb) = photo.thumbnail_url { track(&mut keys, &mut refs, thumb, &entity, &format!("photos[{}].thumb", i)); }
+                }
+            }
+        }
+    }
+
+    // Production scripts: file_url / file_key
+    {
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct ScriptFiles {
+            id: String,
+            file_url: Option<String>,
+            file_key: Option<String>,
+        }
+
+        let rows: Vec<ScriptFiles> = DB
+            .query("SELECT <string> id AS id, file_url, file_key FROM production_script")
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?
+            .take(0)
+            .unwrap_or_default();
+
+        for row in rows {
+            let entity = format!("script ({})", row.id);
+            if let Some(v) = row.file_url { track(&mut keys, &mut refs, &v, &entity, "file_url"); }
+            if let Some(v) = row.file_key {
+                keys.insert(v.clone());
+                refs.push(FileRef { key: v, entity: entity.clone(), field: "file_key".to_string() });
+            }
+        }
+    }
+
+    // Media table: uri (linked from person.profile.media_other, person.profile.resume)
+    {
+        #[derive(Debug, Deserialize, SurrealValue)]
+        struct MediaFiles {
+            id: String,
+            uri: Option<String>,
+        }
+
+        let rows: Vec<MediaFiles> = DB
+            .query("SELECT <string> id AS id, uri FROM media")
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?
+            .take(0)
+            .unwrap_or_default();
+
+        for row in rows {
+            let entity = format!("media ({})", row.id);
+            if let Some(v) = row.uri { track(&mut keys, &mut refs, &v, &entity, "uri"); }
+        }
+    }
+
+    Ok((keys, refs))
+}
+
+/// GET /admin/cleanup-files — preview orphaned files AND broken links
+async fn preview_orphaned_files(
+    AuthenticatedUser(user): AuthenticatedUser,
+) -> Result<Html<String>, Error> {
+    require_admin(&user).await?;
+
+    let s3_service = s3()?;
+    let all_keys = s3_service.list_all_objects().await?;
+    let all_keys_set: std::collections::HashSet<&str> = all_keys.iter().map(|k| k.as_str()).collect();
+    let (referenced_keys, all_refs) = collect_all_referenced_files().await?;
+
+    let orphaned: Vec<&String> = all_keys.iter().filter(|k| !referenced_keys.contains(k.as_str())).collect();
+
+    // Find broken links: DB references pointing to S3 keys that don't exist
+    let broken: Vec<&FileRef> = all_refs.iter().filter(|r| !all_keys_set.contains(r.key.as_str())).collect();
+
+    let mut html = String::from(r#"<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>File Integrity Check</title>
+<style>
+body { font-family: system-ui; background: #111; color: #eee; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+h1 { font-size: 1.4rem; }
+h2 { font-size: 1.1rem; margin-top: 2rem; }
+.stats { color: #888; margin-bottom: 1.5rem; }
+.file-list { max-height: 400px; overflow-y: auto; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; }
+.file-item { font-family: monospace; font-size: 0.8rem; padding: 0.3rem 0; border-bottom: 1px solid #222; word-break: break-all; }
+.file-item:last-child { border-bottom: none; }
+.broken-item { font-size: 0.8rem; padding: 0.4rem 0; border-bottom: 1px solid #222; }
+.broken-item:last-child { border-bottom: none; }
+.broken-key { font-family: monospace; color: #e74c3c; }
+.broken-source { color: #888; font-size: 0.75rem; }
+.btn { display: inline-block; padding: 0.6rem 1.2rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; text-decoration: none; margin-right: 0.5rem; }
+.btn-danger { background: #c0392b; color: white; }
+.btn-danger:hover { background: #e74c3c; }
+.btn-back { background: #333; color: #eee; }
+.btn-back:hover { background: #444; }
+.ok { color: #5a5; }
+.warn { color: #e67e22; }
+.section { margin-bottom: 2rem; }
+.checkbox-item { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.checkbox-item.has-preview { align-items: flex-start; padding: 0.5rem 0; }
+.checkbox-item input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
+.preview-img { width: 120px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #333; flex-shrink: 0; background: #222; }
+.file-path { font-family: monospace; font-size: 0.8rem; word-break: break-all; }
+.select-actions { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+.select-actions button { background: #333; color: #eee; border: 1px solid #555; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+.select-actions button:hover { background: #444; }
+.count-label { color: #888; font-size: 0.8rem; margin-left: 0.5rem; }
+</style></head><body>
+<h1>File Integrity Check</h1>"#);
+
+    html.push_str(&format!(
+        r#"<div class="stats">S3 objects: {} &nbsp;|&nbsp; DB references: {} &nbsp;|&nbsp; Orphaned files: {} &nbsp;|&nbsp; Broken links: {}</div>"#,
+        all_keys.len(), all_refs.len(), orphaned.len(), broken.len()
+    ));
+
+    // Broken links section
+    html.push_str(r#"<div class="section"><h2>Broken Links (DB references to missing files)</h2>"#);
+    if broken.is_empty() {
+        html.push_str(r#"<p class="ok">No broken links found. All DB references point to existing files.</p>"#);
+    } else {
+        html.push_str(&format!(r#"<p class="warn">{} database references point to files that no longer exist in storage:</p>"#, broken.len()));
+        html.push_str(r#"<div class="file-list">"#);
+        for r in &broken {
+            html.push_str(&format!(
+                r#"<div class="broken-item"><span class="broken-key">{}</span><br><span class="broken-source">{} &rarr; {}</span></div>"#,
+                ammonia::clean_text(&r.key),
+                ammonia::clean_text(&r.entity),
+                ammonia::clean_text(&r.field),
+            ));
+        }
+        html.push_str("</div>");
+    }
+    html.push_str("</div>");
+
+    // Orphaned files section
+    html.push_str(r#"<div class="section"><h2>Orphaned Files (S3 objects not referenced by any DB record)</h2>"#);
+    if orphaned.is_empty() {
+        html.push_str(r#"<p class="ok">No orphaned files found. Storage is clean.</p>"#);
+    } else {
+        html.push_str(r#"<form method="post" action="/admin/cleanup-files">"#);
+        html.push_str(r#"<div class="select-actions">
+            <button type="button" onclick="document.querySelectorAll('input[name=keys]').forEach(c=>c.checked=true);updateCount()">Select All</button>
+            <button type="button" onclick="document.querySelectorAll('input[name=keys]').forEach(c=>c.checked=false);updateCount()">Select None</button>
+            <span id="selected-count" class="count-label">0 selected</span>
+        </div>"#);
+        html.push_str(r#"<div class="file-list">"#);
+        for key in &orphaned {
+            let escaped = ammonia::clean_text(key);
+            let lower = key.to_lowercase();
+            let is_image = lower.ends_with(".jpg") || lower.ends_with(".jpeg")
+                || lower.ends_with(".png") || lower.ends_with(".webp")
+                || lower.ends_with(".gif") || lower.ends_with(".svg");
+            if is_image {
+                html.push_str(&format!(
+                    r#"<label class="file-item checkbox-item has-preview">
+                        <input type="checkbox" name="keys" value="{}" onchange="updateCount()">
+                        <img src="/api/media/{}" class="preview-img" loading="lazy" onerror="this.style.display='none'">
+                        <span class="file-path">{}</span>
+                    </label>"#,
+                    escaped, escaped, escaped
+                ));
+            } else {
+                html.push_str(&format!(
+                    r#"<label class="file-item checkbox-item">
+                        <input type="checkbox" name="keys" value="{}" onchange="updateCount()">
+                        <span class="file-path">{}</span>
+                    </label>"#,
+                    escaped, escaped
+                ));
+            }
+        }
+        html.push_str("</div>");
+
+        html.push_str(r#"
+            <button type="submit" class="btn btn-danger" id="delete-btn" disabled
+                onclick="return confirm('Delete the selected files? This cannot be undone.')">
+                Delete Selected
+            </button>
+            <a href="/admin" class="btn btn-back">Cancel</a>
+        </form>
+        <script>
+        function updateCount() {
+            var checked = document.querySelectorAll('input[name=keys]:checked').length;
+            document.getElementById('selected-count').textContent = checked + ' selected';
+            document.getElementById('delete-btn').disabled = checked === 0;
+            document.getElementById('delete-btn').textContent = checked > 0 ? 'Delete ' + checked + ' Selected' : 'Delete Selected';
+        }
+        </script>"#);
+    }
+    html.push_str("</div>");
+
+    html.push_str(r#"<a href="/admin" class="btn btn-back">Back to Admin</a>"#);
+
+    html.push_str("</body></html>");
+    Ok(Html(html))
+}
+
+/// POST /admin/cleanup-files — delete selected orphaned files
+async fn cleanup_orphaned_files(
+    AuthenticatedUser(user): AuthenticatedUser,
+    axum::Form(form): axum::Form<Vec<(String, String)>>,
+) -> Result<Redirect, Error> {
+    require_admin(&user).await?;
+
+    // Collect selected keys from form checkboxes
+    let selected_keys: Vec<String> = form.iter()
+        .filter(|(name, _)| name == "keys")
+        .map(|(_, value)| value.clone())
+        .collect();
+
+    if selected_keys.is_empty() {
+        return Ok(Redirect::to("/admin/cleanup-files"));
+    }
+
+    // Verify the selected keys are actually orphaned (prevent deleting referenced files)
+    let s3_service = s3()?;
+    let all_keys = s3_service.list_all_objects().await?;
+    let all_keys_set: std::collections::HashSet<&str> = all_keys.iter().map(|k| k.as_str()).collect();
+    let (referenced, _refs) = collect_all_referenced_files().await?;
+
+    info!("Admin {} deleting {} selected orphaned files", user.username, selected_keys.len());
+
     let mut deleted_count = 0u32;
     let mut failed_count = 0u32;
+    let mut skipped_count = 0u32;
 
-    for key in &all_keys {
-        if !referenced.contains(key.as_str()) {
-            match s3_service.delete_file(key).await {
-                Ok(_) => {
-                    info!("Deleted orphaned file: {}", key);
-                    deleted_count += 1;
-                }
-                Err(e) => {
-                    warn!("Failed to delete orphaned file {}: {}", key, e);
-                    failed_count += 1;
-                }
+    for key in &selected_keys {
+        // Safety: only delete if key exists in S3 AND is not referenced
+        if !all_keys_set.contains(key.as_str()) {
+            warn!("Skipping key not found in S3: {}", key);
+            skipped_count += 1;
+            continue;
+        }
+        if referenced.contains(key.as_str()) {
+            warn!("Skipping referenced file (not orphaned): {}", key);
+            skipped_count += 1;
+            continue;
+        }
+
+        match s3_service.delete_file(key).await {
+            Ok(_) => {
+                info!("Deleted orphaned file: {}", key);
+                deleted_count += 1;
+            }
+            Err(e) => {
+                warn!("Failed to delete orphaned file {}: {}", key, e);
+                failed_count += 1;
             }
         }
     }
 
     info!(
-        "Cleanup complete: {} deleted, {} failed, {} still referenced",
-        deleted_count,
-        failed_count,
-        referenced.len()
+        "Cleanup complete: {} deleted, {} failed, {} skipped",
+        deleted_count, failed_count, skipped_count
     );
 
-    Ok(Redirect::to("/admin"))
+    Ok(Redirect::to("/admin/cleanup-files"))
 }
 
-/// Extract S3 key from a media URL like `/api/media/profiles/abc/img.jpg` → `profiles/abc/img.jpg`
-/// Also derives the thumbnail key for avatar/logo images (thumb_{filename}).
-fn add_media_path(set: &mut std::collections::HashSet<String>, url: &str) {
-    let key = url
-        .strip_prefix("/api/media/")
-        .unwrap_or(url);
-    set.insert(key.to_string());
-
-    // Derive thumbnail key: profiles/{id}/{img}.jpg → profiles/{id}/thumb_{img}.jpg
-    // This covers avatar and logo thumbnails that aren't stored separately in DB.
-    if let Some(slash_pos) = key.rfind('/') {
-        let dir = &key[..slash_pos];
-        let filename = &key[slash_pos + 1..];
-        if !filename.starts_with("thumb_") {
-            set.insert(format!("{}/thumb_{}", dir, filename));
-        }
-    }
-}
 
 // ============================
 // Helpers
