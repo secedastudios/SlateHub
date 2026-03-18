@@ -4,6 +4,7 @@ pub mod db;
 pub mod error;
 pub mod logging;
 pub mod markdown;
+pub mod mcp;
 pub mod middleware;
 pub mod models;
 pub mod record_id_ext;

@@ -73,6 +73,8 @@ pub fn app() -> Router {
         .nest("/api", api::router())
         // Mount media routes under /api/media
         .nest("/api/media", media::router())
+        // Mount MCP server for AI tool access
+        .nest_service("/mcp", crate::mcp::create_mcp_service())
         // Raise body limit to 50MB to support script uploads (individual handlers enforce their own limits)
         .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
         // Static files — no cache during development (change back to long cache for production)

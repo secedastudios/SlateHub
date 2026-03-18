@@ -65,6 +65,10 @@ urlencoding = "2.1"
 pulldown-cmark = "0.12"
 ammonia = "4"
 
+# MCP server
+rmcp = { version = "1.2", features = ["server", "transport-streamable-http-server", "tower", "macros", "schemars"] }
+tokio-util = "0.7"
+
 # Semantic search dependencies
 fastembed = "4.0"
 anyhow = "1.0"
