@@ -12,6 +12,7 @@ use tokio_util::sync::CancellationToken;
 use crate::config::mcp_search_weights;
 use crate::db::DB;
 use crate::services::embedding::generate_embedding_async;
+use crate::services::search::{SearchParams, search_people as svc_search_people, search_productions as svc_search_productions, search_organizations as svc_search_organizations, search_locations as svc_search_locations, search_jobs as svc_search_jobs};
 use crate::services::search_log::log_search;
 
 // ---------------------------------------------------------------------------
@@ -294,178 +295,66 @@ impl SlateHubMcp {
         let limit = clamp_limit(params.limit);
 
         // Parse natural language query into structured filters
-        let parsed = parse_query(&params.query);
+        let mut parsed = parse_query(&params.query);
+
+        // Explicit MCP params override parsed values
+        if let Some(ref loc) = params.location {
+            parsed.location = Some(loc.clone());
+        }
+
         let cleaned_query = parsed.cleaned.clone();
+        let query_embedding = generate_embedding_async(&cleaned_query).await.ok();
+        let weights = mcp_search_weights();
 
-        // Explicit params override parsed values
-        let effective_location = params.location.as_ref().or(parsed.location.as_ref());
-
-        let query_embedding = generate_embedding_async(&cleaned_query)
-            .await
-            .ok();
-
-        let mut where_clauses = Vec::new();
-
-        if let Some(loc) = effective_location {
-            let escaped = loc.replace('\'', "''");
-            where_clauses.push(format!(
-                "(string::lowercase(profile.location ?? '') CONTAINS string::lowercase('{escaped}') \
-                 OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase('{escaped}'))"
-            ));
-        }
-
-        if let Some(ref skill) = params.skill {
-            where_clauses.push(format!(
-                "(string::lowercase(profile.headline ?? '') CONTAINS string::lowercase('{sk}') \
-                 OR '{sk_lower}' INSIDE array::map(profile.skills ?? [], |$v| string::lowercase($v)))",
-                sk = skill.replace('\'', "''"),
-                sk_lower = skill.to_lowercase().replace('\'', "''"),
-            ));
-        }
-
-        if let Some(ref gender) = parsed.gender {
-            where_clauses.push(format!(
-                "string::lowercase(profile.gender ?? '') = string::lowercase('{}')",
-                gender.replace('\'', "''")
-            ));
-        }
-
-        if let (Some(age_min), Some(age_max)) = (parsed.age_min, parsed.age_max) {
-            where_clauses.push(format!(
-                "profile.acting_age_range.min <= {} AND profile.acting_age_range.max >= {}",
-                age_max, age_min
-            ));
-        }
-
-        if let Some(ref hair) = parsed.hair_color {
-            where_clauses.push(format!(
-                "string::lowercase(profile.hair_color ?? '') = string::lowercase('{}')",
-                hair.replace('\'', "''")
-            ));
-        }
-
-        if let Some(ref eyes) = parsed.eye_color {
-            where_clauses.push(format!(
-                "string::lowercase(profile.eye_color ?? '') = string::lowercase('{}')",
-                eyes.replace('\'', "''")
-            ));
-        }
-
-        if let Some(ref body) = parsed.body_type {
-            where_clauses.push(format!(
-                "string::lowercase(profile.body_type ?? '') = string::lowercase('{}')",
-                body.replace('\'', "''")
-            ));
-        }
-
-        let has_hard_filters = !where_clauses.is_empty();
-        let hard_filter = if has_hard_filters {
-            format!("AND {}", where_clauses.join(" AND "))
-        } else {
-            String::new()
+        let search_params = SearchParams {
+            query: &cleaned_query,
+            embedding: query_embedding.as_ref(),
+            weights,
+            limit,
+            offset: 0,
         };
 
-        let query_lower = cleaned_query.to_lowercase();
-        let empty_emb: Vec<f32> = vec![];
-        let w = mcp_search_weights();
+        let results = svc_search_people(
+            &search_params,
+            &parsed,
+            params.skill.as_deref(),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
 
-        // Only skip the text gate when hard filters exist AND the cleaned query is empty
-        // (e.g., just physical attributes or location with no role term).
-        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
-            "true".to_string()
-        } else {
-            format!("(
-                    string::lowercase(name ?? '') CONTAINS $query_lower
-                    OR string::lowercase(username ?? '') CONTAINS $query_lower
-                    OR string::lowercase(profile.headline ?? '') CONTAINS $query_lower
-                    OR string::lowercase(profile.bio ?? '') CONTAINS $query_lower
-                    OR string::lowercase(profile.location ?? '') CONTAINS $query_lower
-                    OR string::lowercase(embedding_text ?? '') CONTAINS $query_lower
-                    OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
-                )", threshold = w.vector_threshold)
-        };
+        log_search(&params.query, "mcp", "people", Some(results.len()));
 
-        let sql = format!(
-            "SELECT
-                <string> id AS id,
-                name,
-                username,
-                profile.headline AS headline,
-                profile.location AS location,
-                profile.skills AS skills,
-                profile.avatar AS avatar_url,
-                embedding_text,
-                <float> (
-                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
-                    + (IF string::lowercase(username ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
-                    + (IF string::lowercase(profile.headline ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
-                    + (IF string::lowercase(profile.location ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
-                    + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
-                        ELSE 0
-                    END)
-                ) AS score
-            FROM person
-            WHERE
-                {text_vector_gate}
-                {hard_filter}
-            ORDER BY score DESC
-            LIMIT $limit",
-            w_name = w.name_match,
-            w_headline = w.headline_match,
-            w_location = w.location_match,
-            w_vector = w.vector_multiplier,
-        );
-
-        let has_embedding = query_embedding.is_some();
-        let mut response = DB
-            .query(&sql)
-            .bind(("query_lower", query_lower))
-            .bind(("has_embedding", has_embedding))
-            .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
-            .bind(("limit", limit as i64))
-            .await
-            .map_err(|e| e.to_string())?;
-
-        let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
-
-        log_search(&params.query, "mcp", "people", Some(rows.len()));
-
-        if rows.is_empty() {
+        if results.is_empty() {
             return Ok("No people found matching your search.".to_string());
         }
 
-        let mut out = format!("Found {} people:\n\n", rows.len());
-        for row in &rows {
-            let name = row["name"].as_str().unwrap_or("Unknown");
-            let username = row["username"].as_str().unwrap_or("");
-            let headline = row["headline"].as_str().unwrap_or("");
-            let location = row["location"].as_str().unwrap_or("");
-            let avatar_url = row["avatar_url"].as_str().unwrap_or("");
-            let embedding_text = row["embedding_text"].as_str().unwrap_or("");
-            let skills: Vec<&str> = row["skills"]
-                .as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
-                .unwrap_or_default();
-
-            out.push_str(&format!("- **{}**", name));
-            if !headline.is_empty() {
-                out.push_str(&format!(" — {}", headline));
+        let mut out = format!("Found {} people:\n\n", results.len());
+        for r in &results {
+            out.push_str(&format!("- **{}**", r.name));
+            if let Some(ref headline) = r.headline {
+                if !headline.is_empty() {
+                    out.push_str(&format!(" — {}", headline));
+                }
             }
             out.push('\n');
-            if !location.is_empty() {
-                out.push_str(&format!("  Location: {}\n", location));
+            if let Some(ref location) = r.location {
+                if !location.is_empty() {
+                    out.push_str(&format!("  Location: {}\n", location));
+                }
             }
-            if !skills.is_empty() {
-                out.push_str(&format!("  Skills: {}\n", skills.join(", ")));
+            if !r.skills.is_empty() {
+                out.push_str(&format!("  Skills: {}\n", r.skills.join(", ")));
             }
-            if !avatar_url.is_empty() {
-                out.push_str(&format!("  Photo: {}{}\n", self.app_url, avatar_url));
+            if let Some(ref avatar_url) = r.avatar_url {
+                if !avatar_url.is_empty() {
+                    out.push_str(&format!("  Photo: {}{}\n", self.app_url, avatar_url));
+                }
             }
-            out.push_str(&format!("  Profile: {}/{}\n", self.app_url, username));
-            if !embedding_text.is_empty() {
-                out.push_str(&format!("  Summary: {}\n", embedding_text));
+            out.push_str(&format!("  Profile: {}/{}\n", self.app_url, r.username));
+            if let Some(ref embedding_text) = r.embedding_text {
+                if !embedding_text.is_empty() {
+                    out.push_str(&format!("  Summary: {}\n", embedding_text));
+                }
             }
             out.push('\n');
         }
@@ -475,134 +364,60 @@ impl SlateHubMcp {
     async fn do_search_productions(&self, params: SearchProductionsParams) -> Result<String, String> {
         let limit = clamp_limit(params.limit);
 
-        let (parsed_location, cleaned_query) = if params.location.is_none() {
-            extract_location(&params.query)
-        } else {
-            (None, params.query.clone())
-        };
-        let cleaned_query = normalize_query(&cleaned_query);
-        let effective_location = params.location.as_ref().or(parsed_location.as_ref());
+        // Don't extract location — canonical search_productions has no location param.
+        // The location terms stay in the query for text/vector matching.
+        let cleaned_query = normalize_query(&params.query);
 
         let query_embedding = generate_embedding_async(&cleaned_query).await.ok();
+        let weights = mcp_search_weights();
 
-        let mut where_clauses = Vec::new();
-
-        if let Some(loc) = effective_location {
-            let escaped = loc.replace('\'', "''");
-            where_clauses.push(format!(
-                "(string::lowercase(location ?? '') CONTAINS string::lowercase('{escaped}') \
-                 OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase('{escaped}'))"
-            ));
-        }
-
-        if let Some(ref status) = params.status {
-            where_clauses.push(format!(
-                "string::lowercase(status ?? '') = string::lowercase('{}')",
-                status.replace('\'', "''")
-            ));
-        }
-
-        let has_hard_filters = !where_clauses.is_empty();
-        let hard_filter = if has_hard_filters {
-            format!("AND {}", where_clauses.join(" AND "))
-        } else {
-            String::new()
+        let search_params = SearchParams {
+            query: &cleaned_query,
+            embedding: query_embedding.as_ref(),
+            weights,
+            limit,
+            offset: 0,
         };
 
-        let query_lower = cleaned_query.to_lowercase();
-        let empty_emb: Vec<f32> = vec![];
-        let w = mcp_search_weights();
+        let results = svc_search_productions(
+            &search_params,
+            params.status.as_deref(),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
 
-        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
-            "true".to_string()
-        } else {
-            format!("(
-                    string::lowercase(title ?? '') CONTAINS $query_lower
-                    OR string::lowercase(description ?? '') CONTAINS $query_lower
-                    OR string::lowercase(location ?? '') CONTAINS $query_lower
-                    OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
-                )", threshold = w.vector_threshold)
-        };
+        log_search(&params.query, "mcp", "productions", Some(results.len()));
 
-        let sql = format!(
-            "SELECT
-                <string> id AS id,
-                title,
-                slug,
-                status,
-                description,
-                location,
-                poster_photo,
-                header_photo,
-                embedding_text,
-                <float> (
-                    (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
-                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
-                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
-                    + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
-                        ELSE 0
-                    END)
-                ) AS score
-            FROM production
-            WHERE
-                {text_vector_gate}
-                {hard_filter}
-            ORDER BY score DESC
-            LIMIT $limit",
-            w_name = w.name_match,
-            w_headline = w.headline_match,
-            w_location = w.location_match,
-            w_vector = w.vector_multiplier,
-        );
-
-        let has_embedding = query_embedding.is_some();
-        let mut response = DB
-            .query(&sql)
-            .bind(("query_lower", query_lower))
-            .bind(("has_embedding", has_embedding))
-            .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
-            .bind(("limit", limit as i64))
-            .await
-            .map_err(|e| e.to_string())?;
-
-        let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
-
-        log_search(&params.query, "mcp", "productions", Some(rows.len()));
-
-        if rows.is_empty() {
+        if results.is_empty() {
             return Ok("No productions found matching your search.".to_string());
         }
 
-        let mut out = format!("Found {} productions:\n\n", rows.len());
-        for row in &rows {
-            let title = row["title"].as_str().unwrap_or("Untitled");
-            let slug = row["slug"].as_str().unwrap_or("");
-            let status = row["status"].as_str().unwrap_or("");
-            let location = row["location"].as_str().unwrap_or("");
-            let description = row["description"].as_str().unwrap_or("");
-
-            out.push_str(&format!("- **{}**", title));
-            if !status.is_empty() {
-                out.push_str(&format!(" [{}]", status));
+        let mut out = format!("Found {} productions:\n\n", results.len());
+        for r in &results {
+            out.push_str(&format!("- **{}**", r.title));
+            if !r.status.is_empty() {
+                out.push_str(&format!(" [{}]", r.status));
             }
             out.push('\n');
-            if !location.is_empty() {
-                out.push_str(&format!("  Location: {}\n", location));
+            if let Some(ref location) = r.location {
+                if !location.is_empty() {
+                    out.push_str(&format!("  Location: {}\n", location));
+                }
             }
-            if !description.is_empty() {
-                let desc: String = description.chars().take(200).collect();
-                let desc = if desc.len() < description.len() {
-                    format!("{}...", desc)
-                } else {
-                    desc
-                };
-                out.push_str(&format!("  Description: {}\n", desc));
+            if let Some(ref description) = r.description {
+                if !description.is_empty() {
+                    let desc: String = description.chars().take(200).collect();
+                    let desc = if desc.len() < description.len() {
+                        format!("{}...", desc)
+                    } else {
+                        desc
+                    };
+                    out.push_str(&format!("  Description: {}\n", desc));
+                }
             }
             out.push_str(&format!(
                 "  URL: {}/productions/{}\n",
-                self.app_url, slug
+                self.app_url, r.slug
             ));
             out.push('\n');
         }
@@ -621,103 +436,49 @@ impl SlateHubMcp {
         let effective_location = params.location.as_ref().or(parsed_location.as_ref());
 
         let query_embedding = generate_embedding_async(&cleaned_query).await.ok();
+        let weights = mcp_search_weights();
 
-        let has_hard_filters = effective_location.is_some();
-        let hard_filter = if let Some(loc) = effective_location {
-            let escaped = loc.replace('\'', "''");
-            format!(
-                "AND (string::lowercase(location ?? '') CONTAINS string::lowercase('{escaped}') \
-                 OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase('{escaped}'))"
-            )
-        } else {
-            String::new()
+        let search_params = SearchParams {
+            query: &cleaned_query,
+            embedding: query_embedding.as_ref(),
+            weights,
+            limit,
+            offset: 0,
         };
 
-        let query_lower = cleaned_query.to_lowercase();
-        let empty_emb: Vec<f32> = vec![];
-        let w = mcp_search_weights();
+        let results = svc_search_organizations(
+            &search_params,
+            effective_location.map(|s| s.as_str()),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
 
-        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
-            "true".to_string()
-        } else {
-            format!("(
-                    string::lowercase(name ?? '') CONTAINS $query_lower
-                    OR string::lowercase(description ?? '') CONTAINS $query_lower
-                    OR string::lowercase(location ?? '') CONTAINS $query_lower
-                    OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
-                )", threshold = w.vector_threshold)
-        };
+        log_search(&params.query, "mcp", "organizations", Some(results.len()));
 
-        let sql = format!(
-            "SELECT
-                <string> id AS id,
-                name,
-                slug,
-                description,
-                location,
-                logo,
-                embedding_text,
-                <float> (
-                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
-                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
-                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
-                    + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
-                        ELSE 0
-                    END)
-                ) AS score
-            FROM organization
-            WHERE
-                {text_vector_gate}
-                {hard_filter}
-            ORDER BY score DESC
-            LIMIT $limit",
-            w_name = w.name_match,
-            w_headline = w.headline_match,
-            w_location = w.location_match,
-            w_vector = w.vector_multiplier,
-        );
-
-        let has_embedding = query_embedding.is_some();
-        let mut response = DB
-            .query(&sql)
-            .bind(("query_lower", query_lower))
-            .bind(("has_embedding", has_embedding))
-            .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
-            .bind(("limit", limit as i64))
-            .await
-            .map_err(|e| e.to_string())?;
-
-        let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
-
-        log_search(&params.query, "mcp", "organizations", Some(rows.len()));
-
-        if rows.is_empty() {
+        if results.is_empty() {
             return Ok("No organizations found matching your search.".to_string());
         }
 
-        let mut out = format!("Found {} organizations:\n\n", rows.len());
-        for row in &rows {
-            let name = row["name"].as_str().unwrap_or("Unknown");
-            let slug = row["slug"].as_str().unwrap_or("");
-            let description = row["description"].as_str().unwrap_or("");
-            let location = row["location"].as_str().unwrap_or("");
-
-            out.push_str(&format!("- **{}**\n", name));
-            if !location.is_empty() {
-                out.push_str(&format!("  Location: {}\n", location));
+        let mut out = format!("Found {} organizations:\n\n", results.len());
+        for r in &results {
+            out.push_str(&format!("- **{}**\n", r.name));
+            if let Some(ref location) = r.location {
+                if !location.is_empty() {
+                    out.push_str(&format!("  Location: {}\n", location));
+                }
             }
-            if !description.is_empty() {
-                let desc: String = description.chars().take(200).collect();
-                let desc = if desc.len() < description.len() {
-                    format!("{}...", desc)
-                } else {
-                    desc
-                };
-                out.push_str(&format!("  Description: {}\n", desc));
+            if let Some(ref description) = r.description {
+                if !description.is_empty() {
+                    let desc: String = description.chars().take(200).collect();
+                    let desc = if desc.len() < description.len() {
+                        format!("{}...", desc)
+                    } else {
+                        desc
+                    };
+                    out.push_str(&format!("  Description: {}\n", desc));
+                }
             }
-            out.push_str(&format!("  URL: {}/orgs/{}\n", self.app_url, slug));
+            out.push_str(&format!("  URL: {}/orgs/{}\n", self.app_url, r.slug));
             out.push('\n');
         }
         Ok(out)
@@ -735,110 +496,39 @@ impl SlateHubMcp {
         let effective_city = params.city.as_ref().or(parsed_city.as_ref());
 
         let query_embedding = generate_embedding_async(&cleaned_query).await.ok();
+        let weights = mcp_search_weights();
 
-        let mut where_clauses = Vec::new();
-
-        if let Some(city) = effective_city {
-            where_clauses.push(format!(
-                "string::lowercase(city ?? '') CONTAINS string::lowercase('{}')",
-                city.replace('\'', "''")
-            ));
-        }
-
-        if let Some(ref state) = params.state {
-            where_clauses.push(format!(
-                "string::lowercase(state ?? '') CONTAINS string::lowercase('{}')",
-                state.replace('\'', "''")
-            ));
-        }
-
-        let has_hard_filters = !where_clauses.is_empty();
-        let hard_filter = if has_hard_filters {
-            format!("AND {}", where_clauses.join(" AND "))
-        } else {
-            String::new()
+        let search_params = SearchParams {
+            query: &cleaned_query,
+            embedding: query_embedding.as_ref(),
+            weights,
+            limit,
+            offset: 0,
         };
 
-        let query_lower = cleaned_query.to_lowercase();
-        let empty_emb: Vec<f32> = vec![];
-        let w = mcp_search_weights();
+        let results = svc_search_locations(
+            &search_params,
+            effective_city.map(|s| s.as_str()),
+            params.state.as_deref(),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
 
-        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
-            "true".to_string()
-        } else {
-            format!("(
-                string::lowercase(name ?? '') CONTAINS $query_lower
-                OR string::lowercase(city ?? '') CONTAINS $query_lower
-                OR string::lowercase(state ?? '') CONTAINS $query_lower
-                OR string::lowercase(description ?? '') CONTAINS $query_lower
-                OR (embedding IS NOT NONE AND $has_embedding = true
-                    AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
-            )", threshold = w.vector_threshold)
-        };
+        log_search(&params.query, "mcp", "locations", Some(results.len()));
 
-        let sql = format!(
-            "SELECT
-                <string> id AS id,
-                name,
-                <string> meta::id(id) AS key,
-                address,
-                city,
-                state,
-                description,
-                profile_photo,
-                embedding_text,
-                <float> (
-                    (IF string::lowercase(name ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
-                    + (IF string::lowercase(city ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
-                    + (IF string::lowercase(state ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
-                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
-                    + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
-                        ELSE 0
-                    END)
-                ) AS score
-            FROM location
-            WHERE is_public = true AND {text_vector_gate}
-            {hard_filter}
-            ORDER BY score DESC
-            LIMIT $limit",
-            w_name = w.name_match,
-            w_headline = w.headline_match,
-            w_location = w.location_match,
-            w_vector = w.vector_multiplier,
-        );
-
-        let has_embedding = query_embedding.is_some();
-        let mut response = DB
-            .query(&sql)
-            .bind(("query_lower", query_lower))
-            .bind(("has_embedding", has_embedding))
-            .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
-            .bind(("limit", limit as i64))
-            .await
-            .map_err(|e| e.to_string())?;
-
-        let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
-
-        log_search(&params.query, "mcp", "locations", Some(rows.len()));
-
-        if rows.is_empty() {
+        if results.is_empty() {
             return Ok("No locations found matching your search.".to_string());
         }
 
-        let mut out = format!("Found {} locations:\n\n", rows.len());
-        for row in &rows {
-            let name = row["name"].as_str().unwrap_or("Unknown");
-            let key = row["key"].as_str().unwrap_or("");
-            let city = row["city"].as_str().unwrap_or("");
-            let state = row["state"].as_str().unwrap_or("");
-            let description = row["description"].as_str().unwrap_or("");
-
-            out.push_str(&format!("- **{}**\n", name));
+        let mut out = format!("Found {} locations:\n\n", results.len());
+        for r in &results {
+            out.push_str(&format!("- **{}**\n", r.name));
+            let city = &r.city;
+            let state = &r.state;
             if !city.is_empty() || !state.is_empty() {
                 out.push_str(&format!(
                     "  Location: {}\n",
-                    [city, state]
+                    [city.as_str(), state.as_str()]
                         .iter()
                         .filter(|s| !s.is_empty())
                         .copied()
@@ -846,18 +536,20 @@ impl SlateHubMcp {
                         .join(", ")
                 ));
             }
-            if !description.is_empty() {
-                let desc: String = description.chars().take(200).collect();
-                let desc = if desc.len() < description.len() {
-                    format!("{}...", desc)
-                } else {
-                    desc
-                };
-                out.push_str(&format!("  Description: {}\n", desc));
+            if let Some(ref description) = r.description {
+                if !description.is_empty() {
+                    let desc: String = description.chars().take(200).collect();
+                    let desc = if desc.len() < description.len() {
+                        format!("{}...", desc)
+                    } else {
+                        desc
+                    };
+                    out.push_str(&format!("  Description: {}\n", desc));
+                }
             }
             out.push_str(&format!(
                 "  URL: {}/locations/{}\n",
-                self.app_url, key
+                self.app_url, r.key
             ));
             out.push('\n');
         }
@@ -876,119 +568,62 @@ impl SlateHubMcp {
         let effective_location = params.location.as_ref().or(parsed_location.as_ref());
 
         let query_embedding = generate_embedding_async(&cleaned_query).await.ok();
-
+        let weights = mcp_search_weights();
         let open_only = params.open_only.unwrap_or(true);
 
-        let mut where_clauses = Vec::new();
-
-        if open_only {
-            where_clauses.push("status = 'open'".to_string());
-        }
-
-        if let Some(loc) = effective_location {
-            let escaped = loc.replace('\'', "''");
-            where_clauses.push(format!(
-                "(string::lowercase(location ?? '') CONTAINS string::lowercase('{escaped}') \
-                 OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase('{escaped}'))"
-            ));
-        }
-
-        let has_hard_filters = !where_clauses.is_empty();
-        let hard_filter = if has_hard_filters {
-            format!("AND {}", where_clauses.join(" AND "))
-        } else {
-            String::new()
+        let search_params = SearchParams {
+            query: &cleaned_query,
+            embedding: query_embedding.as_ref(),
+            weights,
+            limit,
+            offset: 0,
         };
 
-        let query_lower = cleaned_query.to_lowercase();
-        let empty_emb: Vec<f32> = vec![];
-        let w = mcp_search_weights();
+        let results = svc_search_jobs(
+            &search_params,
+            effective_location.map(|s| s.as_str()),
+            open_only,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
 
-        let text_vector_gate = if has_hard_filters && query_lower.trim().is_empty() {
-            "true".to_string()
-        } else {
-            format!("(
-                    string::lowercase(title ?? '') CONTAINS $query_lower
-                    OR string::lowercase(description ?? '') CONTAINS $query_lower
-                    OR string::lowercase(location ?? '') CONTAINS $query_lower
-                    OR (embedding IS NOT NONE AND $has_embedding = true
-                        AND vector::similarity::cosine(embedding, $query_embedding) > {threshold})
-                )", threshold = w.vector_threshold)
-        };
+        log_search(&params.query, "mcp", "jobs", Some(results.len()));
 
-        let sql = format!(
-            "SELECT
-                <string> id AS id,
-                <string> meta::id(id) AS key,
-                title,
-                description,
-                location,
-                status,
-                embedding_text,
-                <float> (
-                    (IF string::lowercase(title ?? '') CONTAINS $query_lower THEN {w_name} ELSE 0 END)
-                    + (IF string::lowercase(description ?? '') CONTAINS $query_lower THEN {w_headline} ELSE 0 END)
-                    + (IF string::lowercase(location ?? '') CONTAINS $query_lower THEN {w_location} ELSE 0 END)
-                    + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * {w_vector}
-                        ELSE 0
-                    END)
-                ) AS score
-            FROM job_posting
-            WHERE
-                {text_vector_gate}
-                {hard_filter}
-            ORDER BY score DESC
-            LIMIT $limit",
-            w_name = w.name_match,
-            w_headline = w.headline_match,
-            w_location = w.location_match,
-            w_vector = w.vector_multiplier,
-        );
-
-        let has_embedding = query_embedding.is_some();
-        let mut response = DB
-            .query(&sql)
-            .bind(("query_lower", query_lower))
-            .bind(("has_embedding", has_embedding))
-            .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
-            .bind(("limit", limit as i64))
-            .await
-            .map_err(|e| e.to_string())?;
-
-        let rows: Vec<serde_json::Value> = response.take(0).map_err(|e| e.to_string())?;
-
-        log_search(&params.query, "mcp", "jobs", Some(rows.len()));
-
-        if rows.is_empty() {
+        if results.is_empty() {
             return Ok("No job postings found matching your search.".to_string());
         }
 
-        let mut out = format!("Found {} job postings:\n\n", rows.len());
-        for row in &rows {
-            let title = row["title"].as_str().unwrap_or("Untitled");
-            let key = row["key"].as_str().unwrap_or("");
-            let location = row["location"].as_str().unwrap_or("");
-            let status = row["status"].as_str().unwrap_or("");
-            let description = row["description"].as_str().unwrap_or("");
-
-            out.push_str(&format!("- **{}**", title));
-            if !status.is_empty() {
-                out.push_str(&format!(" [{}]", status));
-            }
+        let mut out = format!("Found {} job postings:\n\n", results.len());
+        for r in &results {
+            out.push_str(&format!("- **{}**", r.title));
             out.push('\n');
-            if !location.is_empty() {
-                out.push_str(&format!("  Location: {}\n", location));
+            if let Some(ref location) = r.location {
+                if !location.is_empty() {
+                    out.push_str(&format!("  Location: {}\n", location));
+                }
             }
-            if !description.is_empty() {
-                let desc: String = description.chars().take(200).collect();
-                let desc = if desc.len() < description.len() {
+            if !r.poster_name.is_empty() {
+                out.push_str(&format!("  Posted by: {} ({})\n", r.poster_name, r.poster_type));
+            }
+            if r.role_count > 0 {
+                out.push_str(&format!("  Roles: {}\n", r.role_count));
+            }
+            if !r.description.is_empty() {
+                let desc: String = r.description.chars().take(200).collect();
+                let desc = if desc.len() < r.description.len() {
                     format!("{}...", desc)
                 } else {
                     desc
                 };
                 out.push_str(&format!("  Description: {}\n", desc));
             }
+            if let Some(ref embedding_text) = r.embedding_text {
+                if !embedding_text.is_empty() {
+                    out.push_str(&format!("  Summary: {}\n", embedding_text));
+                }
+            }
+            // Extract key from id (format: "job_posting:key")
+            let key = r.id.strip_prefix("job_posting:").unwrap_or(&r.id);
             out.push_str(&format!("  URL: {}/jobs/{}\n", self.app_url, key));
             out.push('\n');
         }

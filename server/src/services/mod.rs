@@ -3,6 +3,7 @@ pub mod embedding;
 pub mod geodata;
 pub mod invitation;
 pub mod s3;
+pub mod search;
 pub mod search_log;
 pub mod search_utils;
 pub mod tmdb;

@@ -10,6 +10,7 @@ use serde::Deserialize;
 use tracing::{debug, error, info};
 
 use crate::{
+    config,
     db::DB,
     error::Error,
     middleware::UserExtractor,
@@ -19,7 +20,9 @@ use crate::{
     models::person::Person,
     record_id_ext::RecordIdExt,
     services::embedding::generate_embedding_async,
+    services::search::{self, PersonSearchResult, SearchParams},
     services::search_log::log_search,
+    services::search_utils,
     social_platforms,
     templates::{
         BaseContext, DateRange, Education, InvolvementDisplay, PeopleTemplate, PersonCard,
@@ -113,6 +116,23 @@ fn to_social_link_displays(links: &[crate::models::person::SocialLink]) -> Vec<S
             }
         })
         .collect()
+}
+
+/// Convert a `PersonSearchResult` (from the canonical search service) into a `PersonCard`.
+fn person_card_from_search_result(r: PersonSearchResult) -> PersonCard {
+    PersonCard {
+        id: r.id,
+        name: r.name.clone(),
+        username: r.username,
+        headline: r.headline,
+        bio: r.bio,
+        location: r.location,
+        skills: r.skills,
+        avatar: r
+            .avatar_url
+            .unwrap_or_else(|| "/static/images/default-avatar.svg".to_string()),
+        is_identity_verified: r.verification_status == "identity",
+    }
 }
 
 /// Handler for viewing a user's public profile at /{username}
@@ -340,112 +360,28 @@ async fn people(
     ];
 
     // Fetch profiles from the database, optionally filtered
-    let persons = if let Some(filter_text) = filter {
-        use crate::services::search_utils::parse_query;
+    let (persons, search_cards) = if let Some(filter_text) = filter {
+        let parsed = search_utils::parse_query(filter_text);
+        let query_embedding = generate_embedding_async(&parsed.cleaned).await.ok();
+        let weights = config::search_weights();
 
-        let parsed = parse_query(filter_text);
-        let filter_lower = parsed.cleaned.clone();
-        let query_embedding = generate_embedding_async(&filter_lower).await.ok();
-        let has_embedding = query_embedding.is_some();
-        let empty_emb: Vec<f32> = vec![];
-
-        // Build attribute WHERE clauses
-        let mut attr_clauses = Vec::new();
-        if parsed.location.is_some() {
-            attr_clauses.push("(string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))");
-        }
-        if parsed.gender.is_some() {
-            attr_clauses.push("string::lowercase(profile.gender ?? '') = string::lowercase($gender_filter)");
-        }
-        if parsed.hair_color.is_some() {
-            attr_clauses.push("string::lowercase(profile.hair_color ?? '') = string::lowercase($hair_filter)");
-        }
-        if parsed.eye_color.is_some() {
-            attr_clauses.push("string::lowercase(profile.eye_color ?? '') = string::lowercase($eye_filter)");
-        }
-        if parsed.body_type.is_some() {
-            attr_clauses.push("string::lowercase(profile.body_type ?? '') = string::lowercase($body_filter)");
-        }
-        if parsed.age_min.is_some() && parsed.age_max.is_some() {
-            attr_clauses.push("profile.acting_age_range.min <= $age_max AND profile.acting_age_range.max >= $age_min");
-        }
-
-        let has_hard_filters = !attr_clauses.is_empty();
-        let attr_where = if attr_clauses.is_empty() {
-            String::new()
-        } else {
-            format!("AND {}", attr_clauses.join(" AND "))
+        let search_params = SearchParams {
+            query: &parsed.cleaned,
+            embedding: query_embedding.as_ref(),
+            weights,
+            limit: PAGE_SIZE + 1,
+            offset: 0,
         };
 
-        let text_gate = if has_hard_filters && filter_lower.trim().is_empty() {
-            "true".to_string()
-        } else {
-            "(\
-                string::lowercase(name ?? '') CONTAINS $filter \
-                OR string::lowercase(username ?? '') CONTAINS $filter \
-                OR string::lowercase(profile.name ?? '') CONTAINS $filter \
-                OR string::lowercase(profile.headline ?? '') CONTAINS $filter \
-                OR string::lowercase(profile.bio ?? '') CONTAINS $filter \
-                OR string::lowercase(profile.location ?? '') CONTAINS $filter \
-                OR string::lowercase(embedding_text ?? '') CONTAINS $filter \
-                OR $filter IN profile.skills.map(|$v| string::lowercase($v)) \
-                OR $filter IN profile.languages.map(|$v| string::lowercase($v)) \
-                OR (embedding IS NOT NONE AND $has_embedding = true \
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)\
-            )".to_string()
-        };
-
-        let query = format!(r#"
-            SELECT *, verification_status = 'identity' AS _vord,
-                <float> (
-                    (IF string::lowercase(name ?? '') CONTAINS $filter THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(profile.headline ?? '') CONTAINS $filter THEN 20 ELSE 0 END)
-                    + (IF string::lowercase(profile.bio ?? '') CONTAINS $filter THEN 10 ELSE 0 END)
-                    + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * 50
-                        ELSE 0
-                    END)
-                ) AS _score
-            FROM person
-            WHERE (profile.name IS NOT NULL
-               OR profile.headline IS NOT NULL
-               OR profile.bio IS NOT NULL)
-              AND {text_gate}
-              {attr_where}
-            ORDER BY _score DESC, _vord DESC, created_at DESC
-            LIMIT $limit
-            START $offset
-        "#);
-        let result = match DB.query(&query)
-            .bind(("filter", filter_lower))
-            .bind(("location_filter", parsed.location.unwrap_or_default()))
-            .bind(("gender_filter", parsed.gender.unwrap_or_default()))
-            .bind(("hair_filter", parsed.hair_color.unwrap_or_default()))
-            .bind(("eye_filter", parsed.eye_color.unwrap_or_default()))
-            .bind(("body_filter", parsed.body_type.unwrap_or_default()))
-            .bind(("age_min", parsed.age_min.unwrap_or(0)))
-            .bind(("age_max", parsed.age_max.unwrap_or(0)))
-            .bind(("has_embedding", has_embedding))
-            .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
-            .bind(("limit", PAGE_SIZE as i64 + 1))
-            .bind(("offset", 0i64))
+        let results = search::search_people(&search_params, &parsed, None)
             .await
-        {
-            Ok(mut result) => match result.take::<Vec<Person>>(0) {
-                Ok(persons) => persons,
-                Err(e) => {
-                    error!("Failed to fetch filtered persons: {}", e);
-                    vec![]
-                }
-            },
-            Err(e) => {
-                error!("Failed to query filtered persons: {}", e);
+            .unwrap_or_else(|e| {
+                error!("Failed to search people: {}", e);
                 vec![]
-            }
-        };
+            });
 
-        log_search(filter_text, "web", "people", Some(result.len()));
-        result
+        log_search(filter_text, "web", "people", Some(results.len()));
+        (vec![], Some(results))
     } else {
         let query = r#"
             SELECT *, verification_status = 'identity' AS _vord FROM person
@@ -456,7 +392,7 @@ async fn people(
             LIMIT $limit
             START $offset
         "#;
-        match DB.query(query)
+        let persons = match DB.query(query)
             .bind(("limit", PAGE_SIZE as i64 + 1))
             .bind(("offset", 0i64))
             .await
@@ -472,45 +408,56 @@ async fn people(
                 error!("Failed to query persons from database: {}", e);
                 vec![]
             }
-        }
+        };
+        (persons, None::<Vec<PersonSearchResult>>)
     };
 
-    let has_more = persons.len() > PAGE_SIZE;
-    let persons: Vec<Person> = persons.into_iter().take(PAGE_SIZE).collect();
+    // Convert to PersonCards — either from search results or from Person models
+    template.has_more = if let Some(ref results) = search_cards {
+        results.len() > PAGE_SIZE
+    } else {
+        persons.len() > PAGE_SIZE
+    };
 
-    // Convert Person objects to PersonCard for the template
-    template.has_more = has_more;
-    template.people = persons
-        .into_iter()
-        .filter_map(|person| {
-            // Only include profiles that have at least a name
-            if let Some(profile) = person.profile {
-                if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some() {
-                    Some(PersonCard {
-                        id: person.id.to_raw_string(),
-                        name: profile
-                            .name
-                            .clone()
-                            .unwrap_or_else(|| person.username.clone()),
-                        username: person.username.clone(),
-                        headline: profile.headline.clone(),
-                        bio: profile.bio.clone(),
-                        location: profile.location.clone(),
-                        skills: profile.skills,
-                        avatar: profile
-                            .avatar
-                            .clone()
-                            .unwrap_or_else(|| format!("/static/images/default-avatar.svg")),
-                        is_identity_verified: person.verification_status == "identity",
-                    })
+    template.people = if let Some(results) = search_cards {
+        results
+            .into_iter()
+            .take(PAGE_SIZE)
+            .map(person_card_from_search_result)
+            .collect()
+    } else {
+        persons
+            .into_iter()
+            .take(PAGE_SIZE)
+            .filter_map(|person| {
+                if let Some(profile) = person.profile {
+                    if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some() {
+                        Some(PersonCard {
+                            id: person.id.to_raw_string(),
+                            name: profile
+                                .name
+                                .clone()
+                                .unwrap_or_else(|| person.username.clone()),
+                            username: person.username.clone(),
+                            headline: profile.headline.clone(),
+                            bio: profile.bio.clone(),
+                            location: profile.location.clone(),
+                            skills: profile.skills,
+                            avatar: profile
+                                .avatar
+                                .clone()
+                                .unwrap_or_else(|| "/static/images/default-avatar.svg".to_string()),
+                            is_identity_verified: person.verification_status == "identity",
+                        })
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
-            } else {
-                None
-            }
-        })
-        .collect();
+            })
+            .collect()
+    };
 
     // Fetch liked IDs if user is logged in
     if let Some(ref uid) = current_user_id {
@@ -633,100 +580,27 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
     let filter = params.filter.as_deref().filter(|s| !s.is_empty());
     let offset = params.offset;
 
-    let persons = if let Some(filter_text) = filter {
-        use crate::services::search_utils::parse_query;
+    let (persons, search_cards) = if let Some(filter_text) = filter {
+        let parsed = search_utils::parse_query(filter_text);
+        let query_embedding = generate_embedding_async(&parsed.cleaned).await.ok();
+        let weights = config::search_weights();
 
-        let parsed = parse_query(filter_text);
-        let filter_lower = parsed.cleaned.clone();
-        let query_embedding = generate_embedding_async(&filter_lower).await.ok();
-        let has_embedding = query_embedding.is_some();
-        let empty_emb: Vec<f32> = vec![];
-
-        let mut attr_clauses = Vec::new();
-        if parsed.location.is_some() {
-            attr_clauses.push("(string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))");
-        }
-        if parsed.gender.is_some() {
-            attr_clauses.push("string::lowercase(profile.gender ?? '') = string::lowercase($gender_filter)");
-        }
-        if parsed.hair_color.is_some() {
-            attr_clauses.push("string::lowercase(profile.hair_color ?? '') = string::lowercase($hair_filter)");
-        }
-        if parsed.eye_color.is_some() {
-            attr_clauses.push("string::lowercase(profile.eye_color ?? '') = string::lowercase($eye_filter)");
-        }
-        if parsed.body_type.is_some() {
-            attr_clauses.push("string::lowercase(profile.body_type ?? '') = string::lowercase($body_filter)");
-        }
-        if parsed.age_min.is_some() && parsed.age_max.is_some() {
-            attr_clauses.push("profile.acting_age_range.min <= $age_max AND profile.acting_age_range.max >= $age_min");
-        }
-
-        let has_hard_filters = !attr_clauses.is_empty();
-        let attr_where = if attr_clauses.is_empty() {
-            String::new()
-        } else {
-            format!("AND {}", attr_clauses.join(" AND "))
+        let search_params = SearchParams {
+            query: &parsed.cleaned,
+            embedding: query_embedding.as_ref(),
+            weights,
+            limit: PAGE_SIZE + 1,
+            offset,
         };
 
-        let text_gate = if has_hard_filters && filter_lower.trim().is_empty() {
-            "true".to_string()
-        } else {
-            "(\
-                string::lowercase(name ?? '') CONTAINS $filter \
-                OR string::lowercase(username ?? '') CONTAINS $filter \
-                OR string::lowercase(profile.name ?? '') CONTAINS $filter \
-                OR string::lowercase(profile.headline ?? '') CONTAINS $filter \
-                OR string::lowercase(profile.bio ?? '') CONTAINS $filter \
-                OR string::lowercase(profile.location ?? '') CONTAINS $filter \
-                OR string::lowercase(embedding_text ?? '') CONTAINS $filter \
-                OR $filter IN profile.skills.map(|$v| string::lowercase($v)) \
-                OR $filter IN profile.languages.map(|$v| string::lowercase($v)) \
-                OR (embedding IS NOT NONE AND $has_embedding = true \
-                    AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)\
-            )".to_string()
-        };
-
-        let query = format!(r#"
-            SELECT *, verification_status = 'identity' AS _vord,
-                <float> (
-                    (IF string::lowercase(name ?? '') CONTAINS $filter THEN 50 ELSE 0 END)
-                    + (IF string::lowercase(profile.headline ?? '') CONTAINS $filter THEN 20 ELSE 0 END)
-                    + (IF string::lowercase(profile.bio ?? '') CONTAINS $filter THEN 10 ELSE 0 END)
-                    + (IF embedding IS NOT NONE AND $has_embedding = true
-                        THEN vector::similarity::cosine(embedding, $query_embedding) * 50
-                        ELSE 0
-                    END)
-                ) AS _score
-            FROM person
-            WHERE (profile.name IS NOT NULL
-               OR profile.headline IS NOT NULL
-               OR profile.bio IS NOT NULL)
-              AND {text_gate}
-              {attr_where}
-            ORDER BY _score DESC, _vord DESC, created_at DESC
-            LIMIT $limit
-            START $offset
-        "#);
-        match DB
-            .query(&query)
-            .bind(("filter", filter_lower))
-            .bind(("location_filter", parsed.location.unwrap_or_default()))
-            .bind(("gender_filter", parsed.gender.unwrap_or_default()))
-            .bind(("hair_filter", parsed.hair_color.unwrap_or_default()))
-            .bind(("eye_filter", parsed.eye_color.unwrap_or_default()))
-            .bind(("body_filter", parsed.body_type.unwrap_or_default()))
-            .bind(("age_min", parsed.age_min.unwrap_or(0)))
-            .bind(("age_max", parsed.age_max.unwrap_or(0)))
-            .bind(("has_embedding", has_embedding))
-            .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
-            .bind(("limit", PAGE_SIZE as i64 + 1))
-            .bind(("offset", offset as i64))
+        let results = search::search_people(&search_params, &parsed, None)
             .await
-        {
-            Ok(mut result) => result.take::<Vec<Person>>(0).unwrap_or_default(),
-            Err(_) => vec![],
-        }
+            .unwrap_or_else(|e| {
+                error!("Failed to search people (SSE): {}", e);
+                vec![]
+            });
+
+        (vec![], Some(results))
     } else {
         let query = r#"
             SELECT *, verification_status = 'identity' AS _vord FROM person
@@ -737,7 +611,7 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
             LIMIT $limit
             START $offset
         "#;
-        match DB
+        let persons: Vec<Person> = match DB
             .query(query)
             .bind(("limit", PAGE_SIZE as i64 + 1))
             .bind(("offset", offset as i64))
@@ -745,42 +619,55 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
         {
             Ok(mut result) => result.take::<Vec<Person>>(0).unwrap_or_default(),
             Err(_) => vec![],
-        }
+        };
+        (persons, None::<Vec<PersonSearchResult>>)
     };
 
-    let has_more = persons.len() > PAGE_SIZE;
+    let has_more = if let Some(ref results) = search_cards {
+        results.len() > PAGE_SIZE
+    } else {
+        persons.len() > PAGE_SIZE
+    };
 
-    let cards: Vec<PersonCard> = persons
-        .into_iter()
-        .take(PAGE_SIZE)
-        .filter_map(|person| {
-            if let Some(profile) = person.profile {
-                if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some() {
-                    Some(PersonCard {
-                        id: person.id.to_raw_string(),
-                        name: profile
-                            .name
-                            .clone()
-                            .unwrap_or_else(|| person.username.clone()),
-                        username: person.username.clone(),
-                        headline: profile.headline.clone(),
-                        bio: profile.bio.clone(),
-                        location: profile.location.clone(),
-                        skills: profile.skills,
-                        avatar: profile
-                            .avatar
-                            .clone()
-                            .unwrap_or_else(|| "/static/images/default-avatar.svg".to_string()),
-                        is_identity_verified: person.verification_status == "identity",
-                    })
+    let cards: Vec<PersonCard> = if let Some(results) = search_cards {
+        results
+            .into_iter()
+            .take(PAGE_SIZE)
+            .map(person_card_from_search_result)
+            .collect()
+    } else {
+        persons
+            .into_iter()
+            .take(PAGE_SIZE)
+            .filter_map(|person| {
+                if let Some(profile) = person.profile {
+                    if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some() {
+                        Some(PersonCard {
+                            id: person.id.to_raw_string(),
+                            name: profile
+                                .name
+                                .clone()
+                                .unwrap_or_else(|| person.username.clone()),
+                            username: person.username.clone(),
+                            headline: profile.headline.clone(),
+                            bio: profile.bio.clone(),
+                            location: profile.location.clone(),
+                            skills: profile.skills,
+                            avatar: profile
+                                .avatar
+                                .clone()
+                                .unwrap_or_else(|| "/static/images/default-avatar.svg".to_string()),
+                            is_identity_verified: person.verification_status == "identity",
+                        })
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
-            } else {
-                None
-            }
-        })
-        .collect();
+            })
+            .collect()
+    };
 
     if cards.is_empty() {
         return sse_response(sse_patch_elements("#people-sentinel", "remove", ""));
