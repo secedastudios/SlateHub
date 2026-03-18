@@ -22,6 +22,7 @@
     background: transparent;
     border-radius: 0;
     color: var(--color-text-primary, #d6d8ca);
+    overflow: hidden;
 }
 
 #prod-page article,
@@ -325,6 +326,13 @@ button.prod-btn-danger:hover:not(:disabled) {
 
 .prod-results { padding-bottom: 4rem; }
 
+.prod-results-count {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #9ca39e);
+    margin: 0 0 1.5rem 0;
+}
+
 /* .prod-grid: base styles in main.css */
 
 .prod-card {
@@ -334,7 +342,9 @@ button.prod-btn-danger:hover:not(:disabled) {
     outline: none;
     box-shadow: none;
     padding: 0;
+    margin: 0;
     border-radius: 0;
+    min-width: 0;
     transition: transform 0.25s ease;
 }
 
@@ -1277,7 +1287,7 @@ button.prod-btn-danger:hover:not(:disabled) {
 @media (max-width: 768px) {
     #prod-page, #prod-detail, #prod-form-page { padding: 0 var(--page-gutter, 1.25rem); }
     .prod-page-header h1 { font-size: clamp(2rem, 8vw, 3rem); }
-    .prod-grid { gap: 1.25rem; }
+    .prod-grid { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
     .prod-filter-row { flex-direction: column; }
     #prod-add-member-form .prod-form-grid,
     #prod-add-org-form .prod-form-grid { grid-template-columns: 1fr; }
@@ -1287,5 +1297,5 @@ button.prod-btn-danger:hover:not(:disabled) {
 
 @media (max-width: 480px) {
     #prod-page, #prod-detail, #prod-form-page { padding: 0 var(--page-gutter, 1rem); }
-    .prod-grid { gap: 2rem; }
+    .prod-grid { grid-template-columns: 1fr; gap: 1.75rem; }
 }

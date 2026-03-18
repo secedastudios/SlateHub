@@ -297,6 +297,7 @@ LET $priya = (SELECT id FROM person WHERE username = 'priyapatel')[0].id;
 LET $daniel = (SELECT id FROM person WHERE username = 'danielokafor')[0].id;
 LET $sofia = (SELECT id FROM person WHERE username = 'sofiamorales')[0].id;
 LET $rika = (SELECT id FROM person WHERE username = 'rikaandersson')[0].id;
+LET $emilia = (SELECT id FROM person WHERE username = 'emiliarossi')[0].id;
 LET $chris = (SELECT id FROM person WHERE username = 'chris')[0].id;
 LET $kevin = (SELECT id FROM person WHERE username = 'kevin')[0].id;
 
@@ -407,26 +408,31 @@ RELATE $marcus->member_of->$nordic SET role = 'member', invitation_status = 'pen
 CREATE production SET title = 'Red Clay', slug = 'red-clay', type = 'Film', status = 'Completed',
   description = 'A young Black woman returns to rural Georgia to settle her late grandmothers estate and uncovers long-buried family secrets that challenge everything she believed about her past.',
   location = 'Atlanta, GA', start_date = d'2023-03-15T00:00:00Z', end_date = d'2023-08-20T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg',
   source = 'manual', source_overrides = [], photos = [], budget_level = 'Low Budget', production_tier = 'Independent';
 
 CREATE production SET title = 'Winter Crossing', slug = 'winter-crossing', type = 'Film', status = 'Festival',
   description = 'During the final winter of WWII, a German soldier and a Polish refugee must cross the frozen Baltic Sea together to survive.',
   location = 'Berlin, Germany', start_date = d'2024-01-10T00:00:00Z', end_date = d'2025-02-28T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/7WsyChQLEftFiDhRkZoHyNwN4SE.jpg',
   source = 'manual', source_overrides = [], photos = [], budget_level = 'Moderate Budget', production_tier = 'Indie Studio';
 
 CREATE production SET title = 'The Partition', slug = 'the-partition', type = 'TV Series', status = 'Released',
   description = 'Limited series following three families across the 1947 Partition of India. Six episodes of intimate, sweeping drama.',
   location = 'Mumbai, India', start_date = d'2023-09-01T00:00:00Z', end_date = d'2025-01-15T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg',
   source = 'manual', source_overrides = [], photos = [], budget_level = 'High Budget', production_tier = 'Studio';
 
 CREATE production SET title = 'Neon Requiem', slug = 'neon-requiem', type = 'Film', status = 'Post-Production',
   description = 'Neo-noir thriller set in rain-soaked Tokyo. A disgraced detective tracks a serial killer through the neon-lit underbelly of the city.',
   location = 'Tokyo, Japan', start_date = d'2025-06-01T00:00:00Z', end_date = d'2026-04-30T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/d5NXSklXo0qyIYkgV94XAgMIckC.jpg',
   source = 'manual', source_overrides = [], photos = [], budget_level = 'Mid Budget', production_tier = 'Independent';
 
 CREATE production SET title = 'Meridian', slug = 'meridian', type = 'Film', status = 'Pre-Production',
   description = 'Sci-fi drama about the first manned mission to Europa. Intimate character study set against the vastness of space.',
   location = 'Stockholm, Sweden', start_date = d'2026-07-01T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
   source = 'manual', source_overrides = [], photos = [], budget_level = 'High Budget', production_tier = 'Indie Studio';
 
 CREATE production SET title = 'Backyard Universe', slug = 'backyard-universe', type = 'Documentary', status = 'Production',
@@ -437,6 +443,7 @@ CREATE production SET title = 'Backyard Universe', slug = 'backyard-universe', t
 CREATE production SET title = 'The Last Analog', slug = 'the-last-analog', type = 'Short Film', status = 'Completed',
   description = 'A projectionist at the last 35mm cinema in the country faces its final night.',
   location = 'Chicago, IL',
+  poster_url = 'https://image.tmdb.org/t/p/w500/sv1xJUazXeYqALzczSZ3O6nkH75.jpg',
   source = 'manual', source_overrides = [], photos = [], budget_level = 'No Budget', production_tier = 'Student Film';
 
 CREATE production SET title = 'Bloom', slug = 'bloom', type = 'Music Video', status = 'Completed',
@@ -447,11 +454,13 @@ CREATE production SET title = 'Bloom', slug = 'bloom', type = 'Music Video', sta
 CREATE production SET title = 'Hollow Ground', slug = 'hollow-ground', type = 'TV Series', status = 'Development',
   description = 'Southern Gothic horror series. A family moves into a plantation home and discovers the land never forgives.',
   location = 'Atlanta, GA',
+  poster_url = 'https://image.tmdb.org/t/p/w500/uDgy6hyPd82kOHh6I95FLtLnj6p.jpg',
   source = 'manual', source_overrides = [], photos = [], budget_level = 'Moderate Budget', production_tier = 'Indie Studio';
 
 CREATE production SET title = 'Frostbite', slug = 'frostbite', type = 'Film', status = 'Pre-Production',
   description = 'Arctic survival thriller. A research team is stranded after their station is destroyed by an avalanche. Then things get worse.',
-  location = 'Tromsø, Norway', start_date = d'2026-09-01T00:00:00Z',
+  location = 'Tromsoe, Norway', start_date = d'2026-09-01T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg',
   source = 'manual', source_overrides = [], photos = [], budget_level = 'Mid Budget', production_tier = 'Independent';
 
 CREATE production SET title = 'Craft Services: The Documentary', slug = 'craft-services-doc', type = 'Documentary', status = 'Production',
@@ -463,6 +472,41 @@ CREATE production SET title = 'Signal Lost', slug = 'signal-lost', type = 'Webse
   description = 'Sci-fi webseries about a radio operator who picks up transmissions from the future. Canceled after funding fell through.',
   location = 'Portland, OR',
   source = 'manual', source_overrides = [], photos = [], budget_level = 'No Budget', production_tier = 'Content Creator';
+
+CREATE production SET title = 'Glass Horizon', slug = 'glass-horizon', type = 'Film', status = 'Production',
+  description = 'A renowned architect is commissioned to design a skyscraper in Dubai, but begins to unravel as the building takes on a life of its own. Psychological thriller meets architectural drama.',
+  location = 'Dubai, UAE', start_date = d'2026-02-01T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911BTUgMe1nS1lr.jpg',
+  source = 'manual', source_overrides = [], photos = [], budget_level = 'High Budget', production_tier = 'Studio';
+
+CREATE production SET title = 'Saltwater', slug = 'saltwater', type = 'Film', status = 'Pre-Production',
+  description = 'Coming-of-age drama set in a dying coastal town. Two teenagers plan their escape while the ocean slowly reclaims the land.',
+  location = 'Galway, Ireland', start_date = d'2026-06-15T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg',
+  source = 'manual', source_overrides = [], photos = [], budget_level = 'Low Budget', production_tier = 'Independent';
+
+CREATE production SET title = 'The Understudies', slug = 'the-understudies', type = 'TV Series', status = 'Production',
+  description = 'Dark comedy following the understudies of a Broadway mega-hit who scheme, sabotage, and occasionally shine when the leads fall ill. Eight episodes.',
+  location = 'New York, NY', start_date = d'2025-11-01T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/4m1Au3YkjqsxF8iwQy0fPYSxDSf.jpg',
+  source = 'manual', source_overrides = [], photos = [], budget_level = 'Moderate Budget', production_tier = 'Indie Studio';
+
+CREATE production SET title = 'Dead Frequency', slug = 'dead-frequency', type = 'Film', status = 'Post-Production',
+  description = 'Horror film about a podcast team that investigates an abandoned radio station in the Mojave Desert — and broadcasts something they shouldnt have.',
+  location = 'Mojave Desert, CA', start_date = d'2025-08-01T00:00:00Z', end_date = d'2026-03-01T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/69EFH2P7rAGsEHyqE7BGHYIA0y3.jpg',
+  source = 'manual', source_overrides = [], photos = [], budget_level = 'Mid Budget', production_tier = 'Independent';
+
+CREATE production SET title = 'Paper Lanterns', slug = 'paper-lanterns', type = 'Short Film', status = 'Completed',
+  description = 'Animated short about a grandmother teaching her granddaughter to make paper lanterns on the eve of a lunar festival. No dialogue.',
+  location = 'Remote (Animation)',
+  source = 'manual', source_overrides = [], photos = [], budget_level = 'Micro Budget', production_tier = 'Independent';
+
+CREATE production SET title = 'Velocity', slug = 'velocity', type = 'Film', status = 'Pre-Production',
+  description = 'High-octane action thriller about an underground street racing circuit that becomes the center of an international smuggling operation.',
+  location = 'Miami, FL', start_date = d'2026-10-01T00:00:00Z',
+  poster_url = 'https://image.tmdb.org/t/p/w500/1E5baAaEse26fej7uHcjOgEERB2.jpg',
+  source = 'manual', source_overrides = [], photos = [], budget_level = 'High Budget', production_tier = 'Studio';
 
 -- ============================================================================
 -- 5. PRODUCTION MEMBERSHIPS
@@ -477,53 +521,89 @@ LET $backyard = (SELECT id FROM production WHERE slug = 'backyard-universe')[0].
 LET $lastanalog = (SELECT id FROM production WHERE slug = 'the-last-analog')[0].id;
 LET $hollowground = (SELECT id FROM production WHERE slug = 'hollow-ground')[0].id;
 LET $frostbite = (SELECT id FROM production WHERE slug = 'frostbite')[0].id;
+LET $glasshorizon = (SELECT id FROM production WHERE slug = 'glass-horizon')[0].id;
+LET $saltwater = (SELECT id FROM production WHERE slug = 'saltwater')[0].id;
+LET $understudies = (SELECT id FROM production WHERE slug = 'the-understudies')[0].id;
+LET $deadfreq = (SELECT id FROM production WHERE slug = 'dead-frequency')[0].id;
+LET $lanterns = (SELECT id FROM production WHERE slug = 'paper-lanterns')[0].id;
+LET $velocity = (SELECT id FROM production WHERE slug = 'velocity')[0].id;
 
 -- Red Clay
-RELATE $marcus->member_of->$redclay SET role = 'owner', production_role = 'Director', invitation_status = 'accepted';
-RELATE $sarah->member_of->$redclay SET role = 'member', production_role = 'Cinematographer', invitation_status = 'accepted';
-RELATE $sofia->member_of->$redclay SET role = 'member', production_role = 'Casting Director', invitation_status = 'accepted';
+RELATE $marcus->member_of->$redclay SET role = 'owner', production_roles = ['Director'], invitation_status = 'accepted';
+RELATE $sarah->member_of->$redclay SET role = 'member', production_roles = ['Cinematographer'], invitation_status = 'accepted';
+RELATE $sofia->member_of->$redclay SET role = 'member', production_roles = ['Casting Director'], invitation_status = 'accepted';
 
 -- Winter Crossing
-RELATE $hanna->member_of->$winter SET role = 'owner', production_role = 'Producer', invitation_status = 'accepted';
-RELATE $chris->member_of->$winter SET role = 'admin', production_role = 'Director', invitation_status = 'accepted';
-RELATE $sarah->member_of->$winter SET role = 'member', production_role = 'DP', invitation_status = 'accepted';
+RELATE $hanna->member_of->$winter SET role = 'owner', production_roles = ['Producer'], invitation_status = 'accepted';
+RELATE $chris->member_of->$winter SET role = 'admin', production_roles = ['Director'], invitation_status = 'accepted';
+RELATE $sarah->member_of->$winter SET role = 'member', production_roles = ['DP'], invitation_status = 'accepted';
 
 -- The Partition
-RELATE $priya->member_of->$partition SET role = 'member', production_role = 'Production Designer', invitation_status = 'accepted';
-RELATE $kevin->member_of->$partition SET role = 'owner', production_role = 'Executive Producer', invitation_status = 'accepted';
+RELATE $priya->member_of->$partition SET role = 'member', production_roles = ['Production Designer'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$partition SET role = 'owner', production_roles = ['Executive Producer'], invitation_status = 'accepted';
 
 -- Neon Requiem
-RELATE $kevin->member_of->$neon SET role = 'owner', production_role = 'Producer', invitation_status = 'accepted';
-RELATE $daniel->member_of->$neon SET role = 'member', production_role = 'VFX Supervisor', invitation_status = 'accepted';
+RELATE $kevin->member_of->$neon SET role = 'owner', production_roles = ['Producer'], invitation_status = 'accepted';
+RELATE $daniel->member_of->$neon SET role = 'member', production_roles = ['VFX Supervisor'], invitation_status = 'accepted';
 
 -- Meridian
-RELATE $rika->member_of->$meridian SET role = 'owner', production_role = 'Line Producer', invitation_status = 'accepted';
-RELATE $hanna->member_of->$meridian SET role = 'admin', production_role = 'Producer', invitation_status = 'accepted';
-RELATE $daniel->member_of->$meridian SET role = 'member', production_role = 'VFX Supervisor', invitation_status = 'pending';
+RELATE $rika->member_of->$meridian SET role = 'owner', production_roles = ['Line Producer'], invitation_status = 'accepted';
+RELATE $hanna->member_of->$meridian SET role = 'admin', production_roles = ['Producer'], invitation_status = 'accepted';
+RELATE $daniel->member_of->$meridian SET role = 'member', production_roles = ['VFX Supervisor'], invitation_status = 'pending';
 
 -- Backyard Universe
-RELATE $marcus->member_of->$backyard SET role = 'owner', production_role = 'Director', invitation_status = 'accepted';
+RELATE $marcus->member_of->$backyard SET role = 'owner', production_roles = ['Director'], invitation_status = 'accepted';
 
 -- The Last Analog
-RELATE $chris->member_of->$lastanalog SET role = 'owner', production_role = 'Director', invitation_status = 'accepted';
+RELATE $chris->member_of->$lastanalog SET role = 'owner', production_roles = ['Director'], invitation_status = 'accepted';
 
 -- Hollow Ground
-RELATE $marcus->member_of->$hollowground SET role = 'owner', production_role = 'Creator', invitation_status = 'accepted';
-RELATE $kevin->member_of->$hollowground SET role = 'admin', production_role = 'Executive Producer', invitation_status = 'accepted';
+RELATE $marcus->member_of->$hollowground SET role = 'owner', production_roles = ['Creator'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$hollowground SET role = 'admin', production_roles = ['Executive Producer'], invitation_status = 'accepted';
 
 -- Frostbite
-RELATE $rika->member_of->$frostbite SET role = 'owner', production_role = 'Producer', invitation_status = 'accepted';
-RELATE $chris->member_of->$frostbite SET role = 'member', production_role = 'Director', invitation_status = 'pending';
+RELATE $rika->member_of->$frostbite SET role = 'owner', production_roles = ['Producer'], invitation_status = 'accepted';
+RELATE $chris->member_of->$frostbite SET role = 'member', production_roles = ['Director'], invitation_status = 'pending';
+
+-- Chris's additional production memberships (for my-productions grid testing)
+RELATE $chris->member_of->$neon SET role = 'member', production_roles = ['Director'], invitation_status = 'accepted';
+RELATE $chris->member_of->$glasshorizon SET role = 'admin', production_roles = ['Director', 'Writer'], invitation_status = 'accepted';
+RELATE $chris->member_of->$understudies SET role = 'member', production_roles = ['Actor'], invitation_status = 'accepted';
+RELATE $chris->member_of->$deadfreq SET role = 'admin', production_roles = ['Director'], invitation_status = 'accepted';
+RELATE $chris->member_of->$saltwater SET role = 'member', production_roles = ['Executive Producer'], invitation_status = 'accepted';
+RELATE $chris->member_of->$velocity SET role = 'member', production_roles = ['2nd Unit Director'], invitation_status = 'accepted';
+RELATE $chris->member_of->$hollowground SET role = 'member', production_roles = ['Director'], invitation_status = 'pending';
+RELATE $chris->member_of->$redclay SET role = 'member', production_roles = ['Actor'], invitation_status = 'accepted';
+RELATE $chris->member_of->$partition SET role = 'member', production_roles = ['Actor'], invitation_status = 'accepted';
+
+-- Kevin's additional production memberships (for my-productions grid testing)
+RELATE $kevin->member_of->$glasshorizon SET role = 'owner', production_roles = ['Producer'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$saltwater SET role = 'admin', production_roles = ['Executive Producer'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$understudies SET role = 'owner', production_roles = ['Showrunner'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$deadfreq SET role = 'member', production_roles = ['Producer'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$lanterns SET role = 'owner', production_roles = ['Director'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$velocity SET role = 'owner', production_roles = ['Producer'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$redclay SET role = 'member', production_roles = ['Executive Producer'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$winter SET role = 'member', production_roles = ['Co-Producer'], invitation_status = 'accepted';
+RELATE $kevin->member_of->$frostbite SET role = 'member', production_roles = ['Associate Producer'], invitation_status = 'pending';
+
+-- Other members on new productions
+RELATE $sarah->member_of->$glasshorizon SET role = 'member', production_roles = ['Cinematographer'], invitation_status = 'accepted';
+RELATE $emilia->member_of->$understudies SET role = 'member', production_roles = ['Lead Actor'], invitation_status = 'accepted';
+RELATE $marcus->member_of->$deadfreq SET role = 'admin', production_roles = ['Director'], invitation_status = 'accepted';
+RELATE $daniel->member_of->$velocity SET role = 'member', production_roles = ['VFX Supervisor'], invitation_status = 'accepted';
+RELATE $priya->member_of->$saltwater SET role = 'member', production_roles = ['Production Designer'], invitation_status = 'accepted';
+RELATE $rika->member_of->$glasshorizon SET role = 'member', production_roles = ['Line Producer'], invitation_status = 'accepted';
 
 -- Org memberships on productions
 RELATE $ember->member_of->$redclay SET role = 'owner', invitation_status = 'accepted';
-RELATE $lichtwerk->member_of->$winter SET role = 'admin', production_role = 'Studio Partner', invitation_status = 'accepted';
-RELATE $parallax->member_of->$neon SET role = 'admin', production_role = 'VFX Vendor', invitation_status = 'accepted';
-RELATE $nordic->member_of->$meridian SET role = 'owner', production_role = 'Lead Production Company', invitation_status = 'accepted';
-RELATE $nordic->member_of->$frostbite SET role = 'owner', production_role = 'Production Company', invitation_status = 'accepted';
-RELATE $moralescast->member_of->$redclay SET role = 'member', production_role = 'Casting', invitation_status = 'accepted';
-RELATE $seceda->member_of->$winter SET role = 'admin', production_role = 'Producer', invitation_status = 'accepted';
-RELATE $seceda->member_of->$neon SET role = 'admin', production_role = 'Executive Production', invitation_status = 'accepted';
+RELATE $lichtwerk->member_of->$winter SET role = 'admin', production_roles = ['Studio Partner'], invitation_status = 'accepted';
+RELATE $parallax->member_of->$neon SET role = 'admin', production_roles = ['VFX Vendor'], invitation_status = 'accepted';
+RELATE $nordic->member_of->$meridian SET role = 'owner', production_roles = ['Lead Production Company'], invitation_status = 'accepted';
+RELATE $nordic->member_of->$frostbite SET role = 'owner', production_roles = ['Production Company'], invitation_status = 'accepted';
+RELATE $moralescast->member_of->$redclay SET role = 'member', production_roles = ['Casting'], invitation_status = 'accepted';
+RELATE $seceda->member_of->$winter SET role = 'admin', production_roles = ['Producer'], invitation_status = 'accepted';
+RELATE $seceda->member_of->$neon SET role = 'admin', production_roles = ['Executive Production'], invitation_status = 'accepted';
 
 -- ============================================================================
 -- 6. LOCATIONS (8 filming locations)
@@ -644,7 +724,6 @@ RELATE $hanna->likes->$rika;
 RELATE $rika->likes->$hanna;
 RELATE $daniel->likes->$sarah;
 
-LET $emilia = (SELECT id FROM person WHERE username = 'emiliarossi')[0].id;
 RELATE $chris->likes->$emilia;
 RELATE $kevin->likes->$emilia;
 RELATE $emilia->likes->$chris;
