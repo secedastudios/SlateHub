@@ -1,13 +1,12 @@
 use anyhow::Result;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::OnceLock;
 use surrealdb::types::{RecordId, SurrealValue};
 use tracing::{debug, info, warn};
 
-/// Global embedding service instance
-/// Uses BGE-Large-EN-v1.5 for high-accuracy semantic search (1024 dimensions)
-static EMBEDDER: LazyLock<Arc<Mutex<Option<TextEmbedding>>>> =
-    LazyLock::new(|| Arc::new(Mutex::new(None)));
+/// Global embedding service instance — written once at startup, read concurrently forever after.
+/// No Mutex needed: OnceLock guarantees safe one-time init, and TextEmbedding::embed takes &self.
+static EMBEDDER: OnceLock<TextEmbedding> = OnceLock::new();
 
 /// Initialize the embedding service
 /// This should be called once at application startup
@@ -16,8 +15,7 @@ pub async fn init_embedding_service() -> Result<()> {
 
     let embedder = TextEmbedding::try_new(InitOptions::new(EmbeddingModel::BGELargeENV15))?;
 
-    let mut global_embedder = EMBEDDER.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    *global_embedder = Some(embedder);
+    EMBEDDER.set(embedder).map_err(|_| anyhow::anyhow!("Embedding service already initialized"))?;
 
     info!("Embedding service initialized successfully");
     Ok(())
@@ -25,24 +23,16 @@ pub async fn init_embedding_service() -> Result<()> {
 
 /// Generate embedding for a single text (blocking — use generate_embedding_async from async contexts)
 pub fn generate_embedding(text: &str) -> Result<Vec<f32>> {
-    let embedder = EMBEDDER.lock().unwrap_or_else(|poisoned| {
-        // Recover from a poisoned mutex — the inner data is still valid
-        poisoned.into_inner()
-    });
+    let embedder = EMBEDDER.get().ok_or_else(|| {
+        anyhow::anyhow!("Embedding service not initialized. Call init_embedding_service() first.")
+    })?;
 
-    match embedder.as_ref() {
-        Some(e) => {
-            debug!(
-                "Generating embedding for text: {}",
-                text.chars().take(100).collect::<String>()
-            );
-            let embeddings = e.embed(vec![text.to_string()], None)?;
-            Ok(embeddings.into_iter().next().unwrap())
-        }
-        None => Err(anyhow::anyhow!(
-            "Embedding service not initialized. Call init_embedding_service() first."
-        )),
-    }
+    debug!(
+        "Generating embedding for text: {}",
+        text.chars().take(100).collect::<String>()
+    );
+    let embeddings = embedder.embed(vec![text.to_string()], None)?;
+    Ok(embeddings.into_iter().next().unwrap())
 }
 
 /// Async-safe embedding generation — runs on a blocking thread to avoid starving the async runtime
@@ -160,18 +150,13 @@ pub async fn backfill_pending_embeddings() {
 
 /// Generate embeddings for multiple texts in batch (more efficient)
 pub fn generate_embeddings_batch(texts: Vec<String>) -> Result<Vec<Vec<f32>>> {
-    let embedder = EMBEDDER.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let embedder = EMBEDDER.get().ok_or_else(|| {
+        anyhow::anyhow!("Embedding service not initialized. Call init_embedding_service() first.")
+    })?;
 
-    match embedder.as_ref() {
-        Some(e) => {
-            debug!("Generating {} embeddings in batch", texts.len());
-            let embeddings = e.embed(texts, None)?;
-            Ok(embeddings)
-        }
-        None => Err(anyhow::anyhow!(
-            "Embedding service not initialized. Call init_embedding_service() first."
-        )),
-    }
+    debug!("Generating {} embeddings in batch", texts.len());
+    let embeddings = embedder.embed(texts, None)?;
+    Ok(embeddings)
 }
 
 /// Build optimized text for person/actor embedding
