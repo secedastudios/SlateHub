@@ -797,27 +797,35 @@ impl Person {
         let updated: Option<Person> = response.take(0)?;
 
         // Generate embedding in the background (fire-and-forget)
-        if let Some(profile) = &person.profile {
-            let embedding_text = build_person_embedding_text(
-                person.name.as_deref().unwrap_or(&person.username),
-                profile.headline.as_deref(),
-                profile.bio.as_deref(),
-                &profile.skills,
-                profile.location.as_deref(),
-                profile.age_range.as_ref().map(|r| (r.min, r.max)),
-                profile.gender.as_deref(),
-                &profile.ethnicity,
-                profile.height_mm,
-                profile.body_type.as_deref(),
-                profile.hair_color.as_deref(),
-                profile.eye_color.as_deref(),
-                &profile.languages,
-                &profile.unions,
-                &[], // experience descriptions removed - credits are now involvement edges
-                profile.acting_age_range.as_ref().map(|r| (r.min, r.max)),
-                &profile.acting_ethnicities,
-                profile.nationality.as_deref(),
-            );
+        // Always generate — even with minimal profile data, the person should be searchable.
+        {
+            let display_name = person.name.as_deref().unwrap_or(&person.username);
+            let embedding_text = if let Some(profile) = &person.profile {
+                build_person_embedding_text(
+                    display_name,
+                    profile.headline.as_deref(),
+                    profile.bio.as_deref(),
+                    &profile.skills,
+                    profile.location.as_deref(),
+                    profile.age_range.as_ref().map(|r| (r.min, r.max)),
+                    profile.gender.as_deref(),
+                    &profile.ethnicity,
+                    profile.height_mm,
+                    profile.body_type.as_deref(),
+                    profile.hair_color.as_deref(),
+                    profile.eye_color.as_deref(),
+                    &profile.languages,
+                    &profile.unions,
+                    &[],
+                    profile.acting_age_range.as_ref().map(|r| (r.min, r.max)),
+                    &profile.acting_ethnicities,
+                    profile.nationality.as_deref(),
+                )
+            } else {
+                build_person_embedding_text(
+                    display_name, None, None, &[], None, None, None, &[], None, None, None, None, &[], &[], &[], None, &[], None,
+                )
+            };
             crate::services::embedding::spawn_embedding_update(person.id.clone(), embedding_text);
         }
 
@@ -877,6 +885,15 @@ impl Person {
             .ok_or_else(|| Error::Internal("Failed to create user".to_string()))?;
 
         debug!("Created new user: {} with id: {}", username, person.id.display());
+
+        // Generate initial embedding (fire-and-forget) — even with minimal profile data,
+        // this ensures the person is discoverable via semantic search from day one.
+        {
+            let embedding_text = build_person_embedding_text(
+                &username, None, None, &[], None, None, None, &[], None, None, None, None, &[], &[], &[], None, &[], None,
+            );
+            crate::services::embedding::spawn_embedding_update(person.id.clone(), embedding_text);
+        }
 
         // Generate verification code and send email
         use crate::services::email::EmailService;

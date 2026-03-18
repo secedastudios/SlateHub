@@ -831,7 +831,24 @@ async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send 
         struct AgeRangeRow { min: i32, max: i32 }
 
         let mut resp = DB.query("SELECT id, name, username, profile FROM person").await?;
-        let people: Vec<PersonRow> = resp.take(0).unwrap_or_default();
+        let people: Vec<PersonRow> = match resp.take(0) {
+            Ok(p) => p,
+            Err(e) => {
+                error!("Failed to deserialize person records for embedding rebuild: {}. Falling back to name-only query.", e);
+                // Fallback: fetch just id/name/username without the profile struct
+                #[derive(Debug, serde::Deserialize, SurrealValue)]
+                struct PersonBasic {
+                    id: surrealdb::types::RecordId,
+                    name: Option<String>,
+                    username: Option<String>,
+                }
+                let mut resp2 = DB.query("SELECT id, name, username FROM person").await?;
+                let basics: Vec<PersonBasic> = resp2.take(0).unwrap_or_default();
+                basics.into_iter().map(|b| PersonRow {
+                    id: b.id, name: b.name, username: b.username, profile: None,
+                }).collect()
+            }
+        };
         info!("Rebuilding embeddings for {} people", people.len());
 
         for person in people {
