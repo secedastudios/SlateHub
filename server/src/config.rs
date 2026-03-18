@@ -84,7 +84,7 @@ impl DatabaseConfig {
     }
 }
 
-/// Get the application base URL (e.g. "https://app.slatehub.com").
+/// Get the application base URL (e.g. "https://slatehub.com").
 /// Reads from APP_URL env var, defaults to "http://localhost:3000".
 /// Returned without a trailing slash.
 pub fn app_url() -> String {

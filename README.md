@@ -1,5 +1,63 @@
-# SlateHub
-SlateHub is a free, open-source SaaS platform for the TV, film, and content industries. It's an ad-free collaborative hub that combines the networking of LinkedIn with the project management of GitHub. Semantic search and AI-assisted profiles connect filmmakers, creatives, brands, crew, and agencies.
+# SlateHub — The Free Networking Platform for Film, TV & Content Creators
+
+[![Website](https://img.shields.io/badge/website-slatehub.com-eb5437)](https://slatehub.com)
+[![License](https://img.shields.io/badge/license-open--source-green)](#)
+
+**[SlateHub](https://slatehub.com)** is a free, open-source platform where filmmakers, actors, crew, creators, and brands connect to turn ideas into stories. No ads, no subscriptions — just networking, smart search, and verified connections.
+
+## Why SlateHub?
+
+- **Free Forever** — No subscriptions, no ads. Free for all creatives, for life.
+- **Smart Search** — Semantic search powered by AI connects you with the right talent, roles, and projects instantly.
+- **Verified Accounts** — One-time identity verification builds trust and reduces spam.
+- **AI-Powered Profiles** — Auto-build your profile from your existing links and portfolios.
+- **Production Management** — Create productions, invite crew, assign roles, and manage your team.
+- **Direct Messaging** — Message other creatives directly on the platform.
+- **Job Board** — Post and discover job opportunities in the creative industry.
+- **Global & Inclusive** — From emerging talent to industry pros, SlateHub empowers everyone.
+
+## Who It's For
+
+- **Actors & Talent** — Showcase reels, credits, and connections to get cast without barriers.
+- **Crew Members** — Highlight your skills and past projects to land the perfect gig.
+- **Filmmakers & Directors** — Find talent and collaborators to bring your vision to life.
+- **Creators & Influencers** — Professionalize your brand and connect with opportunities.
+- **Producers & Brands** — Scout talent, manage productions, and post jobs with ease.
+- **Organizations** — Studios, agencies, and production companies can build a presence and manage teams.
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Backend | [Rust](https://www.rust-lang.org/) + [Axum](https://github.com/tokio-rs/axum) |
+| Database | [SurrealDB](https://surrealdb.com) (document, graph, vector) |
+| Templates | [Askama](https://github.com/djc/askama) (server-side HTML) |
+| Storage | [RustFS](https://rustfs.com) (S3-compatible object storage) |
+| Search | Vector embeddings (BGE-Large-EN-v1.5, 1024 dimensions) with HNSW indexes |
+| Email | [Mailjet](https://www.mailjet.com/) |
+
+## Getting Started
+
+1. Clone the repository
+2. Copy `.env.example` to `.env` and configure your environment variables
+3. Start all services with Docker: `make services-start`
+4. Initialize the database: `make db-init`
+5. Run the server: `make dev` (local) or `make start` (Docker)
+
+### Services
+
+SlateHub depends on two backing services, both managed via `docker-compose`:
+
+| Service | Purpose | Default ports |
+|---------|---------|---------------|
+| [SurrealDB](https://surrealdb.com) | Primary database | `8000` |
+| [RustFS](https://rustfs.com) | S3-compatible object storage | API `9000`, Console `9001` |
+
+RustFS is a high-performance, Apache 2.0-licensed S3-compatible object store written in Rust.
+Profile images and organisation logos are stored there and served publicly without presigned URLs.
+The server talks to RustFS (and any other S3-compatible backend) through the standard AWS S3 SDK —
+swap the `S3_ENDPOINT`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY` variables to point at AWS S3,
+Cloudflare R2, or any other compatible service instead.
 
 ## Configuration
 
@@ -22,6 +80,7 @@ cp .env.example .env
 | `SERVER_HOST` | Server bind address | `127.0.0.1` |
 | `SERVER_PORT` | Server port number | `3000` |
 | `DATABASE_URL` | (Optional) Full database connection URL | Constructed from host and port |
+| `APP_URL` | Public URL of the application | `http://localhost:3000` |
 | `RUST_LOG` | Log level configuration | `info,slatehub=debug,tower_http=debug` |
 | `LOG_FORMAT` | Log output format (`json`, `pretty`, `compact`) | `pretty` |
 | `S3_ENDPOINT` | S3-compatible storage endpoint URL | `http://localhost:9000` |
@@ -31,69 +90,8 @@ cp .env.example .env
 | `S3_REGION` | S3 region | `us-east-1` |
 | `MAILJET_API_KEY` | Mailjet API key for sending emails | Required for email features |
 | `MAILJET_API_SECRET` | Mailjet API secret | Required for email features |
-| `APP_URL` | Public URL of the application (used in emails and links) | `http://localhost:3000` |
 | `MAILJET_FROM_EMAIL` | Default sender email address | `noreply@slatehub.com` |
 | `MAILJET_FROM_NAME` | Default sender name | `SlateHub` |
-
-### Example .env file
-
-```
-# Database Connection Configuration
-DB_HOST=localhost
-DB_PORT=8000
-
-# Database Authentication
-DB_USERNAME=root
-DB_PASSWORD=root
-
-# Database Namespace and Name
-DB_NAMESPACE=slatehub
-DB_NAME=main
-
-# Server Configuration
-SERVER_HOST=127.0.0.1
-SERVER_PORT=3000
-
-# Storage Configuration (S3-compatible — defaults to local RustFS)
-S3_ENDPOINT=http://localhost:9000
-S3_ACCESS_KEY=admin
-S3_SECRET_KEY=password
-S3_BUCKET=slatehub
-S3_REGION=us-east-1
-
-# Logging Configuration
-RUST_LOG=info,slatehub=debug,tower_http=debug
-LOG_FORMAT=pretty
-
-# Email Configuration (Mailjet)
-# Sign up for a free Mailjet account at https://www.mailjet.com/
-MAILJET_API_KEY=your_mailjet_api_key_here
-MAILJET_API_SECRET=your_mailjet_api_secret_here
-MAILJET_FROM_EMAIL=noreply@yourdomain.com
-MAILJET_FROM_NAME=SlateHub
-```
-
-## Getting Started
-
-1. Clone the repository
-2. Copy `.env.example` to `.env` and configure your environment variables
-3. Start all services with Docker: `make services-start`
-4. Run the server: `make dev` (local) or `make start` (Docker)
-
-### Services
-
-SlateHub depends on two backing services, both managed via `docker-compose`:
-
-| Service | Purpose | Default ports |
-|---------|---------|---------------|
-| [SurrealDB](https://surrealdb.com) | Primary database | `8000` |
-| [RustFS](https://rustfs.com) | S3-compatible object storage | API `9000`, Console `9001` |
-
-RustFS is a high-performance, Apache 2.0-licensed S3-compatible object store written in Rust.
-Profile images and organisation logos are stored there and served publicly without presigned URLs.
-The server talks to RustFS (and any other S3-compatible backend) through the standard AWS S3 SDK —
-swap the `S3_ENDPOINT`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY` variables to point at AWS S3,
-Cloudflare R2, or any other compatible service instead.
 
 ## Semantic Search
 
@@ -105,96 +103,7 @@ To rebuild all embeddings from scratch (e.g. after a schema change or model upgr
 make rebuild-embeddings
 ```
 
-This connects to your configured database, fetches all records, regenerates embedding text and vectors, and updates each record in place.
-
-## Logging
-
-SlateHub uses the `tracing` ecosystem for structured logging, which is the modern standard for Rust applications.
-
-### Configuration Loading Order
-
-The application loads configuration in the following order:
-
-1. **`.env` file is loaded first** - This happens at the very start of the application
-2. **Logging is initialized** - Uses `RUST_LOG` and `LOG_FORMAT` from the environment (including `.env`)
-3. **Application configuration is loaded** - Database and server settings are read
-
-This ensures that logging configuration from your `.env` file is properly applied. Environment variables always take precedence over `.env` file values.
-
-### Log Levels
-
-The `RUST_LOG` environment variable controls the log level. You can set different levels for different modules:
-
-- `trace` - Very verbose, includes all details
-- `debug` - Debugging information
-- `info` - General information (default)
-- `warn` - Warning messages
-- `error` - Error messages only
-
-Example configurations:
-- `RUST_LOG=info` - Info level for all modules
-- `RUST_LOG=warn,slatehub=debug` - Warn level globally, debug for slatehub
-- `RUST_LOG=info,slatehub=debug,tower_http=debug` - Mixed levels (default)
-
-### Log Formats
-
-The `LOG_FORMAT` environment variable controls the output format:
-
-- `pretty` - Human-readable format with colors (default, best for development)
-- `json` - JSON structured logs (best for production/log aggregation)
-- `compact` - Compact single-line format
-
-### Environment Variable Precedence
-
-The order of precedence for configuration values is:
-
-1. **Command-line environment variables** (highest priority)
-   ```bash
-   RUST_LOG=trace cargo run
-   ```
-2. **`.env` file values**
-3. **Default values** (lowest priority)
-
-### Viewing Logs
-
-When running the server, you'll see logs like:
-
-```
-2025-01-01T12:00:00.123456Z  INFO slatehub: Starting SlateHub server...
-2025-01-01T12:00:00.234567Z  INFO slatehub: Database connection established
-2025-01-01T12:00:00.345678Z  INFO slatehub: Server listening on: 127.0.0.1:3000
-```
-
-For production deployments, use `LOG_FORMAT=json` to get structured logs that can be easily parsed by log aggregation systems.
-
-## Recent Updates
-
-### Profile Image Storage (January 2025)
-
-The profile image upload system has been simplified:
-
-- **Direct URL Storage**: Profile avatars now store the image URL directly in the `person.profile.avatar` field instead of using a separate media table with relationships
-- **Improved Performance**: Single database query retrieves the complete profile including the avatar URL
-- **Simplified Architecture**: No more complex relationship queries or media record management for profile images
-- **S3-Compatible Storage**: Images are uploaded directly to object storage (RustFS by default) with automatic thumbnail generation and public-read access for profile paths
-
-For detailed information about the profile image upload system, see [Profile Image Upload Documentation](docs/PROFILE_IMAGE_UPLOAD.md).
-
-#### Testing Profile Upload
-
-A test script is provided to verify the profile upload functionality:
-
-```bash
-./test/test_profile_upload.sh
-```
-
-This will test image upload, storage, and retrieval to ensure everything is working correctly.
-
 ## Testing
-
-SlateHub includes a comprehensive testing suite with isolated test environments for unit and integration tests. The test infrastructure uses separate RustFS and SurrealDB instances to ensure tests don't interfere with development data.
-
-### Quick Start
 
 ```bash
 # Run all tests with automatic setup/teardown
@@ -208,42 +117,31 @@ make test-integration
 
 # Watch and auto-run tests on file changes
 make test-watch
-```
 
-### Test Environment
-
-The test environment runs on separate ports:
-- **SurrealDB Test**: Port 8100 (vs 8000 for development)
-- **RustFS Test**: Ports 9100/9101 (vs 9000/9001 for development)
-
-Each test run:
-1. Starts fresh test containers
-2. Initializes a clean database schema
-3. Runs tests with `--test-threads=1` for isolation
-4. Automatically tears down and cleans up
-
-### Writing Tests
-
-Tests are organized in `server/tests/` with shared utilities in `tests/common/mod.rs`. Example:
-
-```rust
-#[tokio::test]
-async fn test_create_user() {
-    with_test_db(|db| async move {
-        let user_id = create_test_user(&db, "test@example.com", "testuser", "hash").await?;
-        assert!(!user_id.is_empty());
-        Ok(())
-    }).await.expect("Test failed");
-}
-```
-
-For detailed testing documentation, see [Testing Guide](docs/TESTING.md).
-
-### Coverage Reports
-
-Generate test coverage reports:
-
-```bash
+# Generate coverage report
 make test-coverage
-# View report at: target/coverage/tarpaulin-report.html
 ```
+
+The test environment runs on separate ports (SurrealDB: 8100, RustFS: 9100/9101) to avoid interfering with development data. For detailed testing documentation, see [Testing Guide](docs/TESTING.md).
+
+## Logging
+
+SlateHub uses the `tracing` ecosystem for structured logging.
+
+- `RUST_LOG` controls log levels (e.g. `info`, `warn,slatehub=debug`, `trace`)
+- `LOG_FORMAT` controls output format: `pretty` (dev), `json` (production), `compact`
+- Environment variables override `.env` file values
+
+## Contributing
+
+SlateHub is open source and welcomes contributions. Whether it's bug fixes, new features, or documentation improvements — all contributions help build a better platform for the creative community.
+
+## Links
+
+- **Website**: [slatehub.com](https://slatehub.com)
+- **Search for Talent**: [slatehub.com/search](https://slatehub.com/search)
+- **Browse People**: [slatehub.com/people](https://slatehub.com/people)
+- **Browse Productions**: [slatehub.com/productions](https://slatehub.com/productions)
+- **Browse Organizations**: [slatehub.com/orgs](https://slatehub.com/orgs)
+- **Browse Locations**: [slatehub.com/locations](https://slatehub.com/locations)
+- **Browse Jobs**: [slatehub.com/jobs](https://slatehub.com/jobs)
