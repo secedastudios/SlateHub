@@ -1,81 +1,72 @@
 {% extends "_layout.html" %}
 {% block title %}My Productions - {{ app_name }}{% endblock %}
-{% block page_name %}productions{% endblock %}
+{% block page_name %}my-productions{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
-<section id="prod-page">
-
-    <header class="prod-page-header">
+<section data-component="my-productions-page">
+    <header data-role="page-header">
         <h1>My Productions</h1>
-        <p>Productions you are part of</p>
-        <div class="prod-header-actions">
-            <a href="/productions/new" class="prod-btn-primary">+ Create New</a>
-            <a href="/productions" class="prod-btn-outline">Browse All</a>
+        <p data-role="subtitle">Productions you are part of</p>
+        <div data-role="header-actions">
+            <a href="/productions/new" data-role="btn-primary">+ Create New</a>
+            <a href="/productions" data-role="btn-secondary">Browse All</a>
         </div>
     </header>
 
-    <section class="prod-results">
+    <section data-section="productions-list"
+        data-state="{% if productions.is_empty() %}empty{% else %}ready{% endif %}">
+
         {% if productions.is_empty() %}
-        <div class="prod-empty">
+        <div data-role="empty-state">
             <h2>You're not part of any productions yet</h2>
             <p>Create your own production or browse existing ones.</p>
-            <div class="prod-empty-actions">
-                <a href="/productions/new" class="prod-btn-primary">Create Production</a>
-                <a href="/productions" class="prod-btn-outline">Browse Productions</a>
-            </div>
+            <nav data-role="empty-actions">
+                <a href="/productions/new" data-role="btn-primary">Create Production</a>
+                <a href="/productions" data-role="btn-secondary">Browse Productions</a>
+            </nav>
         </div>
         {% else %}
-        <p class="prod-results-count">You are part of {{ productions.len() }} production{% if productions.len() != 1 %}s{% endif %}</p>
-        <div class="prod-grid">
+        <div data-role="results-count">
+            <p>You are part of {{ productions.len() }} production{% if productions.len() != 1 %}s{% endif %}</p>
+        </div>
+        <div data-role="card-grid">
             {% for prod in productions %}
-            <article class="prod-card">
-                <a href="/productions/{{ prod.slug }}" class="prod-card-visual" data-status="{{ prod.status }}">
+            <article data-component="card" data-type="production">
+                <a href="/productions/{{ prod.slug }}" data-role="card-visual">
                     {% if prod.poster_photo.is_some() %}
-                    <img src="{{ prod.poster_photo.as_ref().unwrap() }}" alt="{{ prod.title }}" class="prod-card-poster" loading="lazy" onerror="this.style.display='none'" />
+                    <img src="{{ prod.poster_photo.as_ref().unwrap() }}" alt="{{ prod.title }}" loading="lazy" onerror="this.style.display='none'" />
                     {% else if prod.poster_url.is_some() %}
-                    <img src="{{ prod.poster_url.as_ref().unwrap() }}" alt="{{ prod.title }}" class="prod-card-poster" loading="lazy" onerror="this.style.display='none'" />
+                    <img src="{{ prod.poster_url.as_ref().unwrap() }}" alt="{{ prod.title }}" loading="lazy" onerror="this.style.display='none'" />
                     {% else %}
-                    <div class="prod-card-placeholder">
-                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                             stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
-                            <line x1="7" y1="2" x2="7" y2="22"/>
-                            <line x1="17" y1="2" x2="17" y2="22"/>
-                            <line x1="2" y1="12" x2="22" y2="12"/>
-                            <line x1="2" y1="7" x2="7" y2="7"/>
-                            <line x1="2" y1="17" x2="7" y2="17"/>
-                            <line x1="17" y1="7" x2="22" y2="7"/>
-                            <line x1="17" y1="17" x2="22" y2="17"/>
-                        </svg>
-                    </div>
+                    <div data-role="placeholder"><span>{{ prod.title }}</span></div>
                     {% endif %}
-                    <div class="prod-card-overlay">
+                    <div data-role="overlay">
                         <h3>{{ prod.title }}</h3>
-                        <div class="prod-card-badges">
-                            <span class="prod-badge" data-role="type">{{ prod.production_type }}</span>
+                        <div data-role="meta">
+                            <span data-role="type-label">{{ prod.production_type }}</span>
                             {% if prod.location.is_some() %}
-                            <span class="prod-badge" data-role="type">{{ prod.location.as_ref().unwrap() }}</span>
+                            <span data-role="loc">{{ prod.location.as_ref().unwrap() }}</span>
                             {% endif %}
                         </div>
                     </div>
+                    {% if let Some(roles) = prod.production_roles %}
+                    {% for r in roles %}
+                    <span data-role="badge">{{ r }}</span>
+                    {% endfor %}
+                    {% else %}
+                    <span data-role="badge">{{ prod.role }}</span>
+                    {% endif %}
                 </a>
-                <div class="prod-card-content">
-                    <div class="prod-card-badges">
+                <div data-role="content">
+                    <div data-role="tags">
                         <span class="prod-badge" data-role="status" data-value="{{ prod.status }}">{{ prod.status }}</span>
-                        {% if let Some(roles) = prod.production_roles %}
-                        {% for r in roles %}
-                        <span class="prod-badge" data-role="type">{{ r }}</span>
-                        {% endfor %}
-                        {% else %}
-                        <span class="prod-badge" data-role="type">{{ prod.role }}</span>
-                        {% endif %}
                         {% if prod.role == "owner" || prod.role == "admin" %}
-                        <span class="prod-role-badge" data-role="{{ prod.role }}">{{ prod.role }}</span>
+                        <span class="prod-badge" data-role="permission">{{ prod.role }}</span>
                         {% endif %}
                         {% if prod.invitation_status == "pending" %}
-                        <span class="prod-badge" data-role="status" data-value="on-hold">invited</span>
+                        <span class="prod-badge" data-role="pending">invited</span>
                         {% endif %}
                     </div>
                 </div>
