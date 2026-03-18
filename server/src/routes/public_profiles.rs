@@ -20,7 +20,6 @@ use crate::{
     record_id_ext::RecordIdExt,
     services::embedding::generate_embedding_async,
     services::search_log::log_search,
-    services::search_utils::normalize_query,
     social_platforms,
     templates::{
         BaseContext, DateRange, Education, InvolvementDisplay, PeopleTemplate, PersonCard,
@@ -342,30 +341,45 @@ async fn people(
 
     // Fetch profiles from the database, optionally filtered
     let persons = if let Some(filter_text) = filter {
-        // Extract location from "actors in berlin" → filter: "actors", location: "berlin"
-        let loc_re = regex::Regex::new(r"(?i)\bin\s+(.+)$").unwrap();
-        let (location_filter, cleaned_filter) = if let Some(caps) = loc_re.captures(filter_text) {
-            let loc = caps.get(1).map(|m| m.as_str().trim().to_string());
-            let cleaned = loc_re.replace(filter_text, "").to_string();
-            let cleaned = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
-            (loc, cleaned)
-        } else {
-            (None, filter_text.to_string())
-        };
+        use crate::services::search_utils::parse_query;
 
-        let filter_lower = normalize_query(&cleaned_filter);
-        let has_location = location_filter.is_some();
-        let query_embedding = generate_embedding_async(&cleaned_filter).await.ok();
+        let parsed = parse_query(filter_text);
+        let filter_lower = parsed.cleaned.clone();
+        let query_embedding = generate_embedding_async(&filter_lower).await.ok();
         let has_embedding = query_embedding.is_some();
         let empty_emb: Vec<f32> = vec![];
 
-        // When location filter is extracted, text/vector gate is optional
-        let text_gate = if has_location && filter_lower.trim().is_empty() {
-            // Location only, no role query (e.g., "in berlin") — return everyone in that location
+        // Build attribute WHERE clauses
+        let mut attr_clauses = Vec::new();
+        if parsed.location.is_some() {
+            attr_clauses.push("(string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))");
+        }
+        if parsed.gender.is_some() {
+            attr_clauses.push("string::lowercase(profile.gender ?? '') = string::lowercase($gender_filter)");
+        }
+        if parsed.hair_color.is_some() {
+            attr_clauses.push("string::lowercase(profile.hair_color ?? '') = string::lowercase($hair_filter)");
+        }
+        if parsed.eye_color.is_some() {
+            attr_clauses.push("string::lowercase(profile.eye_color ?? '') = string::lowercase($eye_filter)");
+        }
+        if parsed.body_type.is_some() {
+            attr_clauses.push("string::lowercase(profile.body_type ?? '') = string::lowercase($body_filter)");
+        }
+        if parsed.age_min.is_some() && parsed.age_max.is_some() {
+            attr_clauses.push("profile.acting_age_range.min <= $age_max AND profile.acting_age_range.max >= $age_min");
+        }
+
+        let has_hard_filters = !attr_clauses.is_empty();
+        let attr_where = if attr_clauses.is_empty() {
+            String::new()
+        } else {
+            format!("AND {}", attr_clauses.join(" AND "))
+        };
+
+        let text_gate = if has_hard_filters && filter_lower.trim().is_empty() {
             "true".to_string()
         } else {
-            // Always require text/vector match when there's a query term.
-            // embedding_text check catches role synonyms (e.g., "dop" finds cinematographers).
             "(\
                 string::lowercase(name ?? '') CONTAINS $filter \
                 OR string::lowercase(username ?? '') CONTAINS $filter \
@@ -379,12 +393,6 @@ async fn people(
                 OR (embedding IS NOT NONE AND $has_embedding = true \
                     AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)\
             )".to_string()
-        };
-
-        let location_clause = if has_location {
-            "AND (string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))"
-        } else {
-            ""
         };
 
         let query = format!(r#"
@@ -403,14 +411,20 @@ async fn people(
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL)
               AND {text_gate}
-              {location_clause}
+              {attr_where}
             ORDER BY _score DESC, _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
         "#);
         let result = match DB.query(&query)
             .bind(("filter", filter_lower))
-            .bind(("location_filter", location_filter.unwrap_or_default()))
+            .bind(("location_filter", parsed.location.unwrap_or_default()))
+            .bind(("gender_filter", parsed.gender.unwrap_or_default()))
+            .bind(("hair_filter", parsed.hair_color.unwrap_or_default()))
+            .bind(("eye_filter", parsed.eye_color.unwrap_or_default()))
+            .bind(("body_filter", parsed.body_type.unwrap_or_default()))
+            .bind(("age_min", parsed.age_min.unwrap_or(0)))
+            .bind(("age_max", parsed.age_max.unwrap_or(0)))
             .bind(("has_embedding", has_embedding))
             .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
             .bind(("limit", PAGE_SIZE as i64 + 1))
@@ -620,28 +634,44 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
     let offset = params.offset;
 
     let persons = if let Some(filter_text) = filter {
-        let loc_re = regex::Regex::new(r"(?i)\bin\s+(.+)$").unwrap();
-        let (location_filter, cleaned_filter) = if let Some(caps) = loc_re.captures(filter_text) {
-            let loc = caps.get(1).map(|m| m.as_str().trim().to_string());
-            let cleaned = loc_re.replace(filter_text, "").to_string();
-            let cleaned = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
-            (loc, cleaned)
-        } else {
-            (None, filter_text.to_string())
-        };
+        use crate::services::search_utils::parse_query;
 
-        let filter_lower = normalize_query(&cleaned_filter);
-        let has_location = location_filter.is_some();
-        let query_embedding = generate_embedding_async(&cleaned_filter).await.ok();
+        let parsed = parse_query(filter_text);
+        let filter_lower = parsed.cleaned.clone();
+        let query_embedding = generate_embedding_async(&filter_lower).await.ok();
         let has_embedding = query_embedding.is_some();
         let empty_emb: Vec<f32> = vec![];
 
-        let text_gate = if has_location && filter_lower.trim().is_empty() {
-            // Location only, no role query (e.g., "in berlin") — return everyone in that location
+        let mut attr_clauses = Vec::new();
+        if parsed.location.is_some() {
+            attr_clauses.push("(string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))");
+        }
+        if parsed.gender.is_some() {
+            attr_clauses.push("string::lowercase(profile.gender ?? '') = string::lowercase($gender_filter)");
+        }
+        if parsed.hair_color.is_some() {
+            attr_clauses.push("string::lowercase(profile.hair_color ?? '') = string::lowercase($hair_filter)");
+        }
+        if parsed.eye_color.is_some() {
+            attr_clauses.push("string::lowercase(profile.eye_color ?? '') = string::lowercase($eye_filter)");
+        }
+        if parsed.body_type.is_some() {
+            attr_clauses.push("string::lowercase(profile.body_type ?? '') = string::lowercase($body_filter)");
+        }
+        if parsed.age_min.is_some() && parsed.age_max.is_some() {
+            attr_clauses.push("profile.acting_age_range.min <= $age_max AND profile.acting_age_range.max >= $age_min");
+        }
+
+        let has_hard_filters = !attr_clauses.is_empty();
+        let attr_where = if attr_clauses.is_empty() {
+            String::new()
+        } else {
+            format!("AND {}", attr_clauses.join(" AND "))
+        };
+
+        let text_gate = if has_hard_filters && filter_lower.trim().is_empty() {
             "true".to_string()
         } else {
-            // Always require text/vector match when there's a query term.
-            // embedding_text check catches role synonyms (e.g., "dop" finds cinematographers).
             "(\
                 string::lowercase(name ?? '') CONTAINS $filter \
                 OR string::lowercase(username ?? '') CONTAINS $filter \
@@ -655,12 +685,6 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
                 OR (embedding IS NOT NONE AND $has_embedding = true \
                     AND vector::similarity::cosine(embedding, $query_embedding) > 0.75)\
             )".to_string()
-        };
-
-        let location_clause = if has_location {
-            "AND (string::lowercase(profile.location ?? '') CONTAINS string::lowercase($location_filter) OR string::lowercase(embedding_text ?? '') CONTAINS string::lowercase($location_filter))"
-        } else {
-            ""
         };
 
         let query = format!(r#"
@@ -679,7 +703,7 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
                OR profile.headline IS NOT NULL
                OR profile.bio IS NOT NULL)
               AND {text_gate}
-              {location_clause}
+              {attr_where}
             ORDER BY _score DESC, _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
@@ -687,7 +711,13 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
         match DB
             .query(&query)
             .bind(("filter", filter_lower))
-            .bind(("location_filter", location_filter.unwrap_or_default()))
+            .bind(("location_filter", parsed.location.unwrap_or_default()))
+            .bind(("gender_filter", parsed.gender.unwrap_or_default()))
+            .bind(("hair_filter", parsed.hair_color.unwrap_or_default()))
+            .bind(("eye_filter", parsed.eye_color.unwrap_or_default()))
+            .bind(("body_filter", parsed.body_type.unwrap_or_default()))
+            .bind(("age_min", parsed.age_min.unwrap_or(0)))
+            .bind(("age_max", parsed.age_max.unwrap_or(0)))
             .bind(("has_embedding", has_embedding))
             .bind(("query_embedding", query_embedding.unwrap_or(empty_emb)))
             .bind(("limit", PAGE_SIZE as i64 + 1))
