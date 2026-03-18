@@ -431,7 +431,7 @@ async fn people(
                         avatar: profile
                             .avatar
                             .clone()
-                            .unwrap_or_else(|| format!("/static/images/default-avatar.png")),
+                            .unwrap_or_else(|| format!("/static/images/default-avatar.svg")),
                         is_identity_verified: person.verification_status == "identity",
                     })
                 } else {
@@ -638,7 +638,7 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
                         avatar: profile
                             .avatar
                             .clone()
-                            .unwrap_or_else(|| "/static/images/default-avatar.png".to_string()),
+                            .unwrap_or_else(|| "/static/images/default-avatar.svg".to_string()),
                         is_identity_verified: person.verification_status == "identity",
                     })
                 } else {

@@ -579,14 +579,14 @@ async fn get_profile_image_url(
         } else {
             // Return default avatar URL
             Ok(Json(serde_json::json!({
-                "url": "/static/images/default-avatar.png",
+                "url": "/static/images/default-avatar.svg",
                 "media_id": null,
             })))
         }
     } else {
         // Return default avatar URL
         Ok(Json(serde_json::json!({
-            "url": "/static/images/default-avatar.png",
+            "url": "/static/images/default-avatar.svg",
             "media_id": null,
         })))
     }

@@ -1,5 +1,6 @@
 use askama::Template;
-use axum::{Router, extract::Request, response::Html, routing::get};
+use axum::{Router, extract::Request, response::{Html, IntoResponse, Redirect, Response}, routing::get};
+use axum::http::{header, HeaderValue};
 use tracing::{debug, error};
 
 use crate::{
@@ -19,6 +20,10 @@ pub fn router() -> Router {
         .route("/terms", get(terms))
         .route("/privacy", get(privacy))
         .route("/impressum", get(impressum))
+        .route("/robots.txt", get(robots_txt))
+        .route("/llms.txt", get(llms_txt))
+        .route("/sitemap.xml", get(sitemap_xml))
+        .route("/favicon.ico", get(favicon))
 }
 
 async fn index(request: Request) -> Result<Html<String>, Error> {
@@ -191,4 +196,255 @@ async fn impressum(request: Request) -> Result<Html<String>, Error> {
     })?;
 
     Ok(Html(html))
+}
+
+async fn favicon() -> Redirect {
+    Redirect::permanent("/static/icons/sh-icon-red-32x32.png")
+}
+
+async fn robots_txt() -> Response {
+    let base = crate::config::app_url();
+    let body = format!(
+        "\
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /api/
+Disallow: /admin
+Disallow: /profile/edit
+Disallow: /notifications
+Disallow: /messages
+
+Sitemap: {base}/sitemap.xml
+"
+    );
+
+    (
+        [(header::CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"))],
+        body,
+    )
+        .into_response()
+}
+
+async fn llms_txt() -> Response {
+    let base = crate::config::app_url();
+    let mut body = format!(
+        "\
+# SlateHub
+
+> The free, ad-free platform where filmmakers, actors, crew, creators, and brands unite to turn ideas into stories — powered by smart search and verified connections.
+
+## About
+
+SlateHub is an open-source creative networking platform built for the film, TV, and content creation industry. It connects actors, crew members, filmmakers, directors, producers, creators, influencers, and brands. The platform features semantic search, verified accounts, AI-powered profile building, and production management tools.
+
+## Key Features
+
+- **Free Forever**: No subscriptions, no ads — free for all creatives.
+- **Smart Matches**: Semantic search connects you with the right roles, projects, or talent.
+- **Verified Accounts**: One-time verification fee ensures authenticity and reduces spam.
+- **AI-Powered Profiles**: Auto-build your profile from existing links and portfolios.
+- **Production Management**: Create and manage productions, invite crew, track roles.
+- **Direct Messaging**: Message other creatives directly on the platform.
+- **Job Board**: Post and discover job opportunities in the creative industry.
+
+## Public Pages
+
+- [Home]({base}/)
+- [About]({base}/about)
+- [Search]({base}/search)
+- [People Directory]({base}/people)
+- [Productions]({base}/productions)
+- [Organizations]({base}/orgs)
+- [Locations]({base}/locations)
+- [Jobs]({base}/jobs)
+- [Terms of Service]({base}/terms)
+- [Privacy Policy]({base}/privacy)
+- [Impressum]({base}/impressum)
+"
+    );
+
+    // Dynamic entries
+    if let Ok(mut result) = DB
+        .query(
+            "SELECT username, profile.name AS name FROM person ORDER BY username ASC;
+             SELECT slug, title FROM production ORDER BY slug ASC;
+             SELECT slug, name FROM organization ORDER BY slug ASC;
+             SELECT <string> meta::id(id) AS key, name FROM location ORDER BY name ASC;
+             SELECT <string> meta::id(id) AS key, title FROM job_posting WHERE status = 'open' ORDER BY title ASC;"
+        )
+        .await
+    {
+        // Profiles
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(0) {
+            if !rows.is_empty() {
+                body.push_str("\n## Profiles\n\n");
+                for row in rows {
+                    let username = row.get("username").and_then(|v| v.as_str()).unwrap_or_default();
+                    let name = row.get("name").and_then(|v| v.as_str()).unwrap_or(username);
+                    body.push_str(&format!("- [{name}]({base}/{username})\n"));
+                }
+            }
+        }
+
+        // Productions
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(1) {
+            if !rows.is_empty() {
+                body.push_str("\n## Productions\n\n");
+                for row in rows {
+                    let slug = row.get("slug").and_then(|v| v.as_str()).unwrap_or_default();
+                    let title = row.get("title").and_then(|v| v.as_str()).unwrap_or(slug);
+                    body.push_str(&format!("- [{title}]({base}/productions/{slug})\n"));
+                }
+            }
+        }
+
+        // Organizations
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(2) {
+            if !rows.is_empty() {
+                body.push_str("\n## Organizations\n\n");
+                for row in rows {
+                    let slug = row.get("slug").and_then(|v| v.as_str()).unwrap_or_default();
+                    let name = row.get("name").and_then(|v| v.as_str()).unwrap_or(slug);
+                    body.push_str(&format!("- [{name}]({base}/orgs/{slug})\n"));
+                }
+            }
+        }
+
+        // Locations
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(3) {
+            if !rows.is_empty() {
+                body.push_str("\n## Locations\n\n");
+                for row in rows {
+                    let key = row.get("key").and_then(|v| v.as_str()).unwrap_or_default();
+                    let name = row.get("name").and_then(|v| v.as_str()).unwrap_or(key);
+                    body.push_str(&format!("- [{name}]({base}/locations/{key})\n"));
+                }
+            }
+        }
+
+        // Jobs
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(4) {
+            if !rows.is_empty() {
+                body.push_str("\n## Open Jobs\n\n");
+                for row in rows {
+                    let key = row.get("key").and_then(|v| v.as_str()).unwrap_or_default();
+                    let title = row.get("title").and_then(|v| v.as_str()).unwrap_or(key);
+                    body.push_str(&format!("- [{title}]({base}/jobs/{key})\n"));
+                }
+            }
+        }
+    }
+
+    (
+        [(header::CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"))],
+        body,
+    )
+        .into_response()
+}
+
+async fn sitemap_xml() -> Response {
+    let base = crate::config::app_url();
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+
+    let mut urls = Vec::new();
+
+    // Static pages
+    let static_pages = [
+        ("/", "1.0", "weekly"),
+        ("/about", "0.8", "monthly"),
+        ("/search", "0.9", "daily"),
+        ("/people", "0.9", "daily"),
+        ("/productions", "0.9", "daily"),
+        ("/orgs", "0.8", "daily"),
+        ("/locations", "0.8", "daily"),
+        ("/jobs", "0.9", "daily"),
+        ("/terms", "0.3", "yearly"),
+        ("/privacy", "0.3", "yearly"),
+        ("/impressum", "0.3", "yearly"),
+    ];
+
+    for (path, priority, changefreq) in static_pages {
+        urls.push(format!(
+            "  <url>\n    <loc>{base}{path}</loc>\n    <lastmod>{today}</lastmod>\n    <changefreq>{changefreq}</changefreq>\n    <priority>{priority}</priority>\n  </url>"
+        ));
+    }
+
+    // Dynamic entries — single query for all entity types
+    if let Ok(mut result) = DB
+        .query(
+            "SELECT username FROM person ORDER BY username ASC;
+             SELECT slug FROM production ORDER BY slug ASC;
+             SELECT slug FROM organization ORDER BY slug ASC;
+             SELECT <string> meta::id(id) AS key FROM location ORDER BY key ASC;
+             SELECT <string> meta::id(id) AS key FROM job_posting ORDER BY key ASC;"
+        )
+        .await
+    {
+        // Profiles: /{username}
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(0) {
+            for row in rows {
+                if let Some(v) = row.get("username").and_then(|v| v.as_str()) {
+                    urls.push(format!(
+                        "  <url>\n    <loc>{base}/{v}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>"
+                    ));
+                }
+            }
+        }
+
+        // Productions: /productions/{slug}
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(1) {
+            for row in rows {
+                if let Some(v) = row.get("slug").and_then(|v| v.as_str()) {
+                    urls.push(format!(
+                        "  <url>\n    <loc>{base}/productions/{v}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>"
+                    ));
+                }
+            }
+        }
+
+        // Organizations: /orgs/{slug}
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(2) {
+            for row in rows {
+                if let Some(v) = row.get("slug").and_then(|v| v.as_str()) {
+                    urls.push(format!(
+                        "  <url>\n    <loc>{base}/orgs/{v}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>"
+                    ));
+                }
+            }
+        }
+
+        // Locations: /locations/{key}
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(3) {
+            for row in rows {
+                if let Some(v) = row.get("key").and_then(|v| v.as_str()) {
+                    urls.push(format!(
+                        "  <url>\n    <loc>{base}/locations/{v}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.5</priority>\n  </url>"
+                    ));
+                }
+            }
+        }
+
+        // Jobs: /jobs/{key}
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(4) {
+            for row in rows {
+                if let Some(v) = row.get("key").and_then(|v| v.as_str()) {
+                    urls.push(format!(
+                        "  <url>\n    <loc>{base}/jobs/{v}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.6</priority>\n  </url>"
+                    ));
+                }
+            }
+        }
+    }
+
+    let xml = format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{}\n</urlset>\n",
+        urls.join("\n")
+    );
+
+    (
+        [(header::CONTENT_TYPE, HeaderValue::from_static("application/xml; charset=utf-8"))],
+        xml,
+    )
+        .into_response()
 }
