@@ -16,7 +16,7 @@ pub async fn init_embedding_service() -> Result<()> {
 
     let embedder = TextEmbedding::try_new(InitOptions::new(EmbeddingModel::BGELargeENV15))?;
 
-    let mut global_embedder = EMBEDDER.lock().unwrap();
+    let mut global_embedder = EMBEDDER.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     *global_embedder = Some(embedder);
 
     info!("Embedding service initialized successfully");
@@ -25,13 +25,16 @@ pub async fn init_embedding_service() -> Result<()> {
 
 /// Generate embedding for a single text (blocking — use generate_embedding_async from async contexts)
 pub fn generate_embedding(text: &str) -> Result<Vec<f32>> {
-    let embedder = EMBEDDER.lock().unwrap();
+    let embedder = EMBEDDER.lock().unwrap_or_else(|poisoned| {
+        // Recover from a poisoned mutex — the inner data is still valid
+        poisoned.into_inner()
+    });
 
     match embedder.as_ref() {
         Some(e) => {
             debug!(
                 "Generating embedding for text: {}",
-                &text[..text.len().min(100)]
+                text.chars().take(100).collect::<String>()
             );
             let embeddings = e.embed(vec![text.to_string()], None)?;
             Ok(embeddings.into_iter().next().unwrap())
@@ -157,7 +160,7 @@ pub async fn backfill_pending_embeddings() {
 
 /// Generate embeddings for multiple texts in batch (more efficient)
 pub fn generate_embeddings_batch(texts: Vec<String>) -> Result<Vec<Vec<f32>>> {
-    let embedder = EMBEDDER.lock().unwrap();
+    let embedder = EMBEDDER.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 
     match embedder.as_ref() {
         Some(e) => {
