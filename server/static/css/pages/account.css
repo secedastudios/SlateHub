@@ -101,6 +101,7 @@
 }
 
 #account-sections .auth-field input[type="text"],
+#account-sections .auth-field input[type="email"],
 #account-sections .auth-field input[type="password"] {
     width: 100%;
     padding: 0.7rem 0.9rem;
