@@ -849,7 +849,8 @@ async fn people_search(
             name,
             username,
             profile.avatar AS avatar_url,
-            verification_status = 'identity' AS _vord
+            verification_status = 'identity' AS _vord,
+            created_at
         FROM person
         WHERE
             string::lowercase(name ?? '') CONTAINS $q
@@ -976,7 +977,8 @@ async fn people_search_sse(
             name,
             username,
             profile.avatar AS avatar_url,
-            verification_status = 'identity' AS _vord
+            verification_status = 'identity' AS _vord,
+            created_at
         FROM person
         WHERE
             string::lowercase(name ?? '') CONTAINS $q
@@ -1070,6 +1072,7 @@ async fn people_select_sse(
         return (status, msg).into_response();
     }
     let scope = &params.scope;
+    info!("People select SSE called: scope={}, value={}, name={}", scope, params.value, params.name);
     let display = if let Some(ref u) = params.username {
         if u.is_empty() {
             params.name.clone()
@@ -1141,7 +1144,8 @@ async fn orgs_search_sse(
             name,
             slug,
             logo,
-            verified
+            verified,
+            created_at
         FROM organization
         WHERE
             string::lowercase(name ?? '') CONTAINS $q

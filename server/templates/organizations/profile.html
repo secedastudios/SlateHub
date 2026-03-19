@@ -239,7 +239,7 @@
                     </div>
                     <input type="text" autocomplete="off" placeholder="Search by name, username, or email..."
                            data-bind:oi_query
-                           data-on:input__debounce_250ms="@get('/api/people/search-sse?scope=oi&value_field=username&allow_email=true&q=' + $oi_query)"
+                           data-on:input__debounce.250ms="@get('/api/people/search-sse?scope=oi&value_field=username&allow_email=true&q=' + $oi_query)"
                            data-show="!$oi_has_selection" />
                     <input name="username" type="hidden" data-bind:oi_selected_value />
                     <div id="oi-results" class="invite-search-results"></div>

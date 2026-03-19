@@ -63,7 +63,7 @@
                     </div>
                     <input type="text" autocomplete="off" placeholder="Search productions..."
                            data-bind:jp_query
-                           data-on:input__debounce_250ms="@get('/api/productions/search-sse?scope=jp&q=' + $jp_query)"
+                           data-on:input__debounce.250ms="@get('/api/productions/search-sse?scope=jp&q=' + $jp_query)"
                            data-show="!$jp_has_selection" />
                     <input type="hidden" name="related_production" data-bind:jp_selected_value />
                     <div id="jp-results" class="invite-search-results"></div>

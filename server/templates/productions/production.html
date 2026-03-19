@@ -1,384 +1,457 @@
 {% extends "_layout.html" %}
-{% block title %}{{ production.title }} - {{ app_name }}{% endblock %}
-{% block page_name %}productions{% endblock %}
-{% block og_title %}{{ production.title }} - {{ app_name }}{% endblock %}
-{% block og_description %}{% if production.description.is_some() %}{{ production.description.as_ref().unwrap() }}{% else %}{{ production.title }} on {{ app_name }}{% endif %}{% endblock %}
-{% block og_image %}{% if production.poster_url.is_some() %}<meta property="og:image" content="{{ production.poster_url.as_ref().unwrap() }}" />{% else %}<meta property="og:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
-{% block twitter_title %}{{ production.title }} - {{ app_name }}{% endblock %}
-{% block twitter_description %}{% if production.description.is_some() %}{{ production.description.as_ref().unwrap() }}{% else %}{{ production.title }} on {{ app_name }}{% endif %}{% endblock %}
-{% block twitter_image %}{% if production.poster_url.is_some() %}<meta name="twitter:image" content="{{ production.poster_url.as_ref().unwrap() }}" />{% else %}<meta name="twitter:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
+{% block title %}
+    {{ production.title }}
+    -
+    {{ app_name }}
+{% endblock %}
+{% block page_name %}
+    productions
+{% endblock %}
+{% block og_title %}
+    {{ production.title }}
+    -
+    {{ app_name }}
+{% endblock %}
+{% block og_description %}
+    {% if production.description.is_some() %}
+        {{ production.description.as_ref().unwrap() }}
+    {% else %}
+        {{ production.title }}
+        on
+        {{ app_name }}
+    {% endif %}
+{% endblock %}
+{% block og_image %}
+    {% if production.poster_url.is_some() %}
+        <meta property="og:image" content="{{ production.poster_url.as_ref().unwrap() }}" />
+    {% else %}
+        <meta property="og:image" content="{{ "/static/images/og-default.png"|abs_url }}" />
+    {% endif %}
+{% endblock %}
+{% block twitter_title %}
+    {{ production.title }}
+    -
+    {{ app_name }}
+{% endblock %}
+{% block twitter_description %}
+    {% if production.description.is_some() %}
+        {{ production.description.as_ref().unwrap() }}
+    {% else %}
+        {{ production.title }}
+        on
+        {{ app_name }}
+    {% endif %}
+{% endblock %}
+{% block twitter_image %}
+    {% if production.poster_url.is_some() %}
+        <meta name="twitter:image" content="{{ production.poster_url.as_ref().unwrap() }}" />
+    {% else %}
+        <meta name="twitter:image" content="{{ "/static/images/og-default.png"|abs_url }}" />
+    {% endif %}
+{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
-<link rel="stylesheet" href="/static/css/components/invite-search.css?v={{ version }}" />
+    <link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
+    <link rel="stylesheet" href="/static/css/components/invite-search.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
-<div id="prod-detail">
-
-    <section id="prod-hero">
-        <div class="prod-hero-layout">
-            {% if production.poster_photo.is_some() || production.poster_url.is_some() %}
-            <div class="prod-hero-poster">
-                {% if production.poster_photo.is_some() %}
-                <img src="{{ production.poster_photo.as_ref().unwrap() }}" alt="{{ production.title }} poster" />
-                {% else %}
-                <img src="{{ production.poster_url.as_ref().unwrap() }}" alt="{{ production.title }} poster" />
+    <div id="prod-detail">
+        <section id="prod-hero">
+            <div class="prod-hero-layout">
+                {% if production.poster_photo.is_some() || production.poster_url.is_some() %}
+                    <div class="prod-hero-poster">
+                        {% if production.poster_photo.is_some() %}
+                            <img src="{{ production.poster_photo.as_ref().unwrap() }}" alt="{{ production.title }} poster" />
+                        {% else %}
+                            <img src="{{ production.poster_url.as_ref().unwrap() }}" alt="{{ production.title }} poster" />
+                        {% endif %}
+                    </div>
                 {% endif %}
+                <div class="prod-hero-info">
+                    <h1>{{ production.title }}</h1>
+                    <div id="prod-hero-badges">
+                        <span class="prod-badge" data-role="status" data-value="{{ production.status }}">{{ production.status }}</span>
+                        <span class="prod-badge" data-role="type">{{ production.production_type }}</span>
+                        {% if production.release_date.is_some() %}
+                            <span class="prod-badge" data-role="type">{{ production.release_date.as_ref().unwrap() }}</span>
+                        {% endif %}
+                        {% if production.source != "manual" %}
+                            <span class="prod-badge prod-badge-source">{{ production.source }}</span>
+                        {% endif %}
+                        {% if production.is_claimed %}
+                            <span class="prod-badge prod-badge-claimed">Claimed</span>
+                        {% endif %}
+                    </div>
+                    {% if production.description.is_some() %}
+                        <p id="prod-hero-desc">{{ production.description.as_ref().unwrap() }}</p>
+                    {% endif %}
+                    <div id="prod-hero-actions">
+                        {% if production.can_edit %}
+                            <a href="/productions/{{ production.slug }}/edit" class="prod-btn-primary">Edit Production</a>
+                        {% endif %}
+                        {% if production.tmdb_url.is_some() %}
+                            <a href="{{ production.tmdb_url.as_ref().unwrap() }}" target="_blank" rel="noopener" class="prod-btn-outline">View on TMDb</a>
+                        {% endif %}
+                        {% if !production.is_claimed && user.is_some() %}
+                            <button type="button" class="prod-btn-outline" onclick="claimProduction()">Claim Production</button>
+                        {% endif %}
+                        <a href="/productions" class="prod-btn-outline">All Productions</a>
+                    </div>
+                </div>
             </div>
-            {% endif %}
-            <div class="prod-hero-info">
-                <h1>{{ production.title }}</h1>
-
-                <div id="prod-hero-badges">
-                    <span class="prod-badge" data-role="status" data-value="{{ production.status }}">{{ production.status }}</span>
-                    <span class="prod-badge" data-role="type">{{ production.production_type }}</span>
+        </section>
+        <div id="prod-body">
+            <div id="prod-main">
+                <div id="prod-stats">
+                    {% if production.location.is_some() %}
+                        <div class="prod-stat">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                                <circle cx="12" cy="10" r="3"/>
+                            </svg>
+                            {{ production.location.as_ref().unwrap() }}
+                        </div>
+                    {% endif %}
+                    {% if production.start_date.is_some() %}
+                        <div class="prod-stat">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            {{ production.start_date.as_ref().unwrap() }}
+                            {% if production.end_date.is_some() %}
+                                &ndash;
+                                {{ production.end_date.as_ref().unwrap() }}
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    <div class="prod-stat">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 010 7.75"/>
+                        </svg>
+                        {{ production.members.len() }}
+                        member
+                        {% if production.members.len() != 1 %}
+                            s
+                        {% endif %}
+                    </div>
+                </div>
+                <section>
+                    <div id="prod-members-header">
+                        <h3 class="prod-section-title">
+                            Cast
+                            & Crew
+                        </h3>
+                        {% if production.can_edit %}
+                            <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">+ Invite Member</button>
+                        {% endif %}
+                    </div>
+                    {% if production.can_edit %}
+                        <div id="add-member-form-container" hidden
+                     data-signals="{pd_query: '', pd_selected_value: '', pd_selected_name: '', pd_selected_avatar: '', pd_has_selection: false}">
+                            <form id="prod-add-member-form" action="/productions/{{ production.slug }}/members/add" method="post">
+                                <fieldset>
+                                    <legend>Invite Cast/Crew</legend>
+                                    <div class="prod-form-grid">
+                                        <div>
+                                            <label>Find a person</label>
+                                            <div class="invite-search-wrap">
+                                                <div class="invite-selected-user" data-show="$pd_has_selection">
+                                                    <img data-attr-src="$pd_selected_avatar" alt="" class="invite-sel-avatar"
+                                                 data-show="$pd_selected_avatar !== ''" />
+                                                    <span data-text="$pd_selected_name">
+                                                    </span>
+                                                    <button type="button" class="invite-sel-clear" aria-label="Clear selection"
+                                                    data-on:click="$pd_has_selection = false; $pd_selected_value = ''; $pd_query = ''">&times;</button>
+                                                </div>
+                                                <input type="text" autocomplete="off" placeholder="Search by name, username, or email..."
+                                               data-bind:pd_query
+                                               data-on:input__debounce.250ms="@get('/api/people/search-sse?scope=pd&value_field=username&allow_email=true&q=' + $pd_query)"
+                                               data-show="!$pd_has_selection" />
+                                                <input type="hidden" name="member_id" data-bind:pd_selected_value />
+                                                <div id="pd-results" class="invite-search-results">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label>Production Roles</label>
+                                            <div class="role-picker" id="pd-role-picker" data-field-name="production_role">
+                                                <div class="role-picker-tags">
+                                                </div>
+                                                <div class="role-picker-input">
+                                                    <select>
+                                                        <option value="">-- Select Role --</option>
+                                                        {% for r in production_roles %}
+                                                            <option value="{{ r }}">{{ r }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <button type="button" class="role-picker-add" onclick="addRoleFromSelect('pd-role-picker')">Add</button>
+                                                </div>
+                                                <div class="role-picker-custom">
+                                                    <input type="text" id="pd-custom-role" placeholder="Or type a custom role..." />
+                                                    <button type="button" class="role-picker-add-custom" onclick="addCustomRole('pd-role-picker', 'pd-custom-role')">Add Custom</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label>Permission Level</label>
+                                            <select name="role" required>
+                                                <option value="member">Member</option>
+                                                <option value="admin">Admin</option>
+                                                <option value="owner">Owner</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="prod-member-form-actions">
+                                        <button type="submit" class="prod-btn-primary">Send Invitation</button>
+                                        <button type="button" class="prod-btn-outline" onclick="hideAddMemberForm()">Cancel</button>
+                                    </div>
+                                </fieldset>
+                            </form>
+                        </div>
+                    {% endif %}
+                    {% if !production.person_members.is_empty() %}
+                        <ul class="prod-members-list">
+                            {% for member in production.person_members %}
+                                <li class="prod-member-item{% if member.invitation_status == "pending" %} prod-member-pending{% endif %}">
+                                    <div class="prod-member-info">
+                                        {% if member.username.is_some() %}
+                                            <a href="/{{ member.username.as_ref().unwrap() }}">
+                                                <strong>{{ member.name }}</strong>
+                                            </a>
+                                        {% else %}
+                                            <strong>{{ member.name }}</strong>
+                                        {% endif %}
+                                        {% if let Some(roles) = member.production_roles %}
+                                            {% for r in roles %}
+                                                <span class="prod-role-badge">{{ r }}</span>
+                                            {% endfor %}
+                                        {% endif %}
+                                        {% if member.role == "owner" || member.role == "admin" %}
+                                            <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
+                                        {% endif %}
+                                        {% if member.invitation_status == "pending" %}
+                                            <span class="prod-role-badge" data-role="pending">invited</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if production.can_edit && member.role != "owner" %}
+                                        <form action="/productions/{{ production.slug }}/members/remove" method="post"
+                              onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                                            <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                                            <button type="submit" class="prod-btn-danger">Remove</button>
+                                        </form>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="prod-empty" style="padding:2rem 0">
+                            <p>No cast or crew members yet.</p>
+                            {% if production.can_edit %}
+                                <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">Invite First Member</button>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </section>
+                <section>
+                    <div id="prod-orgs-header">
+                        <h3 class="prod-section-title">Organizations</h3>
+                        {% if production.can_edit %}
+                            <button type="button" class="prod-btn-outline" onclick="showAddOrgForm()">+ Add Organization</button>
+                        {% endif %}
+                    </div>
+                    {% if production.can_edit %}
+                        <div id="add-org-form-container" hidden
+                     data-signals="{og_query: '', og_selected_value: '', og_selected_name: '', og_selected_avatar: '', og_has_selection: false}">
+                            <form id="prod-add-org-form" action="/productions/{{ production.slug }}/members/add-org" method="post">
+                                <fieldset>
+                                    <legend>Add Organization</legend>
+                                    <div class="prod-form-grid">
+                                        <div>
+                                            <label>Find an organization</label>
+                                            <div class="invite-search-wrap">
+                                                <div class="invite-selected-user" data-show="$og_has_selection">
+                                                    <img data-attr-src="$og_selected_avatar" alt="" class="invite-sel-avatar"
+                                                 data-show="$og_selected_avatar !== ''" />
+                                                    <span data-text="$og_selected_name">
+                                                    </span>
+                                                    <button type="button" class="invite-sel-clear" aria-label="Clear selection"
+                                                    data-on:click="$og_has_selection = false; $og_selected_value = ''; $og_query = ''">&times;</button>
+                                                </div>
+                                                <input type="text" autocomplete="off" placeholder="Search organizations..."
+                                               data-bind:og_query
+                                               data-on:input__debounce.250ms="@get('/api/orgs/search-sse?scope=og&q=' + $og_query)"
+                                               data-show="!$og_has_selection" />
+                                                <input type="hidden" name="org_id" data-bind:og_selected_value />
+                                                <div id="og-results" class="invite-search-results">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label>Production Roles</label>
+                                            <div class="role-picker" id="og-role-picker" data-field-name="production_role">
+                                                <div class="role-picker-tags">
+                                                </div>
+                                                <div class="role-picker-input">
+                                                    <select>
+                                                        <option value="">-- Select Role --</option>
+                                                        {% for r in org_production_roles %}
+                                                            <option value="{{ r }}">{{ r }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <button type="button" class="role-picker-add" onclick="addRoleFromSelect('og-role-picker')">Add</button>
+                                                </div>
+                                                <div class="role-picker-custom">
+                                                    <input type="text" id="og-custom-role" placeholder="Or type a custom role..." />
+                                                    <button type="button" class="role-picker-add-custom" onclick="addCustomRole('og-role-picker', 'og-custom-role')">Add Custom</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label>Permission Level</label>
+                                            <select name="role" required>
+                                                <option value="member">Member</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="prod-member-form-actions">
+                                        <button type="submit" class="prod-btn-primary">Add Organization</button>
+                                        <button type="button" class="prod-btn-outline" onclick="hideAddOrgForm()">Cancel</button>
+                                    </div>
+                                </fieldset>
+                            </form>
+                        </div>
+                    {% endif %}
+                    {% if !production.org_members.is_empty() %}
+                        <ul class="prod-members-list">
+                            {% for member in production.org_members %}
+                                <li class="prod-member-item">
+                                    <div class="prod-member-info">
+                                        {% if member.slug.is_some() %}
+                                            <a href="/orgs/{{ member.slug.as_ref().unwrap() }}">
+                                                <strong>{{ member.name }}</strong>
+                                            </a>
+                                        {% else %}
+                                            <strong>{{ member.name }}</strong>
+                                        {% endif %}
+                                        {% if member.is_verified %}
+                                            <svg data-role="verified-badge" data-verified="org" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization">
+                                                <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
+                                            </svg>
+                                        {% endif %}
+                                        {% if let Some(roles) = member.production_roles %}
+                                            {% for r in roles %}
+                                                <span class="prod-role-badge">{{ r }}</span>
+                                            {% endfor %}
+                                        {% endif %}
+                                        {% if member.role == "owner" || member.role == "admin" %}
+                                            <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if production.can_edit && member.role != "owner" %}
+                                        <form action="/productions/{{ production.slug }}/members/remove" method="post"
+                              onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                                            <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                                            <button type="submit" class="prod-btn-danger">Remove</button>
+                                        </form>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="prod-empty" style="padding:2rem 0">
+                            <p>No organizations added yet.</p>
+                            {% if production.can_edit %}
+                                <button type="button" class="prod-btn-outline" onclick="showAddOrgForm()">Add First Organization</button>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </section>
+            </div>
+            <aside id="prod-sidebar">
+                <h4 class="prod-sidebar-title">Details</h4>
+                <dl id="prod-meta-list">
+                    <div class="prod-detail-item">
+                        <dt>Type</dt>
+                        <dd>{{ production.production_type }}</dd>
+                    </div>
+                    <div class="prod-detail-item">
+                        <dt>Status</dt>
+                        <dd>{{ production.status }}</dd>
+                    </div>
                     {% if production.release_date.is_some() %}
-                    <span class="prod-badge" data-role="type">{{ production.release_date.as_ref().unwrap() }}</span>
+                        <div class="prod-detail-item">
+                            <dt>Release Date</dt>
+                            <dd>{{ production.release_date.as_ref().unwrap() }}</dd>
+                        </div>
+                    {% endif %}
+                    {% if production.location.is_some() %}
+                        <div class="prod-detail-item">
+                            <dt>Location</dt>
+                            <dd>{{ production.location.as_ref().unwrap() }}</dd>
+                        </div>
+                    {% endif %}
+                    {% if production.start_date.is_some() %}
+                        <div class="prod-detail-item">
+                            <dt>Start Date</dt>
+                            <dd>{{ production.start_date.as_ref().unwrap() }}</dd>
+                        </div>
+                    {% endif %}
+                    {% if production.end_date.is_some() %}
+                        <div class="prod-detail-item">
+                            <dt>End Date</dt>
+                            <dd>{{ production.end_date.as_ref().unwrap() }}</dd>
+                        </div>
                     {% endif %}
                     {% if production.source != "manual" %}
-                    <span class="prod-badge prod-badge-source">{{ production.source }}</span>
-                    {% endif %}
-                    {% if production.is_claimed %}
-                    <span class="prod-badge prod-badge-claimed">Claimed</span>
-                    {% endif %}
-                </div>
-
-                {% if production.description.is_some() %}
-                <p id="prod-hero-desc">{{ production.description.as_ref().unwrap() }}</p>
-                {% endif %}
-
-                <div id="prod-hero-actions">
-                    {% if production.can_edit %}
-                    <a href="/productions/{{ production.slug }}/edit" class="prod-btn-primary">Edit Production</a>
-                    {% endif %}
-                    {% if production.tmdb_url.is_some() %}
-                    <a href="{{ production.tmdb_url.as_ref().unwrap() }}" target="_blank" rel="noopener" class="prod-btn-outline">View on TMDb</a>
-                    {% endif %}
-                    {% if !production.is_claimed && user.is_some() %}
-                    <button type="button" class="prod-btn-outline" onclick="claimProduction()">Claim Production</button>
-                    {% endif %}
-                    <a href="/productions" class="prod-btn-outline">All Productions</a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <div id="prod-body">
-        <div id="prod-main">
-
-            <div id="prod-stats">
-                {% if production.location.is_some() %}
-                <div class="prod-stat">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    {{ production.location.as_ref().unwrap() }}
-                </div>
-                {% endif %}
-                {% if production.start_date.is_some() %}
-                <div class="prod-stat">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    {{ production.start_date.as_ref().unwrap() }}
-                    {% if production.end_date.is_some() %} &ndash; {{ production.end_date.as_ref().unwrap() }}{% endif %}
-                </div>
-                {% endif %}
-                <div class="prod-stat">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                    {{ production.members.len() }} member{% if production.members.len() != 1 %}s{% endif %}
-                </div>
-            </div>
-
-            <section>
-                <div id="prod-members-header">
-                    <h3 class="prod-section-title">Cast & Crew</h3>
-                    {% if production.can_edit %}
-                    <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">+ Invite Member</button>
-                    {% endif %}
-                </div>
-
-                {% if production.can_edit %}
-                <div id="add-member-form-container" hidden
-                     data-signals="{pd_query: '', pd_selected_value: '', pd_selected_name: '', pd_selected_avatar: '', pd_has_selection: false}">
-                    <form id="prod-add-member-form" action="/productions/{{ production.slug }}/members/add" method="post">
-                        <fieldset>
-                            <legend>Invite Team Member</legend>
-                            <div class="prod-form-grid">
-                                <div>
-                                    <label>Find a person</label>
-                                    <div class="invite-search-wrap">
-                                        <div class="invite-selected-user" data-show="$pd_has_selection">
-                                            <img data-attr-src="$pd_selected_avatar" alt="" class="invite-sel-avatar"
-                                                 data-show="$pd_selected_avatar !== ''" />
-                                            <span data-text="$pd_selected_name"></span>
-                                            <button type="button" class="invite-sel-clear" aria-label="Clear selection"
-                                                    data-on:click="$pd_has_selection = false; $pd_selected_value = ''; $pd_query = ''">&times;</button>
-                                        </div>
-                                        <input type="text" autocomplete="off" placeholder="Search by name, username, or email..."
-                                               data-bind:pd_query
-                                               data-on:input__debounce_250ms="@get('/api/people/search-sse?scope=pd&value_field=username&allow_email=true&q=' + $pd_query)"
-                                               data-show="!$pd_has_selection" />
-                                        <input type="hidden" name="member_id" data-bind:pd_selected_value />
-                                        <div id="pd-results" class="invite-search-results"></div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label>Production Roles</label>
-                                    <div class="role-picker" id="pd-role-picker" data-field-name="production_role">
-                                        <div class="role-picker-tags"></div>
-                                        <div class="role-picker-input">
-                                            <select>
-                                                <option value="">-- Select Role --</option>
-                                                {% for r in production_roles %}
-                                                <option value="{{ r }}">{{ r }}</option>
-                                                {% endfor %}
-                                            </select>
-                                            <button type="button" class="role-picker-add" onclick="addRoleFromSelect('pd-role-picker')">Add</button>
-                                        </div>
-                                        <div class="role-picker-custom">
-                                            <input type="text" id="pd-custom-role" placeholder="Or type a custom role..." />
-                                            <button type="button" class="role-picker-add-custom" onclick="addCustomRole('pd-role-picker', 'pd-custom-role')">Add Custom</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label>Permission Level</label>
-                                    <select name="role" required>
-                                        <option value="member">Member</option>
-                                        <option value="admin">Admin</option>
-                                        <option value="owner">Owner</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="prod-member-form-actions">
-                                <button type="submit" class="prod-btn-primary">Send Invitation</button>
-                                <button type="button" class="prod-btn-outline" onclick="hideAddMemberForm()">Cancel</button>
-                            </div>
-                        </fieldset>
-                    </form>
-                </div>
-                {% endif %}
-
-                {% if !production.person_members.is_empty() %}
-                <ul class="prod-members-list">
-                    {% for member in production.person_members %}
-                    <li class="prod-member-item{% if member.invitation_status == "pending" %} prod-member-pending{% endif %}">
-                        <div class="prod-member-info">
-                            {% if member.username.is_some() %}
-                            <a href="/{{ member.username.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
-                            {% else %}
-                            <strong>{{ member.name }}</strong>
-                            {% endif %}
-                            {% if let Some(roles) = member.production_roles %}
-                            {% for r in roles %}
-                            <span class="prod-role-badge">{{ r }}</span>
-                            {% endfor %}
-                            {% endif %}
-                            {% if member.role == "owner" || member.role == "admin" %}
-                            <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
-                            {% endif %}
-                            {% if member.invitation_status == "pending" %}
-                            <span class="prod-role-badge" data-role="pending">invited</span>
-                            {% endif %}
+                        <div class="prod-detail-item">
+                            <dt>Source</dt>
+                            <dd>{{ production.source }}</dd>
                         </div>
-                        {% if production.can_edit && member.role != "owner" %}
-                        <form action="/productions/{{ production.slug }}/members/remove" method="post"
-                              onsubmit="return confirm('Remove {{ member.name }} from this production?');">
-                            <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
-                            <button type="submit" class="prod-btn-danger">Remove</button>
-                        </form>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <div class="prod-empty" style="padding:2rem 0">
-                    <p>No cast or crew members yet.</p>
-                    {% if production.can_edit %}
-                    <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">Invite First Member</button>
                     {% endif %}
-                </div>
+                </dl>
+                {% if production.tmdb_url.is_some() %}
+                    <div class="prod-sidebar-tmdb">
+                        <a href="{{ production.tmdb_url.as_ref().unwrap() }}" target="_blank" rel="noopener" class="prod-tmdb-link">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                                <polyline points="15 3 21 3 21 9"/>
+                                <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                            View on TMDb
+                        </a>
+                    </div>
                 {% endif %}
-            </section>
-
-            <section>
-                <div id="prod-orgs-header">
-                    <h3 class="prod-section-title">Organizations</h3>
-                    {% if production.can_edit %}
-                    <button type="button" class="prod-btn-outline" onclick="showAddOrgForm()">+ Add Organization</button>
-                    {% endif %}
+                <div id="prod-meta-footer">
+                    <span>
+                        Created
+                        <time datetime="{{ production.created_at }}">{{ production.created_at }}</time>
+                    </span>
+                    <span>
+                        Updated
+                        <time datetime="{{ production.updated_at }}">{{ production.updated_at }}</time>
+                    </span>
                 </div>
-
-                {% if production.can_edit %}
-                <div id="add-org-form-container" hidden
-                     data-signals="{og_query: '', og_selected_value: '', og_selected_name: '', og_selected_avatar: '', og_has_selection: false}">
-                    <form id="prod-add-org-form" action="/productions/{{ production.slug }}/members/add-org" method="post">
-                        <fieldset>
-                            <legend>Add Organization</legend>
-                            <div class="prod-form-grid">
-                                <div>
-                                    <label>Find an organization</label>
-                                    <div class="invite-search-wrap">
-                                        <div class="invite-selected-user" data-show="$og_has_selection">
-                                            <img data-attr-src="$og_selected_avatar" alt="" class="invite-sel-avatar"
-                                                 data-show="$og_selected_avatar !== ''" />
-                                            <span data-text="$og_selected_name"></span>
-                                            <button type="button" class="invite-sel-clear" aria-label="Clear selection"
-                                                    data-on:click="$og_has_selection = false; $og_selected_value = ''; $og_query = ''">&times;</button>
-                                        </div>
-                                        <input type="text" autocomplete="off" placeholder="Search organizations..."
-                                               data-bind:og_query
-                                               data-on:input__debounce_250ms="@get('/api/orgs/search-sse?scope=og&q=' + $og_query)"
-                                               data-show="!$og_has_selection" />
-                                        <input type="hidden" name="org_id" data-bind:og_selected_value />
-                                        <div id="og-results" class="invite-search-results"></div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label>Production Roles</label>
-                                    <div class="role-picker" id="og-role-picker" data-field-name="production_role">
-                                        <div class="role-picker-tags"></div>
-                                        <div class="role-picker-input">
-                                            <select>
-                                                <option value="">-- Select Role --</option>
-                                                {% for r in org_production_roles %}
-                                                <option value="{{ r }}">{{ r }}</option>
-                                                {% endfor %}
-                                            </select>
-                                            <button type="button" class="role-picker-add" onclick="addRoleFromSelect('og-role-picker')">Add</button>
-                                        </div>
-                                        <div class="role-picker-custom">
-                                            <input type="text" id="og-custom-role" placeholder="Or type a custom role..." />
-                                            <button type="button" class="role-picker-add-custom" onclick="addCustomRole('og-role-picker', 'og-custom-role')">Add Custom</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label>Permission Level</label>
-                                    <select name="role" required>
-                                        <option value="member">Member</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="prod-member-form-actions">
-                                <button type="submit" class="prod-btn-primary">Add Organization</button>
-                                <button type="button" class="prod-btn-outline" onclick="hideAddOrgForm()">Cancel</button>
-                            </div>
-                        </fieldset>
-                    </form>
-                </div>
-                {% endif %}
-
-                {% if !production.org_members.is_empty() %}
-                <ul class="prod-members-list">
-                    {% for member in production.org_members %}
-                    <li class="prod-member-item">
-                        <div class="prod-member-info">
-                            {% if member.slug.is_some() %}
-                            <a href="/orgs/{{ member.slug.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
-                            {% else %}
-                            <strong>{{ member.name }}</strong>
-                            {% endif %}
-                            {% if member.is_verified %}<svg data-role="verified-badge" data-verified="org" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/></svg>{% endif %}
-                            {% if let Some(roles) = member.production_roles %}
-                            {% for r in roles %}
-                            <span class="prod-role-badge">{{ r }}</span>
-                            {% endfor %}
-                            {% endif %}
-                            {% if member.role == "owner" || member.role == "admin" %}
-                            <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
-                            {% endif %}
-                        </div>
-                        {% if production.can_edit && member.role != "owner" %}
-                        <form action="/productions/{{ production.slug }}/members/remove" method="post"
-                              onsubmit="return confirm('Remove {{ member.name }} from this production?');">
-                            <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
-                            <button type="submit" class="prod-btn-danger">Remove</button>
-                        </form>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <div class="prod-empty" style="padding:2rem 0">
-                    <p>No organizations added yet.</p>
-                    {% if production.can_edit %}
-                    <button type="button" class="prod-btn-outline" onclick="showAddOrgForm()">Add First Organization</button>
-                    {% endif %}
-                </div>
-                {% endif %}
-            </section>
-
+            </aside>
         </div>
-
-        <aside id="prod-sidebar">
-            <h4 class="prod-sidebar-title">Details</h4>
-            <dl id="prod-meta-list">
-                <div class="prod-detail-item">
-                    <dt>Type</dt>
-                    <dd>{{ production.production_type }}</dd>
-                </div>
-                <div class="prod-detail-item">
-                    <dt>Status</dt>
-                    <dd>{{ production.status }}</dd>
-                </div>
-                {% if production.release_date.is_some() %}
-                <div class="prod-detail-item">
-                    <dt>Release Date</dt>
-                    <dd>{{ production.release_date.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-                {% if production.location.is_some() %}
-                <div class="prod-detail-item">
-                    <dt>Location</dt>
-                    <dd>{{ production.location.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-                {% if production.start_date.is_some() %}
-                <div class="prod-detail-item">
-                    <dt>Start Date</dt>
-                    <dd>{{ production.start_date.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-                {% if production.end_date.is_some() %}
-                <div class="prod-detail-item">
-                    <dt>End Date</dt>
-                    <dd>{{ production.end_date.as_ref().unwrap() }}</dd>
-                </div>
-                {% endif %}
-                {% if production.source != "manual" %}
-                <div class="prod-detail-item">
-                    <dt>Source</dt>
-                    <dd>{{ production.source }}</dd>
-                </div>
-                {% endif %}
-            </dl>
-
-            {% if production.tmdb_url.is_some() %}
-            <div class="prod-sidebar-tmdb">
-                <a href="{{ production.tmdb_url.as_ref().unwrap() }}" target="_blank" rel="noopener" class="prod-tmdb-link">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    View on TMDb
-                </a>
-            </div>
-            {% endif %}
-
-            <div id="prod-meta-footer">
-                <span>Created <time datetime="{{ production.created_at }}">{{ production.created_at }}</time></span>
-                <span>Updated <time datetime="{{ production.updated_at }}">{{ production.updated_at }}</time></span>
-            </div>
-        </aside>
+        <a href="/productions" class="prod-back-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5"/>
+                <path d="M12 19l-7-7 7-7"/>
+            </svg>
+            Back to Productions
+        </a>
     </div>
-
-    <a href="/productions" class="prod-back-link">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        Back to Productions
-    </a>
-
-</div>
-
-<script>
+    <script>
 function showAddMemberForm() {
     document.getElementById('add-member-form-container').removeAttribute('hidden');
 }
