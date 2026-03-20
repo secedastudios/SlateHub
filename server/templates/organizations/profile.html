@@ -48,6 +48,18 @@
                     <button type="submit" class="org-btn-danger">Delete</button>
                 </form>
                 {% endif %}
+                {% if !is_member && !has_pending_request && organization.allow_join_requests && user.is_some() %}
+                <div class="org-join-request-wrap">
+                    <button class="org-btn-join" onclick="this.style.display='none';this.nextElementSibling.style.display='inline-flex';">Request to Join</button>
+                    <form method="post" action="/orgs/{{ organization.slug }}/join-request" class="org-join-request-form" style="display:none">
+                        <input type="text" name="note" placeholder="Add a note (optional)" maxlength="500" />
+                        <input type="submit" value="Send Request" />
+                    </form>
+                </div>
+                {% endif %}
+                {% if has_pending_request %}
+                <span class="org-join-request-pending">Request pending</span>
+                {% endif %}
             </div>
         </div>
     </section>
@@ -102,16 +114,16 @@
                 {% else %}
                 <div id="org-members-grid">
                     {% for member in members %}
+                    {% if member.invitation_status != "requested" %}
                     <a href="/{{ member.person_username }}" class="org-member{% if member.invitation_status == "pending" %} org-member-pending{% endif %}" data-role-type="{{ member.role }}">
                         <div class="org-member-avatar">
                             {% match member.person_avatar %}
                                 {% when Some with (url) %}
                                 <img src="{{ url }}" alt="{{ member.person_username }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
-                                <span class="org-member-initials" style="display:none">{{ member.person_username.chars().next().unwrap_or('?') }}</span>
                                 {% when None %}
-                                <img src="/api/avatar?id={{ member.person_id.display() }}" alt="{{ member.person_username }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
-                                <span class="org-member-initials" style="display:none">{{ member.person_username.chars().next().unwrap_or('?') }}</span>
+                                <img src="/api/avatar?id={% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}{{ member.person_username }}{% endif %}" alt="{{ member.person_username }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
                             {% endmatch %}
+                            <span class="org-member-initials" style="display:none">{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap().chars().next().unwrap_or('?') }}{% else %}{{ member.person_username.chars().next().unwrap_or('?') }}{% endif %}</span>
                         </div>
                         <div class="org-member-info">
                             <span class="org-member-name">{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}@{{ member.person_username }}{% endif %}</span>
@@ -122,8 +134,46 @@
                             {% endif %}
                         </div>
                     </a>
+                    {% endif %}
                     {% endfor %}
                 </div>
+                {% endif %}
+
+                {% if is_owner || is_admin %}
+                {% if !join_requests.is_empty() %}
+                <details id="org-join-requests" open>
+                    <summary class="org-btn-outline" style="margin-top:1rem; cursor:pointer; list-style:none;">Pending Requests ({{ join_requests.len() }})</summary>
+                    <div id="org-join-requests-list">
+                        {% for req in join_requests %}
+                        <div class="org-member-admin-row">
+                            <a href="/{{ req.person_username }}" class="org-join-request-person">
+                                <div class="org-member-avatar org-member-avatar-sm">
+                                    {% match req.person_avatar %}
+                                        {% when Some with (url) %}
+                                        <img src="{{ url }}" alt="{{ req.person_username }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+                                        {% when None %}
+                                        <img src="/api/avatar?id={% if req.person_name.is_some() %}{{ req.person_name.as_ref().unwrap() }}{% else %}{{ req.person_username }}{% endif %}" alt="{{ req.person_username }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+                                    {% endmatch %}
+                                    <span class="org-member-initials" style="display:none">{% if req.person_name.is_some() %}{{ req.person_name.as_ref().unwrap().chars().next().unwrap_or('?') }}{% else %}{{ req.person_username.chars().next().unwrap_or('?') }}{% endif %}</span>
+                                </div>
+                                <span>{% if req.person_name.is_some() %}{{ req.person_name.as_ref().unwrap() }}{% else %}@{{ req.person_username }}{% endif %}</span>
+                            </a>
+                            {% if req.request_note.is_some() %}
+                            <p class="org-join-request-note">{{ req.request_note.as_ref().unwrap() }}</p>
+                            {% endif %}
+                            <div class="org-member-admin-actions">
+                                <form method="post" action="/orgs/{{ organization.slug }}/join-requests/{{ req.id.display() }}/accept" style="display:inline">
+                                    <button type="submit" class="org-btn-outline org-btn-sm">Accept</button>
+                                </form>
+                                <form method="post" action="/orgs/{{ organization.slug }}/join-requests/{{ req.id.display() }}/reject" data-confirm="Reject this request?" style="display:inline">
+                                    <button type="submit" class="org-btn-danger org-btn-sm">Reject</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </details>
+                {% endif %}
                 {% endif %}
 
                 {% if is_owner %}
@@ -131,7 +181,7 @@
                     <summary class="org-btn-outline" style="margin-top:1rem; cursor:pointer; list-style:none;">Manage Members</summary>
                     <div id="org-member-admin-list">
                         {% for member in members %}
-                        {% if member.role != "owner" %}
+                        {% if member.role != "owner" && member.invitation_status != "requested" %}
                         <div class="org-member-admin-row">
                             <span>{% if member.person_name.is_some() %}{{ member.person_name.as_ref().unwrap() }}{% else %}@{{ member.person_username }}{% endif %}</span>
                             <span class="org-member-role" data-value="{{ member.role }}">{{ member.role }}</span>
@@ -201,15 +251,6 @@
                 </div>
                 {% endif %}
             </dl>
-
-            {% if !is_member && user.is_some() %}
-            <div id="org-join-cta">
-                <p>Interested in joining?</p>
-                <form method="post" action="/orgs/{{ organization.slug }}/join-request">
-                    <button type="submit" class="org-btn-primary" style="width:100%">Request to Join</button>
-                </form>
-            </div>
-            {% endif %}
 
             <div id="org-meta-footer">
                 <span>Created {{ organization.created_at }}</span>

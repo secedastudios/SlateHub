@@ -28,6 +28,7 @@ pub struct Membership {
     pub invitation_status: String,
     pub invited_by: Option<RecordId>,
     pub invited_at: Option<DateTime<Utc>>,
+    pub request_note: Option<String>,
 }
 
 /// Membership roles within an organization
@@ -88,6 +89,7 @@ pub enum InvitationStatus {
     Pending,
     Accepted,
     Declined,
+    Requested,
 }
 
 impl InvitationStatus {
@@ -96,6 +98,7 @@ impl InvitationStatus {
             InvitationStatus::Pending => "pending",
             InvitationStatus::Accepted => "accepted",
             InvitationStatus::Declined => "declined",
+            InvitationStatus::Requested => "requested",
         }
     }
 
@@ -104,6 +107,7 @@ impl InvitationStatus {
             "pending" => Ok(InvitationStatus::Pending),
             "accepted" => Ok(InvitationStatus::Accepted),
             "declined" => Ok(InvitationStatus::Declined),
+            "requested" => Ok(InvitationStatus::Requested),
             _ => Err(Error::validation(format!(
                 "Invalid invitation status: {}",
                 s
@@ -212,6 +216,35 @@ impl MembershipModel {
         })
     }
 
+    /// Find a membership by its record ID
+    pub async fn find_by_id(&self, id: &str) -> Result<Option<Membership>, Error> {
+        debug!("Finding membership by ID: {}", id);
+
+        let record_id = RecordId::parse_simple(id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+
+        let result: Option<Membership> = DB
+            .query(
+                "SELECT
+                    id,
+                    in as person_id,
+                    out as organization_id,
+                    role,
+                    permissions,
+                    joined_at,
+                    invitation_status,
+                    invited_by,
+                    invited_at,
+                    request_note
+                 FROM $id",
+            )
+            .bind(("id", record_id))
+            .await?
+            .take(0)?;
+
+        Ok(result)
+    }
+
     /// Find a membership by person and organization
     pub async fn find_by_person_and_org(
         &self,
@@ -237,7 +270,8 @@ impl MembershipModel {
                         joined_at,
                         invitation_status,
                         invited_by,
-                        invited_at
+                        invited_at,
+                        request_note
                      FROM member_of
                      WHERE in = $person AND out = $org";
 
@@ -358,7 +392,8 @@ impl MembershipModel {
                         joined_at,
                         invitation_status,
                         invited_by,
-                        invited_at
+                        invited_at,
+                        request_note
                      FROM member_of
                      WHERE out = $org
                      ORDER BY joined_at DESC";
@@ -389,7 +424,8 @@ impl MembershipModel {
                         joined_at,
                         invitation_status,
                         invited_by,
-                        invited_at
+                        invited_at,
+                        request_note
                      FROM member_of
                      WHERE in = $person
                      AND invitation_status = 'accepted'

@@ -63,6 +63,7 @@ impl NotificationsTemplate {
 pub fn router() -> Router {
     Router::new()
         .route("/notifications", get(list_notifications))
+        .route("/api/notifications/stream", get(notification_stream_sse))
         .route("/notifications/mark-read", post(mark_read))
         .route("/notifications/read-all", post(mark_all_read))
         .route("/notifications/delete", post(delete_notification))
@@ -214,4 +215,88 @@ async fn get_org_slug(org_id: &str) -> Option<String> {
     use crate::models::organization::OrganizationModel;
     let model = OrganizationModel::new();
     model.get_by_id(org_id).await.ok().map(|org| org.slug)
+}
+
+/// SSE endpoint that pushes notification count updates to the authenticated user.
+/// The person_id is derived from the JWT — never from URL params.
+async fn notification_stream_sse(
+    AuthenticatedUser(user): AuthenticatedUser,
+) -> axum::response::Response {
+    use axum::body::Body;
+    use axum::http::header;
+
+    let person_id = user.id.clone();
+    info!("SSE notification stream opened for {}", person_id);
+    let mut rx = crate::services::notification_stream::subscribe();
+
+    let stream = async_stream::stream! {
+        // Send initial count immediately
+        let notification_model = NotificationModel::new();
+        if let Ok(count) = notification_model.get_unread_count(&person_id).await {
+            yield Ok::<_, std::convert::Infallible>(
+                sse_notification_event(count)
+            );
+        }
+
+        // Keep-alive comment every 30s to prevent timeout
+        let mut keepalive = tokio::time::interval(std::time::Duration::from_secs(30));
+
+        loop {
+            tokio::select! {
+                result = rx.recv() => {
+                    match result {
+                        Ok(event) => {
+                            if event.person_id == person_id {
+                                let notification_model = NotificationModel::new();
+                                if let Ok(count) = notification_model.get_unread_count(&person_id).await {
+                                    yield Ok(sse_notification_event(count));
+                                }
+                            }
+                        }
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                            let notification_model = NotificationModel::new();
+                            if let Ok(count) = notification_model.get_unread_count(&person_id).await {
+                                yield Ok(sse_notification_event(count));
+                            }
+                        }
+                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    }
+                }
+                _ = keepalive.tick() => {
+                    yield Ok(":keepalive\n\n".to_string());
+                }
+            }
+        }
+    };
+
+    let body = Body::from_stream(stream);
+
+    axum::response::Response::builder()
+        .header(header::CONTENT_TYPE, "text/event-stream")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .header("X-Accel-Buffering", "no")
+        .body(body)
+        .unwrap()
+}
+
+fn sse_notification_event(count: u32) -> String {
+    let badge = if count > 0 {
+        format!(
+            "<span id=\\\"notification-badge\\\" data-role=\\\"notification-badge\\\" aria-label=\\\"{} unread notifications\\\">{}</span>",
+            count, count
+        )
+    } else {
+        "<span id=\\\"notification-badge\\\" data-role=\\\"notification-badge\\\" style=\\\"display:none\\\"></span>".to_string()
+    };
+
+    let menu_badge = if count > 0 {
+        format!("<span data-role=\\\"menu-badge\\\">{}</span>", count)
+    } else {
+        "<span data-role=\\\"menu-badge\\\" style=\\\"display:none\\\"></span>".to_string()
+    };
+
+    format!(
+        "event: notification-update\ndata: {{\"badge\":\"{}\",\"menu_badge\":\"{}\"}}\n\n",
+        badge, menu_badge
+    )
 }

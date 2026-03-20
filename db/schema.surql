@@ -157,6 +157,7 @@ DEFINE FIELD founded_year ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD employees_count ON organization TYPE option<int> PERMISSIONS FULL;
 DEFINE FIELD public ON organization TYPE bool DEFAULT false PERMISSIONS FULL;  -- Whether the organization profile is public
 DEFINE FIELD verified ON organization TYPE bool DEFAULT false PERMISSIONS FULL;  -- Whether the organization is verified (gold checkmark)
+DEFINE FIELD allow_join_requests ON organization TYPE bool DEFAULT false PERMISSIONS FULL;  -- Whether non-members can request to join
 DEFINE FIELD created_at ON organization TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON organization TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD embedding ON organization TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)
@@ -174,9 +175,10 @@ DEFINE FIELD role ON member_of TYPE string PERMISSIONS FULL;  -- "owner", "admin
 DEFINE FIELD production_roles ON member_of TYPE option<array<string>> PERMISSIONS FULL;  -- e.g. ["Director", "Producer"] (from role table or custom)
 DEFINE FIELD permissions ON member_of TYPE array<string> DEFAULT [] PERMISSIONS FULL;  -- Array of permission strings
 DEFINE FIELD joined_at ON member_of TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
-DEFINE FIELD invitation_status ON member_of TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined"
+DEFINE FIELD invitation_status ON member_of TYPE string DEFAULT "pending" PERMISSIONS FULL;  -- "pending", "accepted", "declined", "requested"
 DEFINE FIELD invited_by ON member_of TYPE option<record<person>> PERMISSIONS FULL;
 DEFINE FIELD invited_at ON member_of TYPE option<datetime> VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD request_note ON member_of TYPE option<string> PERMISSIONS FULL;  -- Note from user when requesting to join
 
 DEFINE INDEX idx_member_of_unique ON member_of FIELDS in, out UNIQUE;
 
@@ -212,7 +214,7 @@ DEFINE INDEX idx_profile_view_time ON profile_view FIELDS profile_id, viewed_at;
 DEFINE TABLE notification TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD person_id ON notification TYPE record<person> PERMISSIONS FULL;
-DEFINE FIELD notification_type ON notification TYPE string ASSERT $value IN ['invitation', 'invitation_accepted', 'member_joined', 'general', 'message', 'job_application', 'application_update'] PERMISSIONS FULL;
+DEFINE FIELD notification_type ON notification TYPE string ASSERT $value IN ['invitation', 'invitation_accepted', 'member_joined', 'general', 'message', 'job_application', 'application_update', 'join_request'] PERMISSIONS FULL;
 DEFINE FIELD title ON notification TYPE string PERMISSIONS FULL;
 DEFINE FIELD message ON notification TYPE string PERMISSIONS FULL;
 DEFINE FIELD link ON notification TYPE option<string> PERMISSIONS FULL;

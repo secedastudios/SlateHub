@@ -98,6 +98,8 @@
                                 {% endmatch %}
                                 {% if user.notification_count > 0 %}
                                 <span id="notification-badge" data-role="notification-badge" aria-label="{{ user.notification_count }} unread notifications">{{ user.notification_count }}</span>
+                                {% else %}
+                                <span id="notification-badge" data-role="notification-badge" style="display:none"></span>
                                 {% endif %}
                             </span>
                             <span data-role="account-label">{{ user.name }}</span>
@@ -125,7 +127,7 @@
                             <li role="none">
                                 <a href="/notifications" id="link-menu-notifications" role="menuitem">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                                    Notifications{% if user.notification_count > 0 %} <span data-role="menu-badge">{{ user.notification_count }}</span>{% endif %}
+                                    Notifications {% if user.notification_count > 0 %}<span data-role="menu-badge">{{ user.notification_count }}</span>{% else %}<span data-role="menu-badge" style="display:none"></span>{% endif %}
                                 </a>
                             </li>
                             <li role="none">
@@ -222,6 +224,21 @@
             var expanded = this.getAttribute('aria-expanded') === 'true';
             this.setAttribute('aria-expanded', String(!expanded));
         });
+    }
+
+    // Live notification updates via SSE
+    if (document.getElementById('notification-badge')) {
+        var evtSource = new EventSource('/api/notifications/stream');
+        evtSource.addEventListener('notification-update', function(e) {
+            try {
+                var data = JSON.parse(e.data);
+                var badge = document.getElementById('notification-badge');
+                if (badge) badge.outerHTML = data.badge;
+                var menuBadge = document.querySelector('[data-role="menu-badge"]');
+                if (menuBadge) menuBadge.outerHTML = data.menu_badge;
+            } catch(err) { console.error('SSE parse error:', err); }
+        });
+        evtSource.onerror = function() { console.log('Notification SSE reconnecting...'); };
     }
 
     var dropdown = document.getElementById('user-menu-dropdown');

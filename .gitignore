@@ -45,3 +45,5 @@ whatsapp-bot/*.db-*
 **/.env.dev
 dev.sh
 docker-compose.dev.yml
+
+history.txt

@@ -7,4 +7,5 @@ pub mod search;
 pub mod search_log;
 pub mod search_utils;
 pub mod tmdb;
+pub mod notification_stream;
 pub mod verification;

@@ -650,6 +650,121 @@ button.org-btn-danger:hover:not(:disabled) {
     gap: 0.35rem;
 }
 
+.org-btn-join {
+    color: var(--color-text-light);
+    background-color: var(--color-accent);
+    border-color: var(--color-accent);
+    cursor: pointer;
+}
+
+.org-btn-join:hover {
+    background-color: var(--color-accent-hover);
+    border-color: var(--color-accent-hover);
+}
+
+.org-join-request-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.org-join-request-form input[type="text"] {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    padding: 0.4rem 0.75rem;
+    background: rgba(214, 216, 202, 0.06);
+    border: 1px solid rgba(214, 216, 202, 0.12);
+    border-radius: 6px;
+    color: var(--color-text-primary, #d6d8ca);
+    width: 220px;
+}
+
+.org-join-request-form input[type="text"]::placeholder {
+    color: var(--color-text-secondary, #9a9b8f);
+}
+
+.org-join-request-form textarea {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    padding: 0.5rem 0.75rem;
+    background: rgba(214, 216, 202, 0.04);
+    border: 1px solid rgba(214, 216, 202, 0.1);
+    border-radius: 6px;
+    color: var(--color-text-primary, #d6d8ca);
+    resize: vertical;
+}
+
+.org-join-request-form textarea::placeholder {
+    color: var(--color-text-secondary, #9a9b8f);
+}
+
+.org-join-request-note {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary, #9a9b8f);
+    font-style: italic;
+    margin: 0.25rem 0 0 0;
+    padding: 0.25rem 0.5rem;
+    border-left: 2px solid rgba(214, 216, 202, 0.1);
+}
+
+.org-join-request-pending {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary, #9a9b8f);
+    font-style: italic;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid rgba(214, 216, 202, 0.1);
+    border-radius: 6px;
+}
+
+/* Pending join requests list */
+#org-join-requests { margin-top: 0.5rem; }
+
+#org-join-requests summary::-webkit-details-marker { display: none; }
+
+#org-join-requests-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(214, 216, 202, 0.025);
+    border: 1px solid rgba(214, 216, 202, 0.06);
+    border-radius: 8px;
+}
+
+.org-join-request-person {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: var(--color-text-primary, #d6d8ca);
+}
+
+.org-join-request-person:hover {
+    color: var(--color-accent, #e8decf);
+}
+
+.org-member-avatar-sm {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+}
+
+.org-member-avatar-sm img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.org-member-avatar-sm .org-member-initials {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+}
+
 /* ========================================
    Sidebar
    ======================================== */

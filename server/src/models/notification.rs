@@ -146,6 +146,27 @@ impl NotificationModel {
         Ok(())
     }
 
+    /// Delete all notifications matching a related_id and notification_type
+    pub async fn delete_by_related(
+        &self,
+        related_id: &str,
+        notification_type: &str,
+    ) -> Result<(), Error> {
+        debug!(
+            "Deleting notifications with related_id={} type={}",
+            related_id, notification_type
+        );
+
+        DB.query(
+            "DELETE notification WHERE related_id = $related_id AND notification_type = $ntype",
+        )
+        .bind(("related_id", related_id.to_string()))
+        .bind(("ntype", notification_type.to_string()))
+        .await?;
+
+        Ok(())
+    }
+
     pub async fn delete_all(&self, person_id: &str) -> Result<(), Error> {
         debug!("Deleting all notifications for person: {}", person_id);
 

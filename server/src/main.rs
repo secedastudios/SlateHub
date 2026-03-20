@@ -153,6 +153,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // Start live notification stream
+    info!("Starting notification live stream");
+    slatehub::services::notification_stream::init().await;
+
     // Create the application
     debug!("Building application routes");
     let app = slatehub::routes::app();

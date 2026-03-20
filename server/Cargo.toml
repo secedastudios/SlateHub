@@ -16,6 +16,7 @@ name = "rebuild-embeddings"
 path = "src/bin/rebuild_embeddings.rs"
 
 [dependencies]
+async-stream = "0.3"
 axum = { version = "0.8.4", features = ["macros", "multipart"] }
 axum-extra = { version = "0.10", features = ["cookie", "form"] }
 chrono = "0.4"

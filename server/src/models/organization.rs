@@ -52,6 +52,9 @@ pub struct Organization {
     #[serde(default)]
     #[surreal(default)]
     pub verified: bool,
+    #[serde(default)]
+    #[surreal(default)]
+    pub allow_join_requests: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -66,6 +69,7 @@ pub struct OrganizationMember {
     pub role: String,
     pub joined_at: DateTime<Utc>,
     pub invitation_status: String,
+    pub request_note: Option<String>,
 }
 
 #[derive(Debug)]
@@ -97,6 +101,7 @@ pub struct UpdateOrganizationData {
     pub founded_year: Option<i32>,
     pub employees_count: Option<i32>,
     pub public: bool,
+    pub allow_join_requests: bool,
 }
 
 // ============================
@@ -399,7 +404,8 @@ impl OrganizationModel {
                     services = $services,
                     founded_year = $founded_year,
                     employees_count = $employees_count,
-                    public = $public",
+                    public = $public,
+                    allow_join_requests = $allow_join_requests",
             )
             .bind(("id", id.clone()))
             .bind(("name", data.name))
@@ -413,6 +419,7 @@ impl OrganizationModel {
             .bind(("founded_year", data.founded_year))
             .bind(("employees_count", data.employees_count))
             .bind(("public", data.public))
+            .bind(("allow_join_requests", data.allow_join_requests))
             .await?;
 
         // Fire-and-forget embedding update
@@ -525,12 +532,13 @@ impl OrganizationModel {
                     in.profile.avatar as person_avatar,
                     role,
                     joined_at,
-                    invitation_status
+                    invitation_status,
+                    request_note
                 FROM member_of
                 WHERE out = $org_id
                 ORDER BY
                     role DESC,
-                    in.profile.name ASC",
+                    person_name ASC",
             )
             .bind(("org_id", org_record_id))
             .await?
@@ -538,6 +546,82 @@ impl OrganizationModel {
             .unwrap_or_default();
 
         Ok(result)
+    }
+
+    /// Get pending join requests for an organization
+    pub async fn get_join_requests(&self, org_id: &str) -> Result<Vec<OrganizationMember>, Error> {
+        debug!("Fetching join requests for organization: {}", org_id);
+
+        let org_record_id = RecordId::parse_simple(org_id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+
+        let result: Vec<OrganizationMember> = DB
+            .query(
+                "SELECT
+                    id,
+                    in as person_id,
+                    in.username as person_username,
+                    in.profile.name as person_name,
+                    in.profile.avatar as person_avatar,
+                    role,
+                    joined_at,
+                    invitation_status,
+                    request_note
+                FROM member_of
+                WHERE out = $org_id AND invitation_status = 'requested'
+                ORDER BY joined_at ASC",
+            )
+            .bind(("org_id", org_record_id))
+            .await?
+            .take(0)
+            .unwrap_or_default();
+
+        Ok(result)
+    }
+
+    /// Create a join request for a user wanting to join an organization
+    pub async fn create_join_request(
+        &self,
+        org_id: &str,
+        person_id: &str,
+        note: Option<&str>,
+    ) -> Result<(), Error> {
+        debug!(
+            "Creating join request for person {} to organization {}",
+            person_id, org_id
+        );
+
+        let person_rid: RecordId = RecordId::parse_simple(person_id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_rid: RecordId = RecordId::parse_simple(org_id)
+            .map_err(|e| Error::BadRequest(e.to_string()))?;
+
+        DB.query(
+            "RELATE $person->member_of->$org SET
+                role = 'member',
+                invitation_status = 'requested',
+                request_note = $note",
+        )
+        .bind(("person", person_rid))
+        .bind(("org", org_rid))
+        .bind(("note", note.map(|s| s.to_string())))
+        .await?;
+
+        Ok(())
+    }
+
+    /// Accept a join request
+    pub async fn accept_join_request(&self, membership_id: &str) -> Result<(), Error> {
+        debug!("Accepting join request: {}", membership_id);
+        let membership_model = MembershipModel::new();
+        membership_model.accept_invitation(membership_id).await
+    }
+
+    /// Reject a join request (deletes the membership record)
+    pub async fn reject_join_request(&self, membership_id: &str) -> Result<(), Error> {
+        debug!("Rejecting join request: {}", membership_id);
+        let membership_model = MembershipModel::new();
+        membership_model.delete(membership_id).await
     }
 
     /// Get a user's role in an organization

@@ -54,6 +54,14 @@ pub fn router() -> Router {
             post(remove_member),
         )
         .route("/orgs/{slug}/join-request", post(request_to_join))
+        .route(
+            "/orgs/{slug}/join-requests/{member_id}/accept",
+            post(accept_join_request),
+        )
+        .route(
+            "/orgs/{slug}/join-requests/{member_id}/reject",
+            post(reject_join_request),
+        )
         // API endpoints
         .route("/api/orgs/more-sse", get(orgs_more_sse))
         .route(
@@ -100,7 +108,8 @@ pub struct UpdateOrganizationForm {
     pub services: Option<String>,        // Comma-separated
     pub founded_year: Option<String>,    // Parse to i32 manually
     pub employees_count: Option<String>, // Parse to i32 manually
-    pub public: Option<String>,          // Checkbox value "on" or None
+    pub public: Option<String>,               // Checkbox value "on" or None
+    pub allow_join_requests: Option<String>,  // Checkbox value "on" or None
 }
 
 #[derive(Debug, Deserialize)]
@@ -174,9 +183,11 @@ pub struct OrganizationProfileTemplate {
     pub organization: Organization,
     pub description_html: Option<String>,
     pub members: Vec<OrganizationMember>,
+    pub join_requests: Vec<OrganizationMember>,
     pub is_member: bool,
     pub is_admin: bool,
     pub is_owner: bool,
+    pub has_pending_request: bool,
 }
 
 #[derive(Template)]
@@ -430,6 +441,7 @@ async fn organization_profile(
     let mut is_member = false;
     let mut is_admin = false;
     let mut is_owner = false;
+    let mut has_pending_request = false;
 
     // Use model to get organization
     let model = OrganizationModel::new();
@@ -442,13 +454,24 @@ async fn organization_profile(
         base = base.with_user(User::from_session_user(&user).await);
 
         // Check user's role in the organization using model
-        if let Some(member_role) = model
-            .get_member_role(&organization.id.to_raw_string(), &user.id)
-            .await?
-        {
-            is_member = true;
-            is_admin = member_role == "admin" || member_role == "owner";
-            is_owner = member_role == "owner";
+        let membership_model = crate::models::membership::MembershipModel::new();
+        let membership_result = membership_model
+            .find_by_person_and_org(&user.id, &organization.id.to_raw_string())
+            .await;
+        debug!("Membership lookup for user {} in org {}: {:?}", user.id, organization.id.to_raw_string(), membership_result);
+        if let Some(existing) = membership_result? {
+            debug!("Found membership with status: {}", existing.invitation_status);
+            match existing.invitation_status.as_str() {
+                "accepted" => {
+                    is_member = true;
+                    is_admin = existing.role == "admin" || existing.role == "owner";
+                    is_owner = existing.role == "owner";
+                }
+                "requested" | "pending" => {
+                    has_pending_request = true;
+                }
+                _ => {}
+            }
         }
     }
 
@@ -464,6 +487,28 @@ async fn organization_profile(
     // Get organization members using model
     let members = model.get_members(&organization.id.to_raw_string()).await?;
 
+    // Get join requests for admins/owners
+    let join_requests = if is_admin || is_owner {
+        model.get_join_requests(&organization.id.to_raw_string()).await?
+    } else {
+        vec![]
+    };
+
+    // Double-check pending request from members list (in case membership lookup missed it)
+    if !has_pending_request && !is_member {
+        if let Some(user) = &user_opt {
+            has_pending_request = members.iter().any(|m| {
+                m.person_username == user.username
+                    && (m.invitation_status == "requested" || m.invitation_status == "pending")
+            }) || join_requests.iter().any(|r| {
+                r.person_username == user.username
+            });
+            if has_pending_request {
+                debug!("Found pending request via members/join_requests list for user {}", user.id);
+            }
+        }
+    }
+
     let description_html = organization
         .description
         .as_deref()
@@ -478,9 +523,11 @@ async fn organization_profile(
         organization,
         description_html,
         members,
+        join_requests,
         is_member,
         is_admin,
         is_owner,
+        has_pending_request,
     };
 
     Ok(Html(template.render().map_err(|e| {
@@ -584,6 +631,7 @@ async fn update_organization(
         founded_year,
         employees_count,
         public: data.public.as_deref() == Some("on"),
+        allow_join_requests: data.allow_join_requests.as_deref() == Some("on"),
     };
 
     // Use model to update
@@ -803,36 +851,152 @@ async fn remove_member(
     Ok(Redirect::to(&format!("/orgs/{}", slug)))
 }
 
-async fn request_to_join(
-    Path(slug): Path<String>,
-    request: Request,
-) -> Result<Json<serde_json::Value>, Error> {
-    // Check if user is authenticated
-    let user = request.get_user().ok_or(Error::Unauthorized)?;
+#[derive(Debug, Deserialize)]
+struct JoinRequestForm {
+    note: Option<String>,
+}
 
+async fn request_to_join(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(slug): Path<String>,
+    axum::Form(form): axum::Form<JoinRequestForm>,
+) -> Result<Response, Error> {
     let model = OrganizationModel::new();
     let organization = model.get_by_slug(&slug).await?;
 
-    // Check if already a member
-    if let Some(_) = model
-        .get_member_role(&organization.id.to_raw_string(), &user.id)
-        .await?
-    {
-        return Ok(Json(json!({
-            "success": false,
-            "message": "You are already a member of this organization"
-        })));
+    // Check if join requests are enabled
+    if !organization.allow_join_requests {
+        return Err(Error::BadRequest("This organization does not accept join requests".to_string()));
     }
 
-    // Add as pending member
+    // Check if already a member or has a pending request
+    let membership_model = crate::models::membership::MembershipModel::new();
+    if let Some(existing) = membership_model
+        .find_by_person_and_org(&user.id, &organization.id.to_raw_string())
+        .await?
+    {
+        let msg = match existing.invitation_status.as_str() {
+            "accepted" => "You are already a member of this organization",
+            "requested" => "You already have a pending join request",
+            "pending" => "You already have a pending invitation",
+            _ => "You already have a relationship with this organization",
+        };
+        return Err(Error::BadRequest(msg.to_string()));
+    }
+
+    let note = form.note.as_deref().filter(|s| !s.is_empty());
     model
-        .add_member(&organization.id.to_raw_string(), &user.id, "member", None)
+        .create_join_request(&organization.id.to_raw_string(), &user.id, note)
         .await?;
 
-    Ok(Json(json!({
-        "success": true,
-        "message": "Join request sent. An admin will review your request."
-    })))
+    // Notify all owners and admins — individual CREATEs so LIVE SELECT detects them
+    let display_name = if user.name.is_empty() { &user.username } else { &user.name };
+    let title = format!("{} wants to join {}", display_name, organization.name);
+    let message = match note {
+        Some(n) => format!("\"{}\"", n),
+        None => format!("@{} has requested to join your organization.", user.username),
+    };
+    let link = format!("/orgs/{}", slug);
+    let related_id = format!("join_request:{}:{}", user.id, organization.id.to_raw_string());
+
+    // Get admin person IDs (format org ID into query since bind params don't work for RecordId comparison)
+    let admin_query = format!(
+        "SELECT <string> in AS pid FROM member_of WHERE out = {} AND (role = 'owner' OR role = 'admin') AND invitation_status = 'accepted'",
+        organization.id.display()
+    );
+    if let Ok(mut response) = crate::db::DB.query(&admin_query).await {
+        let admins: Vec<serde_json::Value> = response.take(0).unwrap_or_default();
+        for admin in &admins {
+            if let Some(pid) = admin.get("pid").and_then(|v| v.as_str()) {
+                let person_rid = surrealdb::types::RecordId::parse_simple(pid)
+                    .unwrap_or_else(|_| surrealdb::types::RecordId::new("person", pid));
+                if let Err(e) = crate::db::DB
+                    .query("CREATE notification SET person_id = $pid, notification_type = $ntype, title = $title, message = $message, link = $link, related_id = $rid, read = false")
+                    .bind(("pid", person_rid))
+                    .bind(("ntype", "join_request".to_string()))
+                    .bind(("title", title.clone()))
+                    .bind(("message", message.clone()))
+                    .bind(("link", link.clone()))
+                    .bind(("rid", related_id.clone()))
+                    .await
+                {
+                    error!("Failed to create notification for {}: {}", pid, e);
+                }
+            }
+        }
+    }
+
+    Ok(Redirect::to(&format!("/orgs/{}", slug)).into_response())
+}
+
+async fn accept_join_request(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path((slug, member_id)): Path<(String, String)>,
+) -> Result<Response, Error> {
+    let model = OrganizationModel::new();
+    let organization = model.get_by_slug(&slug).await?;
+
+    // Verify user is owner/admin
+    let user_role = model
+        .get_member_role(&organization.id.to_raw_string(), &user.id)
+        .await?;
+    match user_role.as_deref() {
+        Some("owner") | Some("admin") => {}
+        _ => return Err(Error::Forbidden),
+    }
+
+    model.accept_join_request(&member_id).await?;
+
+    // Clean up join request notifications for all admins/owners
+    let membership_model = crate::models::membership::MembershipModel::new();
+    if let Ok(Some(membership)) = membership_model.find_by_id(&member_id).await {
+        let related_id = format!(
+            "join_request:{}:{}",
+            membership.person_id.to_raw_string(),
+            organization.id.to_raw_string()
+        );
+        let notification_model = crate::models::notification::NotificationModel::new();
+        let _ = notification_model
+            .delete_by_related(&related_id, "join_request")
+            .await;
+    }
+
+    Ok(Redirect::to(&format!("/orgs/{}", slug)).into_response())
+}
+
+async fn reject_join_request(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path((slug, member_id)): Path<(String, String)>,
+) -> Result<Response, Error> {
+    let model = OrganizationModel::new();
+    let organization = model.get_by_slug(&slug).await?;
+
+    // Verify user is owner/admin
+    let user_role = model
+        .get_member_role(&organization.id.to_raw_string(), &user.id)
+        .await?;
+    match user_role.as_deref() {
+        Some("owner") | Some("admin") => {}
+        _ => return Err(Error::Forbidden),
+    }
+
+    // Clean up join request notifications before deleting membership
+    let membership_model = crate::models::membership::MembershipModel::new();
+    if let Ok(Some(membership)) = membership_model.find_by_id(&member_id).await {
+        let related_id = format!(
+            "join_request:{}:{}",
+            membership.person_id.to_raw_string(),
+            organization.id.to_raw_string()
+        );
+        let notification_model = crate::models::notification::NotificationModel::new();
+        let _ = notification_model
+            .delete_by_related(&related_id, "join_request")
+            .await;
+    }
+
+    model.reject_join_request(&member_id).await?;
+
+    Ok(Redirect::to(&format!("/orgs/{}", slug)).into_response())
 }
 
 #[derive(Debug, Deserialize)]

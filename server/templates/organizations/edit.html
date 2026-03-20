@@ -118,6 +118,14 @@
                 </label>
                 <small>If checked, anyone can view your organization's profile.</small>
             </div>
+
+            <div data-field="allow-join-requests">
+                <label for="input-allow-join-requests">
+                    <input id="input-allow-join-requests" name="allow_join_requests" type="checkbox" value="on" {% if organization.allow_join_requests %}checked{% endif %} />
+                    Allow membership requests
+                </label>
+                <small>If checked, SlateHub members can request to join your organization. Owners and admins can approve or reject requests.</small>
+            </div>
         </fieldset>
 
         <div data-role="form-actions">
