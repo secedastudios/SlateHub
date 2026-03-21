@@ -8,7 +8,6 @@
 
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/auth.css?v={{ version }}" />
-<meta http-equiv="refresh" content="0;url={{ redirect_url }}" />
 {% endblock %}
 
 {% block content %}
@@ -20,8 +19,8 @@
         <h1>You're invited!</h1>
         <p>You've been invited to join <strong>{{ target_name }}</strong>{% if let Some(roles) = production_roles %} as <strong>{{ roles.join(", ") }}</strong>{% endif %}.</p>
     </header>
-    <p style="margin-top:1rem;color:var(--color-text-secondary,#9a9b8f);">Redirecting...</p>
-    <p><a href="{{ redirect_url }}">Click here if you're not redirected</a></p>
+    <p style="margin-top:1.5rem;">
+        <a href="{{ redirect_url }}" style="display:inline-block;padding:0.6rem 1.5rem;background:var(--color-accent,#eb5437);color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Accept Invitation</a>
+    </p>
 </div>
-<script>window.location.href = "{{ redirect_url }}";</script>
 {% endblock %}
