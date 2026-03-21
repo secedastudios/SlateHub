@@ -24,7 +24,7 @@ static USERNAME_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z0-9._]+
 
 const RESERVED_USERNAMES: &[&str] = &[
     "about", "account", "admin", "api", "auth", "contact", "dashboard", "delete",
-    "equipment", "feedback", "get-verified", "health", "help", "home", "invitations",
+    "equipment", "feedback", "get-verified", "health", "healthcheck", "help", "home", "i", "invitations",
     "likes", "locations", "login", "logout", "messages", "my-orgs", "notifications",
     "org", "orgs", "people", "privacy", "productions", "profile", "project", "projects",
     "qr", "resend-verification", "search", "settings", "signup", "static", "stats",

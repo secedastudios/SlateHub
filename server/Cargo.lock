@@ -6194,7 +6194,7 @@ checksum = "7a2ae44ef20feb57a68b23d846850f861394c2e02dc425a50098ae8c90267589"
 
 [[package]]
 name = "slatehub"
-version = "0.1.0"
+version = "1.1.1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6230,6 +6230,7 @@ dependencies = [
  "serial_test",
  "surrealdb",
  "surrealdb-types",
+ "sysinfo 0.35.2",
  "thiserror 2.0.18",
  "tiny-skia",
  "tokio",
@@ -6546,7 +6547,7 @@ dependencies = [
  "subtle",
  "surrealdb-protocol",
  "surrealdb-types",
- "sysinfo",
+ "sysinfo 0.37.2",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
@@ -6678,6 +6679,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.35.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c3ffa3e4ff2b324a57f7aeb3c349656c7b127c3c189520251a648102a92496e"
+dependencies = [
+ "libc",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "windows",
 ]
 
 [[package]]

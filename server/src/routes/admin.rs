@@ -55,6 +55,7 @@ struct AdminDashboardTemplate {
     user: Option<User>,
     stats: AdminStats,
     embedding_rebuild_in_progress: bool,
+    build_info: String,
 }
 
 struct AdminStats {
@@ -226,6 +227,7 @@ async fn dashboard(
         user: base.user,
         stats,
         embedding_rebuild_in_progress: REBUILD_IN_PROGRESS.load(Ordering::Relaxed),
+        build_info: crate::version::build_info(),
     };
 
     Ok(Html(template.render().map_err(|e| {

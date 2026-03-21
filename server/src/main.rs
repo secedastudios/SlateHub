@@ -153,6 +153,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // Start system stats tracking
+    slatehub::stats::init();
+
     // Start live notification stream
     info!("Starting notification live stream");
     slatehub::services::notification_stream::init().await;

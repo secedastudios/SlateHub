@@ -20,6 +20,7 @@ pub fn router() -> Router {
         .route("/terms", get(terms))
         .route("/privacy", get(privacy))
         .route("/impressum", get(impressum))
+        .route("/healthcheck", get(healthcheck))
         .route("/robots.txt", get(robots_txt))
         .route("/llms.txt", get(llms_txt))
         .route("/sitemap.xml", get(sitemap_xml))
@@ -447,4 +448,52 @@ async fn sitemap_xml() -> Response {
         xml,
     )
         .into_response()
+}
+
+async fn healthcheck() -> impl IntoResponse {
+    use crate::{version, stats};
+
+    // Check DB
+    let db_ok = crate::db::DB
+        .query("RETURN true")
+        .await
+        .is_ok();
+
+    // Check S3
+    let s3_ok = match crate::services::s3::s3() {
+        Ok(s3) => s3.file_exists("_healthcheck").await.is_ok(),
+        Err(_) => false,
+    };
+
+    let all_ok = db_ok && s3_ok;
+    let system_stats = stats::get_stats().await;
+
+    let body = serde_json::json!({
+        "status": if all_ok { "ok" } else { "degraded" },
+        "version": version::full_version(),
+        "build_number": version::BUILD_NUMBER,
+        "git_hash": version::GIT_HASH,
+        "git_branch": version::GIT_BRANCH,
+        "build_timestamp": version::BUILD_TIMESTAMP,
+        "build_info": version::build_info(),
+        "checks": {
+            "database": if db_ok { "ok" } else { "error" },
+            "s3": if s3_ok { "ok" } else { "error" },
+        },
+        "stats": system_stats,
+    });
+
+    let status = if all_ok {
+        axum::http::StatusCode::OK
+    } else {
+        axum::http::StatusCode::SERVICE_UNAVAILABLE
+    };
+
+    let pretty = serde_json::to_string_pretty(&body).unwrap_or_default();
+
+    (
+        status,
+        [(axum::http::header::CONTENT_TYPE, "application/json")],
+        pretty,
+    )
 }
