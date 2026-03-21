@@ -235,24 +235,43 @@ async fn user_profile(
         involvements: {
             let pid = profile_user.id.to_raw_string();
             match InvolvementModel::get_for_person(&pid).await {
-                Ok(invs) => invs
-                    .into_iter()
-                    .map(|inv| InvolvementDisplay {
-                        involvement_id: inv.id.to_raw_string(),
-                        role: inv.role,
-                        relation_type: inv.relation_type,
-                        department: inv.department,
-                        verification_status: inv.verification_status,
-                        production_title: inv.production_title,
-                        production_slug: inv.production_slug,
-                        production_type: inv.production_type,
-                        poster_url: inv.poster_url,
-                        tmdb_url: inv.tmdb_url,
-                        release_date: inv.release_date,
-                        media_type: inv.media_type,
-                        is_claimed: inv.is_claimed,
-                    })
-                    .collect(),
+                Ok(invs) => {
+                    // Group by production_slug to merge multiple roles into one entry
+                    let mut result: Vec<InvolvementDisplay> = Vec::new();
+                    for inv in invs {
+                        if let Some(existing) = result.iter_mut().find(|d| d.production_slug == inv.production_slug) {
+                            if let Some(new_role) = &inv.role {
+                                if let Some(ref mut existing_role) = existing.role {
+                                    let mut roles: Vec<&str> = existing_role.split(", ").collect();
+                                    if !roles.contains(&new_role.as_str()) {
+                                        roles.push(new_role);
+                                        roles.sort_unstable_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+                                        *existing_role = roles.join(", ");
+                                    }
+                                } else {
+                                    existing.role = Some(new_role.clone());
+                                }
+                            }
+                        } else {
+                            result.push(InvolvementDisplay {
+                                involvement_id: inv.id.to_raw_string(),
+                                role: inv.role,
+                                relation_type: inv.relation_type,
+                                department: inv.department,
+                                verification_status: inv.verification_status,
+                                production_title: inv.production_title,
+                                production_slug: inv.production_slug,
+                                production_type: inv.production_type,
+                                poster_url: inv.poster_url,
+                                tmdb_url: inv.tmdb_url,
+                                release_date: inv.release_date,
+                                media_type: inv.media_type,
+                                is_claimed: inv.is_claimed,
+                            });
+                        }
+                    }
+                    result
+                }
                 Err(e) => {
                     error!("Failed to fetch involvements for {}: {}", username, e);
                     vec![]
