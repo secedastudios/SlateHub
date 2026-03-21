@@ -244,7 +244,7 @@ impl PendingInvitationModel {
 
         // Raw query first to check if record exists
         let exists: Option<serde_json::Value> = DB
-            .query("SELECT <string> id AS id, token, status, target_slug FROM pending_invitation WHERE token = $inv_token AND status = 'pending' LIMIT 1")
+            .query("SELECT <string> id AS id, `token`, status, target_slug FROM pending_invitation WHERE `token` = $inv_token AND status = 'pending' LIMIT 1")
             .bind(("inv_token", token.to_string()))
             .await?
             .take(0)?;
@@ -252,7 +252,7 @@ impl PendingInvitationModel {
 
         // Full deserialization
         let result: Option<PendingInvitation> = match DB
-            .query("SELECT * FROM pending_invitation WHERE token = $inv_token AND status = 'pending' LIMIT 1")
+            .query("SELECT * FROM pending_invitation WHERE `token` = $inv_token AND status = 'pending' LIMIT 1")
             .bind(("inv_token", token.to_string()))
             .await
         {
