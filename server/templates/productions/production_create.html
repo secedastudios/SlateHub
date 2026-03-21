@@ -1,145 +1,171 @@
 {% extends "_layout.html" %}
-{% block title %}Create Production - {{ app_name }}{% endblock %}
-{% block page_name %}productions{% endblock %}
+{% block title %}
+    Create Production -
+    {{ app_name }}
+{% endblock %}
+{% block page_name %}
+    productions
+{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
+    <link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
-<section id="prod-form-page">
-
-    <header class="prod-page-header">
-        <h1>Create New Production</h1>
-        <p>Start a new film or media production and build your team</p>
-    </header>
-
-    {% if errors.is_some() %}
-    <div role="alert">
-        <h2>Please correct the following errors:</h2>
-        <ul>
-            {% for error in errors.as_ref().unwrap() %}
-            <li>{{ error }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-
-    <form method="post" action="/productions/new">
-
-        <fieldset>
-            <legend>Basic Information</legend>
-
-            <div data-field="title">
-                <label for="input-title">Production Title <span aria-label="required">*</span></label>
-                <input type="text" id="input-title" name="title" required placeholder="Enter the production title" />
-                <small>Choose a clear, descriptive title for your production</small>
-            </div>
-
-            <div data-field="production-type">
-                <label for="select-production-type">Production Type <span aria-label="required">*</span></label>
-                <select id="select-production-type" name="production_type" required>
-                    <option value="">-- Select Type --</option>
-                    {% for prod_type in production_types %}
-                    <option value="{{ prod_type }}">{{ prod_type }}</option>
+    <section id="prod-form-page">
+        <header class="prod-page-header">
+            <h1>Create New Production</h1>
+            <p>
+                Start a new film or media production and build your team
+            </p>
+        </header>
+        {% if errors.is_some() %}
+            <div role="alert">
+                <h2>Please correct the following errors:</h2>
+                <ul>
+                    {% for error in errors.as_ref().unwrap() %}
+                        <li>{{ error }}</li>
                     {% endfor %}
-                </select>
-                <small>Select the type that best describes your production</small>
+                </ul>
             </div>
-
-            <div data-field="status">
-                <label for="select-status">Production Status <span aria-label="required">*</span></label>
-                <select id="select-status" name="status" required>
-                    <option value="">-- Select Status --</option>
-                    {% for status in production_statuses %}
-                    <option value="{{ status }}">{{ status }}</option>
-                    {% endfor %}
-                </select>
-                <small>Current phase of the production</small>
-            </div>
-        </fieldset>
-
-        <fieldset>
-            <legend>Production Details</legend>
-
-            <div data-field="description">
-                <label for="textarea-description">Description</label>
-                <textarea id="textarea-description" name="description" rows="6"
-                          placeholder="Describe your production, its goals, and what makes it unique..."></textarea>
-                <small>Provide details about the production to attract the right collaborators</small>
-            </div>
-
-            <div data-field="location">
-                <label for="input-location">Location</label>
-                <input type="text" id="input-location" name="location" placeholder="e.g., Los Angeles, CA" />
-                <small>Primary filming or production location</small>
-            </div>
-        </fieldset>
-
-        <fieldset>
-            <legend>Schedule</legend>
-
-            <div data-field="start-date">
-                <label for="input-start-date">Start Date</label>
-                <input type="date" id="input-start-date" name="start_date" />
-                <small>When production is expected to begin</small>
-            </div>
-
-            <div data-field="end-date">
-                <label for="input-end-date">End Date</label>
-                <input type="date" id="input-end-date" name="end_date" />
-                <small>Expected completion date</small>
-            </div>
-        </fieldset>
-
-        <fieldset>
-            <legend>Ownership</legend>
-
-            <div data-field="create-as">
-                <label for="select-create-as">Create Under</label>
-                <select id="select-create-as" name="organization_id" onchange="toggleOwnerRoles()">
-                    <option value="">Myself</option>
-                    {% for org in user_organizations %}
-                    <option value="{{ org.id }}">{{ org.name }} ({{ org.role }})</option>
-                    {% endfor %}
-                </select>
-                <small>Choose whether to create this production as yourself or on behalf of an organization</small>
-            </div>
-
-            <div data-field="owner-role">
-                <label>Production Roles</label>
-                <div class="role-picker" id="owner-role-picker" data-field-name="owner_production_role">
-                    <div class="role-picker-tags" id="owner-role-tags"></div>
-                    <div class="role-picker-input">
-                        <select id="owner-role-select-person">
-                            <option value="">-- Select Role --</option>
-                            {% for r in production_roles %}
-                            <option value="{{ r }}">{{ r }}</option>
-                            {% endfor %}
-                        </select>
-                        <select id="owner-role-select-org" style="display:none;">
-                            <option value="">-- Select Role --</option>
-                            {% for r in org_production_roles %}
-                            <option value="{{ r }}">{{ r }}</option>
-                            {% endfor %}
-                        </select>
-                        <button type="button" class="role-picker-add" onclick="addRoleFromSelect('owner-role-picker')">Add</button>
-                    </div>
-                    <div class="role-picker-custom">
-                        <input type="text" id="owner-role-custom" placeholder="Or type a custom role..." />
-                        <button type="button" class="role-picker-add-custom" onclick="addCustomRole('owner-role-picker', 'owner-role-custom')">Add Custom</button>
-                    </div>
+        {% endif %}
+        <form method="post" action="/productions/new" enctype="multipart/form-data">
+            <fieldset>
+                <legend>Poster Image</legend>
+                <div data-field="poster">
+                    <label for="input-poster">Upload Poster</label>
+                    <input type="file" id="input-poster" name="poster" accept="image/*" />
+                    <small>
+                        Optional. Upload a poster image for your production.
+                    </small>
                 </div>
-                <small>Your roles on this production (e.g. Director, Producer)</small>
+            </fieldset>
+            <fieldset>
+                <legend>Basic Information</legend>
+                <div data-field="title">
+                    <label for="input-title">
+                        Production Title
+                        <span aria-label="required">*</span>
+                    </label>
+                    <input type="text" id="input-title" name="title" required placeholder="Enter the production title" />
+                    <small>
+                        Choose a clear, descriptive title for your production
+                    </small>
+                </div>
+                <div data-field="production-type">
+                    <label for="select-production-type">
+                        Production Type
+                        <span aria-label="required">*</span>
+                    </label>
+                    <select id="select-production-type" name="production_type" required>
+                        <option value="">-- Select Type --</option>
+                        {% for prod_type in production_types %}
+                            <option value="{{ prod_type }}">{{ prod_type }}</option>
+                        {% endfor %}
+                    </select>
+                    <small>
+                        Select the type that best describes your production
+                    </small>
+                </div>
+                <div data-field="status">
+                    <label for="select-status">
+                        Production Status
+                        <span aria-label="required">*</span>
+                    </label>
+                    <select id="select-status" name="status" required>
+                        <option value="">-- Select Status --</option>
+                        {% for status in production_statuses %}
+                            <option value="{{ status }}">{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                    <small>Current phase of the production</small>
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>Production Details</legend>
+                <div data-field="description">
+                    <label for="textarea-description">Description</label>
+                    <textarea id="textarea-description" name="description" rows="6"
+                          placeholder="Describe your production, its goals, and what makes it unique...">
+                    </textarea>
+                    <small>
+                        Provide details about the production to attract the right collaborators
+                    </small>
+                </div>
+                <div data-field="location">
+                    <label for="input-location">Location</label>
+                    <input type="text" id="input-location" name="location" placeholder="e.g., Los Angeles, CA" />
+                    <small>Primary filming or production location</small>
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>Schedule</legend>
+                <div data-field="start-date">
+                    <label for="input-start-date">Start Date</label>
+                    <input type="date" id="input-start-date" name="start_date" />
+                    <small>When production is expected to begin</small>
+                </div>
+                <div data-field="end-date">
+                    <label for="input-end-date">End Date</label>
+                    <input type="date" id="input-end-date" name="end_date" />
+                    <small>Expected completion date</small>
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>Ownership</legend>
+                <div data-field="create-as">
+                    <label for="select-create-as">Create Under</label>
+                    <select id="select-create-as" name="organization_id" onchange="toggleOwnerRoles()">
+                        <option value="">Myself</option>
+                        {% for org in user_organizations %}
+                            <option value="{{ org.id }}">
+                                {{ org.name }}
+                                (
+                                {{ org.role }}
+                                )
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <small>
+                        Choose whether to create this production as yourself or
+                        on behalf of an organization
+                    </small>
+                </div>
+                <div data-field="owner-role">
+                    <label>Production Roles</label>
+                    <div class="role-picker" id="owner-role-picker" data-field-name="owner_production_role">
+                        <div class="role-picker-tags" id="owner-role-tags">
+                        </div>
+                        <div class="role-picker-input">
+                            <select id="owner-role-select-person">
+                                <option value="">-- Select Role --</option>
+                                {% for r in production_roles %}
+                                    <option value="{{ r }}">{{ r }}</option>
+                                {% endfor %}
+                            </select>
+                            <select id="owner-role-select-org" style="display:none;">
+                                <option value="">-- Select Role --</option>
+                                {% for r in org_production_roles %}
+                                    <option value="{{ r }}">{{ r }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="role-picker-add" onclick="addRoleFromSelect('owner-role-picker')">Add</button>
+                        </div>
+                        <div class="role-picker-custom">
+                            <input type="text" id="owner-role-custom" placeholder="Or type a custom role..." />
+                            <button type="button" class="role-picker-add-custom" onclick="addCustomRole('owner-role-picker', 'owner-role-custom')">Add Custom</button>
+                        </div>
+                    </div>
+                    <small>
+                        Your roles on this production (e.g. Director, Producer)
+                    </small>
+                </div>
+            </fieldset>
+            <div data-role="form-actions">
+                <a href="/productions" class="prod-btn-outline">Cancel</a>
+                <button type="submit" class="prod-btn-primary">Create Production</button>
             </div>
-        </fieldset>
-
-        <div data-role="form-actions">
-            <a href="/productions" class="prod-btn-outline">Cancel</a>
-            <button type="submit" class="prod-btn-primary">Create Production</button>
-        </div>
-    </form>
-</section>
-
-<script>
+        </form>
+    </section>
+    <script>
 document.getElementById('input-end-date').addEventListener('change', function() {
     const s = document.getElementById('input-start-date').value;
     if (s && this.value && this.value < s) {

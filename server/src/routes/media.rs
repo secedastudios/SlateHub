@@ -1180,7 +1180,7 @@ const POSTER_HEIGHT: u32 = 900;
 const POSTER_THUMB_WIDTH: u32 = 200;
 const POSTER_THUMB_HEIGHT: u32 = 300;
 
-fn process_poster(image_data: &[u8]) -> Result<(Bytes, Bytes), Error> {
+pub fn process_poster(image_data: &[u8]) -> Result<(Bytes, Bytes), Error> {
     let img = image::load_from_memory(image_data)
         .map_err(|e| Error::bad_request(format!("Invalid image file: {}", e)))?;
 

@@ -472,35 +472,81 @@ async fn new_production_form(
     Ok(Html(html))
 }
 
-/// Create a new production
+/// Create a new production (multipart form for poster upload)
 #[axum::debug_handler]
 async fn create_production(
     AuthenticatedUser(user): AuthenticatedUser,
-    HtmlForm(data): HtmlForm<CreateProductionForm>,
+    mut multipart: Multipart,
 ) -> Result<Response, Error> {
-    debug!("Creating new production: {}", data.title);
+    // Extract fields from multipart
+    let mut title = String::new();
+    let mut production_type = String::new();
+    let mut status = String::new();
+    let mut start_date: Option<String> = None;
+    let mut end_date: Option<String> = None;
+    let mut description: Option<String> = None;
+    let mut location: Option<String> = None;
+    let mut organization_id: Option<String> = None;
+    let mut owner_production_role: Vec<String> = Vec::new();
+    let mut budget_level: Option<String> = None;
+    let mut production_tier: Option<String> = None;
+    let mut poster_data: Option<Vec<u8>> = None;
 
-    // Validate form data
-    if data.title.is_empty() {
+    while let Some(field) = multipart.next_field().await.map_err(|e| Error::BadRequest(e.to_string()))? {
+        let name = field.name().unwrap_or("").to_string();
+        match name.as_str() {
+            "poster" => {
+                if let Ok(bytes) = field.bytes().await {
+                    if !bytes.is_empty() {
+                        poster_data = Some(bytes.to_vec());
+                    }
+                }
+            }
+            _ => {
+                let value = field.text().await.unwrap_or_default();
+                match name.as_str() {
+                    "title" => title = value,
+                    "production_type" => production_type = value,
+                    "status" => status = value,
+                    "start_date" => start_date = Some(value).filter(|s| !s.is_empty()),
+                    "end_date" => end_date = Some(value).filter(|s| !s.is_empty()),
+                    "description" => description = Some(value).filter(|s| !s.is_empty()),
+                    "location" => location = Some(value).filter(|s| !s.is_empty()),
+                    "organization_id" => organization_id = Some(value).filter(|s| !s.is_empty()),
+                    "owner_production_role" => {
+                        let v = value.trim().to_string();
+                        if !v.is_empty() {
+                            owner_production_role.push(v);
+                        }
+                    }
+                    "budget_level" => budget_level = Some(value).filter(|s| !s.is_empty()),
+                    "production_tier" => production_tier = Some(value).filter(|s| !s.is_empty()),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    debug!("Creating new production: {}", title);
+
+    if title.is_empty() {
         return Err(Error::Validation("Title is required".to_string()));
     }
 
-    // Create production data
     let production_data = CreateProductionData {
-        title: data.title,
-        production_type: data.production_type,
-        status: data.status,
-        start_date: data.start_date.filter(|s| !s.is_empty()),
-        end_date: data.end_date.filter(|s| !s.is_empty()),
-        description: data.description.filter(|s| !s.is_empty()),
-        location: data.location.filter(|s| !s.is_empty()),
-        budget_level: data.budget_level.filter(|s| !s.is_empty()),
-        production_tier: data.production_tier.filter(|s| !s.is_empty()),
+        title,
+        production_type,
+        status,
+        start_date,
+        end_date,
+        description,
+        location,
+        budget_level,
+        production_tier,
     };
 
-    // Determine creator type (check if creating as organization)
-    let (creator_id, creator_type) = if let Some(org_id) = data.organization_id.filter(|s| !s.is_empty()) {
-        // Verify user has permission to create for this organization (must be owner or admin)
+    // Determine creator type
+    let (creator_id, creator_type) = if let Some(org_id) = organization_id {
         let org_model = crate::models::organization::OrganizationModel::new();
         let role = org_model.get_member_role(&org_id, &user.id).await?;
         match role.as_deref() {
@@ -512,14 +558,8 @@ async fn create_production(
         (user.id.clone(), "person")
     };
 
-    // Resolve owner production roles
-    let owner_roles: Vec<String> = data.owner_production_role.iter()
-        .map(|r| r.trim().to_string())
-        .filter(|r| !r.is_empty())
-        .collect();
-    let owner_production_roles = if owner_roles.is_empty() { None } else { Some(owner_roles) };
+    let owner_production_roles = if owner_production_role.is_empty() { None } else { Some(owner_production_role) };
 
-    // Create the production
     let production = ProductionModel::create(production_data, &creator_id, creator_type, owner_production_roles).await?;
 
     info!(
@@ -527,8 +567,42 @@ async fn create_production(
         production.title, production.id.display()
     );
 
-    // Redirect to the new production page
+    // Upload poster if provided
+    if let Some(image_bytes) = poster_data {
+        let prod_id = production.id.key_string();
+        if let Err(e) = upload_poster_for_production(&prod_id, &image_bytes).await {
+            error!("Failed to upload poster for new production: {}", e);
+            // Don't fail the creation — production is already created
+        }
+    }
+
     Ok(Redirect::to(&format!("/productions/{}", production.slug)).into_response())
+}
+
+/// Upload a poster image for a production (used during creation)
+async fn upload_poster_for_production(production_id: &str, image_bytes: &[u8]) -> Result<(), Error> {
+    use crate::services::s3::s3;
+
+    let (processed, thumbnail) = crate::routes::media::process_poster(image_bytes)?;
+
+    let image_id = ulid::Ulid::new().to_string();
+    let main_key = format!("productions/{}/poster_{}.jpg", production_id, image_id);
+    let thumb_key = format!("productions/{}/poster_thumb_{}.jpg", production_id, image_id);
+
+    let s3_service = s3()?;
+    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
+    s3_service.upload_file(&thumb_key, thumbnail, "image/jpeg").await?;
+
+    let main_url = format!("/api/media/{}", main_key);
+
+    let prod_rid = surrealdb::types::RecordId::new("production", production_id);
+    crate::db::DB
+        .query("UPDATE $id SET poster_photo = $url")
+        .bind(("id", prod_rid))
+        .bind(("url", main_url))
+        .await?;
+
+    Ok(())
 }
 
 /// Show form to edit a production
@@ -891,22 +965,6 @@ async fn update_member_roles(
 }
 
 // Form structures
-
-#[derive(Debug, Deserialize)]
-struct CreateProductionForm {
-    title: String,
-    production_type: String,
-    status: String,
-    start_date: Option<String>,
-    end_date: Option<String>,
-    description: Option<String>,
-    location: Option<String>,
-    organization_id: Option<String>,
-    #[serde(default)]
-    owner_production_role: Vec<String>,
-    budget_level: Option<String>,
-    production_tier: Option<String>,
-}
 
 #[derive(Debug, Deserialize)]
 struct UpdateProductionForm {
