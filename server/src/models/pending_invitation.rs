@@ -78,7 +78,7 @@ impl PendingInvitationModel {
                     role: $role,
                     invited_by: $invited_by,
                     status: 'pending',
-                    token: $invite_token
+                    token: $invite_code
                 }",
             )
             .bind(("email", email.to_string()))
@@ -88,7 +88,7 @@ impl PendingInvitationModel {
             .bind(("target_slug", target_slug.to_string()))
             .bind(("role", role.to_string()))
             .bind(("invited_by", invited_by))
-            .bind(("invite_token", generate_invite_token()))
+            .bind(("invite_code", generate_invite_token()))
             .await?
             .take(0)?;
 
@@ -154,7 +154,7 @@ impl PendingInvitationModel {
                     invited_by: $invited_by,
                     status: 'pending',
                     production_roles: $production_roles,
-                    token: $invite_token
+                    token: $invite_code
                 }",
             )
             .bind(("email", email.to_string()))
@@ -164,7 +164,7 @@ impl PendingInvitationModel {
             .bind(("role", role.to_string()))
             .bind(("invited_by", invited_by))
             .bind(("production_roles", production_roles.map(|s| s.to_vec())))
-            .bind(("invite_token", generate_invite_token()))
+            .bind(("invite_code", generate_invite_token()))
             .await?
             .take(0)?;
 
@@ -219,7 +219,7 @@ impl PendingInvitationModel {
                     invited_by: $invited_by,
                     status: 'pending',
                     production_roles: $production_roles,
-                    token: $invite_token
+                    token: $invite_code
                 }",
             )
             .bind(("target_id", target_id.to_string()))
@@ -228,7 +228,7 @@ impl PendingInvitationModel {
             .bind(("role", role.to_string()))
             .bind(("invited_by", invited_by))
             .bind(("production_roles", production_roles.map(|s| s.to_vec())))
-            .bind(("invite_token", generate_invite_token()))
+            .bind(("invite_code", generate_invite_token()))
             .await?
             .take(0)?;
 
@@ -244,16 +244,16 @@ impl PendingInvitationModel {
 
         // Raw query first to check if record exists
         let exists: Option<serde_json::Value> = DB
-            .query("SELECT <string> id AS id, `token`, status, target_slug FROM pending_invitation WHERE `token` = $inv_token AND status = 'pending' LIMIT 1")
-            .bind(("inv_token", token.to_string()))
+            .query("SELECT <string> id AS id, token, status, target_slug FROM pending_invitation WHERE token = $code AND status = 'pending' LIMIT 1")
+            .bind(("code", token.to_string()))
             .await?
             .take(0)?;
         tracing::warn!("INVITE_LOOKUP raw={:?}", exists);
 
         // Full deserialization
         let result: Option<PendingInvitation> = match DB
-            .query("SELECT * FROM pending_invitation WHERE `token` = $inv_token AND status = 'pending' LIMIT 1")
-            .bind(("inv_token", token.to_string()))
+            .query("SELECT * FROM pending_invitation WHERE token = $code AND status = 'pending' LIMIT 1")
+            .bind(("code", token.to_string()))
             .await
         {
             Ok(mut response) => {

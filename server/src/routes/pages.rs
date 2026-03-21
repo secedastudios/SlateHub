@@ -21,6 +21,7 @@ pub fn router() -> Router {
         .route("/privacy", get(privacy))
         .route("/impressum", get(impressum))
         .route("/healthcheck", get(healthcheck))
+        .route("/debug/invite-check/{code}", get(debug_invite_check))
         .route("/robots.txt", get(robots_txt))
         .route("/llms.txt", get(llms_txt))
         .route("/sitemap.xml", get(sitemap_xml))
@@ -509,5 +510,55 @@ async fn healthcheck() -> impl IntoResponse {
         status,
         [(axum::http::header::CONTENT_TYPE, "application/json")],
         pretty,
+    )
+}
+
+async fn debug_invite_check(
+    axum::extract::Path(code): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let mut results = Vec::new();
+
+    // Query 1: count
+    match DB.query("SELECT count() AS cnt FROM pending_invitation GROUP ALL").await {
+        Ok(mut r) => {
+            let v: Result<Option<serde_json::Value>, _> = r.take(0);
+            results.push(format!("count: {:?}", v));
+        }
+        Err(e) => results.push(format!("count_err: {}", e)),
+    }
+
+    // Query 2: all tokens (format into query to avoid deser issues)
+    match DB.query("SELECT <string> token AS t, status, target_slug FROM pending_invitation").await {
+        Ok(mut r) => {
+            let v: Result<Vec<serde_json::Value>, _> = r.take(0);
+            results.push(format!("all: {:?}", v));
+        }
+        Err(e) => results.push(format!("all_err: {}", e)),
+    }
+
+    // Query 3: with bind param
+    match DB.query("SELECT <string> token AS t, status FROM pending_invitation WHERE token = $code AND status = 'pending' LIMIT 1")
+        .bind(("code", code.clone()))
+        .await
+    {
+        Ok(mut r) => {
+            let v: Result<Option<serde_json::Value>, _> = r.take(0);
+            results.push(format!("bind: {:?}", v));
+        }
+        Err(e) => results.push(format!("bind_err: {}", e)),
+    }
+
+    // Query 4: hardcoded
+    match DB.query(&format!("SELECT <string> token AS t, status FROM pending_invitation WHERE token = '{}' AND status = 'pending' LIMIT 1", code)).await {
+        Ok(mut r) => {
+            let v: Result<Option<serde_json::Value>, _> = r.take(0);
+            results.push(format!("hardcoded: {:?}", v));
+        }
+        Err(e) => results.push(format!("hardcoded_err: {}", e)),
+    }
+
+    (
+        [(axum::http::header::CONTENT_TYPE, "text/plain")],
+        results.join("\n"),
     )
 }
