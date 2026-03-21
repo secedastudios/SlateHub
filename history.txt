@@ -55,3 +55,7 @@ SELECT <string> in AS pid, <string> out AS oid, role, invitation_status FROM mem
 DELETE member_of WHERE invitation_status = 'requested'; DELETE notification WHERE notification_type = 'join_request';
 DELETE member_of WHERE invitation_status = 'requested';
 CREATE notification SET person_id = person:5qiocmvxv2mkcnp8zq2k, notification_type = 'join_request', title = 'Live test', message = 'Testing live', link = '/orgs/seceda', related_id = 'test_live', read = false;
+SELECT <string> in AS pid, in.profile.avatar AS avatar FROM member_of WHERE out = organization:2skvqac85x0ebezpjvs6 AND role = 'owner' LIMIT 1;
+SELECT <string> in.id as id, in.name as name, in.username as username, IF type::table(in) = 'person' THEN in.profile.avatar ELSE in.logo END as avatar FROM member_of WHERE out = organization:2skvqac85x0ebezpjvs6 LIMIT 5;
+SELECT <string> type::table(in) AS tbl, in.profile.avatar AS direct_avatar FROM member_of WHERE out = organization:2skvqac85x0ebezpjvs6 LIMIT 5;
+SELECT IF <string> type::table(in) = 'person' THEN in.profile.avatar ELSE in.logo END as avatar FROM member_of WHERE out = organization:2skvqac85x0ebezpjvs6 LIMIT 5;

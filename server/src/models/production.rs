@@ -136,6 +136,7 @@ pub struct ProductionMember {
     pub name: String,
     pub username: Option<String>,        // For persons
     pub slug: Option<String>,            // For organizations
+    pub avatar: Option<String>,          // Profile avatar URL
     pub role: String,                    // owner, admin, member (permission level)
     #[serde(default)]
     #[surreal(default)]
@@ -652,6 +653,7 @@ impl ProductionModel {
                 in.name as name,
                 in.username as username,
                 in.slug as slug,
+                IF <string> type::table(in) = 'person' THEN in.profile.avatar ELSE in.logo END as avatar,
                 role,
                 production_roles,
                 <string> type::table(in) as member_type,

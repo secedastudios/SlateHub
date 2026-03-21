@@ -221,6 +221,20 @@
                         <ul class="prod-members-list">
                             {% for member in production.person_members %}
                                 <li class="prod-member-item{% if member.invitation_status == "pending" %} prod-member-pending{% endif %}">
+                                    <div class="prod-member-avatar">
+                                        {% if member.username.is_some() %}
+                                        <a href="/{{ member.username.as_ref().unwrap() }}">
+                                        {% endif %}
+                                            {% match member.avatar %}
+                                                {% when Some with (url) %}
+                                                <img src="{{ url }}" alt="{{ member.name }}" />
+                                                {% when None %}
+                                                <img src="/api/avatar?id={{ member.name }}" alt="{{ member.name }}" />
+                                            {% endmatch %}
+                                        {% if member.username.is_some() %}
+                                        </a>
+                                        {% endif %}
+                                    </div>
                                     <div class="prod-member-info">
                                         {% if member.username.is_some() %}
                                             <a href="/{{ member.username.as_ref().unwrap() }}">

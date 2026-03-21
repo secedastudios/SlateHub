@@ -549,6 +549,7 @@ pub struct ProductionMemberView {
     pub name: String,
     pub username: Option<String>,
     pub slug: Option<String>,
+    pub avatar: Option<String>,
     pub role: String,
     pub production_roles: Option<Vec<String>>,
     pub member_type: String,

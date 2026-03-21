@@ -661,6 +661,19 @@ button.prod-btn-danger:hover:not(:disabled) {
 
 .prod-member-item:hover { border-color: rgba(214, 216, 202, 0.15); }
 
+.prod-member-avatar {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+}
+
+.prod-member-avatar img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
 .prod-member-info {
     display: flex;
     align-items: center;

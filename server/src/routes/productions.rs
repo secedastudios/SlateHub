@@ -341,8 +341,9 @@ async fn view_production(
                 .unwrap_or(&m.id)
                 .to_string(),
             name: m.name,
-            username: m.username,
+            username: m.username.clone(),
             slug: m.slug,
+            avatar: m.avatar,
             role: m.role,
             production_roles: m.production_roles,
             member_type: m.member_type.clone(),
@@ -686,8 +687,9 @@ async fn edit_production_form(
                         .unwrap_or(&m.id)
                         .to_string(),
                     name: m.name,
-                    username: m.username,
+                    username: m.username.clone(),
                     slug: m.slug,
+                    avatar: m.avatar,
                     role: m.role,
                     production_roles: m.production_roles,
                     member_type: m.member_type.clone(),
