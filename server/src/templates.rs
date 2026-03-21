@@ -254,6 +254,7 @@ pub struct InviteLandingTemplate {
     pub production_roles: Option<Vec<String>>,
     pub poster_url: Option<String>,
     pub redirect_url: String,
+    pub token: String,
 }
 
 /// Signup page template

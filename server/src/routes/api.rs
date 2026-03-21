@@ -62,6 +62,7 @@ pub fn router() -> Router {
         .route("/productions/search-sse", get(productions_search_sse))
         .route("/productions/select-sse", get(productions_select_sse))
         .route("/og/profile/{username}", get(og_profile_image))
+        .route("/og/invite/{code}", get(og_invite_image))
         .route("/qr/profile/{username}", get(qr_profile_image))
 }
 
@@ -1534,6 +1535,55 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("JPEG encode error: {}", e))?;
 
     Ok(buf.into_inner())
+}
+
+async fn og_invite_image(
+    Path(code): Path<String>,
+) -> Result<impl IntoResponse, (axum::http::StatusCode, String)> {
+    use crate::models::pending_invitation::PendingInvitationModel;
+
+    let pi_model = PendingInvitationModel::new();
+    let invite = pi_model
+        .find_by_token(&code)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, "Not found".to_string()))?;
+
+    // Fetch poster bytes if production invite
+    let poster_bytes: Option<Vec<u8>> = if invite.target_type == "production" {
+        use crate::models::production::ProductionModel;
+        if let Ok(prod) = ProductionModel::get_by_slug(&invite.target_slug).await {
+            let poster_url = prod.poster_photo.or(prod.poster_url);
+            if let Some(url) = poster_url {
+                let abs_url = if url.starts_with('/') {
+                    format!("{}{}", crate::config::app_url(), url)
+                } else {
+                    url
+                };
+                match reqwest::get(&abs_url).await {
+                    Ok(resp) => resp.bytes().await.ok().map(|b| b.to_vec()).filter(|b| !b.is_empty()),
+                    Err(_) => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let png_data = render_og_png(poster_bytes.as_deref())
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+    Ok((
+        [
+            (axum::http::header::CONTENT_TYPE, "image/jpeg"),
+            (axum::http::header::CACHE_CONTROL, "public, max-age=3600"),
+        ],
+        png_data,
+    ))
 }
 
 /// Generates a QR code PNG for a user's profile URL.

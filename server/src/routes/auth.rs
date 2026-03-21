@@ -688,6 +688,7 @@ async fn invite_link(
             production_roles: invite.production_roles.clone(),
             poster_url,
             redirect_url,
+            token: token.clone(),
         };
 
         let html = template.render().map_err(|e| {

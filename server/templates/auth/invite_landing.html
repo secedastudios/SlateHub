@@ -4,7 +4,7 @@
 
 {% block og_title %}You're invited to join {{ target_name }} on {{ app_name }}{% endblock %}
 {% block og_description %}{% if let Some(roles) = production_roles %}Join as {{ roles.join(", ") }}.{% else %}You've been invited to join the {{ target_type }} team.{% endif %} {{ app_name }} is the free platform where filmmakers, actors, and crew connect.{% endblock %}
-{% block og_image %}{% if let Some(url) = poster_url %}<meta property="og:image" content="{{ url|abs_url }}" />{% else %}<meta property="og:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
+{% block og_image %}<meta property="og:image" content="{{ "/api/og/invite/"|abs_url }}{{ token }}" />{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/auth.css?v={{ version }}" />
