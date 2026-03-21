@@ -242,11 +242,34 @@ impl PendingInvitationModel {
     ) -> Result<Option<PendingInvitation>, Error> {
         debug!("Finding pending invitation by token: {}", token);
 
-        let result: Option<PendingInvitation> = DB
-            .query("SELECT * FROM pending_invitation WHERE token = $inv_token AND status = 'pending' LIMIT 1")
+        // Raw query first to check if record exists
+        let exists: Option<serde_json::Value> = DB
+            .query("SELECT <string> id AS id, token, status, target_slug FROM pending_invitation WHERE token = $inv_token AND status = 'pending' LIMIT 1")
             .bind(("inv_token", token.to_string()))
             .await?
             .take(0)?;
+        tracing::warn!("INVITE_LOOKUP raw={:?}", exists);
+
+        // Full deserialization
+        let result: Option<PendingInvitation> = match DB
+            .query("SELECT * FROM pending_invitation WHERE token = $inv_token AND status = 'pending' LIMIT 1")
+            .bind(("inv_token", token.to_string()))
+            .await
+        {
+            Ok(mut response) => {
+                match response.take::<Option<PendingInvitation>>(0) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        tracing::warn!("INVITE_LOOKUP deser_fail token={} err={}", token, e);
+                        None
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("INVITE_LOOKUP query_fail token={} err={}", token, e);
+                return Err(Error::Database(e.to_string()));
+            }
+        };
 
         Ok(result)
     }

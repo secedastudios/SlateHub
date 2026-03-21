@@ -10,7 +10,7 @@ use serde::Deserialize;
 
 use std::env;
 
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     error::Error,
@@ -608,11 +608,18 @@ async fn invite_link(
     use crate::models::pending_invitation::PendingInvitationModel;
     use crate::templates::InviteLandingTemplate;
 
+    warn!("INVITE_LINK token={}", token);
     let pi_model = PendingInvitationModel::new();
-    let invite = pi_model
-        .find_by_token(&token)
-        .await?
-        .ok_or(Error::NotFound)?;
+    let invite = match pi_model.find_by_token(&token).await? {
+        Some(inv) => {
+            warn!("INVITE_LINK found target={}", inv.target_slug);
+            inv
+        }
+        None => {
+            warn!("INVITE_LINK not_found token={}", token);
+            return Err(Error::NotFound);
+        }
+    };
 
     let user_opt = request.get_user();
 
