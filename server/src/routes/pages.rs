@@ -465,20 +465,34 @@ async fn healthcheck() -> impl IntoResponse {
         Err(_) => false,
     };
 
-    let all_ok = db_ok && s3_ok;
+    let disk_low = stats::disk_space_low();
+    let all_ok = db_ok && s3_ok && !disk_low;
     let system_stats = stats::get_stats().await;
+
+    // Get binary file size
+    let binary_size = std::env::current_exe()
+        .ok()
+        .and_then(|p| std::fs::metadata(p).ok())
+        .map(|m| {
+            let bytes = m.len();
+            if bytes >= 1_073_741_824 {
+                format!("{:.1} GB", bytes as f64 / 1_073_741_824.0)
+            } else if bytes >= 1_048_576 {
+                format!("{:.1} MB", bytes as f64 / 1_048_576.0)
+            } else {
+                format!("{:.0} KB", bytes as f64 / 1_024.0)
+            }
+        })
+        .unwrap_or_else(|| "unknown".to_string());
 
     let body = serde_json::json!({
         "status": if all_ok { "ok" } else { "degraded" },
-        "version": version::full_version(),
-        "build_number": version::BUILD_NUMBER,
-        "git_hash": version::GIT_HASH,
-        "git_branch": version::GIT_BRANCH,
-        "build_timestamp": version::BUILD_TIMESTAMP,
-        "build_info": version::build_info(),
+        "version": version::VERSION,
+        "binary_size": binary_size,
         "checks": {
             "database": if db_ok { "ok" } else { "error" },
             "s3": if s3_ok { "ok" } else { "error" },
+            "disk": if disk_low { "warning: < 5 GB free" } else { "ok" },
         },
         "stats": system_stats,
     });

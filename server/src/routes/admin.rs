@@ -227,7 +227,7 @@ async fn dashboard(
         user: base.user,
         stats,
         embedding_rebuild_in_progress: REBUILD_IN_PROGRESS.load(Ordering::Relaxed),
-        build_info: crate::version::build_info(),
+        build_info: format!("v{}", crate::version::VERSION),
     };
 
     Ok(Html(template.render().map_err(|e| {

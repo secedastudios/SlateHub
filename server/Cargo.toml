@@ -81,9 +81,6 @@ qrcode = { version = "0.14", default-features = false }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 chrono-humanize = "0.2.3"
 
-[build-dependencies]
-chrono = "0.4"
-
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 once_cell = "1.19"

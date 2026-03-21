@@ -78,25 +78,56 @@ pub async fn get_stats() -> serde_json::Value {
         START.get_or_init(std::time::Instant::now).elapsed().as_secs()
     };
 
+    // Disk stats
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+    let root_disk = disks.iter().find(|d| d.mount_point() == std::path::Path::new("/"));
+    let (disk_total, disk_available) = root_disk
+        .map(|d| (d.total_space(), d.available_space()))
+        .unwrap_or((0, 0));
+
     serde_json::json!({
         "process": {
-            "memory_mb": format!("{:.1}", proc_mem as f64 / 1024.0 / 1024.0),
-            "memory_bytes": proc_mem,
-            "cpu_percent": format!("{:.1}", proc_cpu),
-            "uptime_seconds": uptime_secs,
-            "uptime_human": format_uptime(uptime_secs),
+            "memory": format_bytes(proc_mem),
+            "cpu": format!("{:.1}%", proc_cpu),
+            "uptime": format_uptime(uptime_secs),
         },
         "peak_24h": {
-            "memory_mb": format!("{:.1}", peak_mem as f64 / 1024.0 / 1024.0),
-            "memory_bytes": peak_mem,
-            "cpu_percent": format!("{:.1}", peak_cpu),
+            "memory": format_bytes(peak_mem),
+            "cpu": format!("{:.1}%", peak_cpu),
         },
         "system": {
-            "total_memory_mb": format!("{:.0}", sys.total_memory() as f64 / 1024.0 / 1024.0),
-            "used_memory_mb": format!("{:.0}", sys.used_memory() as f64 / 1024.0 / 1024.0),
-            "available_memory_mb": format!("{:.0}", sys.available_memory() as f64 / 1024.0 / 1024.0),
+            "total_memory": format_bytes(sys.total_memory()),
+            "used_memory": format_bytes(sys.used_memory()),
+            "available_memory": format_bytes(sys.available_memory()),
+        },
+        "disk": {
+            "total": format_bytes(disk_total),
+            "available": format_bytes(disk_available),
+            "used": format_bytes(disk_total.saturating_sub(disk_available)),
         },
     })
+}
+
+const DISK_WARNING_BYTES: u64 = 5 * 1_073_741_824; // 5 GB
+
+pub fn disk_space_low() -> bool {
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+    disks.iter()
+        .find(|d| d.mount_point() == std::path::Path::new("/"))
+        .map(|d| d.available_space() < DISK_WARNING_BYTES)
+        .unwrap_or(false)
+}
+
+fn format_bytes(bytes: u64) -> String {
+    if bytes >= 1_073_741_824 {
+        format!("{:.1} GB", bytes as f64 / 1_073_741_824.0)
+    } else if bytes >= 1_048_576 {
+        format!("{:.1} MB", bytes as f64 / 1_048_576.0)
+    } else if bytes >= 1_024 {
+        format!("{:.0} KB", bytes as f64 / 1_024.0)
+    } else {
+        format!("{} B", bytes)
+    }
 }
 
 fn format_uptime(secs: u64) -> String {
