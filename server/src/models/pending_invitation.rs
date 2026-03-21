@@ -242,18 +242,20 @@ impl PendingInvitationModel {
     ) -> Result<Option<PendingInvitation>, Error> {
         debug!("Finding pending invitation by token: {}", token);
 
-        // Raw query first to check if record exists
-        let exists: Option<serde_json::Value> = DB
-            .query("SELECT <string> id AS id, token, status, target_slug FROM pending_invitation WHERE token = $code AND status = 'pending' LIMIT 1")
-            .bind(("code", token.to_string()))
-            .await?
-            .take(0)?;
-        tracing::warn!("INVITE_LOOKUP raw={:?}", exists);
+        // Strict validation: tokens are 8 alphanumeric chars from our generator.
+        // This is critical since we format the value into the query string.
+        if token.len() != 8 || !token.chars().all(|c| c.is_ascii_alphanumeric()) {
+            return Ok(None);
+        }
 
-        // Full deserialization
+        // TODO: Switch back to bind params when SurrealDB fixes this:
+        // https://github.com/surrealdb/surrealdb/issues/7054
+        // Bind params don't match option<string> fields — the query silently returns no results.
         let result: Option<PendingInvitation> = match DB
-            .query("SELECT * FROM pending_invitation WHERE token = $code AND status = 'pending' LIMIT 1")
-            .bind(("code", token.to_string()))
+            .query(&format!(
+                "SELECT * FROM pending_invitation WHERE token = '{}' AND status = 'pending' LIMIT 1",
+                token
+            ))
             .await
         {
             Ok(mut response) => {
