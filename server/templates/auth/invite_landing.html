@@ -1,0 +1,27 @@
+{% extends "_layout.html" %}
+{% block title %}You're invited to {{ target_name }} - {{ app_name }}{% endblock %}
+{% block page_name %}invite{% endblock %}
+
+{% block og_title %}You're invited to join {{ target_name }} on {{ app_name }}{% endblock %}
+{% block og_description %}{% if let Some(roles) = production_roles %}Join as {{ roles.join(", ") }}.{% else %}You've been invited to join the {{ target_type }} team.{% endif %} {{ app_name }} is the free platform where filmmakers, actors, and crew connect.{% endblock %}
+{% block og_image %}{% if let Some(url) = poster_url %}<meta property="og:image" content="{{ url|abs_url }}" />{% else %}<meta property="og:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/auth.css?v={{ version }}" />
+<meta http-equiv="refresh" content="0;url={{ redirect_url }}" />
+{% endblock %}
+
+{% block content %}
+<div class="auth-card" style="text-align:center;">
+    <header class="auth-header">
+        {% if poster_url.is_some() %}
+        <img src="{{ poster_url.as_ref().unwrap() }}" alt="{{ target_name }}" style="max-width:200px;max-height:280px;border-radius:8px;margin:0 auto 1.5rem;" />
+        {% endif %}
+        <h1>You're invited!</h1>
+        <p>You've been invited to join <strong>{{ target_name }}</strong>{% if let Some(roles) = production_roles %} as <strong>{{ roles.join(", ") }}</strong>{% endif %}.</p>
+    </header>
+    <p style="margin-top:1rem;color:var(--color-text-secondary,#9a9b8f);">Redirecting...</p>
+    <p><a href="{{ redirect_url }}">Click here if you're not redirected</a></p>
+</div>
+<script>window.location.href = "{{ redirect_url }}";</script>
+{% endblock %}

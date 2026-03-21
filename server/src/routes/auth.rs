@@ -600,12 +600,13 @@ async fn resend_verification(Form(form): Form<ResendVerificationForm>) -> Result
 
 /// Handle short invite links: /i/{token}
 /// If logged in: process the invitation and redirect to the target
-/// If not logged in: redirect to signup with email prefilled
+/// If not logged in: show landing page with OG tags that auto-redirects to signup
 async fn invite_link(
     axum::extract::Path(token): axum::extract::Path<String>,
     request: Request,
 ) -> Result<Response, Error> {
     use crate::models::pending_invitation::PendingInvitationModel;
+    use crate::templates::InviteLandingTemplate;
 
     let pi_model = PendingInvitationModel::new();
     let invite = pi_model
@@ -619,7 +620,6 @@ async fn invite_link(
         // Logged in — process the invitation directly
         let redirect_url = match invite.target_type.as_str() {
             "production" => {
-                // Add as production member
                 use crate::models::production::ProductionModel;
                 let prod = ProductionModel::get_by_slug(&invite.target_slug).await?;
                 ProductionModel::add_member_accepted(
@@ -646,7 +646,7 @@ async fn invite_link(
 
         Ok(axum::response::Redirect::to(&redirect_url).into_response())
     } else {
-        // Not logged in — redirect to signup (with email if available) or login
+        // Not logged in — show landing page with OG meta tags
         let invite_path = format!("/i/{}", token);
         let redirect_url = if let Some(email) = &invite.email {
             format!(
@@ -657,6 +657,37 @@ async fn invite_link(
         } else {
             format!("/signup?redirect={}", urlencoding::encode(&invite_path))
         };
-        Ok(axum::response::Redirect::to(&redirect_url).into_response())
+
+        // Fetch poster URL for production invites
+        let poster_url = if invite.target_type == "production" {
+            use crate::models::production::ProductionModel;
+            ProductionModel::get_by_slug(&invite.target_slug)
+                .await
+                .ok()
+                .and_then(|p| p.poster_photo.or(p.poster_url))
+        } else {
+            None
+        };
+
+        let base = crate::templates::BaseContext::new().with_page("invite");
+        let template = InviteLandingTemplate {
+            app_name: base.app_name,
+            year: base.year,
+            version: base.version,
+            active_page: base.active_page,
+            user: base.user,
+            target_name: invite.target_name.clone(),
+            target_type: invite.target_type.clone(),
+            production_roles: invite.production_roles.clone(),
+            poster_url,
+            redirect_url,
+        };
+
+        let html = template.render().map_err(|e| {
+            error!("Failed to render invite landing template: {}", e);
+            Error::template(e.to_string())
+        })?;
+
+        Ok(axum::response::Html(html).into_response())
     }
 }

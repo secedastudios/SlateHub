@@ -240,6 +240,22 @@ pub struct LoginTemplate {
     pub redirect_to: Option<String>,
 }
 
+/// Invite landing page template (OG unfurl + auto-redirect)
+#[derive(Template)]
+#[template(path = "auth/invite_landing.html")]
+pub struct InviteLandingTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub target_name: String,
+    pub target_type: String,
+    pub production_roles: Option<Vec<String>>,
+    pub poster_url: Option<String>,
+    pub redirect_url: String,
+}
+
 /// Signup page template
 #[derive(Template)]
 #[template(path = "signup/index.html")]
