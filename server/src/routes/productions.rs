@@ -73,6 +73,8 @@ pub fn router() -> Router {
         .route("/productions/{slug}/members/remove", post(remove_member))
         .route("/productions/{slug}/members/update-roles", post(update_member_roles))
         .route("/productions/{slug}/invite", post(invite_to_production))
+        .route("/productions/{slug}/create-invite-link", post(create_invite_link))
+        .route("/productions/{slug}/revoke-invite", post(revoke_email_invite))
         .route(
             "/productions/{slug}/scripts/upload",
             post(upload_script),
@@ -396,6 +398,23 @@ async fn view_production(
             pending_credits,
             budget_level: production.budget_level,
             production_tier: production.production_tier,
+            pending_email_invites: if can_edit {
+                let pi_model = crate::models::pending_invitation::PendingInvitationModel::new();
+                pi_model
+                    .get_pending_for_production(&production.id.to_raw_string())
+                    .await
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|pi| crate::templates::PendingEmailInvite {
+                        id: pi.id.to_raw_string(),
+                        email: pi.email.unwrap_or_default(),
+                        production_roles: pi.production_roles,
+                        token: pi.token,
+                    })
+                    .collect()
+            } else {
+                vec![]
+            },
         },
     };
 
@@ -932,6 +951,74 @@ async fn remove_member(
     Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
 }
 
+#[derive(Debug, Deserialize)]
+struct RevokeInviteForm {
+    invite_id: String,
+}
+
+async fn revoke_email_invite(
+    Path(slug): Path<String>,
+    AuthenticatedUser(user): AuthenticatedUser,
+    Form(data): Form<RevokeInviteForm>,
+) -> Result<Response, Error> {
+    let production = ProductionModel::get_by_slug(&slug).await?;
+
+    if !ProductionModel::can_edit(&production.id, &user.id).await? {
+        return Err(Error::Forbidden);
+    }
+
+    let invite_rid = surrealdb::types::RecordId::parse_simple(&data.invite_id)
+        .map_err(|e| Error::BadRequest(e.to_string()))?;
+
+    crate::db::DB
+        .query("DELETE $id")
+        .bind(("id", invite_rid))
+        .await?;
+
+    info!("Revoked invite {} for production {}", data.invite_id, slug);
+
+    Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+struct CreateInviteLinkForm {
+    role: Option<String>,
+    production_role: Option<String>,
+}
+
+async fn create_invite_link(
+    Path(slug): Path<String>,
+    AuthenticatedUser(user): AuthenticatedUser,
+    axum::Form(data): axum::Form<CreateInviteLinkForm>,
+) -> Result<Response, Error> {
+    let production = ProductionModel::get_by_slug(&slug).await?;
+
+    if !ProductionModel::can_edit(&production.id, &user.id).await? {
+        return Err(Error::Forbidden);
+    }
+
+    let roles: Vec<String> = data.production_role
+        .iter()
+        .map(|r| r.trim().to_string())
+        .filter(|r| !r.is_empty())
+        .collect();
+    let production_roles = if roles.is_empty() { None } else { Some(roles.as_slice()) };
+
+    let pi_model = crate::models::pending_invitation::PendingInvitationModel::new();
+    pi_model
+        .create_link_invite(
+            &production.id.to_raw_string(),
+            &production.title,
+            &production.slug,
+            data.role.as_deref().unwrap_or("member"),
+            &user.id,
+            production_roles,
+        )
+        .await?;
+
+    Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
+}
+
 /// Update production roles for an existing member
 #[axum::debug_handler]
 async fn update_member_roles(
@@ -1006,12 +1093,15 @@ struct RemoveMemberForm {
 
 #[derive(Debug, Deserialize)]
 struct InviteForm {
+    #[serde(default)]
     identifier: String,
     role: String,
     #[serde(default)]
     production_role: Vec<String>,
     custom_role: Option<String>,
     message: Option<String>,
+    #[serde(default)]
+    invite_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1027,25 +1117,49 @@ struct ToggleVisibilityForm {
     visibility: String,
 }
 
-/// Invite a user to a production (by username or email)
+/// Invite a user to a production (by username, email, or generate a link)
 #[axum::debug_handler]
 async fn invite_to_production(
     Path(slug): Path<String>,
     AuthenticatedUser(user): AuthenticatedUser,
     HtmlForm(data): HtmlForm<InviteForm>,
 ) -> Result<Response, Error> {
-    debug!("Inviting {} to production: {}", data.identifier, slug);
-
     let production = ProductionModel::get_by_slug(&slug).await?;
 
     if !ProductionModel::can_edit(&production.id, &user.id).await? {
         return Err(Error::Forbidden);
     }
 
+    let production_roles = merge_production_roles(&data.production_role, &data.custom_role);
+
+    // Generate invite link if requested
+    if data.invite_type.as_deref() == Some("link") {
+        debug!("Creating invite link for production: {}", slug);
+        let pi_model = crate::models::pending_invitation::PendingInvitationModel::new();
+        let roles_slice = if production_roles.is_empty() { None } else { Some(production_roles.as_slice()) };
+        pi_model
+            .create_link_invite(
+                &production.id.to_raw_string(),
+                &production.title,
+                &production.slug,
+                &data.role,
+                &user.id,
+                roles_slice,
+            )
+            .await?;
+
+        return Ok(Redirect::to(&format!("/productions/{}", slug)).into_response());
+    }
+
+    // Otherwise invite by identifier (username or email)
+    if data.identifier.is_empty() {
+        return Err(Error::BadRequest("Please enter a username or email, or generate an invite link.".to_string()));
+    }
+
+    debug!("Inviting {} to production: {}", data.identifier, slug);
+
     let prod_id = production.id.to_raw_string();
     let user_name = if user.name.is_empty() { &user.username } else { &user.name };
-
-    let production_roles = merge_production_roles(&data.production_role, &data.custom_role);
 
     let result = InvitationService::invite_to_production(
         &prod_id,

@@ -1068,6 +1068,8 @@ pub struct CreateUser {
     pub username: String,
     pub email: String,
     pub password: String,
+    #[serde(default)]
+    pub redirect: Option<String>,
 }
 
 /// Represents the data required for a user to log in.

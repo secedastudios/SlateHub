@@ -661,6 +661,20 @@ button.prod-btn-danger:hover:not(:disabled) {
 
 .prod-member-item:hover { border-color: rgba(214, 216, 202, 0.15); }
 
+.prod-member-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.prod-btn-icon {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1;
+    min-width: auto;
+}
+
 .prod-member-avatar {
     flex-shrink: 0;
     width: 36px;

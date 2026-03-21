@@ -30,6 +30,7 @@ use crate::{
 
 pub fn router() -> Router {
     Router::new()
+        .route("/i/{token}", get(invite_link))
         .route("/signup", get(signup_form).post(signup))
         .route("/login", get(login_form).post(login))
         .route("/logout", post(logout))
@@ -49,6 +50,7 @@ pub fn router() -> Router {
 #[derive(Debug, Deserialize)]
 struct SignupQuery {
     email: Option<String>,
+    redirect: Option<String>,
 }
 
 async fn signup_form(
@@ -66,6 +68,7 @@ async fn signup_form(
 
     let mut template = SignupTemplate::new(base);
     template.prefill_email = query.email;
+    template.redirect = query.redirect;
 
     let html = template.render().map_err(|e| {
         error!("Failed to render signup template: {}", e);
@@ -81,6 +84,7 @@ async fn signup(Form(form): Form<CreateUser>) -> Result<Response, Error> {
 
     // Try to create the user
     let email = form.email.clone();
+    let redirect = form.redirect.clone();
     match Person::signup(form.username, form.email, form.password).await {
         Ok(token) => {
             info!("User created successfully");
@@ -93,10 +97,15 @@ async fn signup(Form(form): Form<CreateUser>) -> Result<Response, Error> {
                 .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
                 .build();
 
-            // Redirect to email verification page
+            // Redirect to email verification page, forwarding redirect param
+            let mut verify_url = format!("/verify-email?email={}", urlencoding::encode(&email));
+            if let Some(ref r) = redirect {
+                verify_url.push_str(&format!("&redirect={}", urlencoding::encode(r)));
+            }
+
             Ok((
                 CookieJar::new().add(cookie),
-                response::redirect(&format!("/verify-email?email={}", urlencoding::encode(&email))),
+                response::redirect(&verify_url),
             )
                 .into_response())
         }
@@ -230,6 +239,7 @@ async fn verify_email_form(
 
     let mut template = EmailVerificationTemplate::new(base);
     template.email = params.get("email").cloned();
+    template.redirect = params.get("redirect").cloned();
 
     let html = template.render().map_err(|e| {
         error!("Failed to render email verification template: {}", e);
@@ -243,6 +253,8 @@ async fn verify_email_form(
 struct VerifyEmailForm {
     code: String,
     email: String,
+    #[serde(default)]
+    redirect: Option<String>,
 }
 
 #[axum::debug_handler]
@@ -276,10 +288,10 @@ async fn verify_email(
                     info!("Processed pending invitations for {}, redirecting to {}", form.email, url);
                     url
                 }
-                Ok(None) => "/profile".to_string(),
+                Ok(None) => form.redirect.clone().unwrap_or_else(|| "/profile".to_string()),
                 Err(e) => {
                     error!("Failed to process pending invitations for {}: {}", form.email, e);
-                    "/profile".to_string()
+                    form.redirect.clone().unwrap_or_else(|| "/profile".to_string())
                 }
             };
 
@@ -337,6 +349,7 @@ async fn verify_email_link(
     let form = VerifyEmailForm {
         code: query.code,
         email: query.email,
+        redirect: None,
     };
 
     verify_email(jar, Form(form)).await
@@ -583,4 +596,67 @@ async fn resend_verification(Form(form): Form<ResendVerificationForm>) -> Result
 
     // Always redirect to verify-email page to prevent email enumeration
     Ok(response::redirect("/verify-email").into_response())
+}
+
+/// Handle short invite links: /i/{token}
+/// If logged in: process the invitation and redirect to the target
+/// If not logged in: redirect to signup with email prefilled
+async fn invite_link(
+    axum::extract::Path(token): axum::extract::Path<String>,
+    request: Request,
+) -> Result<Response, Error> {
+    use crate::models::pending_invitation::PendingInvitationModel;
+
+    let pi_model = PendingInvitationModel::new();
+    let invite = pi_model
+        .find_by_token(&token)
+        .await?
+        .ok_or(Error::NotFound)?;
+
+    let user_opt = request.get_user();
+
+    if let Some(user) = user_opt {
+        // Logged in — process the invitation directly
+        let redirect_url = match invite.target_type.as_str() {
+            "production" => {
+                // Add as production member
+                use crate::models::production::ProductionModel;
+                let prod = ProductionModel::get_by_slug(&invite.target_slug).await?;
+                ProductionModel::add_member_accepted(
+                    &prod.id,
+                    &user.id,
+                    &invite.role,
+                    invite.production_roles.clone(),
+                )
+                .await?;
+                pi_model.mark_accepted(&invite.id.to_raw_string()).await?;
+                format!("/productions/{}", invite.target_slug)
+            }
+            "organization" => {
+                use crate::models::organization::OrganizationModel;
+                let org_model = OrganizationModel::new();
+                org_model
+                    .add_member(&invite.target_id, &user.id, &invite.role, None)
+                    .await?;
+                pi_model.mark_accepted(&invite.id.to_raw_string()).await?;
+                format!("/orgs/{}", invite.target_slug)
+            }
+            _ => "/".to_string(),
+        };
+
+        Ok(axum::response::Redirect::to(&redirect_url).into_response())
+    } else {
+        // Not logged in — redirect to signup (with email if available) or login
+        let invite_path = format!("/i/{}", token);
+        let redirect_url = if let Some(email) = &invite.email {
+            format!(
+                "/signup?email={}&redirect={}",
+                urlencoding::encode(email),
+                urlencoding::encode(&invite_path),
+            )
+        } else {
+            format!("/signup?redirect={}", urlencoding::encode(&invite_path))
+        };
+        Ok(axum::response::Redirect::to(&redirect_url).into_response())
+    }
 }

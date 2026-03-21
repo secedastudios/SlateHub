@@ -998,7 +998,7 @@ async fn people_search_sse(
 
     if results.is_empty() && !is_email {
         html.push_str(if params.allow_email {
-            r#"<div class="invite-search-empty">No users found. Enter an email to invite someone new.</div>"#
+            r##"<div class="invite-search-empty">No users found. Enter an email to invite someone new, or <a href="#" onclick="event.preventDefault();if(window.switchToLinkMode)window.switchToLinkMode();">invite by link</a>.</div>"##
         } else {
             r#"<div class="invite-search-empty">No users found.</div>"#
         });

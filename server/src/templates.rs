@@ -251,6 +251,7 @@ pub struct SignupTemplate {
     pub user: Option<User>,
     pub error: Option<String>,
     pub prefill_email: Option<String>,
+    pub redirect: Option<String>,
 }
 
 /// Email verification page template
@@ -265,6 +266,7 @@ pub struct EmailVerificationTemplate {
     pub error: Option<String>,
     pub success: Option<String>,
     pub email: Option<String>,
+    pub redirect: Option<String>,
 }
 
 /// Forgot password page template
@@ -528,6 +530,15 @@ pub struct ProductionDetail {
     pub pending_credits: Vec<CastCrewMember>,
     pub budget_level: Option<String>,
     pub production_tier: Option<String>,
+    pub pending_email_invites: Vec<PendingEmailInvite>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingEmailInvite {
+    pub id: String,
+    pub email: String,
+    pub production_roles: Option<Vec<String>>,
+    pub token: Option<String>,
 }
 
 /// A cast or crew member on a production (from involvement graph traversal)
@@ -1298,6 +1309,7 @@ impl SignupTemplate {
             user: base.user,
             error: None,
             prefill_email: None,
+            redirect: None,
         }
     }
 }
@@ -1313,6 +1325,7 @@ impl EmailVerificationTemplate {
             error: None,
             success: None,
             email: None,
+            redirect: None,
         }
     }
 }

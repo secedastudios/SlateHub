@@ -231,7 +231,7 @@ DEFINE INDEX idx_notification_person_read ON notification FIELDS person_id, read
 
 DEFINE TABLE pending_invitation TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
-DEFINE FIELD email ON pending_invitation TYPE string PERMISSIONS FULL;
+DEFINE FIELD email ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- Optional for link-only invites
 DEFINE FIELD target_type ON pending_invitation TYPE string ASSERT $value IN ['organization', 'production'] PERMISSIONS FULL;
 DEFINE FIELD target_id ON pending_invitation TYPE string PERMISSIONS FULL;
 DEFINE FIELD target_name ON pending_invitation TYPE string PERMISSIONS FULL;
@@ -244,8 +244,10 @@ DEFINE FIELD expires_at ON pending_invitation TYPE option<datetime> PERMISSIONS 
 DEFINE FIELD production_roles ON pending_invitation TYPE option<array<string>> PERMISSIONS FULL;  -- e.g. ["Director", "Producer"]
 DEFINE FIELD relation_type ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- For production invites: "cast", "crew"
 DEFINE FIELD department ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- For production crew invites
+DEFINE FIELD token ON pending_invitation TYPE option<string> PERMISSIONS FULL;  -- Short token for invite links
 
 DEFINE INDEX idx_pending_invitation_email ON pending_invitation FIELDS email;
+DEFINE INDEX idx_pending_invitation_token ON pending_invitation FIELDS token UNIQUE;
 DEFINE INDEX idx_pending_invitation_status ON pending_invitation FIELDS status;
 
 -- ------------------------------

@@ -25,6 +25,9 @@
     {% endmatch %}
 
     <form method="post" action="/verify-email">
+        {% if redirect.is_some() %}
+        <input type="hidden" name="redirect" value="{{ redirect.as_ref().unwrap() }}" />
+        {% endif %}
         <fieldset>
             <legend hidden>Email Verification</legend>
 

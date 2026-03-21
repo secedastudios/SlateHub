@@ -19,6 +19,9 @@
     {% endmatch %}
 
     <form method="post" action="/signup" id="signup-form">
+        {% if redirect.is_some() %}
+        <input type="hidden" name="redirect" value="{{ redirect.as_ref().unwrap() }}" />
+        {% endif %}
         <fieldset>
             <legend hidden>Account Information</legend>
 
@@ -112,7 +115,7 @@
         </div>
 
         <nav class="auth-footer" aria-label="Signup alternatives">
-            <p>Already have an account? <a href="/login">Log in</a></p>
+            <p>Already have an account? <a href="/login{% if redirect.is_some() %}?redirect={{ redirect.as_ref().unwrap() }}{% endif %}">Log in</a></p>
         </nav>
     </form>
 </div>

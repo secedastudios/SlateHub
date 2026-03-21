@@ -150,13 +150,13 @@
                             & Crew
                         </h3>
                         {% if production.can_edit %}
-                            <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">+ Invite Member</button>
+                            <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">+ Invite</button>
                         {% endif %}
                     </div>
                     {% if production.can_edit %}
                         <div id="add-member-form-container" hidden
                      data-signals="{pd_query: '', pd_selected_value: '', pd_selected_name: '', pd_selected_avatar: '', pd_has_selection: false}">
-                            <form id="prod-add-member-form" action="/productions/{{ production.slug }}/members/add" method="post">
+                            <form id="prod-add-member-form" action="/productions/{{ production.slug }}/invite" method="post">
                                 <fieldset>
                                     <legend>Invite Cast/Crew</legend>
                                     <div class="prod-form-grid">
@@ -171,11 +171,18 @@
                                                     <button type="button" class="invite-sel-clear" aria-label="Clear selection"
                                                     data-on:click="$pd_has_selection = false; $pd_selected_value = ''; $pd_query = ''">&times;</button>
                                                 </div>
-                                                <input type="text" autocomplete="off" placeholder="Search by name, username, or email..."
-                                               data-bind:pd_query
-                                               data-on:input__debounce.250ms="@get('/api/people/search-sse?scope=pd&value_field=username&allow_email=true&q=' + $pd_query)"
-                                               data-show="!$pd_has_selection" />
-                                                <input type="hidden" name="member_id" data-bind:pd_selected_value />
+                                                <div id="invite-link-mode" style="display:none;" class="invite-link-mode-indicator">
+                                                    <span>Generating a shareable invite link</span>
+                                                    <button type="button" class="invite-sel-clear" aria-label="Switch back to search" onclick="window.exitLinkMode()">&times;</button>
+                                                </div>
+                                                <div id="invite-search-wrap-inner">
+                                                    <input type="text" id="invite-search-input" autocomplete="off" placeholder="Search by name, username, or email..."
+                                                   data-bind:pd_query
+                                                   data-on:input__debounce.250ms="@get('/api/people/search-sse?scope=pd&value_field=username&allow_email=true&q=' + $pd_query)"
+                                                   data-show="!$pd_has_selection" />
+                                                </div>
+                                                <input type="hidden" name="identifier" data-bind:pd_selected_value />
+                                                <input type="hidden" name="invite_type" id="invite-type-field" value="person" />
                                                 <div id="pd-results" class="invite-search-results">
                                                 </div>
                                             </div>
@@ -210,7 +217,7 @@
                                         </div>
                                     </div>
                                     <div class="prod-member-form-actions">
-                                        <button type="submit" class="prod-btn-primary">Send Invitation</button>
+                                        <button type="submit" id="invite-submit-btn" class="prod-btn-primary">Send Invitation</button>
                                         <button type="button" class="prod-btn-outline" onclick="hideAddMemberForm()">Cancel</button>
                                     </div>
                                 </fieldset>
@@ -264,14 +271,95 @@
                                     {% endif %}
                                 </li>
                             {% endfor %}
+                            {% for invite in production.pending_email_invites %}
+                                <li class="prod-member-item prod-member-pending">
+                                    <div class="prod-member-avatar">
+                                        {% if !invite.email.is_empty() %}
+                                        <img src="/api/avatar?id={{ invite.email }}" alt="{{ invite.email }}" />
+                                        {% else %}
+                                        <img src="/api/avatar?id=invite-link" alt="Invite link" />
+                                        {% endif %}
+                                    </div>
+                                    <div class="prod-member-info">
+                                        {% if !invite.email.is_empty() %}
+                                        <strong>{{ invite.email }}</strong>
+                                        <span class="prod-role-badge" data-role="pending">invited via email</span>
+                                        {% else %}
+                                        <strong>Invite Link</strong>
+                                        <span class="prod-role-badge" data-role="pending">link</span>
+                                        {% endif %}
+                                        {% if let Some(roles) = invite.production_roles %}
+                                            {% for r in roles %}
+                                                <span class="prod-role-badge">{{ r }}</span>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    {% if production.can_edit %}
+                                    <div class="prod-member-actions">
+                                        {% if invite.token.is_some() %}
+                                        <button type="button" class="prod-btn-outline prod-btn-icon" title="Copy invite link"
+                                                onclick="navigator.clipboard.writeText(window.location.origin + '/i/{{ invite.token.as_ref().unwrap() }}').then(function(){this.textContent='Copied!';var b=this;setTimeout(function(){b.innerHTML='&#128279;'},1500)}.bind(this))">&#128279;</button>
+                                        {% endif %}
+                                        <form action="/productions/{{ production.slug }}/revoke-invite" method="post"
+                                              onsubmit="return confirm('Revoke this invitation?');">
+                                            <input type="hidden" name="invite_id" value="{{ invite.id }}" />
+                                            <button type="submit" class="prod-btn-danger">Revoke</button>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
                         </ul>
                     {% else %}
+                        {% if !production.pending_email_invites.is_empty() %}
+                        <ul class="prod-members-list">
+                            {% for invite in production.pending_email_invites %}
+                                <li class="prod-member-item prod-member-pending">
+                                    <div class="prod-member-avatar">
+                                        {% if !invite.email.is_empty() %}
+                                        <img src="/api/avatar?id={{ invite.email }}" alt="{{ invite.email }}" />
+                                        {% else %}
+                                        <img src="/api/avatar?id=invite-link" alt="Invite link" />
+                                        {% endif %}
+                                    </div>
+                                    <div class="prod-member-info">
+                                        {% if !invite.email.is_empty() %}
+                                        <strong>{{ invite.email }}</strong>
+                                        <span class="prod-role-badge" data-role="pending">invited via email</span>
+                                        {% else %}
+                                        <strong>Invite Link</strong>
+                                        <span class="prod-role-badge" data-role="pending">link</span>
+                                        {% endif %}
+                                        {% if let Some(roles) = invite.production_roles %}
+                                            {% for r in roles %}
+                                                <span class="prod-role-badge">{{ r }}</span>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    {% if production.can_edit %}
+                                    <div class="prod-member-actions">
+                                        {% if invite.token.is_some() %}
+                                        <button type="button" class="prod-btn-outline prod-btn-icon" title="Copy invite link"
+                                                onclick="navigator.clipboard.writeText(window.location.origin + '/i/{{ invite.token.as_ref().unwrap() }}').then(function(){this.textContent='Copied!';var b=this;setTimeout(function(){b.innerHTML='&#128279;'},1500)}.bind(this))">&#128279;</button>
+                                        {% endif %}
+                                        <form action="/productions/{{ production.slug }}/revoke-invite" method="post"
+                                              onsubmit="return confirm('Revoke this invitation?');">
+                                            <input type="hidden" name="invite_id" value="{{ invite.id }}" />
+                                            <button type="submit" class="prod-btn-danger">Revoke</button>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
                         <div class="prod-empty" style="padding:2rem 0">
                             <p>No cast or crew members yet.</p>
                             {% if production.can_edit %}
                                 <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">Invite First Member</button>
                             {% endif %}
                         </div>
+                        {% endif %}
                     {% endif %}
                 </section>
                 <section>
@@ -471,7 +559,23 @@ function showAddMemberForm() {
 }
 function hideAddMemberForm() {
     document.getElementById('add-member-form-container').setAttribute('hidden', '');
+    exitLinkMode();
 }
+
+window.switchToLinkMode = function() {
+    document.getElementById('pd-results').innerHTML = '';
+    document.getElementById('invite-type-field').value = 'link';
+    document.getElementById('invite-submit-btn').textContent = 'Generate Invite Link';
+    document.getElementById('invite-link-mode').style.display = 'flex';
+    document.getElementById('invite-search-wrap-inner').style.display = 'none';
+};
+
+window.exitLinkMode = function() {
+    document.getElementById('invite-type-field').value = 'person';
+    document.getElementById('invite-submit-btn').textContent = 'Send Invitation';
+    document.getElementById('invite-link-mode').style.display = 'none';
+    document.getElementById('invite-search-wrap-inner').style.display = '';
+};
 function showAddOrgForm() {
     document.getElementById('add-org-form-container').removeAttribute('hidden');
 }

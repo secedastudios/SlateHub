@@ -7,7 +7,9 @@ use tracing::debug;
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct PendingInvitation {
     pub id: RecordId,
-    pub email: String,
+    #[serde(default)]
+    #[surreal(default)]
+    pub email: Option<String>,
     pub target_type: String,
     pub target_id: String,
     pub target_name: String,
@@ -27,9 +29,20 @@ pub struct PendingInvitation {
     #[serde(default)]
     #[surreal(default)]
     pub department: Option<String>,
+    #[serde(default)]
+    #[surreal(default)]
+    pub token: Option<String>,
 }
 
 pub struct PendingInvitationModel;
+
+/// Generate a short random token for invite links (8 chars, alphanumeric)
+fn generate_invite_token() -> String {
+    use rand::Rng;
+    const CHARS: &[u8] = b"abcdefghijkmnpqrstuvwxyz23456789";
+    let mut rng = rand::thread_rng();
+    (0..8).map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char).collect()
+}
 
 impl PendingInvitationModel {
     pub fn new() -> Self {
@@ -64,7 +77,8 @@ impl PendingInvitationModel {
                     target_slug: $target_slug,
                     role: $role,
                     invited_by: $invited_by,
-                    status: 'pending'
+                    status: 'pending',
+                    token: $invite_token
                 }",
             )
             .bind(("email", email.to_string()))
@@ -74,6 +88,7 @@ impl PendingInvitationModel {
             .bind(("target_slug", target_slug.to_string()))
             .bind(("role", role.to_string()))
             .bind(("invited_by", invited_by))
+            .bind(("invite_token", generate_invite_token()))
             .await?
             .take(0)?;
 
@@ -138,7 +153,8 @@ impl PendingInvitationModel {
                     role: $role,
                     invited_by: $invited_by,
                     status: 'pending',
-                    production_roles: $production_roles
+                    production_roles: $production_roles,
+                    token: $invite_token
                 }",
             )
             .bind(("email", email.to_string()))
@@ -148,6 +164,7 @@ impl PendingInvitationModel {
             .bind(("role", role.to_string()))
             .bind(("invited_by", invited_by))
             .bind(("production_roles", production_roles.map(|s| s.to_vec())))
+            .bind(("invite_token", generate_invite_token()))
             .await?
             .take(0)?;
 
@@ -174,5 +191,81 @@ impl PendingInvitationModel {
             .take(0)?;
 
         Ok(result)
+    }
+
+    /// Create a link-only invite (no email) for a production
+    pub async fn create_link_invite(
+        &self,
+        target_id: &str,
+        target_name: &str,
+        target_slug: &str,
+        role: &str,
+        invited_by: &str,
+        production_roles: Option<&[String]>,
+    ) -> Result<PendingInvitation, Error> {
+        debug!("Creating link-only invite for production '{}'", target_name);
+
+        let invited_by =
+            RecordId::parse_simple(invited_by).map_err(|e| Error::BadRequest(e.to_string()))?;
+
+        let result: Option<PendingInvitation> = DB
+            .query(
+                "CREATE pending_invitation CONTENT {
+                    target_type: 'production',
+                    target_id: $target_id,
+                    target_name: $target_name,
+                    target_slug: $target_slug,
+                    role: $role,
+                    invited_by: $invited_by,
+                    status: 'pending',
+                    production_roles: $production_roles,
+                    token: $invite_token
+                }",
+            )
+            .bind(("target_id", target_id.to_string()))
+            .bind(("target_name", target_name.to_string()))
+            .bind(("target_slug", target_slug.to_string()))
+            .bind(("role", role.to_string()))
+            .bind(("invited_by", invited_by))
+            .bind(("production_roles", production_roles.map(|s| s.to_vec())))
+            .bind(("invite_token", generate_invite_token()))
+            .await?
+            .take(0)?;
+
+        result.ok_or_else(|| Error::Internal("Failed to create link invite".to_string()))
+    }
+
+    /// Find a pending invitation by its token
+    pub async fn find_by_token(
+        &self,
+        token: &str,
+    ) -> Result<Option<PendingInvitation>, Error> {
+        debug!("Finding pending invitation by token: {}", token);
+
+        let result: Option<PendingInvitation> = DB
+            .query("SELECT * FROM pending_invitation WHERE token = $inv_token AND status = 'pending' LIMIT 1")
+            .bind(("inv_token", token.to_string()))
+            .await?
+            .take(0)?;
+
+        Ok(result)
+    }
+
+    /// Get all pending email invitations for a production
+    pub async fn get_pending_for_production(
+        &self,
+        production_id: &str,
+    ) -> Result<Vec<PendingInvitation>, Error> {
+        debug!("Fetching pending email invitations for production: {}", production_id);
+
+        let invitations: Vec<PendingInvitation> = DB
+            .query(
+                "SELECT * FROM pending_invitation WHERE target_id = $target_id AND target_type = 'production' AND status = 'pending' ORDER BY created_at DESC",
+            )
+            .bind(("target_id", production_id.to_string()))
+            .await?
+            .take(0)?;
+
+        Ok(invitations)
     }
 }

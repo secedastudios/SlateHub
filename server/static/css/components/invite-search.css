@@ -54,6 +54,24 @@
     color: var(--color-text-primary, #d6d8ca);
 }
 
+.invite-link-mode-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(235, 84, 55, 0.08);
+    border: 1px solid rgba(235, 84, 55, 0.2);
+    border-radius: 6px;
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-accent, #eb5437);
+}
+
+.invite-search-empty a {
+    color: var(--color-accent, #eb5437);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 /* Results dropdown */
 .invite-search-results {
     position: absolute;

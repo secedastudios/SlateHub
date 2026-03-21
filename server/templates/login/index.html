@@ -72,7 +72,7 @@
         <nav class="auth-footer" aria-label="Login alternatives">
             <ul>
                 <li><a href="/forgot-password">Forgot your password?</a></li>
-                <li>Don't have an account? <a href="/signup">Sign up</a></li>
+                <li>Don't have an account? <a href="/signup{% match redirect_to %}{% when Some with (redirect) %}?redirect={{ redirect }}{% when None %}{% endmatch %}">Sign up</a></li>
             </ul>
         </nav>
     </form>
