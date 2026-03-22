@@ -88,6 +88,7 @@ async fn signup(Form(form): Form<CreateUser>) -> Result<Response, Error> {
     match Person::signup(form.username, form.email, form.password).await {
         Ok(token) => {
             info!("User created successfully");
+            crate::services::activity::log_activity(None, "signup", "/signup");
 
             // Create authentication cookie with the JWT token
             let cookie = Cookie::build(("auth_token", token))
@@ -159,6 +160,7 @@ async fn login(Form(form): Form<LoginUser>) -> Result<Response, Error> {
     match Person::signin(form.email.clone(), form.password).await {
         Ok(token) => {
             info!("User logged in successfully");
+            crate::services::activity::log_activity(None, "login", "/login");
 
             // Create authentication cookie with the JWT token
             let cookie = Cookie::build(("auth_token", token))

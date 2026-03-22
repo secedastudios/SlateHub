@@ -156,6 +156,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Start system stats tracking
     slatehub::stats::init();
 
+    // Start daily activity cleanup (90-day retention)
+    tokio::spawn(async {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(86400)).await;
+            info!("Running activity event cleanup");
+            slatehub::models::activity::ActivityModel::cleanup(90).await;
+        }
+    });
+
     // Start live notification stream
     info!("Starting notification live stream");
     slatehub::services::notification_stream::init().await;

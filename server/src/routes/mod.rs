@@ -90,6 +90,8 @@ pub fn app() -> Router {
         // Mount public profiles last to handle /<username> routes
         // This must be last to avoid conflicts with other routes
         .merge(public_profiles::router())
+        // Track page view activity (runs after auth so user identity is available)
+        .layer(middleware::from_fn(crate::middleware::activity::activity_middleware))
         // Apply auth middleware to extract user from JWT cookies
         .layer(middleware::from_fn(auth_middleware))
         // Error response middleware - converts errors to HTML/JSON based on Accept header

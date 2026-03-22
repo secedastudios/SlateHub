@@ -52,6 +52,82 @@
     </div>
 
     <div class="admin-section" style="margin-top: 2rem;">
+        <h2 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary, #eee);">Engagement</h2>
+        <div class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.engagement.dau }}</div>
+                <div class="admin-stat-label">Active Today</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary,#aaa);">{{ stats.engagement.daily_active_rate }}% of users</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.engagement.wau }}</div>
+                <div class="admin-stat-label">Active This Week</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary,#aaa);">{{ stats.engagement.weekly_active_rate }}% of users</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.engagement.mau }}</div>
+                <div class="admin-stat-label">Active This Month</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary,#aaa);">{{ stats.engagement.monthly_active_rate }}% of users</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.engagement.stickiness }}%</div>
+                <div class="admin-stat-label">Stickiness (DAU/MAU)</div>
+                <div style="font-size:0.75rem;color:var(--text-secondary,#aaa);">20%+ is good</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.engagement.retention_rate }}%</div>
+                <div class="admin-stat-label">30d Retention</div>
+                <div style="font-size:0.75rem;color:var(--text-secondary,#aaa);">returning users</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.engagement.new_users_7d }}</div>
+                <div class="admin-stat-label">New Users (7d)</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary,#aaa);">{{ stats.engagement.new_user_rate }}% of MAU are new</div>
+            </div>
+        </div>
+
+        {% if !stats.event_counts.is_empty() %}
+        <div style="margin-top:1.5rem;display:flex;gap:2rem;flex-wrap:wrap;">
+            <div>
+                <h3 style="font-size:0.9rem;color:var(--text-secondary,#aaa);margin-bottom:0.5rem;">Events (30d)</h3>
+                <table style="font-size:0.85rem;border-collapse:collapse;">
+                    {% for (event_type, count) in stats.event_counts %}
+                    <tr>
+                        <td style="padding:0.2rem 1rem 0.2rem 0;color:var(--text-secondary,#aaa);">{{ event_type }}</td>
+                        <td style="padding:0.2rem 0;font-family:monospace;">{{ count }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% if !stats.top_pages.is_empty() %}
+            <div>
+                <h3 style="font-size:0.9rem;color:var(--text-secondary,#aaa);margin-bottom:0.5rem;">Top Pages (30d)</h3>
+                <table style="font-size:0.85rem;border-collapse:collapse;">
+                    {% for page in stats.top_pages %}
+                    <tr>
+                        <td style="padding:0.2rem 1rem 0.2rem 0;color:var(--text-secondary,#aaa);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ page.path }}</td>
+                        <td style="padding:0.2rem 0;font-family:monospace;">{{ page.views }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if !stats.daily_activity.is_empty() %}
+        <div style="margin-top:1.5rem;">
+            <h3 style="font-size:0.9rem;color:var(--text-secondary,#aaa);margin-bottom:0.5rem;">Daily Activity (30d)</h3>
+            <div style="display:flex;align-items:flex-end;gap:2px;height:80px;">
+                {% for day in stats.daily_activity %}
+                <div style="flex:1;background:var(--color-accent,#eb5437);border-radius:2px 2px 0 0;min-width:4px;height:{{ day.events }}px;max-height:80px;" title="{{ day.day }}: {{ day.events }} events"></div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="admin-section" style="margin-top: 2rem;">
         <h2 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary, #eee);">Tools</h2>
         <div class="admin-stats-grid">
             <div class="admin-stat-card" style="text-align: left;">

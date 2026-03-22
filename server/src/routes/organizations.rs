@@ -427,6 +427,7 @@ async fn create_organization(
     let _org = model.create(create_data, &user.id).await?;
 
     info!("Organization '{}' created by user {}", data.slug, user.id);
+    crate::services::activity::log_activity(Some(&user.id), "organization_create", &format!("/orgs/{}", data.slug));
 
     Ok(Redirect::to(&format!("/orgs/{}", data.slug)))
 }

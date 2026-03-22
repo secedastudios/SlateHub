@@ -586,6 +586,7 @@ async fn create_production(
         "Created production: {} ({})",
         production.title, production.id.display()
     );
+    crate::services::activity::log_activity(Some(&user.id), "production_create", &format!("/productions/{}", production.slug));
 
     // Upload poster if provided
     if let Some(image_bytes) = poster_data {

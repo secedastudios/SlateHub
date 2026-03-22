@@ -220,13 +220,26 @@ async fn get_org_slug(org_id: &str) -> Option<String> {
 /// SSE endpoint that pushes notification count updates to the authenticated user.
 /// The person_id is derived from the JWT — never from URL params.
 async fn notification_stream_sse(
-    AuthenticatedUser(user): AuthenticatedUser,
+    request: axum::extract::Request,
 ) -> axum::response::Response {
     use axum::body::Body;
     use axum::http::header;
+    use crate::middleware::UserExtractor;
 
-    let person_id = user.id.clone();
-    info!("SSE notification stream opened for {}", person_id);
+    // Silently return empty stream if not authenticated
+    let person_id = match request.get_user() {
+        Some(user) => user.id.clone(),
+        None => {
+            let body = Body::from_stream(async_stream::stream! {
+                yield Ok::<_, std::convert::Infallible>(":unauthenticated\n\n".to_string());
+            });
+            return axum::response::Response::builder()
+                .header(header::CONTENT_TYPE, "text/event-stream")
+                .header(header::CACHE_CONTROL, "no-cache")
+                .body(body)
+                .unwrap();
+        }
+    };
     let mut rx = crate::services::notification_stream::subscribe();
 
     let stream = async_stream::stream! {

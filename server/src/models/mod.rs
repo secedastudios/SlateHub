@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod analytics;
 pub mod equipment;
 pub mod involvement;

@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod email;
 pub mod embedding;
 pub mod geodata;

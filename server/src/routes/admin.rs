@@ -64,6 +64,10 @@ struct AdminStats {
     location_count: usize,
     organization_count: usize,
     feedback_count: usize,
+    engagement: crate::models::activity::EngagementMetrics,
+    top_pages: Vec<crate::models::activity::PageStat>,
+    daily_activity: Vec<crate::models::activity::DayStat>,
+    event_counts: Vec<(String, u64)>,
 }
 
 #[derive(Template)]
@@ -207,12 +211,32 @@ async fn dashboard(
 ) -> Result<Html<String>, Error> {
     let template_user = require_admin(&user).await?;
 
+    use crate::models::activity::ActivityModel;
+
+    // Run all queries in parallel
+    let (person_count, production_count, location_count, organization_count, feedback_count,
+         engagement, top_pages, daily_activity, event_counts) = tokio::join!(
+        count_table("person"),
+        count_table("production"),
+        count_table("location"),
+        count_table("organization"),
+        count_table("feedback"),
+        ActivityModel::engagement_metrics(),
+        ActivityModel::top_pages(10),
+        ActivityModel::daily_activity(30),
+        ActivityModel::event_counts(),
+    );
+
     let stats = AdminStats {
-        person_count: count_table("person").await,
-        production_count: count_table("production").await,
-        location_count: count_table("location").await,
-        organization_count: count_table("organization").await,
-        feedback_count: count_table("feedback").await,
+        person_count,
+        production_count,
+        location_count,
+        organization_count,
+        feedback_count,
+        engagement,
+        top_pages,
+        daily_activity,
+        event_counts,
     };
 
     let base = BaseContext::new()
