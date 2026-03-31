@@ -236,7 +236,7 @@ async fn profiles_ticker_sse(
 
     let query = format!(
         "SELECT username, profile.name AS name, profile.headline AS headline, profile.avatar AS avatar \
-         FROM person WHERE profile.avatar IS NOT NONE AND profile.headline IS NOT NONE{} \
+         FROM person WHERE profile.avatar IS NOT NONE AND profile.headline IS NOT NONE AND verification_status = 'identity'{} \
          ORDER BY rand() LIMIT {};",
         exclude_clause, count
     );
@@ -281,18 +281,21 @@ fn escape_attr(s: &str) -> String {
     s.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
+const VERIFIED_BADGE_SVG: &str = "<svg data-role=\"verified-badge\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"#1d9bf0\" aria-label=\"Verified\"><path d=\"M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z\"/></svg>";
+
 fn render_ticker_tile(row: &serde_json::Value, slot: usize) -> String {
     let username = row.get("username").and_then(|v| v.as_str()).unwrap_or("");
     let name = row.get("name").and_then(|v| v.as_str()).unwrap_or(username);
     let headline = row.get("headline").and_then(|v| v.as_str()).unwrap_or("Creative Professional");
     let avatar = row.get("avatar").and_then(|v| v.as_str()).unwrap_or("/static/images/default-avatar.png");
     format!(
-        r#"<a href="/{}" data-component="ticker-tile" data-slot="{}"><img src="{}" alt="{}" loading="lazy" /><span data-role="ticker-overlay"><span data-role="ticker-name">{}</span><span data-role="ticker-headline">{}</span></span></a>"#,
+        r#"<a href="/{}" data-component="ticker-tile" data-slot="{}"><img src="{}" alt="{}" loading="lazy" /><span data-role="ticker-overlay"><span data-role="ticker-name">{} {}</span><span data-role="ticker-headline">{}</span></span></a>"#,
         escape_attr(username),
         slot,
         escape_attr(avatar),
         escape_attr(name),
         escape_attr(name),
+        VERIFIED_BADGE_SVG,
         escape_attr(headline),
     )
 }

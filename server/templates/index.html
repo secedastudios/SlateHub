@@ -53,7 +53,7 @@
                 <div id="hero-search-overlay" data-component="hero-search">
                     <p id="hero-search-heading" data-role="search-heading">Describe who you need. We'll find them.</p>
                     <form id="form-hero-search" data-component="search-form" action="/search" method="GET">
-                        <input type="search" id="input-hero-search" name="q" placeholder='Eg. "bilingual DP in Atlanta with doc experience"' aria-label="Search for talent" />
+                        <input type="search" id="input-hero-search" name="q" placeholder='Eg. "blond actors in berlin"' aria-label="Search for talent" />
                         <button type="submit" id="button-hero-search" aria-label="Search">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="11" cy="11" r="8"/>
@@ -395,35 +395,45 @@
 {% block scripts %}
 <script>
 // Ticker rotation — Datastar handles the initial load via data-on-intersect.
-// This script only handles the animated tile swap on a random interval.
+// Each tile independently rotates on its own random 4-10s interval.
 (function() {
     var t = document.getElementById('hero-ticker');
     if (!t) return;
     var parse = function(r) { return r.text().then(function(s) { var m = s.match(/data: elements (.+)/); return m ? m[1].trim() : ''; }); };
 
-    // Wait for Datastar to populate the ticker, then start rotating
-    var check = setInterval(function() {
-        if (!t.querySelector('[data-component="ticker-tile"]')) return;
-        clearInterval(check);
-        !function next() { setTimeout(function() { rotate(); next(); }, 5e3 + Math.random() * 5e3); }();
-    }, 500);
+    function exclude() {
+        return Array.from(t.querySelectorAll('[data-component="ticker-tile"]'), function(n) { return (n.getAttribute('href') || '').slice(1); }).join(',');
+    }
 
-    function rotate() {
-        var tiles = t.querySelectorAll('[data-component="ticker-tile"]');
-        if (!tiles.length) return;
-        var tile = tiles[Math.random() * tiles.length | 0];
-        var exclude = Array.from(tiles, function(n) { return (n.getAttribute('href') || '').slice(1); }).join(',');
+    function swap(tile) {
         tile.classList.add('ticker-slide-out');
         setTimeout(function() {
-            fetch('/api/homepage/profiles-sse?count=1&slot=' + tile.dataset.slot + '&exclude=' + encodeURIComponent(exclude))
+            fetch('/api/homepage/profiles-sse?count=1&slot=' + tile.dataset.slot + '&exclude=' + encodeURIComponent(exclude()))
                 .then(parse).then(function(h) {
                     if (!h || !tile.parentNode) return;
                     tile.insertAdjacentHTML('afterend', h);
-                    tile.nextElementSibling.classList.add('ticker-slide-replace');
+                    var next = tile.nextElementSibling;
+                    next.classList.add('ticker-slide-replace');
                     tile.remove();
+                    schedule(next);
                 });
         }, 400);
     }
+
+    function schedule(tile) {
+        setTimeout(function() { swap(tile); }, 4e3 + Math.random() * 6e3);
+    }
+
+    // Wait for Datastar to populate, then start each tile on its own timer
+    var check = setInterval(function() {
+        var tiles = t.querySelectorAll('[data-component="ticker-tile"]');
+        if (!tiles.length) return;
+        clearInterval(check);
+        tiles.forEach(function(tile, i) {
+            // Stagger initial starts so they don't all fire at once
+            setTimeout(function() { schedule(tile); }, 2e3 + i * 500);
+        });
+    }, 500);
 })();
 </script>
 {% endblock %}
