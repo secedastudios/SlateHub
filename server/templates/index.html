@@ -225,15 +225,9 @@
                     </p>
                 </article>
             </div>
-            {% if user.is_none() %}
-                <nav id="orgs-actions" data-role="section-actions" aria-label="Create your organization">
-                    <a href="/orgs" id="link-orgs-create" role="button" data-type="primary">Browse Organizations</a>
-                </nav>
-            {% else %}
-                <nav id="orgs-actions" data-role="section-actions" aria-label="Create your organization">
-                    <a href="/orgs" id="link-orgs-create" role="button" data-type="primary">Browse Organizations</a>
-                </nav>
-            {% endif %}
+            <nav id="orgs-actions" data-role="section-actions" aria-label="Browse organizations">
+                <a href="/orgs" id="link-orgs-create" role="button" data-type="primary">Browse Organizations</a>
+            </nav>
         </section>
 
         <!-- ============ HOW IS THIS FREE ============ -->
@@ -260,31 +254,6 @@
                         a paywall. That's a promise we put in our
                         <a href="https://github.com/slatehub" target="_blank" rel="noopener noreferrer">open&#8209;source&nbsp;code</a>.
                     </p>
-                </div>
-            </div>
-        </section>
-
-        <!-- ============ STATS ============ -->
-        <section id="section-stats" data-section="social-proof">
-            <div id="stats-intro" data-role="section-intro">
-                <h2 id="heading-stats">The Community So Far</h2>
-            </div>
-            <div id="stats-grid" data-role="stats-grid">
-                <div data-component="stat-card">
-                    <strong>{{ user_count|abbr_u32 }}+</strong>
-                    <span>Professionals</span>
-                </div>
-                <div data-component="stat-card">
-                    <strong>{{ production_count|abbr_u32 }}+</strong>
-                    <span>Productions</span>
-                </div>
-                <div data-component="stat-card">
-                    <strong>{{ connection_count|abbr_u32 }}+</strong>
-                    <span>Connections Made</span>
-                </div>
-                <div data-component="stat-card">
-                    <strong>$0</strong>
-                    <span>No subscriptions. No ads. Ever.</span>
                 </div>
             </div>
         </section>
