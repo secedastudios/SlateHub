@@ -1,5 +1,10 @@
 {% extends "_layout.html" %}
-{% block title %}Locations - {{ app_name }}{% endblock %}
+{% block title %}Filming Locations — Studios, Venues &amp; Spaces | {{ app_name }}{% endblock %}
+{% block description %}Find filming locations — studios, venues, and spaces for your next production. Browse by city, amenities, and capacity. Find the perfect location on {{ app_name }}.{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ "/locations"|abs_url }}" />{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ "/locations"|abs_url }}" />{% endblock %}
+{% block og_title %}Filming Locations — Studios, Venues &amp; Spaces | {{ app_name }}{% endblock %}
+{% block og_description %}Find filming locations — studios, venues, and spaces for your next production. Browse by city, amenities, and capacity. Find the perfect location on {{ app_name }}.{% endblock %}
 {% block page_name %}locations{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/locations.css?v={{ version }}" />

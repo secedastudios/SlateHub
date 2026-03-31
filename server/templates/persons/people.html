@@ -1,5 +1,10 @@
 {% extends "_layout.html" %}
-{% block title %}People - {{ app_name }}{% endblock %}
+{% block title %}People — Actors, Crew &amp; Creators | {{ app_name }}{% endblock %}
+{% block description %}Browse filmmakers, actors, crew, and creators across film, TV, YouTube, and streaming. Free verified profiles. No subscriptions. No ads. See who's on {{ app_name }}.{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ "/people"|abs_url }}" />{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ "/people"|abs_url }}" />{% endblock %}
+{% block og_title %}People — Actors, Crew &amp; Creators | {{ app_name }}{% endblock %}
+{% block og_description %}Browse filmmakers, actors, crew, and creators across film, TV, YouTube, and streaming. Free verified profiles. No subscriptions. No ads. See who's on {{ app_name }}.{% endblock %}
 {% block page_name %}people{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/people.css?v={{ version }}" />

@@ -1,8 +1,10 @@
 {% extends "_layout.html" %}
-{% block title %}
-    Organizations -
-    {{ app_name }}
-{% endblock %}
+{% block title %}Organizations — Studios, Schools &amp; Communities | {{ app_name }}{% endblock %}
+{% block description %}Film schools, production companies, collectives, and creative communities. Find and connect with organizations in the industry. Join your community on {{ app_name }}.{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ "/orgs"|abs_url }}" />{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ "/orgs"|abs_url }}" />{% endblock %}
+{% block og_title %}Organizations — Studios, Schools &amp; Communities | {{ app_name }}{% endblock %}
+{% block og_description %}Film schools, production companies, collectives, and creative communities. Find and connect with organizations in the industry. Join your community on {{ app_name }}.{% endblock %}
 {% block page_name %}
     organizations
 {% endblock %}

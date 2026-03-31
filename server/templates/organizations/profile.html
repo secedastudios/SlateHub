@@ -1,7 +1,7 @@
 {% extends "_layout.html" %}
 {% block title %}{{ organization.name }} ({{ organization.org_type.name }}) | {{ app_name }}{% endblock %}
 {% block page_name %}organization-profile{% endblock %}
-{% block description %}{{ organization.name }} — {{ organization.org_type.name }}{% if organization.location.is_some() %} in {{ organization.location.as_ref().unwrap() }}{% endif %}{% if organization.description.is_some() %}. {{ organization.description.as_ref().unwrap() }}{% endif %}{% endblock %}
+{% block description %}{{ organization.name }} — {{ organization.org_type.name }}{% if organization.location.is_some() %} in {{ organization.location.as_ref().unwrap() }}{% endif %}.{% if !organization.services.is_empty() %} Services: {{ organization.services.join(", ") }}.{% endif %}{% if organization.description.is_some() %} {{ organization.description.as_ref().unwrap() }}{% endif %} On {{ app_name }}.{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ "/orgs/"|abs_url }}{{ organization.slug }}" />{% endblock %}
 {% block og_type %}website{% endblock %}
 {% block og_url %}<meta property="og:url" content="{{ "/orgs/"|abs_url }}{{ organization.slug }}" />{% endblock %}

@@ -1,5 +1,10 @@
 {% extends "_layout.html" %}
-{% block title %}Productions - {{ app_name }}{% endblock %}
+{% block title %}Productions — Film, TV &amp; Streaming | {{ app_name }}{% endblock %}
+{% block description %}Discover productions looking for cast and crew. Feature films, series, YouTube, streaming, and more. Start managing your production on {{ app_name }}.{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ "/productions"|abs_url }}" />{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ "/productions"|abs_url }}" />{% endblock %}
+{% block og_title %}Productions — Film, TV &amp; Streaming | {{ app_name }}{% endblock %}
+{% block og_description %}Discover productions looking for cast and crew. Feature films, series, YouTube, streaming, and more. Start managing your production on {{ app_name }}.{% endblock %}
 {% block page_name %}productions{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />

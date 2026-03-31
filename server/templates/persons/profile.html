@@ -13,16 +13,8 @@
 {% block page_name %}
     profile
 {% endblock %}
-{% block description %}
-    {{ profile.name }}
-    (@
-    {{ profile.username }}
-    ) —
-    {% if profile.headline.is_some() %}
-        {{ profile.headline.as_ref().unwrap() }}
-    {% else %}
-        Film
-        & TV professional{% endif %} on {{ app_name }}{% if profile.bio.is_some() %}. {{ profile.bio.as_ref().unwrap() }}{% endif %}{% endblock %}{% block og_type %}profile{% endblock %}{% block og_url %}
+{% block description %}{{ profile.name }} (@{{ profile.username }}) — {% if profile.headline.is_some() %}{{ profile.headline.as_ref().unwrap() }}{% else %}Film & TV professional{% endif %}{% if profile.location.is_some() %} in {{ profile.location.as_ref().unwrap() }}{% endif %} on {{ app_name }}.{% if !profile.skills.is_empty() %} Skills: {{ profile.skills.join(", ") }}.{% endif %}{% if profile.bio.is_some() %} {{ profile.bio.as_ref().unwrap() }}{% endif %}{% endblock %}
+{% block og_type %}profile{% endblock %}{% block og_url %}
         <meta property="og:url" content="{{ "/"|abs_url }}{{ profile.username }}" />
     {% endblock %}
     {% block og_title %}

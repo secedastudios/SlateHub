@@ -35,11 +35,6 @@ mod filters {
         abbr_num(*value as usize)
     }
 
-    /// Abbreviate large u32 numbers
-    pub fn abbr_u32(value: &u32) -> askama::Result<String> {
-        abbr_num(*value as usize)
-    }
-
     /// Abbreviate large usize numbers
     pub fn abbr_usize(value: &usize) -> askama::Result<String> {
         abbr_num(*value)

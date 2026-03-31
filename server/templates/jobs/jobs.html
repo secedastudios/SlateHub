@@ -1,5 +1,10 @@
 {% extends "_layout.html" %}
-{% block title %}Jobs - {{ app_name }}{% endblock %}
+{% block title %}Jobs — Film, TV &amp; Content Creation Opportunities | {{ app_name }}{% endblock %}
+{% block description %}Find open roles in film, TV, YouTube, and content creation. No subscriptions, no fees. Find your next production job on {{ app_name }}.{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ "/jobs"|abs_url }}" />{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ "/jobs"|abs_url }}" />{% endblock %}
+{% block og_title %}Jobs — Film, TV &amp; Content Creation Opportunities | {{ app_name }}{% endblock %}
+{% block og_description %}Find open roles in film, TV, YouTube, and content creation. No subscriptions, no fees. Find your next production job on {{ app_name }}.{% endblock %}
 {% block page_name %}jobs{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/jobs.css?v={{ version }}" />

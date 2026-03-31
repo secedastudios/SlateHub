@@ -8,10 +8,7 @@
 {% block page_name %}
     productions
 {% endblock %}
-{% block description %}
-    {{ production.title }}
-    — {{ production.production_type }}{% if production.status != "" %} ({{ production.status }}){% endif %}{% if production.location.is_some() %} in {{ production.location.as_ref().unwrap() }}{% endif %}.{% if production.description.is_some() %} {{ production.description.as_ref().unwrap() }}{% endif %}
-{% endblock %}
+{% block description %}{{ production.title }} — {{ production.production_type }}{% if production.status != "" %} ({{ production.status }}){% endif %}{% if production.location.is_some() %} in {{ production.location.as_ref().unwrap() }}{% endif %}{% if production.release_date.is_some() %}. Released {{ production.release_date.as_ref().unwrap() }}{% endif %}.{% if production.description.is_some() %} {{ production.description.as_ref().unwrap() }}{% endif %}{% if !production.cast.is_empty() || !production.crew.is_empty() %} {{ production.cast.len() }} cast, {{ production.crew.len() }} crew on {{ app_name }}.{% endif %}{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ "/productions/"|abs_url }}{{ production.slug }}" />{% endblock %}
 {% block og_url %}<meta property="og:url" content="{{ "/productions/"|abs_url }}{{ production.slug }}" />{% endblock %}
 {% block og_title %}

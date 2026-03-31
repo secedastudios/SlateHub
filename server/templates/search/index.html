@@ -1,5 +1,10 @@
 {% extends "_layout.html" %}
-{% block title %}Search - {{ app_name }}{% endblock %}
+{% block title %}Search — Find Talent, Crew &amp; Creators | {{ app_name }}{% endblock %}
+{% block description %}Search for actors, crew, filmmakers, and creators by skill, location, and experience. Describe who you need in plain English. Find your next cast &amp; crew on {{ app_name }}.{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ "/search"|abs_url }}" />{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ "/search"|abs_url }}" />{% endblock %}
+{% block og_title %}Search — Find Talent, Crew &amp; Creators | {{ app_name }}{% endblock %}
+{% block og_description %}Search for actors, crew, filmmakers, and creators by skill, location, and experience. Describe who you need in plain English. Find your next cast &amp; crew on {{ app_name }}.{% endblock %}
 {% block page_name %}search{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/search.css?v={{ version }}" />

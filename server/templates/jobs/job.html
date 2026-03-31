@@ -1,7 +1,7 @@
 {% extends "_layout.html" %}
 {% block title %}{{ job.title }}{% if job.location.is_some() %} — {{ job.location.as_ref().unwrap() }}{% endif %} | Jobs | {{ app_name }}{% endblock %}
 {% block page_name %}jobs{% endblock %}
-{% block description %}{{ job.title }} — Posted by {{ job.poster_name }}{% if job.location.is_some() %} in {{ job.location.as_ref().unwrap() }}{% endif %}. {{ job.description }}{% endblock %}
+{% block description %}{{ job.title }} — Posted by {{ job.poster_name }}{% if job.location.is_some() %} in {{ job.location.as_ref().unwrap() }}{% endif %}.{% if !job.roles.is_empty() %} Roles: {% for role in job.roles %}{{ role.title }}{% if !loop.last %}, {% endif %}{% endfor %}.{% endif %} {{ job.description }} On {{ app_name }}.{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ "/jobs/"|abs_url }}{{ job.id }}" />{% endblock %}
 {% block og_url %}<meta property="og:url" content="{{ "/jobs/"|abs_url }}{{ job.id }}" />{% endblock %}
 {% block og_title %}{{ job.title }}{% if job.location.is_some() %} — {{ job.location.as_ref().unwrap() }}{% endif %} | {{ app_name }}{% endblock %}

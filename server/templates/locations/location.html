@@ -1,7 +1,7 @@
 {% extends "_layout.html" %}
 {% block title %}{{ location.name }} — {{ location.city }}, {{ location.state }} | {{ app_name }}{% endblock %}
 {% block page_name %}locations{% endblock %}
-{% block description %}{{ location.name }} — Filming location in {{ location.city }}, {{ location.state }}, {{ location.country }}{% if location.description.is_some() %}. {{ location.description.as_ref().unwrap() }}{% endif %}{% endblock %}
+{% block description %}{{ location.name }} — Filming location in {{ location.city }}, {{ location.state }}, {{ location.country }}.{% if location.max_capacity.is_some() %} Capacity: up to {{ location.max_capacity.as_ref().unwrap() }} people.{% endif %}{% if location.amenities.is_some() && !location.amenities.as_ref().unwrap().is_empty() %} Amenities: {{ location.amenities.as_ref().unwrap().join(", ") }}.{% endif %}{% if location.description.is_some() %} {{ location.description.as_ref().unwrap() }}{% endif %} On {{ app_name }}.{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ "/locations/"|abs_url }}{{ location.id }}" />{% endblock %}
 {% block og_url %}<meta property="og:url" content="{{ "/locations/"|abs_url }}{{ location.id }}" />{% endblock %}
 {% block og_title %}{{ location.name }} — {{ location.city }}, {{ location.state }} | {{ app_name }}{% endblock %}
