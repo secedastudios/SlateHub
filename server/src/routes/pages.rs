@@ -338,9 +338,8 @@ Disallow: /messages
 
 Sitemap: {base}/sitemap.xml
 
-# LLM/AI-friendly content index
+# LLM/AI-friendly content index available at {base}/llms.txt
 # See https://llmstxt.org/
-LLMs-Txt: {base}/llms.txt
 "
     );
 
