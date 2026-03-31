@@ -25,6 +25,7 @@ pub fn router() -> Router {
         .route("/llms.txt", get(llms_txt))
         .route("/sitemap.xml", get(sitemap_xml))
         .route("/favicon.ico", get(favicon))
+        .route("/api/homepage/profiles-sse", get(profiles_ticker_sse))
 }
 
 async fn index(request: Request) -> Result<Html<String>, Error> {
@@ -201,6 +202,122 @@ async fn impressum(request: Request) -> Result<Html<String>, Error> {
 
 async fn favicon() -> Redirect {
     Redirect::permanent("/static/icons/sh-icon-red-32x32.png")
+}
+
+#[derive(serde::Deserialize)]
+struct TickerQuery {
+    count: Option<usize>,
+    slot: Option<usize>,
+    /// Comma-separated usernames to exclude from results
+    exclude: Option<String>,
+}
+
+/// SSE endpoint that returns random profile tiles for the homepage ticker.
+async fn profiles_ticker_sse(
+    axum::extract::Query(params): axum::extract::Query<TickerQuery>,
+) -> Response {
+    let count = params.count.unwrap_or(1).min(20);
+
+    let exclude_clause = if let Some(ref exclude) = params.exclude {
+        let usernames: Vec<String> = exclude
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if usernames.is_empty() {
+            String::new()
+        } else {
+            let quoted: Vec<String> = usernames.iter().map(|u| format!("'{}'", u.replace('\'', ""))).collect();
+            format!(" AND username NOT IN [{}]", quoted.join(","))
+        }
+    } else {
+        String::new()
+    };
+
+    let query = format!(
+        "SELECT username, profile.name AS name, profile.headline AS headline, profile.avatar AS avatar \
+         FROM person WHERE profile.avatar IS NOT NONE AND profile.headline IS NOT NONE{} \
+         ORDER BY rand() LIMIT {};",
+        exclude_clause, count
+    );
+
+    let rows: Vec<serde_json::Value> = match DB.query(&query).await {
+        Ok(mut result) => result.take::<Vec<serde_json::Value>>(0).unwrap_or_default(),
+        Err(e) => {
+            error!("Failed to fetch ticker profiles: {}", e);
+            vec![]
+        }
+    };
+
+    if rows.is_empty() {
+        return sse_response("event: datastar-patch-elements\ndata: selector #hero-ticker\ndata: mode inner\ndata: elements \n\n".to_string());
+    }
+
+    let mut body = String::new();
+
+    if let Some(slot) = params.slot {
+        // Replace a single tile at the given slot index
+        if let Some(row) = rows.first() {
+            let tile = render_ticker_tile(row, slot);
+            body.push_str(&sse_patch_elements(
+                &format!("#hero-ticker [data-slot=\"{}\"]", slot),
+                "outer",
+                &tile,
+            ));
+        }
+    } else {
+        // Initial load: render all tiles
+        let mut tiles = String::new();
+        for (i, row) in rows.iter().enumerate() {
+            tiles.push_str(&render_ticker_tile(row, i));
+        }
+        body.push_str(&sse_patch_elements("#hero-ticker", "inner", &tiles));
+    }
+
+    sse_response(body)
+}
+
+fn escape_attr(s: &str) -> String {
+    s.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+fn render_ticker_tile(row: &serde_json::Value, slot: usize) -> String {
+    let username = row.get("username").and_then(|v| v.as_str()).unwrap_or("");
+    let name = row.get("name").and_then(|v| v.as_str()).unwrap_or(username);
+    let headline = row.get("headline").and_then(|v| v.as_str()).unwrap_or("Creative Professional");
+    let avatar = row.get("avatar").and_then(|v| v.as_str()).unwrap_or("/static/images/default-avatar.png");
+    format!(
+        r#"<a href="/{}" data-component="ticker-tile" data-slot="{}"><img src="{}" alt="{}" loading="lazy" /><span data-role="ticker-overlay"><span data-role="ticker-name">{}</span><span data-role="ticker-headline">{}</span></span></a>"#,
+        escape_attr(username),
+        slot,
+        escape_attr(avatar),
+        escape_attr(name),
+        escape_attr(name),
+        escape_attr(headline),
+    )
+}
+
+fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
+    let mut s = format!(
+        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
+        selector, mode
+    );
+    if !elements.is_empty() {
+        s += &format!("data: elements {}\n", elements.replace('\n', " "));
+    }
+    s += "\n";
+    s
+}
+
+fn sse_response(body: String) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream")),
+            (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
+        ],
+        body,
+    )
+        .into_response()
 }
 
 async fn robots_txt() -> Response {

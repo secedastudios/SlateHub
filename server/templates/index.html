@@ -62,6 +62,11 @@
                         </button>
                     </form>
                 </div>
+                <div id="hero-ticker"
+                     data-component="profile-ticker"
+                     data-on-intersect="@get('/api/homepage/profiles-sse?count=12')"
+                     aria-label="Community members">
+                </div>
             </div>
         </section>
 
@@ -386,4 +391,39 @@
         </section>
 
     </section>
+{% endblock %}
+{% block scripts %}
+<script>
+// Ticker rotation — Datastar handles the initial load via data-on-intersect.
+// This script only handles the animated tile swap on a random interval.
+(function() {
+    var t = document.getElementById('hero-ticker');
+    if (!t) return;
+    var parse = function(r) { return r.text().then(function(s) { var m = s.match(/data: elements (.+)/); return m ? m[1].trim() : ''; }); };
+
+    // Wait for Datastar to populate the ticker, then start rotating
+    var check = setInterval(function() {
+        if (!t.querySelector('[data-component="ticker-tile"]')) return;
+        clearInterval(check);
+        !function next() { setTimeout(function() { rotate(); next(); }, 5e3 + Math.random() * 5e3); }();
+    }, 500);
+
+    function rotate() {
+        var tiles = t.querySelectorAll('[data-component="ticker-tile"]');
+        if (!tiles.length) return;
+        var tile = tiles[Math.random() * tiles.length | 0];
+        var exclude = Array.from(tiles, function(n) { return (n.getAttribute('href') || '').slice(1); }).join(',');
+        tile.classList.add('ticker-slide-out');
+        setTimeout(function() {
+            fetch('/api/homepage/profiles-sse?count=1&slot=' + tile.dataset.slot + '&exclude=' + encodeURIComponent(exclude))
+                .then(parse).then(function(h) {
+                    if (!h || !tile.parentNode) return;
+                    tile.insertAdjacentHTML('afterend', h);
+                    tile.nextElementSibling.classList.add('ticker-slide-replace');
+                    tile.remove();
+                });
+        }, 400);
+    }
+})();
+</script>
 {% endblock %}
