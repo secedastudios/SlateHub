@@ -1,6 +1,33 @@
 {% extends "_layout.html" %}
-{% block title %}{{ organization.name }} - {{ app_name }}{% endblock %}
+{% block title %}{{ organization.name }} ({{ organization.org_type.name }}) | {{ app_name }}{% endblock %}
 {% block page_name %}organization-profile{% endblock %}
+{% block description %}{{ organization.name }} — {{ organization.org_type.name }}{% if organization.location.is_some() %} in {{ organization.location.as_ref().unwrap() }}{% endif %}{% if organization.description.is_some() %}. {{ organization.description.as_ref().unwrap() }}{% endif %}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ "/orgs/"|abs_url }}{{ organization.slug }}" />{% endblock %}
+{% block og_type %}website{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ "/orgs/"|abs_url }}{{ organization.slug }}" />{% endblock %}
+{% block og_title %}{{ organization.name }} — {{ organization.org_type.name }} | {{ app_name }}{% endblock %}
+{% block og_description %}{% if organization.description.is_some() %}{{ organization.description.as_ref().unwrap() }}{% else %}{{ organization.name }} is a {{ organization.org_type.name }}{% if organization.location.is_some() %} based in {{ organization.location.as_ref().unwrap() }}{% endif %} on {{ app_name }}.{% endif %}{% endblock %}
+{% block og_image %}{% if organization.logo.is_some() %}<meta property="og:image" content="{{ organization.logo.as_ref().unwrap() }}" />{% else %}<meta property="og:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
+{% block twitter_title %}{{ organization.name }} — {{ organization.org_type.name }} | {{ app_name }}{% endblock %}
+{% block twitter_description %}{% if organization.description.is_some() %}{{ organization.description.as_ref().unwrap() }}{% else %}{{ organization.name }} is a {{ organization.org_type.name }}{% if organization.location.is_some() %} based in {{ organization.location.as_ref().unwrap() }}{% endif %} on {{ app_name }}.{% endif %}{% endblock %}
+{% block twitter_image %}{% if organization.logo.is_some() %}<meta name="twitter:image" content="{{ organization.logo.as_ref().unwrap() }}" />{% else %}<meta name="twitter:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "{{ organization.name }}",
+  "url": "{{ "/orgs/"|abs_url }}{{ organization.slug }}"
+  {% if organization.logo.is_some() %},"logo": "{{ organization.logo.as_ref().unwrap() }}"{% endif %}
+  {% if organization.description.is_some() %},"description": "{{ organization.description.as_ref().unwrap() }}"{% endif %}
+  {% if organization.location.is_some() %},"location": {"@type": "Place", "name": "{{ organization.location.as_ref().unwrap() }}"}{% endif %}
+  {% if organization.website.is_some() %},"sameAs": "{{ organization.website.as_ref().unwrap() }}"{% endif %}
+  {% if organization.contact_email.is_some() %},"email": "{{ organization.contact_email.as_ref().unwrap() }}"{% endif %}
+  {% if organization.phone.is_some() %},"telephone": "{{ organization.phone.as_ref().unwrap() }}"{% endif %}
+  {% if organization.founded_year.is_some() %},"foundingDate": "{{ organization.founded_year.as_ref().unwrap() }}"{% endif %}
+}
+</script>
+{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/org-profile.css?v={{ version }}" />
 <link rel="stylesheet" href="/static/css/components/invite-search.css?v={{ version }}" />

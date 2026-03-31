@@ -1,15 +1,23 @@
 {% extends "_layout.html" %}
 {% block title %}
     {{ production.title }}
-    -
+    ({{ production.production_type }})
+    |
     {{ app_name }}
 {% endblock %}
 {% block page_name %}
     productions
 {% endblock %}
+{% block description %}
+    {{ production.title }}
+    — {{ production.production_type }}{% if production.status != "" %} ({{ production.status }}){% endif %}{% if production.location.is_some() %} in {{ production.location.as_ref().unwrap() }}{% endif %}.{% if production.description.is_some() %} {{ production.description.as_ref().unwrap() }}{% endif %}
+{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ "/productions/"|abs_url }}{{ production.slug }}" />{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ "/productions/"|abs_url }}{{ production.slug }}" />{% endblock %}
 {% block og_title %}
     {{ production.title }}
-    -
+    ({{ production.production_type }})
+    |
     {{ app_name }}
 {% endblock %}
 {% block og_description %}
@@ -17,12 +25,14 @@
         {{ production.description.as_ref().unwrap() }}
     {% else %}
         {{ production.title }}
-        on
+        — {{ production.production_type }} on
         {{ app_name }}
     {% endif %}
 {% endblock %}
 {% block og_image %}
-    {% if production.poster_url.is_some() %}
+    {% if production.poster_photo.is_some() %}
+        <meta property="og:image" content="{{ production.poster_photo.as_ref().unwrap() }}" />
+    {% else if production.poster_url.is_some() %}
         <meta property="og:image" content="{{ production.poster_url.as_ref().unwrap() }}" />
     {% else %}
         <meta property="og:image" content="{{ "/static/images/og-default.png"|abs_url }}" />
@@ -30,7 +40,8 @@
 {% endblock %}
 {% block twitter_title %}
     {{ production.title }}
-    -
+    ({{ production.production_type }})
+    |
     {{ app_name }}
 {% endblock %}
 {% block twitter_description %}
@@ -38,16 +49,33 @@
         {{ production.description.as_ref().unwrap() }}
     {% else %}
         {{ production.title }}
-        on
+        — {{ production.production_type }} on
         {{ app_name }}
     {% endif %}
 {% endblock %}
 {% block twitter_image %}
-    {% if production.poster_url.is_some() %}
+    {% if production.poster_photo.is_some() %}
+        <meta name="twitter:image" content="{{ production.poster_photo.as_ref().unwrap() }}" />
+    {% else if production.poster_url.is_some() %}
         <meta name="twitter:image" content="{{ production.poster_url.as_ref().unwrap() }}" />
     {% else %}
         <meta name="twitter:image" content="{{ "/static/images/og-default.png"|abs_url }}" />
     {% endif %}
+{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CreativeWork",
+  "name": "{{ production.title }}",
+  "url": "{{ "/productions/"|abs_url }}{{ production.slug }}"
+  {% if production.description.is_some() %},"description": "{{ production.description.as_ref().unwrap() }}"{% endif %}
+  {% if production.poster_photo.is_some() %},"image": "{{ production.poster_photo.as_ref().unwrap() }}"{% else if production.poster_url.is_some() %},"image": "{{ production.poster_url.as_ref().unwrap() }}"{% endif %}
+  {% if production.location.is_some() %},"locationCreated": {"@type": "Place", "name": "{{ production.location.as_ref().unwrap() }}"}{% endif %}
+  {% if production.release_date.is_some() %},"datePublished": "{{ production.release_date.as_ref().unwrap() }}"{% endif %}
+  ,"additionalType": "{{ production.production_type }}"
+}
+</script>
 {% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />

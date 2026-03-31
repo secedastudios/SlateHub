@@ -56,8 +56,28 @@
     {% block og_image %}
         <meta property="og:image" content="{{ "/api/og/profile/"|abs_url }}{{ profile.username }}" />
     {% endblock %}
+    {% block canonical %}<link rel="canonical" href="{{ "/"|abs_url }}{{ profile.username }}" />{% endblock %}
     {% block og_extra %}
         <meta property="profile:username" content="{{ profile.username }}" />
+    {% endblock %}
+    {% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  "mainEntity": {
+    "@type": "Person",
+    "name": "{{ profile.name }}",
+    "url": "{{ "/"|abs_url }}{{ profile.username }}",
+    "identifier": "{{ profile.username }}"
+    {% if profile.avatar.is_some() %},"image": "{{ profile.avatar.as_ref().unwrap() }}"{% endif %}
+    {% if profile.headline.is_some() %},"jobTitle": "{{ profile.headline.as_ref().unwrap() }}"{% endif %}
+    {% if profile.bio.is_some() %},"description": "{{ profile.bio.as_ref().unwrap() }}"{% endif %}
+    {% if profile.location.is_some() %},"workLocation": {"@type": "Place", "name": "{{ profile.location.as_ref().unwrap() }}"}{% endif %}
+    {% if !profile.skills.is_empty() %},"knowsAbout": [{% for skill in profile.skills %}"{{ skill }}"{% if !loop.last %},{% endif %}{% endfor %}]{% endif %}
+  }
+}
+</script>
     {% endblock %}
     {% block twitter_title %}
         {{ profile.name }}

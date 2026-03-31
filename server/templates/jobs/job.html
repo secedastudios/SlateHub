@@ -1,6 +1,34 @@
 {% extends "_layout.html" %}
-{% block title %}{{ job.title }} - Jobs - {{ app_name }}{% endblock %}
+{% block title %}{{ job.title }}{% if job.location.is_some() %} — {{ job.location.as_ref().unwrap() }}{% endif %} | Jobs | {{ app_name }}{% endblock %}
 {% block page_name %}jobs{% endblock %}
+{% block description %}{{ job.title }} — Posted by {{ job.poster_name }}{% if job.location.is_some() %} in {{ job.location.as_ref().unwrap() }}{% endif %}. {{ job.description }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ "/jobs/"|abs_url }}{{ job.id }}" />{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ "/jobs/"|abs_url }}{{ job.id }}" />{% endblock %}
+{% block og_title %}{{ job.title }}{% if job.location.is_some() %} — {{ job.location.as_ref().unwrap() }}{% endif %} | {{ app_name }}{% endblock %}
+{% block og_description %}{{ job.title }} — Posted by {{ job.poster_name }}{% if job.location.is_some() %} in {{ job.location.as_ref().unwrap() }}{% endif %}. {{ job.description }}{% endblock %}
+{% block og_image %}{% if job.production_poster.is_some() %}<meta property="og:image" content="{{ job.production_poster.as_ref().unwrap() }}" />{% else %}<meta property="og:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
+{% block twitter_title %}{{ job.title }}{% if job.location.is_some() %} — {{ job.location.as_ref().unwrap() }}{% endif %} | {{ app_name }}{% endblock %}
+{% block twitter_description %}{{ job.title }} — Posted by {{ job.poster_name }}{% if job.location.is_some() %} in {{ job.location.as_ref().unwrap() }}{% endif %}.{% endblock %}
+{% block twitter_image %}{% if job.production_poster.is_some() %}<meta name="twitter:image" content="{{ job.production_poster.as_ref().unwrap() }}" />{% else %}<meta name="twitter:image" content="{{ "/static/images/og-default.png"|abs_url }}" />{% endif %}{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "JobPosting",
+  "title": "{{ job.title }}",
+  "description": "{{ job.description }}",
+  "url": "{{ "/jobs/"|abs_url }}{{ job.id }}",
+  "datePosted": "{{ job.created_at }}"
+  {% if job.expires_at != "" %},"validThrough": "{{ job.expires_at }}"{% endif %}
+  {% if job.location.is_some() %},"jobLocation": {"@type": "Place", "name": "{{ job.location.as_ref().unwrap() }}"}{% endif %}
+  ,"hiringOrganization": {
+    "@type": "Organization",
+    "name": "{{ job.poster_name }}"
+    {% if job.poster_type == "organization" %},"url": "{{ "/orgs/"|abs_url }}{{ job.poster_slug }}"{% endif %}
+  }
+}
+</script>
+{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/jobs.css?v={{ version }}" />
 {% endblock %}

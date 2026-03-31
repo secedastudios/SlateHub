@@ -2203,10 +2203,9 @@ dd {
    ========================================= */
 
 #section-community {
-    background-color: var(--color-bg-primary);
-    color: var(--color-text-primary);
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-secondary);
     padding: var(--space-4xl) var(--space-xl);
-    border-top: 1px solid rgba(214, 216, 202, 0.08);
 }
 
 #community-inner {
@@ -2225,7 +2224,7 @@ dd {
     line-height: 1.1;
     letter-spacing: -0.01em;
     text-transform: uppercase;
-    color: var(--color-text-primary);
+    color: var(--color-text-secondary);
     margin: 0 0 var(--space-xl) 0;
     max-width: 360px;
 }
@@ -2237,7 +2236,8 @@ dd {
     text-transform: uppercase;
     letter-spacing: 0.03em;
     line-height: 1.6;
-    color: var(--color-text-muted);
+    color: var(--color-text-secondary);
+    opacity: 0.6;
     margin: 0;
     max-width: 380px;
 }
@@ -2254,17 +2254,17 @@ dd {
     width: 44px;
     height: 44px;
     padding: 10px;
-    background: rgba(214, 216, 202, 0.12);
-    color: var(--color-text-muted);
+    background: rgba(23, 23, 23, 0.08);
+    color: var(--color-text-secondary);
 }
 
 #input-community-email {
     flex: 1;
     background: transparent;
     border: none;
-    border-top: 2px solid var(--color-text-muted);
+    border-top: 2px solid var(--color-text-secondary);
     padding: var(--space-md) var(--space-sm);
-    color: var(--color-text-primary);
+    color: var(--color-text-secondary);
     font-family: var(--font-body);
     font-size: clamp(0.875rem, 2vw, 1.25rem);
     text-transform: uppercase;
@@ -2273,7 +2273,8 @@ dd {
 }
 
 #input-community-email::placeholder {
-    color: var(--color-text-muted);
+    color: var(--color-text-secondary);
+    opacity: 0.5;
 }
 
 #input-community-email:focus {
@@ -2327,14 +2328,15 @@ dd {
 [data-role="consent-label"] span {
     font-family: var(--font-body);
     font-size: var(--text-xs);
-    color: var(--color-text-muted);
+    color: var(--color-text-secondary);
+    opacity: 0.6;
     line-height: 1.4;
 }
 
 [data-role="consent-label"] a {
-    color: var(--color-text-primary);
+    color: var(--color-text-secondary);
     text-decoration: underline;
-    text-decoration-color: rgba(214, 216, 202, 0.3);
+    text-decoration-color: rgba(23, 23, 23, 0.3);
     text-underline-offset: 2px;
 }
 

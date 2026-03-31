@@ -217,6 +217,10 @@ Disallow: /notifications
 Disallow: /messages
 
 Sitemap: {base}/sitemap.xml
+
+# LLM/AI-friendly content index
+# See https://llmstxt.org/
+LLMs-Txt: {base}/llms.txt
 "
     );
 
@@ -233,21 +237,23 @@ async fn llms_txt() -> Response {
         "\
 # SlateHub
 
-> The free, ad-free platform where filmmakers, actors, crew, creators, and brands unite to turn ideas into stories — powered by smart search and verified connections.
+> The free home for filmmakers, actors, crew, and creators across film, TV, YouTube, and streaming. No subscriptions. No ads. Ever.
 
 ## About
 
-SlateHub is an open-source creative networking platform built for the film, TV, and content creation industry. It connects actors, crew members, filmmakers, directors, producers, creators, influencers, and brands. The platform features semantic search, verified accounts, AI-powered profile building, and production management tools.
+SlateHub is a free, open-source creative networking platform — the professional home base for everyone who makes video. It connects actors, crew members, filmmakers, directors, producers, content creators, and brands across every format: feature films, television, YouTube, streaming, vertical content, branded campaigns, and podcasts. The platform features natural-language search, verified profiles, organization and community tools, production management, and a job board.
 
 ## Key Features
 
-- **Free Forever**: No subscriptions, no ads — free for all creatives.
-- **Smart Matches**: Semantic search connects you with the right roles, projects, or talent.
-- **Verified Accounts**: One-time verification fee ensures authenticity and reduces spam.
-- **AI-Powered Profiles**: Auto-build your profile from existing links and portfolios.
-- **Production Management**: Create and manage productions, invite crew, track roles.
-- **Direct Messaging**: Message other creatives directly on the platform.
-- **Job Board**: Post and discover job opportunities in the creative industry.
+- **Free Forever**: No subscriptions, no ads, no pay-to-apply — talent should never pay to be discovered.
+- **One Profile, Every Screen**: Film credits, YouTube collabs, branded campaigns, podcast appearances — build your entire career in one place.
+- **Smart Search**: Describe who you need in plain English — by skill, location, experience, or look — and get matched instantly.
+- **Verified Profiles**: One-time verification ensures real people with confirmed credits. No fake listings, no spam.
+- **Open Source**: See exactly how the platform works. No hidden algorithms deciding who gets seen. Nobody pays to rank higher.
+- **Organizations & Communities**: Film schools, local film communities, production companies, and collectives can manage members, share opportunities, and build their presence.
+- **Production Management**: Create productions, invite cast and crew, manage roles and credits.
+- **Job Board**: Post and discover opportunities across the creative industry.
+- **Direct Messaging**: Contact talent and collaborators directly on the platform.
 
 ## Public Pages
 

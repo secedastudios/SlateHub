@@ -77,13 +77,13 @@ pub fn app() -> Router {
         .nest_service("/mcp", crate::mcp::create_mcp_service())
         // Raise body limit to 50MB to support script uploads (individual handlers enforce their own limits)
         .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
-        // Static files — no cache during development (change back to long cache for production)
+        // Static files — long cache with immutable (URLs include ?v= cache buster)
         .nest_service(
             "/static",
             get_service(static_service).layer(
                 SetResponseHeaderLayer::overriding(
                     header::CACHE_CONTROL,
-                    header::HeaderValue::from_static("no-cache, no-store, must-revalidate"),
+                    header::HeaderValue::from_static("public, max-age=31536000, immutable"),
                 ),
             ),
         )

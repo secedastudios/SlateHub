@@ -1,40 +1,59 @@
 {% extends "_layout.html" %}
 {% block title %}
-    Home -
-    {{ app_name }}
+    {{ app_name }} — The Free Home for Filmmakers, Actors, Crew &amp; Creators
 {% endblock %}
+{% block description %}The free home for filmmakers, actors, crew, and creators — from blockbusters to YouTube. Join {{ user_count|abbr_u32 }}+ professionals on SlateHub. One profile for film, TV, YouTube, and streaming. No subscriptions. No ads. Ever.{% endblock %}
+{% block og_title %}{{ app_name }} — The Free Home for Filmmakers, Actors, Crew &amp; Creators{% endblock %}
+{% block og_description %}The free home for filmmakers, actors, crew, and creators — from blockbusters to YouTube. One profile for film, TV, YouTube, and streaming. No subscriptions. No ads. Ever.{% endblock %}
 {% block page_name %}
     home
 {% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "{{ app_name }}",
+  "url": "{{ "/"|abs_url }}",
+  "description": "The free home for filmmakers, actors, crew, and creators across film, TV, YouTube, and streaming. No subscriptions. No ads.",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "{{ "/search?q="|abs_url }}{search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+{% endblock %}
 {% block content %}
     <section id="home-main" data-component="homepage">
+
+        <!-- ============ HERO ============ -->
         <section id="section-hero" data-section="hero">
             <div id="hero-content" data-role="hero-content">
-                <span id="hero-tag" data-role="hero-tag">Meet SlateHub</span>
+                <span id="hero-tag" data-role="hero-tag">Be Found. For Free. Forever.</span>
                 <h1 id="heading-hero">
-                    The free, ad-free platform where filmmakers, actors, crew,
-                                        creators, and brands unite to turn ideas
-                    into stories—
-                                        powered by smart search and verified
-                    connections.
+                    The free home for filmmakers, actors, crew,
+                    and creators&mdash;from blockbusters to YouTube.
                 </h1>
+                <p id="hero-subheading">
+                    One profile for everything you do&mdash;film, TV,
+                    streaming, branded content, and beyond. No subscriptions.
+                    No ads. Just your work, your credits, and the people
+                    who need to find you.
+                </p>
                 {% if user.is_none() %}
                     <nav id="hero-actions" data-role="hero-actions" aria-label="Get started">
-                        <a href="/signup" id="link-hero-signup" role="button" data-type="primary">Create Account</a>
-                        <p id="hero-note" data-role="hero-note">
-                            100% Free for creatives.
-                            <br/>
-                            For life.
-                        </p>
+                        <a href="/signup" id="link-hero-signup" role="button" data-type="primary">Claim Your Profile</a>
+                        <a href="/people" id="link-hero-browse" role="button" data-type="secondary">Browse the Community</a>
                     </nav>
                 {% endif %}
             </div>
             <div id="hero-media" data-role="hero-media">
                 <img src="/static/images/hero-search.jpg" alt="Filmmaker operating cinema camera on set" id="hero-image" loading="eager" />
                 <div id="hero-search-overlay" data-component="hero-search">
-                    <p id="hero-search-heading" data-role="search-heading">Try SlateHub. Discover Talent.</p>
+                    <p id="hero-search-heading" data-role="search-heading">Describe who you need. We'll find them.</p>
                     <form id="form-hero-search" data-component="search-form" action="/search" method="GET">
-                        <input type="search" id="input-hero-search" name="q" placeholder='Eg. &quot;I am looking for senior 3D artists&quot;' aria-label="Search for talent" />
+                        <input type="search" id="input-hero-search" name="q" placeholder='Eg. "bilingual DP in Atlanta with doc experience"' aria-label="Search for talent" />
                         <button type="submit" id="button-hero-search" aria-label="Search">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="11" cy="11" r="8"/>
@@ -45,125 +64,227 @@
                 </div>
             </div>
         </section>
+
+        <!-- ============ WHY SLATEHUB ============ -->
         <section id="section-why" data-section="why-slatehub">
             <div id="why-intro" data-role="section-intro">
                 <span id="why-tag" data-role="section-tag">Why SlateHub?</span>
-                <h2 id="heading-why">Built for Creators, by Creators</h2>
+                <h2 id="heading-why">Built Different. On Purpose.</h2>
             </div>
             <div id="why-features" data-role="features-grid">
                 <article id="feature-free" data-component="feature-card">
                     <img src="/static/images/free-forever.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
-                    <h3 id="heading-feature-free">Free Forever</h3>
+                    <h3 id="heading-feature-free">No Subscriptions. No Ads. No Catch.</h3>
                     <p>
-                        No subscriptions, no ads—just pure networking and opportunities.
+                        Other platforms charge you $25/month just to be visible.
+                        We think your talent shouldn't have a price tag.
+                        SlateHub is free&mdash;and stays that way.
                     </p>
                 </article>
-                <article id="feature-matches" data-component="feature-card">
-                    <img src="/static/images/smart-matches.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
-                    <h3 id="heading-feature-matches">Smart Matches</h3>
-                    <p>
-                        Semantic search connects you with the right roles,
-                                                projects, or talent instantly.
-                    </p>
-                </article>
-                <article id="feature-community" data-component="feature-card">
-                    <img src="/static/images/trusted-community.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
-                    <h3 id="heading-feature-community">Trusted Community</h3>
-                    <p>
-                        Verified accounts (one-time fee) ensure authenticity,
-                                                reducing spam and building
-                        trust.
-                    </p>
-                </article>
-                <article id="feature-ai" data-component="feature-card">
-                    <img src="/static/images/ai-powered.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
-                    <h3 id="heading-feature-ai">Ethical AI</h3>
-                    <p>
-                        AI should augment repetative tasks, not replace human ingenuity.
-                    </p>
-                </article>
-                <article id="feature-global" data-component="feature-card">
+                <article id="feature-one-profile" data-component="feature-card">
                     <img src="/static/images/global-inclusive.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
-                    <h3 id="heading-feature-global">Global &amp; Inclusive</h3>
+                    <h3 id="heading-feature-one-profile">One Profile. Every Screen.</h3>
                     <p>
-                        From emerging talent to industry pros, SlateHub empowers
-                                                everyone to create and connect.
+                        Film credits, YouTube collabs, branded campaigns,
+                        podcast appearances&mdash;stop splitting your career
+                        across five platforms. Build it all in one place.
+                    </p>
+                </article>
+                <article id="feature-found" data-component="feature-card">
+                    <img src="/static/images/smart-matches.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
+                    <h3 id="heading-feature-found">Get Found by the Right People</h3>
+                    <p>
+                        Describe yourself once. Our search understands
+                        context&mdash;so when someone needs a &ldquo;bilingual
+                        DP in Atlanta,&rdquo; you show up. No keyword games.
+                    </p>
+                </article>
+                <article id="feature-verified" data-component="feature-card">
+                    <img src="/static/images/trusted-community.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
+                    <h3 id="heading-feature-verified">Verified Credits. Real People.</h3>
+                    <p>
+                        Verified profiles mean no fake casting calls, no spam,
+                        no ghost accounts. When you connect here, you know
+                        who you're talking to.
+                    </p>
+                </article>
+                <article id="feature-open" data-component="feature-card">
+                    <img src="/static/images/ai-powered.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
+                    <h3 id="heading-feature-open">Open Source. No Hidden Rankings.</h3>
+                    <p>
+                        Nobody pays to rank higher. Nobody's visibility is for sale.
+                        See exactly how the platform works&mdash;it's open source,
+                        built in the open.
                     </p>
                 </article>
             </div>
             {% if user.is_none() %}
                 <nav id="why-actions" data-role="section-actions" aria-label="Join SlateHub">
-                    <a href="/signup" id="link-why-signup" role="button" data-type="primary">Join SlateHub</a>
-                    <p id="why-note" data-role="section-note">
-                        100% Free for
-                        <br/>
-                        Artists
-                        &amp;
-                        Creatives.
-                    </p>
+                    <a href="/signup" id="link-why-signup" role="button" data-type="primary">Get Started&mdash;It's Free</a>
                 </nav>
             {% endif %}
         </section>
+
+        <!-- ============ WHO'S IT FOR ============ -->
         <section id="section-who" data-section="who-its-for">
             <div id="who-intro" data-role="section-intro">
                 <div id="who-intro-left" data-role="intro-heading">
                     <span id="who-tag" data-role="section-tag">Who's It For?</span>
-                    <h2 id="heading-who">A Home for Every Creative</h2>
+                    <h2 id="heading-who">From Studio Lots to Spare Bedrooms</h2>
                 </div>
                 <p id="who-intro-text" data-role="intro-description">
-                    Whether you're an actor landing your next role, a
-                                        cinematographer gig-hunting, a filmmaker
-                    assembling a dream
-                                        team, or a brand seeking authentic
-                    creators, SlateHub is
-                                        your space to shine:
+                    Other platforms make you choose: one for actors, another
+                    for crew, a third for freelancers. SlateHub brings everyone
+                    together&mdash;for every kind of production.
                 </p>
             </div>
             <dl id="who-roles" data-role="roles-list">
                 <div id="role-actors" data-component="role-row">
                     <dt>Actors &amp; Talent</dt>
                     <dd>
-                        Showcase reels, credits, and connections to get cast without barriers.
+                        Your reels, credits, and headshots in one verified profile
+                        that actually gets seen. No subscription required.
                     </dd>
                 </div>
                 <div id="role-crew" data-component="role-row">
-                    <dt>Crew Members</dt>
+                    <dt>Crew &amp; Technicians</dt>
                     <dd>
-                        Highlight your skills and projects to land the perfect gig.
+                        DPs, editors, gaffers, sound designers&mdash;list your
+                        skills once, get found by productions that need exactly you.
                     </dd>
                 </div>
                 <div id="role-filmmakers" data-component="role-row">
-                    <dt>Filmmakers &amp; Directors</dt>
+                    <dt>Directors &amp; Filmmakers</dt>
                     <dd>
-                        Find talent and collaborators to bring your vision to life.
+                        Assemble your team from a community of verified
+                        professionals. Search by skill, location, and availability.
                     </dd>
                 </div>
                 <div id="role-creators" data-component="role-row">
-                    <dt>Creators &amp; Influencers</dt>
+                    <dt>YouTubers &amp; Content Creators</dt>
                     <dd>
-                        Professionalize your brand and connect with opportunities.
+                        Find editors, camera ops, and production help that
+                        gets your world&mdash;not recycled from a corporate
+                        job board.
                     </dd>
                 </div>
                 <div id="role-producers" data-component="role-row">
-                    <dt>Producers &amp; Brands</dt>
+                    <dt>Brands &amp; Agencies</dt>
                     <dd>
-                        Scout talent and manage projects with ease.
+                        Source vetted creators and crews for campaigns across
+                        any format or market.
                     </dd>
                 </div>
             </dl>
             {% if user.is_none() %}
                 <nav id="who-actions" data-role="section-actions" aria-label="Join SlateHub">
-                    <a href="/signup" id="link-who-signup" role="button" data-type="primary">Join SlateHub</a>
-                    <p id="who-note" data-role="section-note">
-                        100% Free for
-                        <br/>
-                        Artists
-                        &amp;
-                        Creatives.
-                    </p>
+                    <a href="/signup" id="link-who-signup" role="button" data-type="primary">Join {{ user_count|abbr_u32 }}+ Creatives</a>
                 </nav>
             {% endif %}
         </section>
+
+        <!-- ============ ORGANIZATIONS ============ -->
+        <section id="section-orgs" data-section="organizations">
+            <div id="orgs-intro" data-role="section-intro">
+                <span id="orgs-tag" data-role="section-tag">Organizations</span>
+                <h2 id="heading-orgs">A Home for Your Whole Community&mdash;Not Just Individuals</h2>
+                <p id="orgs-intro-text" data-role="intro-description">
+                    Film schools, local film communities, production companies,
+                    collectives&mdash;SlateHub gives organizations the tools to
+                    rally their people in one place.
+                </p>
+            </div>
+            <div id="orgs-grid" data-role="features-grid">
+                <article id="org-schools" data-component="feature-card">
+                    <h3>Film Schools &amp; Programs</h3>
+                    <p>
+                        Give your students a professional profile from day one.
+                        Showcase your alumni network and connect graduates with
+                        real productions.
+                    </p>
+                </article>
+                <article id="org-communities" data-component="feature-card">
+                    <h3>Film Communities &amp; Collectives</h3>
+                    <p>
+                        Unite your local scene. Manage members, share
+                        opportunities, and make your community discoverable
+                        to productions shooting nearby.
+                    </p>
+                </article>
+                <article id="org-companies" data-component="feature-card">
+                    <h3>Production Companies &amp; Studios</h3>
+                    <p>
+                        Build your company profile, list your team, and post
+                        jobs&mdash;all from one hub your whole roster can link
+                        back to.
+                    </p>
+                </article>
+            </div>
+            {% if user.is_none() %}
+                <nav id="orgs-actions" data-role="section-actions" aria-label="Create your organization">
+                    <a href="/orgs" id="link-orgs-create" role="button" data-type="primary">Browse Organizations</a>
+                </nav>
+            {% else %}
+                <nav id="orgs-actions" data-role="section-actions" aria-label="Create your organization">
+                    <a href="/orgs" id="link-orgs-create" role="button" data-type="primary">Browse Organizations</a>
+                </nav>
+            {% endif %}
+        </section>
+
+        <!-- ============ HOW IS THIS FREE ============ -->
+        <section id="section-business-model" data-section="how-free">
+            <div id="business-model-inner" data-role="section-content">
+                <div id="business-model-text">
+                    <span id="business-model-tag" data-role="section-tag">The Fine Print</span>
+                    <h2 id="heading-business-model">So How Is This Free?</h2>
+                    <p>
+                        Profiles, search, networking, jobs, and community tools
+                        are free for everyone&mdash;forever. That's not a launch
+                        promo. That's the model.
+                    </p>
+                    <p>
+                        We make money by selling production management
+                        tools&mdash;scheduling, budgeting, call sheets, and
+                        collaboration features built for productions with real
+                        budgets. The people who can afford to pay are the ones
+                        running funded projects, not the actors and crew trying
+                        to get hired.
+                    </p>
+                    <p>
+                        Your profile and visibility will never be held behind
+                        a paywall. That's a promise we put in our
+                        <a href="https://github.com/slatehub" target="_blank" rel="noopener noreferrer">open&#8209;source&nbsp;code</a>.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ STATS ============ -->
+        <section id="section-stats" data-section="social-proof">
+            <div id="stats-intro" data-role="section-intro">
+                <h2 id="heading-stats">The Community So Far</h2>
+            </div>
+            <div id="stats-grid" data-role="stats-grid">
+                <div data-component="stat-card">
+                    <strong>{{ user_count|abbr_u32 }}+</strong>
+                    <span>Professionals</span>
+                </div>
+                <div data-component="stat-card">
+                    <strong>{{ production_count|abbr_u32 }}+</strong>
+                    <span>Productions</span>
+                </div>
+                <div data-component="stat-card">
+                    <strong>{{ connection_count|abbr_u32 }}+</strong>
+                    <span>Connections Made</span>
+                </div>
+                <div data-component="stat-card">
+                    <strong>$0</strong>
+                    <span>No subscriptions. No ads. Ever.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ ROADMAP ============ -->
         <section id="section-roadmap" data-section="whats-next">
             <div id="roadmap-intro" data-role="section-intro">
                 <span id="roadmap-tag" data-role="section-tag">What's Next?</span>
@@ -171,58 +292,48 @@
             </div>
             <div id="roadmap-grid" data-role="phases-grid">
                 <article id="phase-01" data-component="phase-card">
-                    <h3 data-role="phase-label">Phase 01</h3>
+                    <h3 data-role="phase-label">Now Live</h3>
                     <p>
-                        Launches a game-changing free-for-everyone talent and job directory.
+                        A completely free talent directory, job board, and
+                        production hub&mdash;with search that actually
+                        understands what you're looking for.
                     </p>
                 </article>
                 <article id="phase-02" data-component="phase-card">
-                    <h3 data-role="phase-label">Phase 02</h3>
+                    <h3 data-role="phase-label">Coming Soon</h3>
                     <p>
-                        Unlocks premium AI-driven production management tools to
-                        streamline your
-                                                workflow from concept to
-                        distribution.
+                        Full production management&mdash;scheduling, call sheets,
+                        budgeting, and collaboration tools&mdash;so you can run
+                        your entire production from one place.
                     </p>
                 </article>
                 <div id="roadmap-cta" data-role="phase-cta">
                     <p id="roadmap-cta-text" data-role="cta-heading">
-                        Be the first to experience the future of content creation.
+                        Get in early and help shape what comes next.
                     </p>
                     {% if user.is_none() %}
                         <nav id="roadmap-actions" data-role="section-actions" aria-label="Join SlateHub">
-                            <a href="/signup" id="link-roadmap-signup" role="button" data-type="dark">Join SlateHub</a>
-                            <p id="roadmap-note" data-role="section-note">
-                                100% Free for
-                                <br/>
-                                Artists
-                                &amp;
-                                Creatives.
-                            </p>
+                            <a href="/signup" id="link-roadmap-signup" role="button" data-type="dark">Claim Your Profile</a>
                         </nav>
                     {% endif %}
                 </div>
             </div>
         </section>
+
+        <!-- ============ TESTIMONIALS ============ -->
         <section id="section-testimonials" data-section="testimonials">
             <h2 id="heading-testimonials">
-                At SlateHub, we're driven by a shared vision to revolutionize
-                                content production networking. Hear from our
-                team why SlateHub
-                                is a game-changer for creators everywhere:
+                Built by creators who got tired of paying platforms
+                that don't work for us.
             </h2>
             <div id="testimonials-grid" data-role="testimonials-grid">
                 <blockquote id="testimonial-filmpivot" data-component="testimonial">
                     <img src="/static/images/filmpivot.png" alt="FilmPivot" data-role="testimonial-avatar" width="56" height="56" />
                     <div data-role="testimonial-content">
                         <p>
-                            &ldquo;
-                            As a techie and indie filmmaker, the existing
-                                                        tools don't fit with
-                            modern filmmakers and content
-                                                        creators workflow-- so
-                            we are building our own!
-                            &rdquo;
+                            &ldquo;As a techie and indie filmmaker, the existing
+                            tools don't fit with modern filmmakers and content
+                            creators workflow&mdash;so we are building our own!&rdquo;
                         </p>
                         <cite data-role="testimonial-handle">@filmpivot</cite>
                     </div>
@@ -231,29 +342,25 @@
                     <img src="/static/images/tom_mne.png" alt="Tom MNE" data-role="testimonial-avatar" width="56" height="56" />
                     <div data-role="testimonial-content">
                         <p>
-                            &ldquo;
-                            I tried all the other production software, and as
-                                                        someone who works at the
-                            intersection of content
-                                                        creation and traditional
-                            filmmaking, nothing ever
-                                                        truly fit.
-                            &rdquo;
+                            &ldquo;I tried all the other production software, and as
+                            someone who works at the intersection of content
+                            creation and traditional filmmaking, nothing ever
+                            truly fit.&rdquo;
                         </p>
                         <cite data-role="testimonial-handle">@tom_mne</cite>
                     </div>
                 </blockquote>
             </div>
         </section>
+
+        <!-- ============ FINAL CTA ============ -->
         <section id="section-community" data-section="community">
             <div id="community-inner" data-role="section-content">
                 <div id="community-text" data-role="community-text">
-                    <h2 id="heading-community">Join the SlateHub Community Today</h2>
+                    <h2 id="heading-community">Your Talent Deserves a Home&mdash;Not a Subscription</h2>
                     <p id="community-description">
-                        Be part of the open-source revolution. Sign up now to
-                                                get early access, stay updated,
-                        and start building your
-                                                creative network.
+                        Join {{ user_count|abbr_u32 }}+ professionals already on SlateHub.
+                        Build your profile in minutes.
                     </p>
                 </div>
                 <form id="form-community-subscribe" data-component="subscribe-form" aria-label="Subscribe to newsletter">
@@ -277,5 +384,6 @@
                 </form>
             </div>
         </section>
+
     </section>
 {% endblock %}
