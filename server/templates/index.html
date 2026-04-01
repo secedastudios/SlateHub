@@ -218,7 +218,7 @@
         </div>
     </section>
 
-    <!-- ============ FINAL CTA ============ -->
+    <!-- ============ NEWSLETTER ============ -->
     <section id="section-community" data-section="community">
         <div id="community-inner" data-role="section-content">
             <div id="community-text" data-role="community-text">
@@ -240,6 +240,16 @@
                 </label>
             </form>
         </div>
+    </section>
+
+    <!-- ============ FINAL CTA ============ -->
+    <section id="section-final-cta" data-section="final-cta">
+        <h2 id="heading-final-cta">The Industry. Reunited.</h2>
+        {% if user.is_none() %}
+            <a href="/signup" id="link-community-join" role="button" data-type="primary">Join Now</a>
+        {% else %}
+            <a href="/people" id="link-community-join" role="button" data-type="primary">Explore the Community</a>
+        {% endif %}
     </section>
 
 </section>
