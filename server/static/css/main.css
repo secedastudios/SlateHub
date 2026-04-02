@@ -1829,8 +1829,12 @@ dd {
         width: 90px;
     }
 
+    [data-role="ticker-name"] {
+        font-size: 0.55rem;
+    }
+
     [data-role="ticker-headline"] {
-        display: none;
+        font-size: 0.5rem;
     }
 }
 
@@ -2750,6 +2754,42 @@ dd {
     align-items: center;
     text-align: center;
     gap: var(--space-2xl);
+    position: relative;
+    overflow: hidden;
+}
+
+#section-final-cta::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(235, 84, 55, 0.6) 30%,
+        rgba(235, 84, 55, 0.6) 70%,
+        transparent
+    );
+}
+
+#section-final-cta::after {
+    content: "";
+    position: absolute;
+    top: -40%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 80%;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(235, 84, 55, 0.12) 0%,
+        rgba(235, 84, 55, 0.04) 40%,
+        transparent 70%
+    );
+    pointer-events: none;
 }
 
 #heading-final-cta {
@@ -2802,7 +2842,7 @@ dd {
     }
 
     #hero-media {
-        min-height: 50vh;
+        min-height: 65vh;
         order: 1;
     }
 
@@ -2817,6 +2857,11 @@ dd {
 
     [data-component="hero-search"] {
         width: 90%;
+        top: 35%;
+    }
+
+    #hero-ticker {
+        bottom: var(--space-sm);
     }
 
     /* Why SlateHub — responsive */
