@@ -3,6 +3,15 @@
 {% block page_name %}admin{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/admin.css" />
+<style>
+.admin-table-compact { font-size: 0.78rem; }
+.admin-table-compact th, .admin-table-compact td { padding: 0.4rem 0.5rem; }
+.admin-table-compact .admin-cell-email { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-table-compact .admin-cell-ip { font-family: monospace; font-size: 0.72rem; color: var(--text-muted, #888); white-space: nowrap; }
+.admin-table-compact .admin-actions-cell { display: flex; gap: 0.25rem; flex-wrap: nowrap; }
+.admin-table-compact .admin-select { font-size: 0.72rem; padding: 0.15rem 0.25rem; }
+.admin-table-compact .admin-btn-sm, .admin-table-compact .admin-btn-danger-sm { font-size: 0.7rem; padding: 0.2rem 0.4rem; white-space: nowrap; }
+</style>
 {% endblock %}
 {% block content %}
 <div class="admin-page">
@@ -28,24 +37,22 @@
     <div class="admin-empty">No people found.</div>
     {% else %}
     <div class="admin-table-wrap">
-        <table class="admin-table">
+        <table class="admin-table admin-table-compact">
             <thead>
                 <tr>
-                    <th>Username</th>
+                    <th>User</th>
                     <th>Email</th>
-                    <th>Name</th>
-                    <th>Verification</th>
-                    <th>Admin</th>
+                    <th>Status</th>
+                    <th>IP</th>
                     <th>Joined</th>
-                    <th></th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for person in people %}
                 <tr>
-                    <td><a href="/{{ person.username }}">{{ person.username }}</a></td>
-                    <td>{{ person.email }}</td>
-                    <td>{{ person.name.as_deref().unwrap_or("-") }}</td>
+                    <td><a href="/{{ person.username }}">{{ person.username }}</a>{% if person.is_admin %} <span class="admin-badge admin-badge-admin">admin</span>{% endif %}</td>
+                    <td class="admin-cell-email" title="{{ person.email }}">{{ person.email }}</td>
                     <td>
                         <form method="post" action="/admin/people/{{ person.id }}/verification" class="admin-inline-form">
                             <select name="status" onchange="this.form.submit()" class="admin-select">
@@ -56,24 +63,18 @@
                             </select>
                         </form>
                     </td>
-                    <td>
-                        {% if person.is_admin %}
-                        <span class="admin-badge admin-badge-admin">admin</span>
-                        {% endif %}
-                    </td>
+                    <td class="admin-cell-ip">{{ person.signup_ip.as_deref().unwrap_or("-") }}</td>
                     <td class="admin-cell-nowrap">{{ person.created_at }}</td>
                     <td class="admin-actions-cell">
                         <form method="post" action="/admin/people/{{ person.id }}/toggle-admin" class="admin-inline-form">
-                            <button type="submit" class="admin-btn-sm" title="{% if person.is_admin %}Remove admin{% else %}Make admin{% endif %}">
-                                {% if person.is_admin %}Revoke{% else %}Grant{% endif %}
-                            </button>
+                            <button type="submit" class="admin-btn-sm" title="{% if person.is_admin %}Remove admin{% else %}Make admin{% endif %}">{% if person.is_admin %}Revoke{% else %}Grant{% endif %}</button>
                         </form>
-                        <form method="post" action="/admin/people/{{ person.id }}/reset-password" class="admin-inline-form" onsubmit="var p=prompt('New password for {{ person.username }}:'); if(!p||p.length<8){alert('Password must be at least 8 characters');return false;} this.querySelector('[name=new_password]').value=p; return confirm('Reset password for {{ person.username }}?');">
+                        <form method="post" action="/admin/people/{{ person.id }}/reset-password" class="admin-inline-form" onsubmit="var p=prompt('New password for {{ person.username }}:'); if(!p||p.length<8){alert('Min 8 chars');return false;} this.querySelector('[name=new_password]').value=p; return confirm('Reset password for {{ person.username }}?');">
                             <input type="hidden" name="new_password" value="">
-                            <button type="submit" class="admin-btn-sm" title="Reset password">Reset PW</button>
+                            <button type="submit" class="admin-btn-sm">PW</button>
                         </form>
-                        <form method="post" action="/admin/people/{{ person.id }}/delete" class="admin-inline-form" onsubmit="return confirm('Permanently delete user {{ person.username }}? This cannot be undone.')">
-                            <button type="submit" class="admin-btn-danger-sm">Delete</button>
+                        <form method="post" action="/admin/people/{{ person.id }}/delete" class="admin-inline-form" onsubmit="return confirm('Permanently delete {{ person.username }}?')">
+                            <button type="submit" class="admin-btn-danger-sm">Del</button>
                         </form>
                     </td>
                 </tr>

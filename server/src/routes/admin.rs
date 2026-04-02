@@ -105,9 +105,9 @@ struct PersonRow {
     id: String,
     username: String,
     email: String,
-    name: Option<String>,
     is_admin: bool,
     verification_status: String,
+    signup_ip: Option<String>,
     created_at: String,
 }
 
@@ -363,18 +363,19 @@ async fn list_people(
         name: Option<String>,
         is_admin: Option<bool>,
         verification_status: String,
+        signup_ip: Option<String>,
         created_at: Option<chrono::DateTime<chrono::Utc>>,
     }
 
     let people: Vec<PRow> = if search.is_empty() {
-        DB.query("SELECT id, username, email, name, is_admin, verification_status, created_at FROM person ORDER BY created_at DESC LIMIT 50")
+        DB.query("SELECT id, username, email, name, is_admin, verification_status, signup_ip, created_at FROM person ORDER BY created_at DESC LIMIT 50")
             .await
             .map_err(|e| Error::Database(e.to_string()))?
             .take(0)
             .unwrap_or_default()
     } else {
         let q = search.to_lowercase();
-        DB.query("SELECT id, username, email, name, is_admin, verification_status, created_at FROM person WHERE string::lowercase(username) CONTAINS $q OR string::lowercase(email) CONTAINS $q OR string::lowercase(name ?? '') CONTAINS $q ORDER BY created_at DESC LIMIT 50")
+        DB.query("SELECT id, username, email, name, is_admin, verification_status, signup_ip, created_at FROM person WHERE string::lowercase(username) CONTAINS $q OR string::lowercase(email) CONTAINS $q OR string::lowercase(name ?? '') CONTAINS $q ORDER BY created_at DESC LIMIT 50")
             .bind(("q", q))
             .await
             .map_err(|e| Error::Database(e.to_string()))?
@@ -388,9 +389,9 @@ async fn list_people(
             id: p.id.key_string(),
             username: p.username,
             email: p.email,
-            name: p.name,
             is_admin: p.is_admin.unwrap_or(false),
             verification_status: p.verification_status,
+            signup_ip: p.signup_ip,
             created_at: p.created_at
                 .map(|d| d.format("%b %d, %Y").to_string())
                 .unwrap_or_default(),
