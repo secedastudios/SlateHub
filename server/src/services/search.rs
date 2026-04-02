@@ -223,8 +223,8 @@ pub async fn search_people(
                 END)
             ) AS score
         FROM person
-        WHERE
-            {text_vector_gate}
+        WHERE verification_status != 'unverified'
+            AND {text_vector_gate}
             {hard_filter}
         ORDER BY score DESC
         LIMIT $limit

@@ -404,9 +404,10 @@ async fn people(
     } else {
         let query = r#"
             SELECT *, verification_status = 'identity' AS _vord FROM person
-            WHERE profile.name IS NOT NULL
+            WHERE verification_status != 'unverified'
+              AND (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
-               OR profile.bio IS NOT NULL
+               OR profile.bio IS NOT NULL)
             ORDER BY _vord DESC, created_at DESC
             LIMIT $limit
             START $offset
@@ -623,9 +624,10 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
     } else {
         let query = r#"
             SELECT *, verification_status = 'identity' AS _vord FROM person
-            WHERE profile.name IS NOT NULL
+            WHERE verification_status != 'unverified'
+              AND (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
-               OR profile.bio IS NOT NULL
+               OR profile.bio IS NOT NULL)
             ORDER BY _vord DESC, created_at DESC
             LIMIT $limit
             START $offset

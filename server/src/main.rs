@@ -165,6 +165,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Start daily cleanup of unverified accounts older than 5 days
+    tokio::spawn(async {
+        // Run once on startup, then daily
+        slatehub::models::person::Person::cleanup_unverified(5).await;
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(86400)).await;
+            info!("Running unverified account cleanup");
+            slatehub::models::person::Person::cleanup_unverified(5).await;
+        }
+    });
+
     // Start live notification stream
     info!("Starting notification live stream");
     slatehub::services::notification_stream::init().await;

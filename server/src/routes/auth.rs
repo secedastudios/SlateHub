@@ -2,15 +2,54 @@ use askama::Template;
 use axum::{
     Form, Router,
     extract::{Query, Request},
+    http::HeaderMap,
     response::{Html, IntoResponse, Response},
     routing::{get, post},
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use serde::Deserialize;
 
+use std::collections::HashMap;
 use std::env;
+use std::sync::{LazyLock, Mutex};
+use std::time::Instant;
 
 use tracing::{debug, error, info, warn};
+
+/// Simple IP-based rate limiter for signup: max 3 signups per IP per hour.
+static SIGNUP_RATE_LIMIT: LazyLock<Mutex<HashMap<String, Vec<Instant>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+const SIGNUP_MAX_PER_HOUR: usize = 3;
+const SIGNUP_WINDOW_SECS: u64 = 3600;
+
+fn check_signup_rate_limit(ip: &str) -> bool {
+    let mut map = SIGNUP_RATE_LIMIT.lock().unwrap();
+    let now = Instant::now();
+    let attempts = map.entry(ip.to_string()).or_default();
+    attempts.retain(|t| now.duration_since(*t).as_secs() < SIGNUP_WINDOW_SECS);
+    if attempts.len() >= SIGNUP_MAX_PER_HOUR {
+        false
+    } else {
+        attempts.push(now);
+        true
+    }
+}
+
+fn client_ip(headers: &HeaderMap) -> String {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.split(',').next())
+        .map(|s| s.trim().to_string())
+        .or_else(|| {
+            headers
+                .get("x-real-ip")
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.to_string())
+        })
+        .unwrap_or_else(|| "unknown".to_string())
+}
 
 use crate::{
     error::Error,
@@ -79,16 +118,23 @@ async fn signup_form(
 }
 
 #[axum::debug_handler]
-async fn signup(Form(form): Form<CreateUser>) -> Result<Response, Error> {
+async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Response, Error> {
     debug!("Processing signup for email: {}", form.email);
+
+    // Rate limit: max 3 signups per IP per hour
+    let ip = client_ip(&headers);
+    if !check_signup_rate_limit(&ip) {
+        warn!("Signup rate limit exceeded for IP: {}", ip);
+        return Err(Error::Validation("Too many signup attempts. Please try again later.".to_string()));
+    }
 
     // Try to create the user
     let email = form.email.clone();
     let redirect = form.redirect.clone();
     match Person::signup(form.username, form.email, form.password).await {
-        Ok(token) => {
-            info!("User created successfully");
-            crate::services::activity::log_activity(None, "signup", "/signup");
+        Ok((token, person_id)) => {
+            info!(ip = %ip, person_id = %person_id, "User created successfully");
+            crate::services::activity::log_activity(Some(&person_id), "signup", &format!("/signup [ip:{}]", ip));
 
             // Create authentication cookie with the JWT token
             let cookie = Cookie::build(("auth_token", token))
@@ -158,9 +204,9 @@ async fn login(Form(form): Form<LoginUser>) -> Result<Response, Error> {
 
     // Try to authenticate the user (signin accepts username or email as identifier)
     match Person::signin(form.email.clone(), form.password).await {
-        Ok(token) => {
+        Ok((token, person_id)) => {
             info!("User logged in successfully");
-            crate::services::activity::log_activity(None, "login", "/login");
+            crate::services::activity::log_activity(Some(&person_id), "login", "/login");
 
             // Create authentication cookie with the JWT token
             let cookie = Cookie::build(("auth_token", token))

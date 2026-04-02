@@ -843,7 +843,8 @@ impl Person {
     ///
     /// # Returns
     /// A `Result` containing the JWT token string if successful.
-    pub async fn signup(username: String, email: String, password: String) -> Result<String> {
+    /// Returns `(jwt_token, person_id)` on success.
+    pub async fn signup(username: String, email: String, password: String) -> Result<(String, String)> {
         use crate::auth;
         use crate::db::DB;
         use tracing::debug;
@@ -928,9 +929,10 @@ impl Person {
         }
 
         // Generate JWT token
-        let token = auth::create_jwt(&person.id.to_raw_string(), &username, &email)?;
+        let person_id = person.id.to_raw_string();
+        let token = auth::create_jwt(&person_id, &username, &email)?;
 
-        Ok(token)
+        Ok((token, person_id))
     }
 
     /// Signs in a user by verifying their password.
@@ -941,7 +943,8 @@ impl Person {
     ///
     /// # Returns
     /// A `Result` containing the JWT token string if successful.
-    pub async fn signin(identifier: String, password: String) -> Result<String> {
+    /// Returns `(jwt_token, person_id)` on success.
+    pub async fn signin(identifier: String, password: String) -> Result<(String, String)> {
         // Find the user by username or email, including the password field
         // Note: password field must be explicitly requested in SurrealDB
         let sql = "SELECT *, password FROM person WHERE username = string::lowercase($identifier) OR email = string::lowercase($identifier)";
@@ -986,13 +989,14 @@ impl Person {
         );
 
         // Generate JWT token
+        let person_id = person_with_password.id.to_raw_string();
         let token = auth::create_jwt(
-            &person_with_password.id.to_raw_string(),
+            &person_id,
             &person_with_password.username,
             &person_with_password.email,
         )?;
 
-        Ok(token)
+        Ok((token, person_id))
     }
 
     /// Invalidates the current authentication session.
@@ -1044,6 +1048,18 @@ impl Person {
                 log_error!(e, "Failed to authenticate token");
                 Err(e.into())
             }
+        }
+    }
+
+    /// Delete unverified accounts older than the given number of days.
+    pub async fn cleanup_unverified(days: u64) {
+        let sql = format!(
+            "DELETE person WHERE verification_status = 'unverified' AND created_at < time::now() - {}d",
+            days
+        );
+        match DB.query(&sql).await {
+            Ok(_) => info!("Cleaned up unverified accounts older than {} days", days),
+            Err(e) => error!("Failed to cleanup unverified accounts: {}", e),
         }
     }
 }

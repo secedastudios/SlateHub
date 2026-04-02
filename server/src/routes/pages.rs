@@ -393,7 +393,7 @@ SlateHub is a free, open-source creative networking platform — the professiona
     // Dynamic entries
     if let Ok(mut result) = DB
         .query(
-            "SELECT username, profile.name AS name FROM person ORDER BY username ASC;
+            "SELECT username, profile.name AS name FROM person WHERE verification_status != 'unverified' ORDER BY username ASC;
              SELECT slug, title FROM production ORDER BY slug ASC;
              SELECT slug, name FROM organization ORDER BY slug ASC;
              SELECT <string> meta::id(id) AS key, name FROM location ORDER BY name ASC;
@@ -499,7 +499,7 @@ async fn sitemap_xml() -> Response {
     // Dynamic entries — single query for all entity types
     if let Ok(mut result) = DB
         .query(
-            "SELECT username FROM person ORDER BY username ASC;
+            "SELECT username FROM person WHERE verification_status != 'unverified' ORDER BY username ASC;
              SELECT slug FROM production ORDER BY slug ASC;
              SELECT slug FROM organization ORDER BY slug ASC;
              SELECT <string> meta::id(id) AS key FROM location ORDER BY key ASC;
