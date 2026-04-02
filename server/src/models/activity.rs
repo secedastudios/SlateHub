@@ -35,6 +35,9 @@ pub struct EngagementMetrics {
     pub new_users_7d: u64,
     pub new_user_rate: String,
     pub retention_rate: String,
+    pub page_views_today: u64,
+    pub page_views_7d: u64,
+    pub page_views_30d: u64,
 }
 
 pub struct ActivityModel;
@@ -61,7 +64,7 @@ impl ActivityModel {
     pub async fn engagement_metrics() -> EngagementMetrics {
         debug!("Fetching engagement metrics");
 
-        let (total_users, dau, wau, mau, new_users_7d, new_users_30d, retained) = tokio::join!(
+        let (total_users, dau, wau, mau, new_users_7d, new_users_30d, retained, pv_today, pv_7d, pv_30d) = tokio::join!(
             Self::count("SELECT count() AS count FROM person GROUP ALL"),
             Self::active_users("1d"),
             Self::active_users("7d"),
@@ -94,6 +97,10 @@ impl ActivityModel {
                     GROUP BY person_id
                 )"
             ),
+            // Total page views (all visitors, including anonymous)
+            Self::count("SELECT count() AS count FROM activity_event WHERE event_type = 'page_view' AND created_at > time::now() - 1d GROUP ALL"),
+            Self::count("SELECT count() AS count FROM activity_event WHERE event_type = 'page_view' AND created_at > time::now() - 7d GROUP ALL"),
+            Self::count("SELECT count() AS count FROM activity_event WHERE event_type = 'page_view' AND created_at > time::now() - 30d GROUP ALL"),
         );
 
         let pct = |num: u64, den: u64| -> f64 {
@@ -117,6 +124,9 @@ impl ActivityModel {
             new_users_7d,
             new_user_rate: fmt(pct(new_users_30d, mau)),
             retention_rate: fmt(pct(retained, prev_period_active)),
+            page_views_today: pv_today,
+            page_views_7d: pv_7d,
+            page_views_30d: pv_30d,
         }
     }
 

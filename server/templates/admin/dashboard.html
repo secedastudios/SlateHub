@@ -86,6 +86,22 @@
             </div>
         </div>
 
+        <h3 style="font-size:0.9rem;color:var(--text-secondary,#aaa);margin:1.5rem 0 0.75rem;">Page Views (all visitors)</h3>
+        <div class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.engagement.page_views_today }}</div>
+                <div class="admin-stat-label">Today</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.engagement.page_views_7d }}</div>
+                <div class="admin-stat-label">Last 7 Days</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.engagement.page_views_30d }}</div>
+                <div class="admin-stat-label">Last 30 Days</div>
+            </div>
+        </div>
+
         {% if !stats.event_counts.is_empty() %}
         <div style="margin-top:1.5rem;display:flex;gap:2rem;flex-wrap:wrap;">
             <div>
