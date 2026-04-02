@@ -35,9 +35,26 @@ pub struct EngagementMetrics {
     pub new_users_7d: u64,
     pub new_user_rate: String,
     pub retention_rate: String,
-    pub page_views_today: u64,
-    pub page_views_7d: u64,
-    pub page_views_30d: u64,
+    pub page_views_today: String,
+    pub page_views_7d: String,
+    pub page_views_30d: String,
+    pub unique_visitors_today: String,
+    pub unique_visitors_7d: String,
+    pub unique_visitors_30d: String,
+}
+
+fn abbr(n: u64) -> String {
+    if n >= 1_000_000 {
+        let v = n as f64 / 1_000_000.0;
+        let s = format!("{:.1}", v);
+        format!("{}M", s.strip_suffix(".0").unwrap_or(&s))
+    } else if n >= 1_000 {
+        let v = n as f64 / 1_000.0;
+        let s = format!("{:.1}", v);
+        format!("{}k", s.strip_suffix(".0").unwrap_or(&s))
+    } else {
+        n.to_string()
+    }
 }
 
 pub struct ActivityModel;
@@ -64,7 +81,7 @@ impl ActivityModel {
     pub async fn engagement_metrics() -> EngagementMetrics {
         debug!("Fetching engagement metrics");
 
-        let (total_users, dau, wau, mau, new_users_7d, new_users_30d, retained, pv_today, pv_7d, pv_30d) = tokio::join!(
+        let (total_users, dau, wau, mau, new_users_7d, new_users_30d, retained, pv_today, pv_7d, pv_30d, uv_today, uv_7d, uv_30d) = tokio::join!(
             Self::count("SELECT count() AS count FROM person GROUP ALL"),
             Self::active_users("1d"),
             Self::active_users("7d"),
@@ -101,6 +118,10 @@ impl ActivityModel {
             Self::count("SELECT count() AS count FROM activity_event WHERE event_type = 'page_view' AND created_at > time::now() - 1d GROUP ALL"),
             Self::count("SELECT count() AS count FROM activity_event WHERE event_type = 'page_view' AND created_at > time::now() - 7d GROUP ALL"),
             Self::count("SELECT count() AS count FROM activity_event WHERE event_type = 'page_view' AND created_at > time::now() - 30d GROUP ALL"),
+            // Unique visitors (distinct person_ids with page views — authenticated users only)
+            Self::count("SELECT count() AS count FROM (SELECT person_id FROM activity_event WHERE event_type = 'page_view' AND person_id IS NOT NONE AND created_at > time::now() - 1d GROUP BY person_id)"),
+            Self::count("SELECT count() AS count FROM (SELECT person_id FROM activity_event WHERE event_type = 'page_view' AND person_id IS NOT NONE AND created_at > time::now() - 7d GROUP BY person_id)"),
+            Self::count("SELECT count() AS count FROM (SELECT person_id FROM activity_event WHERE event_type = 'page_view' AND person_id IS NOT NONE AND created_at > time::now() - 30d GROUP BY person_id)"),
         );
 
         let pct = |num: u64, den: u64| -> f64 {
@@ -124,9 +145,12 @@ impl ActivityModel {
             new_users_7d,
             new_user_rate: fmt(pct(new_users_30d, mau)),
             retention_rate: fmt(pct(retained, prev_period_active)),
-            page_views_today: pv_today,
-            page_views_7d: pv_7d,
-            page_views_30d: pv_30d,
+            page_views_today: abbr(pv_today),
+            page_views_7d: abbr(pv_7d),
+            page_views_30d: abbr(pv_30d),
+            unique_visitors_today: abbr(uv_today),
+            unique_visitors_7d: abbr(uv_7d),
+            unique_visitors_30d: abbr(uv_30d),
         }
     }
 

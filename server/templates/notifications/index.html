@@ -146,14 +146,15 @@
         <div class="notification-actions">
             {% if notification.notification_type == "invitation" %}
                 {% match notification.related_id %}
-                    {% when Some with (org_id) %}
+                    {% when Some with (related_id) %}
                     <form method="post" action="/invitations/accept">
-                        <input type="hidden" name="org_id" value="{{ org_id }}" />
+                        <input type="hidden" name="org_id" value="{{ related_id }}" />
                         <input type="hidden" name="notification_id" value="{{ notification.id }}" />
+                        {% match notification.link %}{% when Some with (link) %}<input type="hidden" name="redirect" value="{{ link }}" />{% when None %}{% endmatch %}
                         <button type="submit" data-action="accept">Accept</button>
                     </form>
                     <form method="post" action="/invitations/decline">
-                        <input type="hidden" name="org_id" value="{{ org_id }}" />
+                        <input type="hidden" name="org_id" value="{{ related_id }}" />
                         <input type="hidden" name="notification_id" value="{{ notification.id }}" />
                         <button type="submit" data-action="decline">Decline</button>
                     </form>

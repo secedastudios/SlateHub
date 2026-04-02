@@ -140,6 +140,7 @@ async fn mark_all_read(
 struct InvitationActionForm {
     org_id: String,
     notification_id: String,
+    redirect: Option<String>,
 }
 
 async fn accept_invitation(
@@ -161,9 +162,19 @@ async fn accept_invitation(
     // Delete the notification (scoped to this user)
     notification_model.delete(&form.notification_id, &user.id).await?;
 
-    // Redirect to the org
-    let org_slug = get_org_slug(&form.org_id).await;
-    Ok(Redirect::to(&format!("/orgs/{}", org_slug.unwrap_or_else(|| "".to_string()))))
+    // Redirect to the link from the notification, or fall back to org slug lookup
+    let redirect_url = if let Some(ref redirect) = form.redirect {
+        if !redirect.is_empty() {
+            redirect.clone()
+        } else {
+            let org_slug = get_org_slug(&form.org_id).await;
+            format!("/orgs/{}", org_slug.unwrap_or_default())
+        }
+    } else {
+        let org_slug = get_org_slug(&form.org_id).await;
+        format!("/orgs/{}", org_slug.unwrap_or_default())
+    };
+    Ok(Redirect::to(&redirect_url))
 }
 
 async fn decline_invitation(
