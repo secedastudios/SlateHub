@@ -360,6 +360,7 @@ DEFINE FIELD messaging_preference ON person TYPE string DEFAULT 'anyone' ASSERT 
 DEFINE FIELD username ON person TYPE string VALUE string::lowercase($value) PERMISSIONS FULL;
 DEFINE FIELD name ON person TYPE option<string> PERMISSIONS FULL;  -- Optional display name
 DEFINE FIELD is_admin ON person TYPE bool DEFAULT false PERMISSIONS FULL;  -- System administrator flag
+DEFINE FIELD signup_ip ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD created_at ON person TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON person TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD embedding ON person TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)

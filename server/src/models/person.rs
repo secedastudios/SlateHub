@@ -844,7 +844,7 @@ impl Person {
     /// # Returns
     /// A `Result` containing the JWT token string if successful.
     /// Returns `(jwt_token, person_id)` on success.
-    pub async fn signup(username: String, email: String, password: String) -> Result<(String, String)> {
+    pub async fn signup(username: String, email: String, password: String, signup_ip: Option<String>) -> Result<(String, String)> {
         use crate::auth;
         use crate::db::DB;
         use tracing::debug;
@@ -864,7 +864,7 @@ impl Person {
         }
 
         // Create the person record with unverified status and initialized profile
-        let sql = "CREATE person SET username = $username, email = $email, password = $password, name = $name, verification_status = $verification_status, profile = $profile";
+        let sql = "CREATE person SET username = $username, email = $email, password = $password, name = $name, verification_status = $verification_status, profile = $profile, signup_ip = $signup_ip";
         let mut response = DB
             .query(sql)
             .bind(("username", username.clone()))
@@ -876,6 +876,7 @@ impl Person {
                 name: Some(username.clone()),
                 ..Default::default()
             }))
+            .bind(("signup_ip", signup_ip))
             .await?;
 
         // Get the created person

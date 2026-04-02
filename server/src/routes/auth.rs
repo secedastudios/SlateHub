@@ -131,7 +131,7 @@ async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Resp
     // Try to create the user
     let email = form.email.clone();
     let redirect = form.redirect.clone();
-    match Person::signup(form.username, form.email, form.password).await {
+    match Person::signup(form.username, form.email, form.password, Some(ip.clone())).await {
         Ok((token, person_id)) => {
             info!(ip = %ip, person_id = %person_id, "User created successfully");
             crate::services::activity::log_activity(Some(&person_id), "signup", &format!("/signup [ip:{}]", ip));
