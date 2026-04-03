@@ -403,7 +403,7 @@ async fn people(
         (vec![], Some(results))
     } else {
         let query = r#"
-            SELECT *, verification_status = 'identity' AS _vord FROM person
+            SELECT *, verification_status = 'identity' AS _vord OMIT embedding, embedding_text FROM person
             WHERE verification_status != 'unverified'
               AND (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL
@@ -623,7 +623,7 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
         (vec![], Some(results))
     } else {
         let query = r#"
-            SELECT *, verification_status = 'identity' AS _vord FROM person
+            SELECT *, verification_status = 'identity' AS _vord OMIT embedding, embedding_text FROM person
             WHERE verification_status != 'unverified'
               AND (profile.name IS NOT NULL
                OR profile.headline IS NOT NULL

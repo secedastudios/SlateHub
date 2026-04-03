@@ -264,7 +264,7 @@ impl Person {
     pub async fn find_by_username(username: &str) -> Result<Option<Self>> {
         use tracing::debug;
 
-        let sql = "SELECT * FROM person WHERE username = string::lowercase($username)";
+        let sql = "SELECT * OMIT embedding, embedding_text FROM person WHERE username = string::lowercase($username)";
         debug!("Executing query: {} with username: '{}'", sql, username);
 
         let mut response = DB
@@ -325,7 +325,7 @@ impl Person {
             "Using parameterized query to fetch person"
         );
 
-        let sql = "SELECT * FROM type::record('person', $id)";
+        let sql = "SELECT * OMIT embedding, embedding_text FROM type::record('person', $id)";
         debug!(
             sql = %sql,
             "Executing parameterized record query"
@@ -361,7 +361,7 @@ impl Person {
     /// A `Result` containing an `Option<Person>`. Returns `Some(Person)` if found,
     /// `None` if not found, or an `Error` if the database operation fails.
     pub async fn find_by_email(email: &str) -> Result<Option<Self>> {
-        let sql = "SELECT * FROM person WHERE email = $email";
+        let sql = "SELECT * OMIT embedding, embedding_text FROM person WHERE email = $email";
         let mut response = DB.query(sql).bind(("email", email.to_string())).await?;
 
         let persons: Vec<Person> = response.take(0)?;
@@ -378,7 +378,7 @@ impl Person {
     /// A `Result` containing an `Option<Person>`. Returns `Some(Person)` if found,
     /// `None` if not found, or an `Error` if the database operation fails.
     pub async fn find_by_identifier(identifier: &str) -> Result<Option<Self>> {
-        let sql = "SELECT * FROM person WHERE username = string::lowercase($identifier) OR email = $identifier";
+        let sql = "SELECT * OMIT embedding, embedding_text FROM person WHERE username = string::lowercase($identifier) OR email = $identifier";
         let mut response = DB
             .query(sql)
             .bind(("identifier", identifier.to_string()))
@@ -398,7 +398,7 @@ impl Person {
     /// # Returns
     /// A `Result` containing an `Option<Person>` if authentication succeeds.
     pub async fn authenticate(identifier: &str, password: &str) -> Result<Option<Self>> {
-        let sql = "SELECT * FROM person WHERE (username = string::lowercase($identifier) OR email = $identifier) AND crypto::argon2::compare(password, $password)";
+        let sql = "SELECT * OMIT embedding, embedding_text FROM person WHERE (username = string::lowercase($identifier) OR email = $identifier) AND crypto::argon2::compare(password, $password)";
         let mut response = DB
             .query(sql)
             .bind(("identifier", identifier.to_string()))
@@ -415,7 +415,7 @@ impl Person {
     /// # Returns
     /// A `Result` containing a `Vec<Person>` with all person records.
     pub async fn get_all() -> Result<Vec<Self>> {
-        let sql = "SELECT * FROM person";
+        let sql = "SELECT * OMIT embedding, embedding_text FROM person";
         let mut response = DB.query(sql).await?;
         let persons: Vec<Person> = response.take(0)?;
         Ok(persons)
@@ -430,7 +430,7 @@ impl Person {
     /// # Returns
     /// A `Result` containing a `Vec<Person>` with the requested page of records.
     pub async fn get_paginated(limit: usize, offset: usize) -> Result<Vec<Self>> {
-        let sql = "SELECT * FROM person LIMIT $limit START $offset";
+        let sql = "SELECT * OMIT embedding, embedding_text FROM person LIMIT $limit START $offset";
         let mut response = DB
             .query(sql)
             .bind(("limit", limit))
@@ -449,7 +449,7 @@ impl Person {
     /// # Returns
     /// A `Result` containing a `Vec<Person>` with matching records.
     pub async fn find_by_skill(skill: &str) -> Result<Vec<Self>> {
-        let sql = "SELECT * FROM person WHERE profile.skills CONTAINS $skill";
+        let sql = "SELECT * OMIT embedding, embedding_text FROM person WHERE profile.skills CONTAINS $skill";
         let mut response = DB.query(sql).bind(("skill", skill.to_string())).await?;
 
         let persons: Vec<Person> = response.take(0)?;
@@ -464,7 +464,7 @@ impl Person {
     /// # Returns
     /// A `Result` containing a `Vec<Person>` with matching records.
     pub async fn find_by_location(location: &str) -> Result<Vec<Self>> {
-        let sql = "SELECT * FROM person WHERE profile.location CONTAINS $location";
+        let sql = "SELECT * OMIT embedding, embedding_text FROM person WHERE profile.location CONTAINS $location";
         let mut response = DB
             .query(sql)
             .bind(("location", location.to_string()))
@@ -948,7 +948,7 @@ impl Person {
     pub async fn signin(identifier: String, password: String) -> Result<(String, String)> {
         // Find the user by username or email, including the password field
         // Note: password field must be explicitly requested in SurrealDB
-        let sql = "SELECT *, password FROM person WHERE username = string::lowercase($identifier) OR email = string::lowercase($identifier)";
+        let sql = "SELECT *, password OMIT embedding, embedding_text FROM person WHERE username = string::lowercase($identifier) OR email = string::lowercase($identifier)";
         let mut response = DB
             .query(sql)
             .bind(("identifier", identifier.clone()))
