@@ -22,6 +22,14 @@
         {% if redirect.is_some() %}
         <input type="hidden" name="redirect" value="{{ redirect.as_ref().unwrap() }}" />
         {% endif %}
+        <input type="hidden" name="form_token" value="{{ form_token }}" />
+        <input type="hidden" name="pow_challenge" value="{{ pow_challenge }}" />
+        <input type="hidden" name="pow_solution" id="pow-solution" value="" />
+        <!-- Honeypot: hidden from real users, bots auto-fill it -->
+        <div style="position:absolute;left:-9999px;top:-9999px" aria-hidden="true">
+            <label for="website">Website</label>
+            <input type="text" name="website" id="website" tabindex="-1" autocomplete="off" />
+        </div>
         <fieldset>
             <legend hidden>Account Information</legend>
 
@@ -206,6 +214,20 @@
     function setFeedback(el, text, state) {
         el.textContent = text;
         el.setAttribute('data-state', state);
+    }
+})();
+
+// Proof-of-Work: solve the challenge in the background
+(async function() {
+    var challenge = document.querySelector('[name=pow_challenge]');
+    var solution = document.getElementById('pow-solution');
+    if (!challenge || !solution || !challenge.value) return;
+    try {
+        var spow = await import('/static/js/spow.js');
+        var result = await spow.powWorkJs(challenge.value);
+        if (result) solution.value = result;
+    } catch(e) {
+        console.warn('PoW solver failed:', e);
     }
 })();
 </script>

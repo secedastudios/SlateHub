@@ -1087,6 +1087,15 @@ pub struct CreateUser {
     pub password: String,
     #[serde(default)]
     pub redirect: Option<String>,
+    /// Honeypot field — must be empty
+    #[serde(default)]
+    pub website: Option<String>,
+    /// Signed timestamp for time-based check
+    #[serde(default)]
+    pub form_token: Option<String>,
+    /// Proof-of-Work solution
+    #[serde(default)]
+    pub pow_solution: Option<String>,
 }
 
 /// Represents the data required for a user to log in.

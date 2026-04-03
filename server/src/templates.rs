@@ -269,6 +269,8 @@ pub struct SignupTemplate {
     pub error: Option<String>,
     pub prefill_email: Option<String>,
     pub redirect: Option<String>,
+    pub pow_challenge: String,
+    pub form_token: String,
 }
 
 /// Email verification page template
@@ -1327,6 +1329,8 @@ impl SignupTemplate {
             error: None,
             prefill_email: None,
             redirect: None,
+            pow_challenge: String::new(),
+            form_token: String::new(),
         }
     }
 }

@@ -6228,6 +6228,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
+ "spow",
  "surrealdb",
  "surrealdb-types",
  "sysinfo 0.35.2",
@@ -6344,6 +6345,21 @@ dependencies = [
  "nom 7.1.3",
  "serde",
  "unicode-segmentation",
+]
+
+[[package]]
+name = "spow"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a323422ef51634c7448e62277561b9b08a1b11b37a1287dfa491277c9870d46"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "getrandom 0.3.4",
+ "nom 8.0.0",
+ "serde",
+ "sha2",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

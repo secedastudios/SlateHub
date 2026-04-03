@@ -11,10 +11,63 @@ use serde::Deserialize;
 
 use std::collections::HashMap;
 use std::env;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, Once};
 use std::time::Instant;
 
+use spow::pow::Pow;
 use tracing::{debug, error, info, warn};
+
+/// Initialize spow once at first use
+static SPOW_INIT: Once = Once::new();
+fn ensure_spow_init() {
+    SPOW_INIT.call_once(|| {
+        if let Err(e) = Pow::init_random() {
+            error!("Failed to initialize spow: {}", e);
+        }
+    });
+}
+
+/// Generate a PoW challenge (valid for 300 seconds / 5 minutes)
+fn generate_pow_challenge() -> String {
+    ensure_spow_init();
+    Pow::with_difficulty(20, 300)
+        .map(|p| p.build_challenge())
+        .unwrap_or_default()
+}
+
+/// Generate a signed form token encoding the current timestamp.
+/// Uses jsonwebtoken to create a short-lived token.
+fn generate_form_token() -> String {
+    use jsonwebtoken::{encode, EncodingKey, Header};
+    #[derive(serde::Serialize)]
+    struct FormClaims { iat: i64 }
+    let claims = FormClaims { iat: chrono::Utc::now().timestamp() };
+    encode(&Header::default(), &claims, &EncodingKey::from_secret(std::env::var("JWT_SECRET").unwrap_or_else(|_| "fallback-secret".to_string()).as_bytes()))
+        .unwrap_or_default()
+}
+
+/// Validate the form token and check minimum elapsed time (3 seconds).
+fn validate_form_token(token: &str) -> bool {
+    use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+    #[derive(serde::Deserialize)]
+    struct FormClaims { iat: i64 }
+    let mut validation = Validation::new(Algorithm::HS256);
+    validation.required_spec_claims = std::collections::HashSet::new();
+    validation.validate_exp = false;
+    validation.validate_aud = false;
+    let data = decode::<FormClaims>(token, &DecodingKey::from_secret(std::env::var("JWT_SECRET").unwrap_or_else(|_| "fallback-secret".to_string()).as_bytes()), &validation);
+    match data {
+        Ok(token_data) => {
+            let elapsed = chrono::Utc::now().timestamp() - token_data.claims.iat;
+            debug!("Form token elapsed: {}s", elapsed);
+            elapsed >= 3 && elapsed <= 600
+        }
+        Err(e) => {
+            debug!("Form token decode error: {}", e);
+            false
+        }
+    }
+}
 
 /// Simple IP-based rate limiter for signup: max 3 signups per IP per hour.
 static SIGNUP_RATE_LIMIT: LazyLock<Mutex<HashMap<String, Vec<Instant>>>> =
@@ -108,6 +161,8 @@ async fn signup_form(
     let mut template = SignupTemplate::new(base);
     template.prefill_email = query.email;
     template.redirect = query.redirect;
+    template.pow_challenge = generate_pow_challenge();
+    template.form_token = generate_form_token();
 
     let html = template.render().map_err(|e| {
         error!("Failed to render signup template: {}", e);
@@ -126,6 +181,38 @@ async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Resp
     if !check_signup_rate_limit(&ip) {
         warn!("Signup rate limit exceeded for IP: {}", ip);
         return Err(Error::Validation("Too many signup attempts. Please try again later.".to_string()));
+    }
+
+    // Layer 1: Honeypot — reject if the hidden "website" field is filled
+    if form.website.as_ref().is_some_and(|w| !w.is_empty()) {
+        warn!(ip = %ip, "Honeypot triggered on signup");
+        return Err(Error::Validation("Signup failed. Please try again.".to_string()));
+    }
+
+    // Layer 2: Time check — reject if form was submitted too fast (< 3 seconds)
+    if let Some(ref token) = form.form_token {
+        if !validate_form_token(token) {
+            warn!(ip = %ip, "Form token invalid or submitted too fast");
+            return Err(Error::Validation("Signup failed. Please try again.".to_string()));
+        }
+    } else {
+        warn!(ip = %ip, "Missing form token on signup");
+        return Err(Error::Validation("Signup failed. Please try again.".to_string()));
+    }
+
+    // Layer 3: Proof-of-Work — reject if PoW solution is missing or invalid
+    ensure_spow_init();
+    match &form.pow_solution {
+        Some(solution) if !solution.is_empty() => {
+            if let Err(e) = Pow::validate(solution) {
+                warn!(ip = %ip, error = %e, "Invalid PoW solution on signup");
+                return Err(Error::Validation("Verification failed. Please reload and try again.".to_string()));
+            }
+        }
+        _ => {
+            warn!(ip = %ip, "Missing PoW solution on signup");
+            return Err(Error::Validation("Verification failed. Please reload and try again.".to_string()));
+        }
     }
 
     // Try to create the user
