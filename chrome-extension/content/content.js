@@ -91,7 +91,7 @@
       }
     }
 
-    // Deduplicate by imdb_id + role (same title can appear in multiple episodes)
+    // Deduplicate by title + role
     const seen = new Set();
     const unique = credits.filter((c) => {
       const key = `${c.title}|${c.role || ""}`;

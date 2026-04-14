@@ -271,7 +271,11 @@
           ]);
         } catch (err) {
           const $msg = document.getElementById("result-message");
-          $msg.innerHTML = `<p style="color:#dc2626">Error: ${err.message}</p>`;
+          const errP = document.createElement("p");
+          errP.style.color = "#dc2626";
+          errP.textContent = `Error: ${err.message}`;
+          $msg.innerHTML = "";
+          $msg.appendChild(errP);
           showState($resultView);
         }
       });

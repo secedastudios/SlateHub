@@ -361,9 +361,10 @@ async fn imdb_import(
     let mut skipped = 0u32;
     let mut errors: Vec<String> = Vec::new();
     let mut imported_credits: Vec<serde_json::Value> = Vec::new();
+    // Cache productions found/created during this import to avoid duplicate DB lookups
+    let mut production_cache: HashMap<String, crate::models::production::Production> = HashMap::new();
 
     for credit in &payload.credits {
-        // Determine relation_type from category
         let category = credit.category.to_lowercase();
         let (relation_type, credit_type, department) = match category.as_str() {
             "actor" | "actress" | "self" => ("cast", Some("cast"), None),
@@ -378,32 +379,28 @@ async fn imdb_import(
 
         let role = credit.role.as_deref().unwrap_or(&credit.category);
 
-        // Try to find existing production by exact title match, otherwise create
-        let production = match ProductionModel::search_by_title(&credit.title, 1).await {
-            Ok(results) => {
-                match results.into_iter().find(|p| p.title.to_lowercase() == credit.title.to_lowercase()) {
-                    Some(existing) => existing,
-                    None => {
-                        match ProductionModel::create_from_scraped_data(
-                            &credit.title,
-                            "Film",
-                            credit.year.as_deref(),
-                            "imdb_scrape",
-                        )
-                        .await
-                        {
-                            Ok(p) => p,
-                            Err(e) => {
-                                error!("Failed to create production '{}': {}", credit.title, e);
-                                errors.push(format!("{}: {}", credit.title, e));
-                                continue;
-                            }
-                        }
-                    }
+        // Check local cache first, then DB
+        let cache_key = credit.title.to_lowercase();
+        let production = if let Some(cached) = production_cache.get(&cache_key) {
+            cached.clone()
+        } else {
+            let existing = ProductionModel::search_by_title(&credit.title, 5)
+                .await
+                .unwrap_or_else(|e| {
+                    error!("search_by_title failed for '{}': {}", credit.title, e);
+                    Vec::new()
+                });
+
+            let found = existing
+                .into_iter()
+                .find(|p| p.title.to_lowercase() == cache_key);
+
+            match found {
+                Some(p) => {
+                    production_cache.insert(cache_key, p.clone());
+                    p
                 }
-            }
-            Err(_) => {
-                match ProductionModel::create_from_scraped_data(
+                None => match ProductionModel::create_from_scraped_data(
                     &credit.title,
                     "Film",
                     credit.year.as_deref(),
@@ -411,13 +408,16 @@ async fn imdb_import(
                 )
                 .await
                 {
-                    Ok(p) => p,
+                    Ok(p) => {
+                        production_cache.insert(cache_key, p.clone());
+                        p
+                    }
                     Err(e) => {
                         error!("Failed to create production '{}': {}", credit.title, e);
                         errors.push(format!("{}: {}", credit.title, e));
                         continue;
                     }
-                }
+                },
             }
         };
 
