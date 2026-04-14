@@ -71,7 +71,7 @@ impl InvolvementModel {
     ) -> Result<String, Error> {
         // Determine verification_status from source
         let verification_status = match source {
-            "tmdb_import" => "externally_sourced",
+            "tmdb_import" | "imdb_import" => "externally_sourced",
             "claimed" => "verified",
             "invited" => "pending_verification",
             _ => "self_asserted",

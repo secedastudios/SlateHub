@@ -1155,6 +1155,63 @@ impl ProductionModel {
         Ok(production)
     }
 
+    /// Create a production from scraped data (no TMDB match available)
+    pub async fn create_from_scraped_data(
+        title: &str,
+        production_type: &str,
+        year: Option<&str>,
+        source: &str,
+    ) -> Result<Production, Error> {
+        debug!(
+            "Creating production from scraped data: {} (year={:?}, source={})",
+            title, year, source
+        );
+
+        let slug = generate_slug(title);
+        let release_date = year.map(|y| format!("{}-01-01", y));
+
+        let embedding_text = build_production_embedding_text(
+            title,
+            production_type,
+            "Released",
+            None,
+            None,
+            release_date.as_deref(),
+            None,
+        );
+
+        let query = r#"
+            CREATE production CONTENT {
+                title: $title,
+                slug: $slug,
+                type: $type,
+                status: 'Released',
+                release_date: $release_date,
+                source: $source,
+                source_overrides: []
+            } RETURN *;
+        "#;
+
+        let mut result = DB
+            .query(query)
+            .bind(("title", title.to_string()))
+            .bind(("slug", slug))
+            .bind(("type", production_type.to_string()))
+            .bind(("release_date", release_date))
+            .bind(("source", source.to_string()))
+            .await
+            .map_err(|e| Error::Database(format!("Failed to create scraped production: {}", e)))?;
+
+        let production: Option<Production> = result.take(0)?;
+        let production = production.ok_or_else(|| {
+            Error::Database("Failed to create scraped production - no result returned".to_string())
+        })?;
+
+        crate::services::embedding::spawn_embedding_update(production.id.clone(), embedding_text);
+
+        Ok(production)
+    }
+
     /// Search productions by title for dedup autocomplete
     pub async fn search_by_title(query: &str, limit: usize) -> Result<Vec<Production>, Error> {
         debug!("Searching productions by title: {}", query);

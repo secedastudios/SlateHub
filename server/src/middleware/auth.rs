@@ -35,11 +35,18 @@ pub async fn auth_middleware(
         );
     }
 
-    // Check if auth_token cookie exists
-    if let Some(auth_cookie) = jar.get("auth_token") {
-        let token = auth_cookie.value();
+    // Check Authorization header first (for API clients like Chrome extension),
+    // then fall back to auth_token cookie
+    let token_from_header = request
+        .headers()
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .map(|s| s.to_string());
+
+    if let Some(token) = token_from_header.as_deref().or(jar.get("auth_token").map(|c| c.value())) {
         debug!(
-            "Auth middleware: Found auth_token (len={}) in cookies",
+            "Auth middleware: Found auth token (len={})",
             token.len()
         );
 
@@ -84,7 +91,7 @@ pub async fn auth_middleware(
             }
         }
     } else {
-        debug!("Auth middleware: Missing auth_token cookie");
+        debug!("Auth middleware: No auth token found (checked Authorization header and auth_token cookie)");
     }
 
     debug!("Auth middleware: Passing request to next handler");

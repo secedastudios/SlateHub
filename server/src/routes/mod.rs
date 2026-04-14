@@ -1,8 +1,8 @@
 use axum::extract::DefaultBodyLimit;
-use axum::http::{Request, Response, header, HeaderValue};
+use axum::http::{Method, Request, Response, header, HeaderValue};
 use axum::{Router, middleware, routing::get_service};
 use std::time::Duration;
-use tower_http::{compression::CompressionLayer, services::ServeDir, set_header::SetResponseHeaderLayer, trace::TraceLayer};
+use tower_http::{compression::CompressionLayer, cors::CorsLayer, services::ServeDir, set_header::SetResponseHeaderLayer, trace::TraceLayer};
 use tracing::{Span, error, info};
 
 use crate::middleware::{
@@ -113,6 +113,16 @@ pub fn app() -> Router {
             header::HeaderName::from_static("x-xss-protection"),
             HeaderValue::from_static("1; mode=block"),
         ))
+        // CORS — allow Chrome extension origins to call /api/* endpoints
+        .layer(
+            CorsLayer::new()
+                .allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
+                    origin.as_bytes().starts_with(b"chrome-extension://")
+                }))
+                .allow_methods([Method::GET, Method::POST, Method::DELETE])
+                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
+                .max_age(Duration::from_secs(3600)),
+        )
         // Middleware
         .layer(CompressionLayer::new())
         .layer(

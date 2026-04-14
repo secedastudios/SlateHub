@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SlatHub IMDb Import</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>SlatHub</h1>
+      <p class="subtitle">IMDb Import</p>
+    </header>
+
+    <!-- Auth state -->
+    <div id="auth-required" class="state" style="display:none">
+      <p>You need to be logged into SlatHub first.</p>
+      <a id="login-link" href="https://slatehub.com/login" target="_blank" class="btn btn-primary">
+        Log in to SlatHub
+      </a>
+    </div>
+
+    <!-- No data state -->
+    <div id="no-data" class="state" style="display:none">
+      <p>Navigate to an IMDb person page to import credits.</p>
+      <p class="hint">Example: imdb.com/name/nm0000123</p>
+    </div>
+
+    <!-- Credits list -->
+    <div id="credits-view" class="state" style="display:none">
+      <div class="person-info">
+        <strong id="person-name"></strong>
+        <span id="credit-count" class="badge"></span>
+      </div>
+
+      <div class="controls">
+        <button id="select-all" class="btn btn-sm">Select All</button>
+        <button id="deselect-all" class="btn btn-sm">Deselect All</button>
+      </div>
+
+      <div id="credits-list" class="credits-list"></div>
+
+      <div class="actions">
+        <button id="import-btn" class="btn btn-primary">
+          Import Selected
+        </button>
+      </div>
+    </div>
+
+    <!-- Import result -->
+    <div id="result-view" class="state" style="display:none">
+      <div id="result-message"></div>
+      <a id="profile-link" href="#" target="_blank" class="btn btn-primary">
+        View Profile
+      </a>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="state" style="display:none">
+      <div class="spinner"></div>
+      <p id="loading-text">Importing credits...</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

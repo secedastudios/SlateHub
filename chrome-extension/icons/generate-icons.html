@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate SlatHub Icons</title></head>
+<body>
+<p>Open this file in a browser, right-click each canvas, and "Save image as" to create the icon PNGs.</p>
+<script>
+[16, 48, 128].forEach(size => {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  const r = size * 0.15;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, r);
+  ctx.fillStyle = '#4f46e5';
+  ctx.fill();
+
+  // "S" letter
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${size * 0.6}px -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('S', size / 2, size / 2 + size * 0.03);
+
+  document.body.appendChild(document.createElement('br'));
+  const label = document.createElement('p');
+  label.textContent = `icon${size}.png:`;
+  document.body.appendChild(label);
+  document.body.appendChild(canvas);
+
+  // Auto-download
+  const link = document.createElement('a');
+  link.download = `icon${size}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.textContent = `Download icon${size}.png`;
+  document.body.appendChild(link);
+  document.body.appendChild(document.createElement('br'));
+});
+</script>
+</body>
+</html>

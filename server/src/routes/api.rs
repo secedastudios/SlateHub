@@ -45,6 +45,7 @@ pub fn router() -> Router {
         .route("/tmdb/search", get(tmdb_search))
         .route("/tmdb/credits/{person_id}", get(tmdb_credits))
         .route("/tmdb/import", post(tmdb_import))
+        .route("/imdb/import", post(imdb_import))
         .route("/productions/search", get(productions_search))
         .route("/productions/{slug}/claim", post(production_claim))
         .route("/involvements", post(create_involvement))
@@ -320,6 +321,157 @@ async fn tmdb_import(
     }
 
     info!("TMDB import complete: imported={}, skipped={}, errors={}", imported, skipped, errors.len());
+    Json(serde_json::json!({
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors,
+        "credits": imported_credits,
+    }))
+}
+
+// --- IMDb Import ---
+
+#[derive(Debug, Deserialize)]
+struct ImdbImportCredit {
+    title: String,
+    year: Option<String>,
+    role: Option<String>,
+    category: String,          // "actor", "actress", "director", "producer", etc.
+}
+
+#[derive(Debug, Deserialize)]
+struct ImdbImportRequest {
+    credits: Vec<ImdbImportCredit>,
+}
+
+/// Import credits scraped from IMDb by the Chrome extension.
+/// Finds or creates productions from scraped data and creates involvement edges.
+#[axum::debug_handler]
+async fn imdb_import(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Json(payload): Json<ImdbImportRequest>,
+) -> impl IntoResponse {
+    info!(
+        "IMDb import: user={}, credits_count={}",
+        user.username,
+        payload.credits.len()
+    );
+    let person_id = &user.id;
+    let mut imported = 0u32;
+    let mut skipped = 0u32;
+    let mut errors: Vec<String> = Vec::new();
+    let mut imported_credits: Vec<serde_json::Value> = Vec::new();
+
+    for credit in &payload.credits {
+        // Determine relation_type from category
+        let category = credit.category.to_lowercase();
+        let (relation_type, credit_type, department) = match category.as_str() {
+            "actor" | "actress" | "self" => ("cast", Some("cast"), None),
+            "director" => ("crew", Some("above_the_line"), Some("Directing")),
+            "producer" => ("crew", Some("above_the_line"), Some("Production")),
+            "writer" => ("crew", Some("above_the_line"), Some("Writing")),
+            "composer" | "music department" => ("crew", Some("crew"), Some("Sound")),
+            "cinematographer" => ("crew", Some("crew"), Some("Camera")),
+            "editor" => ("crew", Some("crew"), Some("Editing")),
+            _ => ("crew", Some("crew"), None),
+        };
+
+        let role = credit.role.as_deref().unwrap_or(&credit.category);
+
+        // Try to find existing production by exact title match, otherwise create
+        let production = match ProductionModel::search_by_title(&credit.title, 1).await {
+            Ok(results) => {
+                match results.into_iter().find(|p| p.title.to_lowercase() == credit.title.to_lowercase()) {
+                    Some(existing) => existing,
+                    None => {
+                        match ProductionModel::create_from_scraped_data(
+                            &credit.title,
+                            "Film",
+                            credit.year.as_deref(),
+                            "imdb_scrape",
+                        )
+                        .await
+                        {
+                            Ok(p) => p,
+                            Err(e) => {
+                                error!("Failed to create production '{}': {}", credit.title, e);
+                                errors.push(format!("{}: {}", credit.title, e));
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+            Err(_) => {
+                match ProductionModel::create_from_scraped_data(
+                    &credit.title,
+                    "Film",
+                    credit.year.as_deref(),
+                    "imdb_scrape",
+                )
+                .await
+                {
+                    Ok(p) => p,
+                    Err(e) => {
+                        error!("Failed to create production '{}': {}", credit.title, e);
+                        errors.push(format!("{}: {}", credit.title, e));
+                        continue;
+                    }
+                }
+            }
+        };
+
+        // Dedup check
+        match InvolvementModel::exists(person_id, &production.id, Some(role)).await {
+            Ok(true) => {
+                skipped += 1;
+                continue;
+            }
+            Ok(false) => {}
+            Err(e) => {
+                error!("Failed dedup check: {}", e);
+                errors.push(format!("{}: {}", credit.title, e));
+                continue;
+            }
+        }
+
+        // Create involvement edge
+        match InvolvementModel::create(
+            person_id,
+            &production.id,
+            relation_type,
+            Some(role),
+            department,
+            credit_type,
+            "imdb_import",
+        )
+        .await
+        {
+            Ok(involvement_id) => {
+                imported += 1;
+                imported_credits.push(serde_json::json!({
+                    "involvement_id": involvement_id,
+                    "role": role,
+                    "relation_type": relation_type,
+                    "production_title": production.title,
+                    "production_slug": production.slug,
+                    "production_type": production.production_type,
+                    "verification_status": "externally_sourced",
+                }));
+            }
+            Err(e) => {
+                error!("Failed to create involvement: {}", e);
+                errors.push(format!("{}: {}", credit.title, e));
+            }
+        }
+    }
+
+    info!(
+        "IMDb import complete: imported={}, skipped={}, errors={}",
+        imported,
+        skipped,
+        errors.len()
+    );
     Json(serde_json::json!({
         "imported": imported,
         "skipped": skipped,

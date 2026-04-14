@@ -42,7 +42,7 @@ services:
                 condition: service_healthy
 
     surrealdb:
-        image: surrealdb/surrealdb:v3.0.1
+        image: surrealdb/surrealdb:latest
         container_name: slatehub-surrealdb
         restart: unless-stopped
         user: "${UID:-1000}"
