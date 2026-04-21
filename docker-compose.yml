@@ -1,3 +1,12 @@
+# Shared log-rotation config (json-file driver caps disk use per container).
+# Override the cap per-service if a container is unusually chatty.
+x-logging: &default-logging
+    driver: "json-file"
+    options:
+        max-size: "20m"
+        max-file: "5"
+        compress: "true"
+
 services:
     slatehub:
         build:
@@ -5,6 +14,7 @@ services:
             dockerfile: Dockerfile
         container_name: slatehub-server
         restart: unless-stopped
+        logging: *default-logging
         ports:
             - "${BIND_IP:-127.0.0.1}:${SERVER_PORT:-3000}:3000"
         environment:
@@ -45,6 +55,7 @@ services:
         image: surrealdb/surrealdb:latest
         container_name: slatehub-surrealdb
         restart: unless-stopped
+        logging: *default-logging
         user: "${UID:-1000}"
         ports:
             - "${BIND_IP:-127.0.0.1}:${DB_PORT:-8000}:8000"
@@ -62,6 +73,7 @@ services:
         image: rustfs/rustfs:latest
         container_name: slatehub-rustfs
         restart: unless-stopped
+        logging: *default-logging
         ports:
             - "${BIND_IP:-127.0.0.1}:9000:9000"
             - "${BIND_IP:-127.0.0.1}:9001:9001"
