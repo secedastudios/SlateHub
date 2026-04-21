@@ -31,6 +31,12 @@ struct CountResult {
 
 pub struct MessagingModel;
 
+impl Default for MessagingModel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MessagingModel {
     pub fn new() -> Self {
         Self
@@ -43,10 +49,10 @@ impl MessagingModel {
         person_a: &str,
         person_b: &str,
     ) -> Result<Conversation, Error> {
-        let rid_a = RecordId::parse_simple(person_a)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
-        let rid_b = RecordId::parse_simple(person_b)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let rid_a =
+            RecordId::parse_simple(person_a).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let rid_b =
+            RecordId::parse_simple(person_b).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         // Canonical ordering: smaller record ID string is participant_a
         let a_str = person_a.to_string();
@@ -98,8 +104,8 @@ impl MessagingModel {
     ) -> Result<DirectMessage, Error> {
         let conv_rid = RecordId::parse_simple(conversation_id)
             .map_err(|e| Error::BadRequest(e.to_string()))?;
-        let sender_rid = RecordId::parse_simple(sender_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let sender_rid =
+            RecordId::parse_simple(sender_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         // Create the message
         let msg: Option<DirectMessage> = DB
@@ -126,12 +132,9 @@ impl MessagingModel {
     }
 
     /// Get all conversations for a person, ordered by last message.
-    pub async fn get_conversations(
-        &self,
-        person_id: &str,
-    ) -> Result<Vec<Conversation>, Error> {
-        let rid = RecordId::parse_simple(person_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+    pub async fn get_conversations(&self, person_id: &str) -> Result<Vec<Conversation>, Error> {
+        let rid =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let conversations: Vec<Conversation> = DB
             .query(
@@ -179,8 +182,8 @@ impl MessagingModel {
     ) -> Result<(), Error> {
         let conv_rid = RecordId::parse_simple(conversation_id)
             .map_err(|e| Error::BadRequest(e.to_string()))?;
-        let reader_rid = RecordId::parse_simple(reader_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let reader_rid =
+            RecordId::parse_simple(reader_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         DB.query(
             "UPDATE direct_message SET read = true
@@ -195,8 +198,8 @@ impl MessagingModel {
 
     /// Get unread message count for a person across all conversations.
     pub async fn get_unread_count(&self, person_id: &str) -> Result<u32, Error> {
-        let rid = RecordId::parse_simple(person_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let rid =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let result: Option<CountResult> = DB
             .query(
@@ -225,8 +228,8 @@ impl MessagingModel {
     ) -> Result<(), Error> {
         let conv_rid = RecordId::parse_simple(conversation_id)
             .map_err(|e| Error::BadRequest(e.to_string()))?;
-        let person_rid = RecordId::parse_simple(person_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let person_rid =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         DB.query("UPDATE $conv SET deleted_by += $pid")
             .bind(("conv", conv_rid))

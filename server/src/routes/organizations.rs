@@ -105,11 +105,11 @@ pub struct UpdateOrganizationForm {
     pub website: Option<String>,
     pub contact_email: Option<String>,
     pub phone: Option<String>,
-    pub services: Option<String>,        // Comma-separated
-    pub founded_year: Option<String>,    // Parse to i32 manually
-    pub employees_count: Option<String>, // Parse to i32 manually
-    pub public: Option<String>,               // Checkbox value "on" or None
-    pub allow_join_requests: Option<String>,  // Checkbox value "on" or None
+    pub services: Option<String>,            // Comma-separated
+    pub founded_year: Option<String>,        // Parse to i32 manually
+    pub employees_count: Option<String>,     // Parse to i32 manually
+    pub public: Option<String>,              // Checkbox value "on" or None
+    pub allow_join_requests: Option<String>, // Checkbox value "on" or None
 }
 
 #[derive(Debug, Deserialize)]
@@ -427,7 +427,11 @@ async fn create_organization(
     let _org = model.create(create_data, &user.id).await?;
 
     info!("Organization '{}' created by user {}", data.slug, user.id);
-    crate::services::activity::log_activity(Some(&user.id), "organization_create", &format!("/orgs/{}", data.slug));
+    crate::services::activity::log_activity(
+        Some(&user.id),
+        "organization_create",
+        &format!("/orgs/{}", data.slug),
+    );
 
     Ok(Redirect::to(&format!("/orgs/{}", data.slug)))
 }
@@ -452,16 +456,24 @@ async fn organization_profile(
     // Check if user is authenticated and their membership
     let user_opt = request.get_user();
     if let Some(user) = &user_opt {
-        base = base.with_user(User::from_session_user(&user).await);
+        base = base.with_user(User::from_session_user(user).await);
 
         // Check user's role in the organization using model
         let membership_model = crate::models::membership::MembershipModel::new();
         let membership_result = membership_model
             .find_by_person_and_org(&user.id, &organization.id.to_raw_string())
             .await;
-        debug!("Membership lookup for user {} in org {}: {:?}", user.id, organization.id.to_raw_string(), membership_result);
+        debug!(
+            "Membership lookup for user {} in org {}: {:?}",
+            user.id,
+            organization.id.to_raw_string(),
+            membership_result
+        );
         if let Some(existing) = membership_result? {
-            debug!("Found membership with status: {}", existing.invitation_status);
+            debug!(
+                "Found membership with status: {}",
+                existing.invitation_status
+            );
             match existing.invitation_status.as_str() {
                 "accepted" => {
                     is_member = true;
@@ -490,23 +502,29 @@ async fn organization_profile(
 
     // Get join requests for admins/owners
     let join_requests = if is_admin || is_owner {
-        model.get_join_requests(&organization.id.to_raw_string()).await?
+        model
+            .get_join_requests(&organization.id.to_raw_string())
+            .await?
     } else {
         vec![]
     };
 
     // Double-check pending request from members list (in case membership lookup missed it)
-    if !has_pending_request && !is_member {
-        if let Some(user) = &user_opt {
-            has_pending_request = members.iter().any(|m| {
-                m.person_username == user.username
-                    && (m.invitation_status == "requested" || m.invitation_status == "pending")
-            }) || join_requests.iter().any(|r| {
-                r.person_username == user.username
-            });
-            if has_pending_request {
-                debug!("Found pending request via members/join_requests list for user {}", user.id);
-            }
+    if !has_pending_request
+        && !is_member
+        && let Some(user) = &user_opt
+    {
+        has_pending_request = members.iter().any(|m| {
+            m.person_username == user.username
+                && (m.invitation_status == "requested" || m.invitation_status == "pending")
+        }) || join_requests
+            .iter()
+            .any(|r| r.person_username == user.username);
+        if has_pending_request {
+            debug!(
+                "Found pending request via members/join_requests list for user {}",
+                user.id
+            );
         }
     }
 
@@ -813,7 +831,9 @@ async fn update_member_role(
     let members = model.get_members(&org_id).await?;
     let member_belongs = members.iter().any(|m| m.id.to_raw_string() == member_id);
     if !member_belongs {
-        return Err(Error::BadRequest("Member does not belong to this organization".to_string()));
+        return Err(Error::BadRequest(
+            "Member does not belong to this organization".to_string(),
+        ));
     }
 
     // Update member role
@@ -843,7 +863,9 @@ async fn remove_member(
     let members = model.get_members(&org_id).await?;
     let member_belongs = members.iter().any(|m| m.id.to_raw_string() == member_id);
     if !member_belongs {
-        return Err(Error::BadRequest("Member does not belong to this organization".to_string()));
+        return Err(Error::BadRequest(
+            "Member does not belong to this organization".to_string(),
+        ));
     }
 
     // Remove member
@@ -867,7 +889,9 @@ async fn request_to_join(
 
     // Check if join requests are enabled
     if !organization.allow_join_requests {
-        return Err(Error::BadRequest("This organization does not accept join requests".to_string()));
+        return Err(Error::BadRequest(
+            "This organization does not accept join requests".to_string(),
+        ));
     }
 
     // Check if already a member or has a pending request
@@ -891,14 +915,25 @@ async fn request_to_join(
         .await?;
 
     // Notify all owners and admins — individual CREATEs so LIVE SELECT detects them
-    let display_name = if user.name.is_empty() { &user.username } else { &user.name };
+    let display_name = if user.name.is_empty() {
+        &user.username
+    } else {
+        &user.name
+    };
     let title = format!("{} wants to join {}", display_name, organization.name);
     let message = match note {
         Some(n) => format!("\"{}\"", n),
-        None => format!("@{} has requested to join your organization.", user.username),
+        None => format!(
+            "@{} has requested to join your organization.",
+            user.username
+        ),
     };
     let link = format!("/orgs/{}", slug);
-    let related_id = format!("join_request:{}:{}", user.id, organization.id.to_raw_string());
+    let related_id = format!(
+        "join_request:{}:{}",
+        user.id,
+        organization.id.to_raw_string()
+    );
 
     // Get admin person IDs (format org ID into query since bind params don't work for RecordId comparison)
     let admin_query = format!(
@@ -1007,7 +1042,10 @@ struct MoreQuery {
 }
 
 fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!("event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n", selector, mode);
+    let mut s = format!(
+        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
+        selector, mode
+    );
     if !elements.is_empty() {
         s += &format!("data: elements {}\n", elements.replace('\n', " "));
     }
@@ -1016,7 +1054,14 @@ fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
 }
 
 fn sse_response(body: String) -> Response {
-    ([(header::CONTENT_TYPE, "text/event-stream"), (header::CACHE_CONTROL, "no-cache")], body).into_response()
+    (
+        [
+            (header::CONTENT_TYPE, "text/event-stream"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
 }
 
 fn escape_html(s: &str) -> String {
@@ -1028,12 +1073,22 @@ const VERIFIED_BADGE_PATH: &str = "M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.43
 fn render_org_card(org: &Organization) -> String {
     let mut html = String::new();
     html.push_str(r#"<article data-component="card" data-type="org">"#);
-    html.push_str(&format!(r#"<a href="/orgs/{}" data-role="card-visual">"#, escape_html(&org.slug)));
+    html.push_str(&format!(
+        r#"<a href="/orgs/{}" data-role="card-visual">"#,
+        escape_html(&org.slug)
+    ));
 
     if let Some(ref logo) = org.logo {
-        html.push_str(&format!(r#"<img src="{}" alt="{}" loading="lazy" onerror="this.style.display='none'" />"#, escape_html(logo), escape_html(&org.name)));
+        html.push_str(&format!(
+            r#"<img src="{}" alt="{}" loading="lazy" onerror="this.style.display='none'" />"#,
+            escape_html(logo),
+            escape_html(&org.name)
+        ));
     } else {
-        html.push_str(&format!(r#"<div data-role="placeholder"><span>{}</span></div>"#, escape_html(&org.name)));
+        html.push_str(&format!(
+            r#"<div data-role="placeholder"><span>{}</span></div>"#,
+            escape_html(&org.name)
+        ));
     }
 
     html.push_str(r#"<div data-role="overlay">"#);
@@ -1043,9 +1098,15 @@ fn render_org_card(org: &Organization) -> String {
     }
     html.push_str("</h3>");
     html.push_str(r#"<div data-role="meta">"#);
-    html.push_str(&format!(r#"<span data-role="type-label">{}</span>"#, escape_html(&org.org_type.name)));
+    html.push_str(&format!(
+        r#"<span data-role="type-label">{}</span>"#,
+        escape_html(&org.org_type.name)
+    ));
     if let Some(ref loc) = org.location {
-        html.push_str(&format!(r#"<span data-role="loc">{}</span>"#, escape_html(loc)));
+        html.push_str(&format!(
+            r#"<span data-role="loc">{}</span>"#,
+            escape_html(loc)
+        ));
     }
     html.push_str("</div></div></a>");
 
@@ -1076,7 +1137,10 @@ async fn orgs_more_sse(Query(params): Query<MoreQuery>) -> Response {
     };
 
     let model = OrganizationModel::new();
-    let all = model.search(search, None, None, query_embedding, PAGE_SIZE + 1, offset).await.unwrap_or_default();
+    let all = model
+        .search(search, None, None, query_embedding, PAGE_SIZE + 1, offset)
+        .await
+        .unwrap_or_default();
     let has_more = all.len() > PAGE_SIZE;
     let orgs: Vec<Organization> = all.into_iter().take(PAGE_SIZE).collect();
 

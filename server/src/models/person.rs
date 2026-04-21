@@ -11,8 +11,8 @@ use crate::record_id_ext::RecordIdExt;
 use crate::services::embedding::build_person_embedding_text;
 use crate::{db_span, log_error};
 use regex::Regex;
-use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 use surrealdb::types::{RecordId, SurrealValue};
 use tracing::{debug, error, info};
 
@@ -23,12 +23,62 @@ use tracing::{debug, error, info};
 static USERNAME_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z0-9._]+$").unwrap());
 
 const RESERVED_USERNAMES: &[&str] = &[
-    "about", "account", "admin", "api", "auth", "contact", "dashboard", "delete",
-    "equipment", "feedback", "get-verified", "health", "healthcheck", "help", "home", "i", "invitations",
-    "likes", "locations", "login", "logout", "messages", "my-orgs", "notifications",
-    "org", "orgs", "people", "privacy", "productions", "profile", "project", "projects",
-    "qr", "resend-verification", "search", "settings", "signup", "static", "stats",
-    "support", "terms", "upload", "verify-email",
+    "about",
+    "account",
+    "admin",
+    "api",
+    "auth",
+    "authorize",
+    "contact",
+    "dashboard",
+    "delete",
+    "developer",
+    "developers",
+    "docs",
+    "equipment",
+    "feedback",
+    "get-verified",
+    "health",
+    "healthcheck",
+    "help",
+    "home",
+    "i",
+    "introspect",
+    "invitations",
+    "jwks",
+    "likes",
+    "locations",
+    "login",
+    "logout",
+    "messages",
+    "my-orgs",
+    "notifications",
+    "oauth",
+    "oidc",
+    "org",
+    "orgs",
+    "people",
+    "privacy",
+    "productions",
+    "profile",
+    "project",
+    "projects",
+    "qr",
+    "resend-verification",
+    "revoke",
+    "search",
+    "settings",
+    "signup",
+    "ssf",
+    "static",
+    "stats",
+    "support",
+    "terms",
+    "token",
+    "upload",
+    "userinfo",
+    "verify-email",
+    "well-known",
 ];
 
 /// Validates and normalizes a username to Instagram-style handle rules.
@@ -39,10 +89,14 @@ pub fn validate_username(username: &str) -> Result<String> {
     let username = username.trim().to_lowercase();
 
     if username.len() < 3 {
-        return Err(Error::Validation("Username must be at least 3 characters".into()));
+        return Err(Error::Validation(
+            "Username must be at least 3 characters".into(),
+        ));
     }
     if username.len() > 30 {
-        return Err(Error::Validation("Username must be 30 characters or fewer".into()));
+        return Err(Error::Validation(
+            "Username must be 30 characters or fewer".into(),
+        ));
     }
     if !USERNAME_RE.is_match(&username) {
         return Err(Error::Validation(
@@ -50,10 +104,14 @@ pub fn validate_username(username: &str) -> Result<String> {
         ));
     }
     if username.starts_with('.') || username.ends_with('.') {
-        return Err(Error::Validation("Username cannot start or end with a period".into()));
+        return Err(Error::Validation(
+            "Username cannot start or end with a period".into(),
+        ));
     }
     if username.contains("..") {
-        return Err(Error::Validation("Username cannot contain consecutive periods".into()));
+        return Err(Error::Validation(
+            "Username cannot contain consecutive periods".into(),
+        ));
     }
     if RESERVED_USERNAMES.contains(&username.as_str()) {
         return Err(Error::Validation("This username is reserved".into()));
@@ -174,7 +232,6 @@ pub struct Photo {
     pub thumbnail_url: String,
     pub caption: String,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct Education {
@@ -319,7 +376,7 @@ impl Person {
             id
         };
 
-        span.record("record_id", &format!("person:{}", record_key));
+        span.record("record_id", format!("person:{}", record_key));
         debug!(
             record_key = %record_key,
             "Using parameterized query to fetch person"
@@ -823,7 +880,24 @@ impl Person {
                 )
             } else {
                 build_person_embedding_text(
-                    display_name, None, None, &[], None, None, None, &[], None, None, None, None, &[], &[], &[], None, &[], None,
+                    display_name,
+                    None,
+                    None,
+                    &[],
+                    None,
+                    None,
+                    None,
+                    &[],
+                    None,
+                    None,
+                    None,
+                    None,
+                    &[],
+                    &[],
+                    &[],
+                    None,
+                    &[],
+                    None,
                 )
             };
             crate::services::embedding::spawn_embedding_update(person.id.clone(), embedding_text);
@@ -844,7 +918,12 @@ impl Person {
     /// # Returns
     /// A `Result` containing the JWT token string if successful.
     /// Returns `(jwt_token, person_id)` on success.
-    pub async fn signup(username: String, email: String, password: String, signup_ip: Option<String>) -> Result<(String, String)> {
+    pub async fn signup(
+        username: String,
+        email: String,
+        password: String,
+        signup_ip: Option<String>,
+    ) -> Result<(String, String)> {
         use crate::auth;
         use crate::db::DB;
         use tracing::debug;
@@ -872,10 +951,13 @@ impl Person {
             .bind(("password", password_hash))
             .bind(("name", username.clone()))
             .bind(("verification_status", "unverified"))
-            .bind(("profile", Profile {
-                name: Some(username.clone()),
-                ..Default::default()
-            }))
+            .bind((
+                "profile",
+                Profile {
+                    name: Some(username.clone()),
+                    ..Default::default()
+                },
+            ))
             .bind(("signup_ip", signup_ip))
             .await?;
 
@@ -886,13 +968,34 @@ impl Person {
             .next()
             .ok_or_else(|| Error::Internal("Failed to create user".to_string()))?;
 
-        debug!("Created new user: {} with id: {}", username, person.id.display());
+        debug!(
+            "Created new user: {} with id: {}",
+            username,
+            person.id.display()
+        );
 
         // Generate initial embedding (fire-and-forget) — even with minimal profile data,
         // this ensures the person is discoverable via semantic search from day one.
         {
             let embedding_text = build_person_embedding_text(
-                &username, None, None, &[], None, None, None, &[], None, None, None, None, &[], &[], &[], None, &[], None,
+                &username,
+                None,
+                None,
+                &[],
+                None,
+                None,
+                None,
+                &[],
+                None,
+                None,
+                None,
+                None,
+                &[],
+                &[],
+                &[],
+                None,
+                &[],
+                None,
             );
             crate::services::embedding::spawn_embedding_update(person.id.clone(), embedding_text);
         }
@@ -965,10 +1068,7 @@ impl Person {
         }
 
         let persons: Vec<PersonWithPassword> = response.take(0)?;
-        let person_with_password = persons
-            .into_iter()
-            .next()
-            .ok_or_else(|| Error::Unauthorized)?;
+        let person_with_password = persons.into_iter().next().ok_or(Error::Unauthorized)?;
 
         // Verify the password
         if !auth::verify_password(&password, &person_with_password.password)? {

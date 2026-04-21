@@ -19,8 +19,7 @@ use crate::{
         BaseContext, DateRange, Education, InvolvementDisplay, PhotoDisplay, ProfileData,
         ProfileEditTemplate, ReelDisplay, SocialLinkDisplay, SocialPlatformOption, User,
     },
-    verification_limits,
-    video_platforms,
+    verification_limits, video_platforms,
 };
 
 pub fn router() -> Router {
@@ -105,9 +104,7 @@ async fn own_profile(request: Request) -> Result<Response, Error> {
 }
 
 /// Handler for /profile/{username} — redirects to /{username}
-async fn user_profile(
-    Path(username): Path<String>,
-) -> Response {
+async fn user_profile(Path(username): Path<String>) -> Response {
     Redirect::permanent(&format!("/{}", username)).into_response()
 }
 
@@ -205,12 +202,8 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         social_links: to_social_link_displays(
             &profile.map(|p| p.social_links.clone()).unwrap_or_default(),
         ),
-        reels: to_reel_displays(
-            &profile.map(|p| p.reels.clone()).unwrap_or_default(),
-        ),
-        photos: to_photo_displays(
-            &profile.map(|p| p.photos.clone()).unwrap_or_default(),
-        ),
+        reels: to_reel_displays(&profile.map(|p| p.reels.clone()).unwrap_or_default()),
+        photos: to_photo_displays(&profile.map(|p| p.photos.clone()).unwrap_or_default()),
         is_own_profile: true,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
         verification_status: profile_user.verification_status.clone(),
@@ -224,7 +217,9 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         ethnicity: profile.map(|p| p.ethnicity.clone()).unwrap_or_default(),
         acting_age_range_min: profile.and_then(|p| p.acting_age_range.as_ref().map(|r| r.min)),
         acting_age_range_max: profile.and_then(|p| p.acting_age_range.as_ref().map(|r| r.max)),
-        acting_ethnicities: profile.map(|p| p.acting_ethnicities.clone()).unwrap_or_default(),
+        acting_ethnicities: profile
+            .map(|p| p.acting_ethnicities.clone())
+            .unwrap_or_default(),
         nationality: profile.and_then(|p| p.nationality.clone()),
         messaging_preference: profile_user.messaging_preference.clone(),
         phone: profile.and_then(|p| p.phone.clone()),
@@ -266,19 +261,18 @@ fn parse_social_links(form: &HashMap<String, String>) -> Vec<SocialLink> {
     let mut links: HashMap<usize, (Option<String>, Option<String>)> = HashMap::new();
 
     for (key, value) in form {
-        if let Some(rest) = key.strip_prefix("social_links[") {
-            if let Some(bracket_pos) = rest.find(']') {
-                if let Ok(idx) = rest[..bracket_pos].parse::<usize>() {
-                    let field = rest[bracket_pos + 1..]
-                        .trim_start_matches('[')
-                        .trim_end_matches(']');
-                    let entry = links.entry(idx).or_insert((None, None));
-                    match field {
-                        "platform" => entry.0 = Some(value.clone()),
-                        "url" => entry.1 = Some(value.clone()),
-                        _ => {}
-                    }
-                }
+        if let Some(rest) = key.strip_prefix("social_links[")
+            && let Some(bracket_pos) = rest.find(']')
+            && let Ok(idx) = rest[..bracket_pos].parse::<usize>()
+        {
+            let field = rest[bracket_pos + 1..]
+                .trim_start_matches('[')
+                .trim_end_matches(']');
+            let entry = links.entry(idx).or_insert((None, None));
+            match field {
+                "platform" => entry.0 = Some(value.clone()),
+                "url" => entry.1 = Some(value.clone()),
+                _ => {}
             }
         }
     }
@@ -309,11 +303,20 @@ fn parse_social_links(form: &HashMap<String, String>) -> Vec<SocialLink> {
 /// Parse height from form fields, converting to mm.
 /// Supports metric (cm) and imperial (ft + in).
 fn parse_height_mm(form: &HashMap<String, String>) -> Option<i32> {
-    let unit = form.get("height_unit").map(|s| s.as_str()).unwrap_or("metric");
+    let unit = form
+        .get("height_unit")
+        .map(|s| s.as_str())
+        .unwrap_or("metric");
     match unit {
         "imperial" => {
-            let feet: i32 = form.get("height_feet").and_then(|v| v.parse().ok()).unwrap_or(0);
-            let inches: i32 = form.get("height_inches").and_then(|v| v.parse().ok()).unwrap_or(0);
+            let feet: i32 = form
+                .get("height_feet")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
+            let inches: i32 = form
+                .get("height_inches")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
             let total_inches = feet * 12 + inches;
             if total_inches > 0 {
                 Some((total_inches as f64 * 25.4).round() as i32)
@@ -322,7 +325,10 @@ fn parse_height_mm(form: &HashMap<String, String>) -> Option<i32> {
             }
         }
         _ => {
-            let cm: i32 = form.get("height_cm").and_then(|v| v.parse().ok()).unwrap_or(0);
+            let cm: i32 = form
+                .get("height_cm")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
             if cm > 0 { Some(cm * 10) } else { Some(0) }
         }
     }
@@ -331,10 +337,16 @@ fn parse_height_mm(form: &HashMap<String, String>) -> Option<i32> {
 /// Parse weight from form fields, converting to kg.
 /// Supports metric (kg) and imperial (lbs).
 fn parse_weight_kg(form: &HashMap<String, String>) -> Option<i32> {
-    let unit = form.get("weight_unit").map(|s| s.as_str()).unwrap_or("metric");
+    let unit = form
+        .get("weight_unit")
+        .map(|s| s.as_str())
+        .unwrap_or("metric");
     match unit {
         "imperial" => {
-            let lbs: f64 = form.get("weight_lbs").and_then(|v| v.parse().ok()).unwrap_or(0.0);
+            let lbs: f64 = form
+                .get("weight_lbs")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0.0);
             if lbs > 0.0 {
                 Some((lbs * 0.453592).round() as i32)
             } else {
@@ -342,7 +354,10 @@ fn parse_weight_kg(form: &HashMap<String, String>) -> Option<i32> {
             }
         }
         _ => {
-            let kg: i32 = form.get("weight_kg").and_then(|v| v.parse().ok()).unwrap_or(0);
+            let kg: i32 = form
+                .get("weight_kg")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
             Some(kg)
         }
     }
@@ -355,19 +370,18 @@ async fn parse_reels(form: &HashMap<String, String>) -> Vec<Reel> {
     let mut reels: HashMap<usize, (Option<String>, Option<String>)> = HashMap::new();
 
     for (key, value) in form {
-        if let Some(rest) = key.strip_prefix("reels[") {
-            if let Some(bracket_pos) = rest.find(']') {
-                if let Ok(idx) = rest[..bracket_pos].parse::<usize>() {
-                    let field = rest[bracket_pos + 1..]
-                        .trim_start_matches('[')
-                        .trim_end_matches(']');
-                    let entry = reels.entry(idx).or_insert((None, None));
-                    match field {
-                        "url" => entry.0 = Some(value.clone()),
-                        "title" => entry.1 = Some(value.clone()),
-                        _ => {}
-                    }
-                }
+        if let Some(rest) = key.strip_prefix("reels[")
+            && let Some(bracket_pos) = rest.find(']')
+            && let Ok(idx) = rest[..bracket_pos].parse::<usize>()
+        {
+            let field = rest[bracket_pos + 1..]
+                .trim_start_matches('[')
+                .trim_end_matches(']');
+            let entry = reels.entry(idx).or_insert((None, None));
+            match field {
+                "url" => entry.0 = Some(value.clone()),
+                "title" => entry.1 = Some(value.clone()),
+                _ => {}
             }
         }
     }
@@ -411,24 +425,24 @@ async fn parse_reels(form: &HashMap<String, String>) -> Vec<Reel> {
 /// Parse photo form fields from the flat form data.
 /// Form fields come as `photos[0][url]`, `photos[0][thumbnail_url]`, `photos[0][caption]`.
 fn parse_photos(form: &HashMap<String, String>) -> Vec<Photo> {
+    #[allow(clippy::type_complexity)]
     let mut photos: HashMap<usize, (Option<String>, Option<String>, Option<String>)> =
         HashMap::new();
 
     for (key, value) in form {
-        if let Some(rest) = key.strip_prefix("photos[") {
-            if let Some(bracket_pos) = rest.find(']') {
-                if let Ok(idx) = rest[..bracket_pos].parse::<usize>() {
-                    let field = rest[bracket_pos + 1..]
-                        .trim_start_matches('[')
-                        .trim_end_matches(']');
-                    let entry = photos.entry(idx).or_insert((None, None, None));
-                    match field {
-                        "url" => entry.0 = Some(value.clone()),
-                        "thumbnail_url" => entry.1 = Some(value.clone()),
-                        "caption" => entry.2 = Some(value.clone()),
-                        _ => {}
-                    }
-                }
+        if let Some(rest) = key.strip_prefix("photos[")
+            && let Some(bracket_pos) = rest.find(']')
+            && let Ok(idx) = rest[..bracket_pos].parse::<usize>()
+        {
+            let field = rest[bracket_pos + 1..]
+                .trim_start_matches('[')
+                .trim_end_matches(']');
+            let entry = photos.entry(idx).or_insert((None, None, None));
+            match field {
+                "url" => entry.0 = Some(value.clone()),
+                "thumbnail_url" => entry.1 = Some(value.clone()),
+                "caption" => entry.2 = Some(value.clone()),
+                _ => {}
             }
         }
     }
@@ -465,24 +479,36 @@ async fn update_profile(
     let photos = parse_photos(&form);
 
     // Enforce verification-based limits on reels and photos
-    let person = Person::find_by_id(&current_user.id).await?.ok_or(Error::NotFound)?;
+    let person = Person::find_by_id(&current_user.id)
+        .await?
+        .ok_or(Error::NotFound)?;
     let limits = verification_limits::limits_for_status(&person.verification_status);
-    if let Some(max) = limits.max_reels {
-        if reels.len() > max {
-            return Err(Error::bad_request(format!("Maximum of {} reels allowed. Get verified to remove this limit.", max)));
-        }
+    if let Some(max) = limits.max_reels
+        && reels.len() > max
+    {
+        return Err(Error::bad_request(format!(
+            "Maximum of {} reels allowed. Get verified to remove this limit.",
+            max
+        )));
     }
-    if let Some(max) = limits.max_photos {
-        if photos.len() > max {
-            return Err(Error::bad_request(format!("Maximum of {} photos allowed. Get verified for more uploads.", max)));
-        }
+    if let Some(max) = limits.max_photos
+        && photos.len() > max
+    {
+        return Err(Error::bad_request(format!(
+            "Maximum of {} photos allowed. Get verified for more uploads.",
+            max
+        )));
     }
 
     // Parse physical attribute fields
     let height_mm = parse_height_mm(&form);
     let weight_kg = parse_weight_kg(&form);
-    let acting_age_min: Option<i32> = form.get("acting_age_range_min").and_then(|v| v.parse().ok());
-    let acting_age_max: Option<i32> = form.get("acting_age_range_max").and_then(|v| v.parse().ok());
+    let acting_age_min: Option<i32> = form
+        .get("acting_age_range_min")
+        .and_then(|v| v.parse().ok());
+    let acting_age_max: Option<i32> = form
+        .get("acting_age_range_max")
+        .and_then(|v| v.parse().ok());
 
     // Update the profile in the database
     match Person::update_profile(

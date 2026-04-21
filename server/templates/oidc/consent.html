@@ -1,0 +1,37 @@
+{% extends "_layout.html" %}
+{% block title %}Authorize {{ client_name }} - {{ app_name }}{% endblock %}
+{% block page_name %}oidc-consent{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/orgs.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section data-component="org-form-page" data-page-variant="oidc-consent">
+    <header data-role="page-header">
+        <h1>Authorize <strong>{{ client_name }}</strong></h1>
+        <p data-role="subtitle">Operated by <strong>{{ org_name }}</strong></p>
+    </header>
+
+    <p>This app is requesting access to the following information from your Slatehub account:</p>
+
+    <ul data-role="scope-list">
+        {% for s in requested_scopes %}
+        <li><strong><code>{{ s.scope }}</code></strong> &mdash; {{ s.description }}</li>
+        {% endfor %}
+    </ul>
+
+    {% if !already_granted.is_empty() %}
+    <details>
+        <summary>Previously granted scopes</summary>
+        <ul>
+            {% for s in already_granted %}<li><code>{{ s }}</code></li>{% endfor %}
+        </ul>
+    </details>
+    {% endif %}
+
+    <form method="post" action="/authorize/consent">
+        <input type="hidden" name="params_json" value="{{ params_json }}" />
+        <button type="submit" name="action" value="approve" data-role="btn-primary">Approve</button>
+        <button type="submit" name="action" value="deny" data-role="btn-secondary">Deny</button>
+    </form>
+</section>
+{% endblock %}

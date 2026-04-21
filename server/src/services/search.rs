@@ -245,7 +245,10 @@ pub async fn search_people(
         .bind(("query_embedding", embedding_vec))
         .bind(("limit", params.limit as i64))
         .bind(("offset", params.offset as i64))
-        .bind(("location_filter", parsed.location.clone().unwrap_or_default()))
+        .bind((
+            "location_filter",
+            parsed.location.clone().unwrap_or_default(),
+        ))
         .bind(("skill_filter", skill.unwrap_or("").to_string()))
         .bind(("gender_filter", parsed.gender.clone().unwrap_or_default()))
         .bind(("age_min", parsed.age_min.unwrap_or(0)))
@@ -276,7 +279,11 @@ pub async fn search_people(
             location: json_opt_str(&r, "location"),
             skills: r["skills"]
                 .as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default(),
             avatar_url: json_opt_str(&r, "avatar_url"),
             embedding_text: json_opt_str(&r, "embedding_text"),
@@ -782,9 +789,15 @@ async fn resolve_poster(posted_by_id: &str) -> (String, String) {
     }
 
     let (entity_type, rid) = if posted_by_id.starts_with("person:") {
-        ("person", surrealdb::types::RecordId::parse_simple(posted_by_id).ok())
+        (
+            "person",
+            surrealdb::types::RecordId::parse_simple(posted_by_id).ok(),
+        )
     } else if posted_by_id.starts_with("organization:") {
-        ("organization", surrealdb::types::RecordId::parse_simple(posted_by_id).ok())
+        (
+            "organization",
+            surrealdb::types::RecordId::parse_simple(posted_by_id).ok(),
+        )
     } else {
         return (String::new(), String::new());
     };
@@ -810,10 +823,7 @@ fn json_str(v: &serde_json::Value, key: &str) -> String {
 
 /// Extract an optional string field — returns `None` for null / missing / empty.
 fn json_opt_str(v: &serde_json::Value, key: &str) -> Option<String> {
-    v[key]
-        .as_str()
-        .filter(|s| !s.is_empty())
-        .map(String::from)
+    v[key].as_str().filter(|s| !s.is_empty()).map(String::from)
 }
 
 /// Extract a string field with a custom default.

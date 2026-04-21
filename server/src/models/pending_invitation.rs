@@ -41,7 +41,15 @@ fn generate_invite_token() -> String {
     use rand::Rng;
     const CHARS: &[u8] = b"abcdefghijkmnpqrstuvwxyz23456789";
     let mut rng = rand::thread_rng();
-    (0..8).map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char).collect()
+    (0..8)
+        .map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char)
+        .collect()
+}
+
+impl Default for PendingInvitationModel {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PendingInvitationModel {
@@ -49,6 +57,7 @@ impl PendingInvitationModel {
         Self
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create(
         &self,
         email: &str,
@@ -124,6 +133,7 @@ impl PendingInvitationModel {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_for_production(
         &self,
         email: &str,
@@ -236,10 +246,7 @@ impl PendingInvitationModel {
     }
 
     /// Find a pending invitation by its token
-    pub async fn find_by_token(
-        &self,
-        token: &str,
-    ) -> Result<Option<PendingInvitation>, Error> {
+    pub async fn find_by_token(&self, token: &str) -> Result<Option<PendingInvitation>, Error> {
         debug!("Finding pending invitation by token: {}", token);
 
         // Strict validation: tokens are 8 alphanumeric chars from our generator.
@@ -252,7 +259,7 @@ impl PendingInvitationModel {
         // https://github.com/surrealdb/surrealdb/issues/7054
         // Bind params don't match option<string> fields — the query silently returns no results.
         let result: Option<PendingInvitation> = match DB
-            .query(&format!(
+            .query(format!(
                 "SELECT * FROM pending_invitation WHERE token = '{}' AND status = 'pending' LIMIT 1",
                 token
             ))
@@ -281,7 +288,10 @@ impl PendingInvitationModel {
         &self,
         production_id: &str,
     ) -> Result<Vec<PendingInvitation>, Error> {
-        debug!("Fetching pending email invitations for production: {}", production_id);
+        debug!(
+            "Fetching pending email invitations for production: {}",
+            production_id
+        );
 
         let invitations: Vec<PendingInvitation> = DB
             .query(

@@ -44,11 +44,11 @@ pub async fn auth_middleware(
         .and_then(|v| v.strip_prefix("Bearer "))
         .map(|s| s.to_string());
 
-    if let Some(token) = token_from_header.as_deref().or(jar.get("auth_token").map(|c| c.value())) {
-        debug!(
-            "Auth middleware: Found auth token (len={})",
-            token.len()
-        );
+    if let Some(token) = token_from_header
+        .as_deref()
+        .or(jar.get("auth_token").map(|c| c.value()))
+    {
+        debug!("Auth middleware: Found auth token (len={})", token.len());
 
         // Decode JWT to extract user information
         match auth::decode_jwt(token) {
@@ -91,7 +91,9 @@ pub async fn auth_middleware(
             }
         }
     } else {
-        debug!("Auth middleware: No auth token found (checked Authorization header and auth_token cookie)");
+        debug!(
+            "Auth middleware: No auth token found (checked Authorization header and auth_token cookie)"
+        );
     }
 
     debug!("Auth middleware: Passing request to next handler");
@@ -111,13 +113,9 @@ async fn get_user_from_id(user_id: &str) -> Result<CurrentUser, Error> {
     debug!("Starting user fetch");
 
     // Extract just the ID part if it's in format "person:xxxxx"
-    let id = if user_id.starts_with("person:") {
-        &user_id[7..]
-    } else {
-        user_id
-    };
+    let id = user_id.strip_prefix("person:").unwrap_or(user_id);
 
-    span.record("stripped_id", &id);
+    span.record("stripped_id", id);
     debug!(stripped_id = %id, "Calling Person::find_by_id");
     match Person::find_by_id(id).await {
         Ok(Some(person)) => {

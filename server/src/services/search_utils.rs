@@ -9,22 +9,32 @@ pub fn normalize_query(query: &str) -> String {
         ("actresses", "actress"),
         ("actors", "actor"),
         ("cinematographers", "cinematographer"),
-        ("directors", "director"), ("producers", "producer"),
-        ("writers", "writer"), ("editors", "editor"),
-        ("composers", "composer"), ("gaffers", "gaffer"),
-        ("grips", "grip"), ("colorists", "colorist"),
-        ("animators", "animator"), ("stunt performers", "stunt performer"),
-        ("choreographers", "choreographer"), ("screenwriters", "screenwriter"),
+        ("directors", "director"),
+        ("producers", "producer"),
+        ("writers", "writer"),
+        ("editors", "editor"),
+        ("composers", "composer"),
+        ("gaffers", "gaffer"),
+        ("grips", "grip"),
+        ("colorists", "colorist"),
+        ("animators", "animator"),
+        ("stunt performers", "stunt performer"),
+        ("choreographers", "choreographer"),
+        ("screenwriters", "screenwriter"),
         ("showrunners", "showrunner"),
         ("production designers", "production designer"),
         ("costume designers", "costume designer"),
         ("sound designers", "sound designer"),
         ("makeup artists", "makeup artist"),
-        ("filmmakers", "filmmaker"), ("photographers", "photographer"),
-        ("videographers", "videographer"), ("models", "model"),
+        ("filmmakers", "filmmaker"),
+        ("photographers", "photographer"),
+        ("videographers", "videographer"),
+        ("models", "model"),
         // Common abbreviations — depluralize only
-        ("dps", "dp"), ("dops", "dop"),
-        ("ads", "ad"), ("pas", "pa"),
+        ("dps", "dp"),
+        ("dops", "dop"),
+        ("ads", "ad"),
+        ("pas", "pa"),
     ];
     let mut result = query.to_lowercase();
     for (plural, singular) in terms {
@@ -69,7 +79,8 @@ pub fn parse_query(query: &str) -> ParsedQuery {
     }
 
     // Gender: "male", "female", "non-binary", "men", "women", "man", "woman"
-    let gender_re = Regex::new(r"(?i)\b(male|female|non[- ]?binary|men|women|man|woman)\b").unwrap();
+    let gender_re =
+        Regex::new(r"(?i)\b(male|female|non[- ]?binary|men|women|man|woman)\b").unwrap();
     if let Some(m) = gender_re.find(&cleaned) {
         let g = m.as_str().to_lowercase();
         parsed.gender = Some(match g.as_str() {
@@ -82,59 +93,71 @@ pub fn parse_query(query: &str) -> ParsedQuery {
 
     // Hair color: "blonde hair", "brown-haired", "with red hair", "bald"
     let hair_re = Regex::new(
-        r"(?i)\b(black|brown|blonde|blond|red|gray|grey|white|bald)(?:[- ]?haired|\s+hair)?\b"
-    ).unwrap();
+        r"(?i)\b(black|brown|blonde|blond|red|gray|grey|white|bald)(?:[- ]?haired|\s+hair)?\b",
+    )
+    .unwrap();
     if let Some(m) = hair_re.find(&cleaned) {
         let h = m.as_str().to_lowercase();
-        parsed.hair_color = Some(match h.as_str() {
-            s if s.contains("black") => "Black",
-            s if s.contains("brown") => "Brown",
-            s if s.contains("blond") => "Blonde",
-            s if s.contains("red") => "Red",
-            s if s.contains("gray") || s.contains("grey") => "Gray",
-            s if s.contains("white") => "White",
-            s if s.contains("bald") => "Bald",
-            _ => "Other",
-        }.to_string());
+        parsed.hair_color = Some(
+            match h.as_str() {
+                s if s.contains("black") => "Black",
+                s if s.contains("brown") => "Brown",
+                s if s.contains("blond") => "Blonde",
+                s if s.contains("red") => "Red",
+                s if s.contains("gray") || s.contains("grey") => "Gray",
+                s if s.contains("white") => "White",
+                s if s.contains("bald") => "Bald",
+                _ => "Other",
+            }
+            .to_string(),
+        );
         cleaned = hair_re.replace(&cleaned, "").to_string();
     }
 
     // Eye color: "blue eyes", "brown-eyed", "with green eyes"
     let eye_re = Regex::new(
-        r"(?i)\b(?:with\s+)?(brown|blue|green|hazel|gray|grey|black)(?:[- ]?eyed|\s+eyes?)\b"
-    ).unwrap();
+        r"(?i)\b(?:with\s+)?(brown|blue|green|hazel|gray|grey|black)(?:[- ]?eyed|\s+eyes?)\b",
+    )
+    .unwrap();
     if let Some(caps) = eye_re.captures(&cleaned) {
         let e = caps.get(1).unwrap().as_str().to_lowercase();
-        parsed.eye_color = Some(match e.as_str() {
-            "brown" => "Brown",
-            "blue" => "Blue",
-            "green" => "Green",
-            "hazel" => "Hazel",
-            "gray" | "grey" => "Gray",
-            "black" => "Black",
-            _ => "Other",
-        }.to_string());
+        parsed.eye_color = Some(
+            match e.as_str() {
+                "brown" => "Brown",
+                "blue" => "Blue",
+                "green" => "Green",
+                "hazel" => "Hazel",
+                "gray" | "grey" => "Gray",
+                "black" => "Black",
+                _ => "Other",
+            }
+            .to_string(),
+        );
         cleaned = eye_re.replace(&cleaned, "").to_string();
     }
 
     // Body type: "athletic", "slim", "muscular", "petite", "plus size", "curvy"
     let body_re = Regex::new(
-        r"(?i)\b(athletic|average|slim|slender|curvy|muscular|petite|plus[- ]?size|tall)\b"
-    ).unwrap();
+        r"(?i)\b(athletic|average|slim|slender|curvy|muscular|petite|plus[- ]?size|tall)\b",
+    )
+    .unwrap();
     if let Some(m) = body_re.find(&cleaned) {
         let b = m.as_str().to_lowercase();
-        parsed.body_type = Some(match b.as_str() {
-            "athletic" => "Athletic",
-            "average" => "Average",
-            "slim" => "Slim",
-            "slender" => "Slender",
-            "curvy" => "Curvy",
-            "muscular" => "Muscular",
-            "petite" => "Petite",
-            s if s.contains("plus") => "Plus Size",
-            "tall" => "Tall",
-            _ => "Other",
-        }.to_string());
+        parsed.body_type = Some(
+            match b.as_str() {
+                "athletic" => "Athletic",
+                "average" => "Average",
+                "slim" => "Slim",
+                "slender" => "Slender",
+                "curvy" => "Curvy",
+                "muscular" => "Muscular",
+                "petite" => "Petite",
+                s if s.contains("plus") => "Plus Size",
+                "tall" => "Tall",
+                _ => "Other",
+            }
+            .to_string(),
+        );
         cleaned = body_re.replace(&cleaned, "").to_string();
     }
 

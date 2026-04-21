@@ -1,5 +1,6 @@
 pub mod activity;
 pub mod analytics;
+pub mod consent_grant;
 pub mod equipment;
 pub mod involvement;
 pub mod job;
@@ -9,6 +10,7 @@ pub mod media;
 pub mod membership;
 pub mod messaging;
 pub mod notification;
+pub mod oauth_client;
 pub mod organization;
 pub mod pending_invitation;
 pub mod person;

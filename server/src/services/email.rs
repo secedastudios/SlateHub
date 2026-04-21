@@ -285,9 +285,7 @@ impl EmailService {
     </div>
 </body>
 </html>"#,
-            reset_code,
-            base_url,
-            encoded_email
+            reset_code, base_url, encoded_email
         );
 
         self.send_email(
@@ -405,8 +403,8 @@ impl EmailService {
         page_url: &str,
         message: &str,
     ) -> Result<()> {
-        let recipient = env::var("FEEDBACK_RECIPIENT_EMAIL")
-            .unwrap_or_else(|_| self.from_email.clone());
+        let recipient =
+            env::var("FEEDBACK_RECIPIENT_EMAIL").unwrap_or_else(|_| self.from_email.clone());
 
         let subject = format!("SlateHub Feedback from {}", username);
         let clean_message = ammonia::clean(message);

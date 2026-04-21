@@ -125,7 +125,11 @@ impl ActivityModel {
         );
 
         let pct = |num: u64, den: u64| -> f64 {
-            if den == 0 { 0.0 } else { (num as f64 / den as f64) * 100.0 }
+            if den == 0 {
+                0.0
+            } else {
+                (num as f64 / den as f64) * 100.0
+            }
         };
 
         // Users active 30-60 days ago (denominator for retention)
@@ -138,7 +142,11 @@ impl ActivityModel {
             dau,
             wau,
             mau,
-            stickiness: fmt(if mau == 0 { 0.0 } else { (dau as f64 / mau as f64) * 100.0 }),
+            stickiness: fmt(if mau == 0 {
+                0.0
+            } else {
+                (dau as f64 / mau as f64) * 100.0
+            }),
             monthly_active_rate: fmt(pct(mau, total_users)),
             weekly_active_rate: fmt(pct(wau, total_users)),
             daily_active_rate: fmt(pct(dau, total_users)),
@@ -190,7 +198,10 @@ impl ActivityModel {
             .ok()
             .and_then(|mut r| r.take(0).ok())
             .unwrap_or_default();
-        results.into_iter().map(|r| (r.event_type, r.count)).collect()
+        results
+            .into_iter()
+            .map(|r| (r.event_type, r.count))
+            .collect()
     }
 
     pub async fn cleanup(days: u32) {

@@ -59,9 +59,7 @@ fn test_organization_slug_validation() {
     }
 
     for slug in invalid_slugs {
-        assert!(
-            slug.is_empty() || slug.contains(' ') || slug.contains('@') || slug.contains('!')
-        );
+        assert!(slug.is_empty() || slug.contains(' ') || slug.contains('@') || slug.contains('!'));
     }
 }
 

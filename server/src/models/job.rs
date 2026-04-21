@@ -1,8 +1,8 @@
 use crate::db::DB;
 use crate::error::Error;
+use crate::record_id_ext::RecordIdExt;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use crate::record_id_ext::RecordIdExt;
 use surrealdb::types::RecordId;
 use tracing::debug;
 
@@ -251,7 +251,9 @@ impl JobModel {
                 roles = {},
                 expires_at = <datetime> $expires_at{}
             RETURN <string> id AS id;"#,
-            poster_record.display(), roles_json, prod_clause
+            poster_record.display(),
+            roles_json,
+            prod_clause
         );
 
         debug!("Job create query: {}", query);
@@ -265,7 +267,14 @@ impl JobModel {
             .bind(("contact_email", data.contact_email))
             .bind(("contact_phone", data.contact_phone))
             .bind(("contact_website", data.contact_website))
-            .bind(("applications_enabled", if data.applications_enabled { "true" } else { "false" }))
+            .bind((
+                "applications_enabled",
+                if data.applications_enabled {
+                    "true"
+                } else {
+                    "false"
+                },
+            ))
             .bind(("expires_at", expires_at.to_rfc3339()))
             .await
             .map_err(|e| Error::Database(format!("Failed to create job posting: {}", e)))?;
@@ -332,8 +341,13 @@ impl JobModel {
         if search.is_some() || has_embedding {
             let mut text_or_vector = Vec::new();
             if search.is_some() {
-                text_or_vector.push("string::lowercase(title) CONTAINS string::lowercase($search)".to_string());
-                text_or_vector.push("string::lowercase(description) CONTAINS string::lowercase($search)".to_string());
+                text_or_vector.push(
+                    "string::lowercase(title) CONTAINS string::lowercase($search)".to_string(),
+                );
+                text_or_vector.push(
+                    "string::lowercase(description) CONTAINS string::lowercase($search)"
+                        .to_string(),
+                );
                 text_or_vector.push("string::lowercase(string::join(' ', roles.*.title)) CONTAINS string::lowercase($search)".to_string());
             }
             if has_embedding {
@@ -367,42 +381,77 @@ impl JobModel {
 
         let mut jobs = Vec::new();
         for row in &rows {
-            let posted_by_id = row.get("posted_by_id").and_then(|v| v.as_str()).unwrap_or("");
-            let (poster_name, poster_slug, poster_type, is_poster_verified) = Self::fetch_poster_info(posted_by_id).await;
+            let posted_by_id = row
+                .get("posted_by_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let (poster_name, poster_slug, poster_type, is_poster_verified) =
+                Self::fetch_poster_info(posted_by_id).await;
 
-            let related_prod_id = row.get("related_production_id").and_then(|v| v.as_str()).unwrap_or("");
-            let (production_title, _slug, production_poster) = Self::fetch_production_info(related_prod_id).await;
+            let related_prod_id = row
+                .get("related_production_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let (production_title, _slug, production_poster) =
+                Self::fetch_production_info(related_prod_id).await;
 
             jobs.push(JobListItem {
-                id: row.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                title: row.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                description: row.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                location: row.get("location").and_then(|v| v.as_str()).map(String::from),
+                id: row
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                title: row
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                description: row
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                location: row
+                    .get("location")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
                 poster_name,
                 poster_slug,
                 poster_type,
                 is_poster_verified,
                 role_count: row.get("role_count").and_then(|v| v.as_i64()).unwrap_or(0),
-                status: row.get("status").and_then(|v| v.as_str()).unwrap_or("open").to_string(),
-                expires_at: row.get("expires_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                created_at: row.get("created_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                status: row
+                    .get("status")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("open")
+                    .to_string(),
+                expires_at: row
+                    .get("expires_at")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                created_at: row
+                    .get("created_at")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 production_title,
                 production_poster,
-                applications_enabled: row.get("applications_enabled").and_then(|v| v.as_bool()).unwrap_or(true),
+                applications_enabled: row
+                    .get("applications_enabled")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true),
             });
         }
 
         // Sort verified posters first, then by created_at (already DESC from query)
-        jobs.sort_by(|a, b| b.is_poster_verified.cmp(&a.is_poster_verified));
+        jobs.sort_by_key(|j| std::cmp::Reverse(j.is_poster_verified));
 
         Ok(jobs)
     }
 
     /// Get full job detail by key
-    pub async fn get(
-        key: &str,
-        current_user_id: Option<&str>,
-    ) -> Result<JobDetailView, Error> {
+    pub async fn get(key: &str, current_user_id: Option<&str>) -> Result<JobDetailView, Error> {
         debug!("Fetching job: {}", key);
 
         validate_record_key(key)?;
@@ -438,23 +487,53 @@ impl JobModel {
         let job: Option<serde_json::Value> = result.take(0)?;
         let job = job.ok_or(Error::NotFound)?;
 
-        let posted_by_id = job.get("posted_by_id").and_then(|v| v.as_str()).unwrap_or("");
-        let (poster_name, poster_slug, poster_type, is_poster_verified) = Self::fetch_poster_info(posted_by_id).await;
+        let posted_by_id = job
+            .get("posted_by_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let (poster_name, poster_slug, poster_type, is_poster_verified) =
+            Self::fetch_poster_info(posted_by_id).await;
 
-        let related_prod_id = job.get("related_production_id").and_then(|v| v.as_str()).unwrap_or("");
-        let (production_title, production_slug, production_poster) = Self::fetch_production_info(related_prod_id).await;
+        let related_prod_id = job
+            .get("related_production_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let (production_title, production_slug, production_poster) =
+            Self::fetch_production_info(related_prod_id).await;
 
         // Parse embedded roles array
-        let mut roles: Vec<JobRoleView> = job.get("roles")
+        let mut roles: Vec<JobRoleView> = job
+            .get("roles")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().map(|r| JobRoleView {
-                title: r.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                description: r.get("description").and_then(|v| v.as_str()).map(String::from),
-                rate_type: r.get("rate_type").and_then(|v| v.as_str()).unwrap_or("TBD").to_string(),
-                rate_amount: r.get("rate_amount").and_then(|v| v.as_str()).map(String::from),
-                location_override: r.get("location_override").and_then(|v| v.as_str()).map(String::from),
-                has_applied: false,
-            }).collect())
+            .map(|arr| {
+                arr.iter()
+                    .map(|r| JobRoleView {
+                        title: r
+                            .get("title")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        description: r
+                            .get("description")
+                            .and_then(|v| v.as_str())
+                            .map(String::from),
+                        rate_type: r
+                            .get("rate_type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("TBD")
+                            .to_string(),
+                        rate_amount: r
+                            .get("rate_amount")
+                            .and_then(|v| v.as_str())
+                            .map(String::from),
+                        location_override: r
+                            .get("location_override")
+                            .and_then(|v| v.as_str())
+                            .map(String::from),
+                        has_applied: false,
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
 
         // Check per-role application state for current user
@@ -462,12 +541,18 @@ impl JobModel {
             let uid_record = parse_record_id(uid)?;
             let app_query = format!(
                 "SELECT role_title FROM application WHERE in = {} AND out = {} AND status != 'withdrawn'",
-                uid_record.display(), job_id.display()
+                uid_record.display(),
+                job_id.display()
             );
             if let Ok(mut ar) = DB.query(&app_query).await {
                 let app_rows: Vec<serde_json::Value> = ar.take(0).unwrap_or_default();
-                let applied_titles: Vec<String> = app_rows.iter()
-                    .filter_map(|r| r.get("role_title").and_then(|v| v.as_str()).map(String::from))
+                let applied_titles: Vec<String> = app_rows
+                    .iter()
+                    .filter_map(|r| {
+                        r.get("role_title")
+                            .and_then(|v| v.as_str())
+                            .map(String::from)
+                    })
                     .collect();
                 for role in &mut roles {
                     role.has_applied = applied_titles.contains(&role.title);
@@ -483,7 +568,8 @@ impl JobModel {
             );
             if let Ok(mut cr) = DB.query(&count_query).await {
                 let v: Option<serde_json::Value> = cr.take(0).unwrap_or(None);
-                v.and_then(|o| o.get("count").and_then(|c| c.as_i64())).unwrap_or(0)
+                v.and_then(|o| o.get("count").and_then(|c| c.as_i64()))
+                    .unwrap_or(0)
             } else {
                 0
             }
@@ -508,23 +594,65 @@ impl JobModel {
             .unwrap_or(false);
 
         Ok(JobDetailView {
-            id: job.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            title: job.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            description: job.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            location: job.get("location").and_then(|v| v.as_str()).map(String::from),
+            id: job
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            title: job
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            description: job
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            location: job
+                .get("location")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             poster_name,
             poster_slug,
             poster_type,
             is_poster_verified,
-            contact_name: job.get("contact_name").and_then(|v| v.as_str()).map(String::from),
-            contact_email: job.get("contact_email").and_then(|v| v.as_str()).map(String::from),
-            contact_phone: job.get("contact_phone").and_then(|v| v.as_str()).map(String::from),
-            contact_website: job.get("contact_website").and_then(|v| v.as_str()).map(String::from),
-            applications_enabled: job.get("applications_enabled").and_then(|v| v.as_bool()).unwrap_or(true),
-            status: job.get("status").and_then(|v| v.as_str()).unwrap_or("open").to_string(),
+            contact_name: job
+                .get("contact_name")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            contact_email: job
+                .get("contact_email")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            contact_phone: job
+                .get("contact_phone")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            contact_website: job
+                .get("contact_website")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            applications_enabled: job
+                .get("applications_enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true),
+            status: job
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("open")
+                .to_string(),
             expires_at: expires_str.to_string(),
-            created_at: job.get("created_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            updated_at: job.get("updated_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            created_at: job
+                .get("created_at")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            updated_at: job
+                .get("updated_at")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             roles,
             production_title,
             production_slug,
@@ -561,7 +689,8 @@ impl JobModel {
                 applications_enabled = <bool> $applications_enabled,
                 roles = {},
                 expires_at = <datetime> $expires_at;"#,
-            job_id.display(), roles_json
+            job_id.display(),
+            roles_json
         );
 
         DB.query(&query)
@@ -572,7 +701,14 @@ impl JobModel {
             .bind(("contact_email", data.contact_email))
             .bind(("contact_phone", data.contact_phone))
             .bind(("contact_website", data.contact_website))
-            .bind(("applications_enabled", if data.applications_enabled { "true" } else { "false" }))
+            .bind((
+                "applications_enabled",
+                if data.applications_enabled {
+                    "true"
+                } else {
+                    "false"
+                },
+            ))
             .bind(("expires_at", expires_at.to_rfc3339()))
             .await
             .map_err(|e| Error::Database(format!("Failed to update job: {}", e)))?;
@@ -589,11 +725,15 @@ impl JobModel {
 
         // Delete applications
         let delete_apps = format!("DELETE FROM application WHERE out = {}", job_id.display());
-        DB.query(&delete_apps).await.map_err(|e| Error::Database(format!("Failed to delete applications: {}", e)))?;
+        DB.query(&delete_apps)
+            .await
+            .map_err(|e| Error::Database(format!("Failed to delete applications: {}", e)))?;
 
         // Delete job
         let delete_job = format!("DELETE {}", job_id.display());
-        DB.query(&delete_job).await.map_err(|e| Error::Database(format!("Failed to delete job: {}", e)))?;
+        DB.query(&delete_job)
+            .await
+            .map_err(|e| Error::Database(format!("Failed to delete job: {}", e)))?;
 
         Ok(())
     }
@@ -602,7 +742,7 @@ impl JobModel {
     pub async fn close(key: &str) -> Result<(), Error> {
         validate_record_key(key)?;
         let job_id = RecordId::new("job_posting", key);
-        DB.query(&format!("UPDATE {} SET status = 'closed'", job_id.display()))
+        DB.query(format!("UPDATE {} SET status = 'closed'", job_id.display()))
             .await
             .map_err(|e| Error::Database(format!("Failed to close job: {}", e)))?;
         Ok(())
@@ -615,7 +755,10 @@ impl JobModel {
         role_title: &str,
         cover_letter: Option<String>,
     ) -> Result<(), Error> {
-        debug!("Applying {} to job {} role '{}'", person_id, job_id, role_title);
+        debug!(
+            "Applying {} to job {} role '{}'",
+            person_id, job_id, role_title
+        );
 
         let person_record = parse_record_id(person_id)?;
         let job_record = parse_record_id(job_id)?;
@@ -623,22 +766,27 @@ impl JobModel {
         // Check not already applied to this role
         let check = format!(
             "SELECT count() AS count FROM application WHERE in = {} AND out = {} AND role_title = $role_title AND status != 'withdrawn' GROUP ALL",
-            person_record.display(), job_record.display()
+            person_record.display(),
+            job_record.display()
         );
-        let mut check_result = DB.query(&check)
+        let mut check_result = DB
+            .query(&check)
             .bind(("role_title", role_title.to_string()))
             .await
             .map_err(|e| Error::Database(e.to_string()))?;
         let existing: Option<serde_json::Value> = check_result.take(0)?;
-        if let Some(obj) = existing {
-            if obj.get("count").and_then(|c| c.as_i64()).unwrap_or(0) > 0 {
-                return Err(Error::BadRequest("Already applied to this role".to_string()));
-            }
+        if let Some(obj) = existing
+            && obj.get("count").and_then(|c| c.as_i64()).unwrap_or(0) > 0
+        {
+            return Err(Error::BadRequest(
+                "Already applied to this role".to_string(),
+            ));
         }
 
         let query = format!(
             "RELATE {}->application->{} SET role_title = $role_title, cover_letter = $cover_letter",
-            person_record.display(), job_record.display()
+            person_record.display(),
+            job_record.display()
         );
 
         DB.query(&query)
@@ -657,7 +805,8 @@ impl JobModel {
 
         let query = format!(
             "UPDATE application SET status = 'withdrawn' WHERE in = {} AND out = {} AND role_title = $role_title",
-            person_record.display(), job_record.display()
+            person_record.display(),
+            job_record.display()
         );
         DB.query(&query)
             .bind(("role_title", role_title.to_string()))
@@ -669,10 +818,13 @@ impl JobModel {
     /// Update application status
     pub async fn update_application_status(app_id: &str, status: &str) -> Result<(), Error> {
         let app_record = parse_record_id(app_id)?;
-        DB.query(&format!("UPDATE {} SET status = $status", app_record.display()))
-            .bind(("status", status.to_string()))
-            .await
-            .map_err(|e| Error::Database(format!("Failed to update application: {}", e)))?;
+        DB.query(format!(
+            "UPDATE {} SET status = $status",
+            app_record.display()
+        ))
+        .bind(("status", status.to_string()))
+        .await
+        .map_err(|e| Error::Database(format!("Failed to update application: {}", e)))?;
         Ok(())
     }
 
@@ -698,22 +850,58 @@ impl JobModel {
             job_id.display()
         );
 
-        let mut result = DB.query(&query).await.map_err(|e| Error::Database(e.to_string()))?;
+        let mut result = DB
+            .query(&query)
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?;
         let rows: Vec<serde_json::Value> = result.take(0).unwrap_or_default();
 
-        Ok(rows.iter().map(|r| {
-            let raw_id = r.get("id").and_then(|v| v.as_str()).unwrap_or("");
-            let id = raw_id.strip_prefix("application:").unwrap_or(raw_id).to_string();
-            ApplicationView {
-            id,
-            applicant_name: r.get("applicant_name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            applicant_username: r.get("applicant_username").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            applicant_avatar: r.get("applicant_avatar").and_then(|v| v.as_str()).map(String::from),
-            role_title: r.get("role_title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            cover_letter: r.get("cover_letter").and_then(|v| v.as_str()).map(String::from),
-            status: r.get("status").and_then(|v| v.as_str()).unwrap_or("submitted").to_string(),
-            applied_at: r.get("applied_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        }}).collect())
+        Ok(rows
+            .iter()
+            .map(|r| {
+                let raw_id = r.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                let id = raw_id
+                    .strip_prefix("application:")
+                    .unwrap_or(raw_id)
+                    .to_string();
+                ApplicationView {
+                    id,
+                    applicant_name: r
+                        .get("applicant_name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    applicant_username: r
+                        .get("applicant_username")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    applicant_avatar: r
+                        .get("applicant_avatar")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    role_title: r
+                        .get("role_title")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    cover_letter: r
+                        .get("cover_letter")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    status: r
+                        .get("status")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("submitted")
+                        .to_string(),
+                    applied_at: r
+                        .get("applied_at")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                }
+            })
+            .collect())
     }
 
     /// Get user's own applications
@@ -736,19 +924,56 @@ impl JobModel {
             person_record.display()
         );
 
-        let mut result = DB.query(&query).await.map_err(|e| Error::Database(e.to_string()))?;
+        let mut result = DB
+            .query(&query)
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?;
         let rows: Vec<serde_json::Value> = result.take(0).unwrap_or_default();
 
-        Ok(rows.iter().map(|r| UserApplicationView {
-            id: r.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            job_id: r.get("job_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            job_title: r.get("job_title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            role_title: r.get("role_title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            poster_name: r.get("poster_name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
-            cover_letter: r.get("cover_letter").and_then(|v| v.as_str()).map(String::from),
-            status: r.get("status").and_then(|v| v.as_str()).unwrap_or("submitted").to_string(),
-            applied_at: r.get("applied_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| UserApplicationView {
+                id: r
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                job_id: r
+                    .get("job_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                job_title: r
+                    .get("job_title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                role_title: r
+                    .get("role_title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                poster_name: r
+                    .get("poster_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown")
+                    .to_string(),
+                cover_letter: r
+                    .get("cover_letter")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                status: r
+                    .get("status")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("submitted")
+                    .to_string(),
+                applied_at: r
+                    .get("applied_at")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+            })
+            .collect())
     }
 
     /// Get user's posted jobs (direct + via org)
@@ -781,30 +1006,67 @@ impl JobModel {
             ORDER BY created_at DESC"#,
         );
 
-        let mut result = DB.query(&query).await.map_err(|e| Error::Database(e.to_string()))?;
+        let mut result = DB
+            .query(&query)
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?;
         let rows: Vec<serde_json::Value> = result.take(0).unwrap_or_default();
 
         let mut jobs = Vec::new();
         for row in &rows {
-            let posted_by_id = row.get("posted_by_id").and_then(|v| v.as_str()).unwrap_or("");
-            let (poster_name, poster_slug, poster_type, is_poster_verified) = Self::fetch_poster_info(posted_by_id).await;
+            let posted_by_id = row
+                .get("posted_by_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let (poster_name, poster_slug, poster_type, is_poster_verified) =
+                Self::fetch_poster_info(posted_by_id).await;
 
             jobs.push(JobListItem {
-                id: row.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                title: row.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                description: row.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                location: row.get("location").and_then(|v| v.as_str()).map(String::from),
+                id: row
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                title: row
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                description: row
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                location: row
+                    .get("location")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
                 poster_name,
                 poster_slug,
                 poster_type,
                 is_poster_verified,
                 role_count: row.get("role_count").and_then(|v| v.as_i64()).unwrap_or(0),
-                status: row.get("status").and_then(|v| v.as_str()).unwrap_or("open").to_string(),
-                expires_at: row.get("expires_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                created_at: row.get("created_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                status: row
+                    .get("status")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("open")
+                    .to_string(),
+                expires_at: row
+                    .get("expires_at")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                created_at: row
+                    .get("created_at")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 production_title: None,
                 production_poster: None,
-                applications_enabled: row.get("applications_enabled").and_then(|v| v.as_bool()).unwrap_or(true),
+                applications_enabled: row
+                    .get("applications_enabled")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true),
             });
         }
 
@@ -816,8 +1078,14 @@ impl JobModel {
         validate_record_key(key)?;
         let job_id = RecordId::new("job_posting", key);
 
-        let query = format!("SELECT <string> posted_by AS poster FROM ONLY {}", job_id.display());
-        let mut result = DB.query(&query).await.map_err(|e| Error::Database(e.to_string()))?;
+        let query = format!(
+            "SELECT <string> posted_by AS poster FROM ONLY {}",
+            job_id.display()
+        );
+        let mut result = DB
+            .query(&query)
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?;
         let row: Option<serde_json::Value> = result.take(0)?;
 
         if let Some(obj) = row {
@@ -831,9 +1099,13 @@ impl JobModel {
                 let poster_record = parse_record_id(poster)?;
                 let org_check = format!(
                     "SELECT role FROM member_of WHERE in = {} AND out = {} AND role IN ['owner', 'admin'] AND invitation_status = 'accepted'",
-                    user_record.display(), poster_record.display()
+                    user_record.display(),
+                    poster_record.display()
                 );
-                let mut org_result = DB.query(&org_check).await.map_err(|e| Error::Database(e.to_string()))?;
+                let mut org_result = DB
+                    .query(&org_check)
+                    .await
+                    .map_err(|e| Error::Database(e.to_string()))?;
                 let org_member: Option<serde_json::Value> = org_result.take(0)?;
                 if org_member.is_some() {
                     return Ok(true);
@@ -859,7 +1131,9 @@ impl JobModel {
     }
 
     /// Get orgs where user is owner/admin
-    pub async fn get_user_orgs_for_posting(person_id: &str) -> Result<Vec<(String, String)>, Error> {
+    pub async fn get_user_orgs_for_posting(
+        person_id: &str,
+    ) -> Result<Vec<(String, String)>, Error> {
         let person_record = parse_record_id(person_id)?;
 
         let query = format!(
@@ -875,13 +1149,19 @@ impl JobModel {
             person_record.display()
         );
 
-        let mut result = DB.query(&query).await.map_err(|e| Error::Database(e.to_string()))?;
+        let mut result = DB
+            .query(&query)
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?;
         let rows: Vec<serde_json::Value> = result.take(0).unwrap_or_default();
         Ok(rows
             .into_iter()
             .filter_map(|r| {
                 let id = r.get("org_id").and_then(|v| v.as_str()).map(String::from)?;
-                let name = r.get("org_name").and_then(|v| v.as_str()).map(String::from)?;
+                let name = r
+                    .get("org_name")
+                    .and_then(|v| v.as_str())
+                    .map(String::from)?;
                 Some((id, name))
             })
             .collect())
@@ -914,20 +1194,45 @@ impl JobModel {
             job_id.display()
         );
 
-        let mut result = DB.query(&query).await.map_err(|e| Error::Database(e.to_string()))?;
+        let mut result = DB
+            .query(&query)
+            .await
+            .map_err(|e| Error::Database(e.to_string()))?;
         let job: Option<serde_json::Value> = result.take(0)?;
         let job = job.ok_or(Error::NotFound)?;
 
-        let roles: Vec<JobRoleView> = job.get("roles")
+        let roles: Vec<JobRoleView> = job
+            .get("roles")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().map(|r| JobRoleView {
-                title: r.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                description: r.get("description").and_then(|v| v.as_str()).map(String::from),
-                rate_type: r.get("rate_type").and_then(|v| v.as_str()).unwrap_or("TBD").to_string(),
-                rate_amount: r.get("rate_amount").and_then(|v| v.as_str()).map(String::from),
-                location_override: r.get("location_override").and_then(|v| v.as_str()).map(String::from),
-                has_applied: false,
-            }).collect())
+            .map(|arr| {
+                arr.iter()
+                    .map(|r| JobRoleView {
+                        title: r
+                            .get("title")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        description: r
+                            .get("description")
+                            .and_then(|v| v.as_str())
+                            .map(String::from),
+                        rate_type: r
+                            .get("rate_type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("TBD")
+                            .to_string(),
+                        rate_amount: r
+                            .get("rate_amount")
+                            .and_then(|v| v.as_str())
+                            .map(String::from),
+                        location_override: r
+                            .get("location_override")
+                            .and_then(|v| v.as_str())
+                            .map(String::from),
+                        has_applied: false,
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
 
         Ok((job, roles))
@@ -936,13 +1241,29 @@ impl JobModel {
     /// Helper: fetch poster info from a record ID
     async fn fetch_poster_info(posted_by_id: &str) -> (String, String, String, bool) {
         if posted_by_id.is_empty() {
-            return ("Unknown".to_string(), String::new(), "person".to_string(), false);
+            return (
+                "Unknown".to_string(),
+                String::new(),
+                "person".to_string(),
+                false,
+            );
         }
 
-        let p_type = if posted_by_id.starts_with("organization:") { "organization" } else { "person" };
+        let p_type = if posted_by_id.starts_with("organization:") {
+            "organization"
+        } else {
+            "person"
+        };
         let poster_record = match parse_record_id(posted_by_id) {
             Ok(r) => r,
-            Err(_) => return ("Unknown".to_string(), String::new(), p_type.to_string(), false),
+            Err(_) => {
+                return (
+                    "Unknown".to_string(),
+                    String::new(),
+                    p_type.to_string(),
+                    false,
+                );
+            }
         };
         let pq = format!(
             "SELECT name, slug ?? username ?? '' AS slug, (verified ?? false) OR (verification_status ?? '' = 'identity') AS verified FROM ONLY {}",
@@ -953,19 +1274,32 @@ impl JobModel {
             let p: Option<serde_json::Value> = pr.take(0).unwrap_or(None);
             if let Some(p) = p {
                 return (
-                    p.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
-                    p.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    p.get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown")
+                        .to_string(),
+                    p.get("slug")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
                     p_type.to_string(),
                     p.get("verified").and_then(|v| v.as_bool()).unwrap_or(false),
                 );
             }
         }
 
-        ("Unknown".to_string(), String::new(), p_type.to_string(), false)
+        (
+            "Unknown".to_string(),
+            String::new(),
+            p_type.to_string(),
+            false,
+        )
     }
 
     /// Helper: fetch production info from a record ID
-    async fn fetch_production_info(related_prod_id: &str) -> (Option<String>, Option<String>, Option<String>) {
+    async fn fetch_production_info(
+        related_prod_id: &str,
+    ) -> (Option<String>, Option<String>, Option<String>) {
         if related_prod_id.is_empty() || related_prod_id == "NONE" {
             return (None, None, None);
         }

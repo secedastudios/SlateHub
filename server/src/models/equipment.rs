@@ -182,7 +182,7 @@ impl EquipmentModel {
         debug!("Creating new equipment: {:?}", data);
 
         // Generate QR code identifier
-        let qr_code = format!("EQ-{}", Uuid::new_v4().to_string());
+        let qr_code = format!("EQ-{}", Uuid::new_v4());
 
         let query = r#"
             CREATE equipment CONTENT {
@@ -242,7 +242,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        equipment.ok_or_else(|| Error::NotFound)
+        equipment.ok_or(Error::NotFound)
     }
 
     pub async fn get_equipment(id: &str) -> Result<Equipment, Error> {
@@ -266,7 +266,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        equipment.ok_or_else(|| Error::NotFound)
+        equipment.ok_or(Error::NotFound)
     }
 
     pub async fn update_equipment(id: &str, data: UpdateEquipmentData) -> Result<Equipment, Error> {
@@ -317,7 +317,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        equipment.ok_or_else(|| Error::NotFound)
+        equipment.ok_or(Error::NotFound)
     }
 
     pub async fn delete_equipment(id: &str) -> Result<(), Error> {
@@ -391,7 +391,7 @@ impl EquipmentModel {
         debug!("Creating new equipment kit: {:?}", data);
 
         // Generate QR code identifier
-        let qr_code = format!("KIT-{}", Uuid::new_v4().to_string());
+        let qr_code = format!("KIT-{}", Uuid::new_v4());
 
         let query = r#"
             BEGIN TRANSACTION;
@@ -444,7 +444,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        kit.ok_or_else(|| Error::NotFound)
+        kit.ok_or(Error::NotFound)
     }
 
     pub async fn get_kit(id: &str) -> Result<EquipmentKit, Error> {
@@ -468,7 +468,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        kit.ok_or_else(|| Error::NotFound)
+        kit.ok_or(Error::NotFound)
     }
 
     pub async fn get_kit_items(kit_id: &str) -> Result<Vec<Equipment>, Error> {
@@ -551,7 +551,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        kit.ok_or_else(|| Error::NotFound)
+        kit.ok_or(Error::NotFound)
     }
 
     pub async fn delete_kit(id: &str) -> Result<(), Error> {
@@ -728,7 +728,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        rental.ok_or_else(|| Error::NotFound)
+        rental.ok_or(Error::NotFound)
     }
 
     pub async fn checkin_equipment(
@@ -793,7 +793,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        rental.ok_or_else(|| Error::NotFound)
+        rental.ok_or(Error::NotFound)
     }
 
     pub async fn get_active_rentals_for_equipment(
@@ -918,7 +918,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        rental.ok_or_else(|| Error::NotFound)
+        rental.ok_or(Error::NotFound)
     }
 
     pub async fn get_rental_history_for_equipment(
@@ -1000,7 +1000,7 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        equipment.ok_or_else(|| Error::NotFound)
+        equipment.ok_or(Error::NotFound)
     }
 
     pub async fn get_kit_by_qr(qr_code: &str) -> Result<EquipmentKit, Error> {
@@ -1026,6 +1026,6 @@ impl EquipmentModel {
             Error::Database(e.to_string())
         })?;
 
-        kit.ok_or_else(|| Error::NotFound)
+        kit.ok_or(Error::NotFound)
     }
 }

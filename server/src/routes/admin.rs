@@ -187,13 +187,22 @@ pub fn router() -> Router {
         .route("/admin/people", get(list_people))
         .route("/admin/people/{id}/delete", post(delete_person))
         .route("/admin/people/{id}/toggle-admin", post(toggle_admin))
-        .route("/admin/people/{id}/reset-password", post(admin_reset_password))
+        .route(
+            "/admin/people/{id}/reset-password",
+            post(admin_reset_password),
+        )
         .route("/admin/people/{id}/verification", post(update_verification))
         .route("/admin/productions", get(list_productions))
         .route("/admin/productions/{id}/delete", post(delete_production))
         .route("/admin/organizations", get(list_organizations))
-        .route("/admin/organizations/{id}/delete", post(delete_organization))
-        .route("/admin/organizations/{id}/toggle-verified", post(toggle_org_verified))
+        .route(
+            "/admin/organizations/{id}/delete",
+            post(delete_organization),
+        )
+        .route(
+            "/admin/organizations/{id}/toggle-verified",
+            post(toggle_org_verified),
+        )
         .route("/admin/locations", get(list_locations))
         .route("/admin/locations/{id}/delete", post(delete_location))
         .route("/admin/rebuild-embeddings", post(rebuild_embeddings))
@@ -206,16 +215,23 @@ pub fn router() -> Router {
 // Handlers
 // ============================
 
-async fn dashboard(
-    AuthenticatedUser(user): AuthenticatedUser,
-) -> Result<Html<String>, Error> {
+async fn dashboard(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<String>, Error> {
     let template_user = require_admin(&user).await?;
 
     use crate::models::activity::ActivityModel;
 
     // Run all queries in parallel
-    let (person_count, production_count, location_count, organization_count, feedback_count,
-         engagement, top_pages, daily_activity, event_counts) = tokio::join!(
+    let (
+        person_count,
+        production_count,
+        location_count,
+        organization_count,
+        feedback_count,
+        engagement,
+        top_pages,
+        daily_activity,
+        event_counts,
+    ) = tokio::join!(
         count_table("person"),
         count_table("production"),
         count_table("location"),
@@ -262,9 +278,7 @@ async fn dashboard(
 
 // -- Feedback --
 
-async fn list_feedback(
-    AuthenticatedUser(user): AuthenticatedUser,
-) -> Result<Html<String>, Error> {
+async fn list_feedback(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<String>, Error> {
     let template_user = require_admin(&user).await?;
 
     #[derive(Debug, Deserialize, surrealdb::types::SurrealValue)]
@@ -321,9 +335,13 @@ async fn delete_feedback(
 
     let record_id = surrealdb::types::RecordId::new("feedback", id.as_str());
 
-    info!("Deleting feedback record: {} (RecordId: {:?})", id, record_id);
+    info!(
+        "Deleting feedback record: {} (RecordId: {:?})",
+        id, record_id
+    );
 
-    let response = DB.query("DELETE $id")
+    let response = DB
+        .query("DELETE $id")
         .bind(("id", record_id))
         .await
         .map_err(|e| {
@@ -392,7 +410,8 @@ async fn list_people(
             is_admin: p.is_admin.unwrap_or(false),
             verification_status: p.verification_status,
             signup_ip: p.signup_ip,
-            created_at: p.created_at
+            created_at: p
+                .created_at
                 .map(|d| d.format("%b %d, %Y").to_string())
                 .unwrap_or_default(),
         })
@@ -428,12 +447,17 @@ async fn delete_person(
 
     // Don't allow deleting yourself
     let self_key = if user.id.starts_with("person:") {
-        user.id.strip_prefix("person:").unwrap_or(&user.id).to_string()
+        user.id
+            .strip_prefix("person:")
+            .unwrap_or(&user.id)
+            .to_string()
     } else {
         user.id.clone()
     };
     if id == self_key {
-        return Err(Error::BadRequest("Cannot delete your own account from admin".to_string()));
+        return Err(Error::BadRequest(
+            "Cannot delete your own account from admin".to_string(),
+        ));
     }
 
     // Clean up related data then delete
@@ -456,12 +480,17 @@ async fn toggle_admin(
 
     // Don't allow toggling your own admin status
     let self_key = if user.id.starts_with("person:") {
-        user.id.strip_prefix("person:").unwrap_or(&user.id).to_string()
+        user.id
+            .strip_prefix("person:")
+            .unwrap_or(&user.id)
+            .to_string()
     } else {
         user.id.clone()
     };
     if id == self_key {
-        return Err(Error::BadRequest("Cannot change your own admin status".to_string()));
+        return Err(Error::BadRequest(
+            "Cannot change your own admin status".to_string(),
+        ));
     }
 
     DB.query("UPDATE $pid SET is_admin = !is_admin")
@@ -486,7 +515,9 @@ async fn admin_reset_password(
     require_admin(&user).await?;
 
     if form.new_password.len() < 8 {
-        return Err(Error::BadRequest("Password must be at least 8 characters".to_string()));
+        return Err(Error::BadRequest(
+            "Password must be at least 8 characters".to_string(),
+        ));
     }
 
     let record_id = surrealdb::types::RecordId::new("person", id.as_str());
@@ -516,14 +547,21 @@ async fn update_verification(
 
     let valid_statuses = ["unverified", "email", "sms", "identity"];
     if !valid_statuses.contains(&form.status.as_str()) {
-        return Err(Error::BadRequest(format!("Invalid verification status: {}", form.status)));
+        return Err(Error::BadRequest(format!(
+            "Invalid verification status: {}",
+            form.status
+        )));
     }
 
     let record_id = surrealdb::types::RecordId::new("person", id.as_str());
 
-    info!("Updating verification_status for person:{} to '{}' (RecordId: {:?})", id, form.status, record_id);
+    info!(
+        "Updating verification_status for person:{} to '{}' (RecordId: {:?})",
+        id, form.status, record_id
+    );
 
-    let response = DB.query("UPDATE $pid SET verification_status = $status")
+    let response = DB
+        .query("UPDATE $pid SET verification_status = $status")
         .bind(("pid", record_id))
         .bind(("status", form.status.clone()))
         .await
@@ -534,7 +572,10 @@ async fn update_verification(
 
     // Check for statement-level errors in the response
     match response.check() {
-        Ok(_) => info!("Admin {} set verification_status to '{}' for person:{}", user.username, form.status, id),
+        Ok(_) => info!(
+            "Admin {} set verification_status to '{}' for person:{}",
+            user.username, form.status, id
+        ),
         Err(e) => {
             error!("Verification update statement error: {}", e);
             return Err(Error::Database(e.to_string()));
@@ -733,7 +774,10 @@ async fn toggle_org_verified(
         .await
         .map_err(|e| Error::Database(e.to_string()))?;
 
-    info!("Admin {} toggled verification for organization {}", user.username, id);
+    info!(
+        "Admin {} toggled verification for organization {}",
+        user.username, id
+    );
     Ok(Redirect::to("/admin/organizations"))
 }
 
@@ -824,13 +868,16 @@ async fn delete_location(
 
 // -- Embedding rebuild --
 
-async fn rebuild_embeddings(
-    AuthenticatedUser(user): AuthenticatedUser,
-) -> Result<Redirect, Error> {
+async fn rebuild_embeddings(AuthenticatedUser(user): AuthenticatedUser) -> Result<Redirect, Error> {
     require_admin(&user).await?;
 
-    if REBUILD_IN_PROGRESS.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
-        return Err(Error::BadRequest("Embedding rebuild is already in progress".to_string()));
+    if REBUILD_IN_PROGRESS
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err(Error::BadRequest(
+            "Embedding rebuild is already in progress".to_string(),
+        ));
     }
 
     info!("Admin {} triggered embedding rebuild", user.username);
@@ -848,8 +895,7 @@ async fn rebuild_embeddings(
 async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use crate::services::embedding::{
         build_location_embedding_text, build_organization_embedding_text,
-        build_person_embedding_text, build_production_embedding_text,
-        generate_embedding_async,
+        build_person_embedding_text, build_production_embedding_text, generate_embedding_async,
     };
 
     info!("Starting full embedding rebuild");
@@ -885,13 +931,21 @@ async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send 
             nationality: Option<String>,
         }
         #[derive(Debug, Clone, serde::Deserialize, SurrealValue)]
-        struct AgeRangeRow { min: i32, max: i32 }
+        struct AgeRangeRow {
+            min: i32,
+            max: i32,
+        }
 
-        let mut resp = DB.query("SELECT id, name, username, profile FROM person").await?;
+        let mut resp = DB
+            .query("SELECT id, name, username, profile FROM person")
+            .await?;
         let people: Vec<PersonRow> = match resp.take(0) {
             Ok(p) => p,
             Err(e) => {
-                error!("Failed to deserialize person records for embedding rebuild: {}. Falling back to name-only query.", e);
+                error!(
+                    "Failed to deserialize person records for embedding rebuild: {}. Falling back to name-only query.",
+                    e
+                );
                 // Fallback: fetch just id/name/username without the profile struct
                 #[derive(Debug, serde::Deserialize, SurrealValue)]
                 struct PersonBasic {
@@ -901,15 +955,23 @@ async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send 
                 }
                 let mut resp2 = DB.query("SELECT id, name, username FROM person").await?;
                 let basics: Vec<PersonBasic> = resp2.take(0).unwrap_or_default();
-                basics.into_iter().map(|b| PersonRow {
-                    id: b.id, name: b.name, username: b.username, profile: None,
-                }).collect()
+                basics
+                    .into_iter()
+                    .map(|b| PersonRow {
+                        id: b.id,
+                        name: b.name,
+                        username: b.username,
+                        profile: None,
+                    })
+                    .collect()
             }
         };
         info!("Rebuilding embeddings for {} people", people.len());
 
         for person in people {
-            let display_name = person.name.as_deref()
+            let display_name = person
+                .name
+                .as_deref()
                 .unwrap_or(person.username.as_deref().unwrap_or("unknown"));
             let embedding_text = if let Some(ref profile) = person.profile {
                 build_person_embedding_text(
@@ -934,7 +996,24 @@ async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send 
                 )
             } else {
                 build_person_embedding_text(
-                    display_name, None, None, &[], None, None, None, &[], None, None, None, None, &[], &[], &[], None, &[], None,
+                    display_name,
+                    None,
+                    None,
+                    &[],
+                    None,
+                    None,
+                    None,
+                    &[],
+                    None,
+                    None,
+                    None,
+                    None,
+                    &[],
+                    &[],
+                    &[],
+                    None,
+                    &[],
+                    None,
                 )
             };
 
@@ -953,7 +1032,10 @@ async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send 
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to generate embedding for person {:?}: {}", person.id, e);
+                    warn!(
+                        "Failed to generate embedding for person {:?}: {}",
+                        person.id, e
+                    );
                     total_failed += 1;
                 }
             }
@@ -1061,7 +1143,10 @@ async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send 
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to generate embedding for location {:?}: {}", loc.id, e);
+                    warn!(
+                        "Failed to generate embedding for location {:?}: {}",
+                        loc.id, e
+                    );
                     total_failed += 1;
                 }
             }
@@ -1084,7 +1169,10 @@ async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send 
 
         let mut resp = DB.query("SELECT id, title, type AS production_type, status, description, location, <string> start_date AS start_date, <string> end_date AS end_date FROM production").await?;
         let productions: Vec<ProdRow> = resp.take(0).unwrap_or_default();
-        info!("Rebuilding embeddings for {} productions", productions.len());
+        info!(
+            "Rebuilding embeddings for {} productions",
+            productions.len()
+        );
 
         for prod in productions {
             let title = prod.title.as_deref().unwrap_or("unknown");
@@ -1113,14 +1201,20 @@ async fn run_embedding_rebuild() -> Result<(), Box<dyn std::error::Error + Send 
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to generate embedding for production {:?}: {}", prod.id, e);
+                    warn!(
+                        "Failed to generate embedding for production {:?}: {}",
+                        prod.id, e
+                    );
                     total_failed += 1;
                 }
             }
         }
     }
 
-    info!("Embedding rebuild complete: {} updated, {} failed", total_updated, total_failed);
+    info!(
+        "Embedding rebuild complete: {} updated, {} failed",
+        total_updated, total_failed
+    );
     Ok(())
 }
 
@@ -1206,7 +1300,9 @@ async fn backup_all(
     );
     headers.insert(
         axum::http::header::CONTENT_DISPOSITION,
-        format!("attachment; filename=\"{}\"", filename).parse().unwrap(),
+        format!("attachment; filename=\"{}\"", filename)
+            .parse()
+            .unwrap(),
     );
 
     Ok((headers, zip_buffer))
@@ -1218,13 +1314,14 @@ async fn backup_all(
 #[derive(Debug, Clone)]
 struct FileRef {
     key: String,
-    entity: String,  // e.g. "person:abc123"
-    field: String,    // e.g. "avatar", "photos[2].url"
+    entity: String, // e.g. "person:abc123"
+    field: String,  // e.g. "avatar", "photos[2].url"
 }
 
 /// Collect all referenced S3 keys from every table that stores file URLs.
 /// Returns (set of all keys for orphan detection, vec of all refs for broken link detection).
-async fn collect_all_referenced_files() -> Result<(std::collections::HashSet<String>, Vec<FileRef>), Error> {
+async fn collect_all_referenced_files()
+-> Result<(std::collections::HashSet<String>, Vec<FileRef>), Error> {
     let mut keys: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut refs: Vec<FileRef> = Vec::new();
 
@@ -1235,7 +1332,13 @@ async fn collect_all_referenced_files() -> Result<(std::collections::HashSet<Str
     }
 
     /// Helper: extract key, insert into set, and record the reference.
-    fn track(keys: &mut std::collections::HashSet<String>, refs: &mut Vec<FileRef>, url: &str, entity: &str, field: &str) {
+    fn track(
+        keys: &mut std::collections::HashSet<String>,
+        refs: &mut Vec<FileRef>,
+        url: &str,
+        entity: &str,
+        field: &str,
+    ) {
         let key = url.strip_prefix("/api/media/").unwrap_or(url).to_string();
         keys.insert(key.clone());
         // Also derive thumbnail key
@@ -1246,7 +1349,11 @@ async fn collect_all_referenced_files() -> Result<(std::collections::HashSet<Str
                 keys.insert(format!("{}/thumb_{}", dir, filename));
             }
         }
-        refs.push(FileRef { key, entity: entity.to_string(), field: field.to_string() });
+        refs.push(FileRef {
+            key,
+            entity: entity.to_string(),
+            field: field.to_string(),
+        });
     }
 
     // Person: avatar + photo gallery
@@ -1274,10 +1381,22 @@ async fn collect_all_referenced_files() -> Result<(std::collections::HashSet<Str
             if let Some(photos) = row.photos {
                 for (i, photo) in photos.iter().enumerate() {
                     if let Some(ref url) = photo.url {
-                        track(&mut keys, &mut refs, url, &entity, &format!("photos[{}]", i));
+                        track(
+                            &mut keys,
+                            &mut refs,
+                            url,
+                            &entity,
+                            &format!("photos[{}]", i),
+                        );
                     }
                     if let Some(ref thumb) = photo.thumbnail_url {
-                        track(&mut keys, &mut refs, thumb, &entity, &format!("photos[{}].thumb", i));
+                        track(
+                            &mut keys,
+                            &mut refs,
+                            thumb,
+                            &entity,
+                            &format!("photos[{}].thumb", i),
+                        );
                     }
                 }
             }
@@ -1328,16 +1447,42 @@ async fn collect_all_referenced_files() -> Result<(std::collections::HashSet<Str
             .unwrap_or_default();
 
         for row in rows {
-            let entity = format!("production {} ({})", row.title.as_deref().unwrap_or("?"), row.id);
-            if let Some(v) = row.header_photo { track(&mut keys, &mut refs, &v, &entity, "header_photo"); }
-            if let Some(v) = row.poster_photo { track(&mut keys, &mut refs, &v, &entity, "poster_photo"); }
-            if let Some(v) = row.poster_url {
-                if v.starts_with("/api/media/") { track(&mut keys, &mut refs, &v, &entity, "poster_url"); }
+            let entity = format!(
+                "production {} ({})",
+                row.title.as_deref().unwrap_or("?"),
+                row.id
+            );
+            if let Some(v) = row.header_photo {
+                track(&mut keys, &mut refs, &v, &entity, "header_photo");
+            }
+            if let Some(v) = row.poster_photo {
+                track(&mut keys, &mut refs, &v, &entity, "poster_photo");
+            }
+            if let Some(v) = row.poster_url
+                && v.starts_with("/api/media/")
+            {
+                track(&mut keys, &mut refs, &v, &entity, "poster_url");
             }
             if let Some(photos) = row.photos {
                 for (i, photo) in photos.iter().enumerate() {
-                    if let Some(ref url) = photo.url { track(&mut keys, &mut refs, url, &entity, &format!("photos[{}]", i)); }
-                    if let Some(ref thumb) = photo.thumbnail_url { track(&mut keys, &mut refs, thumb, &entity, &format!("photos[{}].thumb", i)); }
+                    if let Some(ref url) = photo.url {
+                        track(
+                            &mut keys,
+                            &mut refs,
+                            url,
+                            &entity,
+                            &format!("photos[{}]", i),
+                        );
+                    }
+                    if let Some(ref thumb) = photo.thumbnail_url {
+                        track(
+                            &mut keys,
+                            &mut refs,
+                            thumb,
+                            &entity,
+                            &format!("photos[{}].thumb", i),
+                        );
+                    }
                 }
             }
         }
@@ -1361,12 +1506,34 @@ async fn collect_all_referenced_files() -> Result<(std::collections::HashSet<Str
             .unwrap_or_default();
 
         for row in rows {
-            let entity = format!("location {} ({})", row.name.as_deref().unwrap_or("?"), row.id);
-            if let Some(v) = row.profile_photo { track(&mut keys, &mut refs, &v, &entity, "profile_photo"); }
+            let entity = format!(
+                "location {} ({})",
+                row.name.as_deref().unwrap_or("?"),
+                row.id
+            );
+            if let Some(v) = row.profile_photo {
+                track(&mut keys, &mut refs, &v, &entity, "profile_photo");
+            }
             if let Some(photos) = row.photos {
                 for (i, photo) in photos.iter().enumerate() {
-                    if let Some(ref url) = photo.url { track(&mut keys, &mut refs, url, &entity, &format!("photos[{}]", i)); }
-                    if let Some(ref thumb) = photo.thumbnail_url { track(&mut keys, &mut refs, thumb, &entity, &format!("photos[{}].thumb", i)); }
+                    if let Some(ref url) = photo.url {
+                        track(
+                            &mut keys,
+                            &mut refs,
+                            url,
+                            &entity,
+                            &format!("photos[{}]", i),
+                        );
+                    }
+                    if let Some(ref thumb) = photo.thumbnail_url {
+                        track(
+                            &mut keys,
+                            &mut refs,
+                            thumb,
+                            &entity,
+                            &format!("photos[{}].thumb", i),
+                        );
+                    }
                 }
             }
         }
@@ -1390,10 +1557,16 @@ async fn collect_all_referenced_files() -> Result<(std::collections::HashSet<Str
 
         for row in rows {
             let entity = format!("script ({})", row.id);
-            if let Some(v) = row.file_url { track(&mut keys, &mut refs, &v, &entity, "file_url"); }
+            if let Some(v) = row.file_url {
+                track(&mut keys, &mut refs, &v, &entity, "file_url");
+            }
             if let Some(v) = row.file_key {
                 keys.insert(v.clone());
-                refs.push(FileRef { key: v, entity: entity.clone(), field: "file_key".to_string() });
+                refs.push(FileRef {
+                    key: v,
+                    entity: entity.clone(),
+                    field: "file_key".to_string(),
+                });
             }
         }
     }
@@ -1415,7 +1588,9 @@ async fn collect_all_referenced_files() -> Result<(std::collections::HashSet<Str
 
         for row in rows {
             let entity = format!("media ({})", row.id);
-            if let Some(v) = row.uri { track(&mut keys, &mut refs, &v, &entity, "uri"); }
+            if let Some(v) = row.uri {
+                track(&mut keys, &mut refs, &v, &entity, "uri");
+            }
         }
     }
 
@@ -1430,15 +1605,23 @@ async fn preview_orphaned_files(
 
     let s3_service = s3()?;
     let all_keys = s3_service.list_all_objects().await?;
-    let all_keys_set: std::collections::HashSet<&str> = all_keys.iter().map(|k| k.as_str()).collect();
+    let all_keys_set: std::collections::HashSet<&str> =
+        all_keys.iter().map(|k| k.as_str()).collect();
     let (referenced_keys, all_refs) = collect_all_referenced_files().await?;
 
-    let orphaned: Vec<&String> = all_keys.iter().filter(|k| !referenced_keys.contains(k.as_str())).collect();
+    let orphaned: Vec<&String> = all_keys
+        .iter()
+        .filter(|k| !referenced_keys.contains(k.as_str()))
+        .collect();
 
     // Find broken links: DB references pointing to S3 keys that don't exist
-    let broken: Vec<&FileRef> = all_refs.iter().filter(|r| !all_keys_set.contains(r.key.as_str())).collect();
+    let broken: Vec<&FileRef> = all_refs
+        .iter()
+        .filter(|r| !all_keys_set.contains(r.key.as_str()))
+        .collect();
 
-    let mut html = String::from(r#"<!DOCTYPE html>
+    let mut html = String::from(
+        r#"<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>File Integrity Check</title>
 <style>
 body { font-family: system-ui; background: #111; color: #eee; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
@@ -1470,7 +1653,8 @@ h2 { font-size: 1.1rem; margin-top: 2rem; }
 .select-actions button:hover { background: #444; }
 .count-label { color: #888; font-size: 0.8rem; margin-left: 0.5rem; }
 </style></head><body>
-<h1>File Integrity Check</h1>"#);
+<h1>File Integrity Check</h1>"#,
+    );
 
     html.push_str(&format!(
         r#"<div class="stats">S3 objects: {} &nbsp;|&nbsp; DB references: {} &nbsp;|&nbsp; Orphaned files: {} &nbsp;|&nbsp; Broken links: {}</div>"#,
@@ -1511,9 +1695,12 @@ h2 { font-size: 1.1rem; margin-top: 2rem; }
         for key in &orphaned {
             let escaped = ammonia::clean_text(key);
             let lower = key.to_lowercase();
-            let is_image = lower.ends_with(".jpg") || lower.ends_with(".jpeg")
-                || lower.ends_with(".png") || lower.ends_with(".webp")
-                || lower.ends_with(".gif") || lower.ends_with(".svg");
+            let is_image = lower.ends_with(".jpg")
+                || lower.ends_with(".jpeg")
+                || lower.ends_with(".png")
+                || lower.ends_with(".webp")
+                || lower.ends_with(".gif")
+                || lower.ends_with(".svg");
             if is_image {
                 html.push_str(&format!(
                     r#"<label class="file-item checkbox-item has-preview">
@@ -1567,7 +1754,8 @@ async fn cleanup_orphaned_files(
     require_admin(&user).await?;
 
     // Collect selected keys from form checkboxes
-    let selected_keys: Vec<String> = form.iter()
+    let selected_keys: Vec<String> = form
+        .iter()
         .filter(|(name, _)| name == "keys")
         .map(|(_, value)| value.clone())
         .collect();
@@ -1579,10 +1767,15 @@ async fn cleanup_orphaned_files(
     // Verify the selected keys are actually orphaned (prevent deleting referenced files)
     let s3_service = s3()?;
     let all_keys = s3_service.list_all_objects().await?;
-    let all_keys_set: std::collections::HashSet<&str> = all_keys.iter().map(|k| k.as_str()).collect();
+    let all_keys_set: std::collections::HashSet<&str> =
+        all_keys.iter().map(|k| k.as_str()).collect();
     let (referenced, _refs) = collect_all_referenced_files().await?;
 
-    info!("Admin {} deleting {} selected orphaned files", user.username, selected_keys.len());
+    info!(
+        "Admin {} deleting {} selected orphaned files",
+        user.username,
+        selected_keys.len()
+    );
 
     let mut deleted_count = 0u32;
     let mut failed_count = 0u32;
@@ -1620,7 +1813,6 @@ async fn cleanup_orphaned_files(
 
     Ok(Redirect::to("/admin/cleanup-files"))
 }
-
 
 // ============================
 // Helpers

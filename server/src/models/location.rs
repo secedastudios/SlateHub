@@ -114,8 +114,8 @@ impl LocationModel {
     pub async fn create(data: CreateLocationData, creator_id: &str) -> Result<Location, Error> {
         debug!("Creating location: {} by {}", data.name, creator_id);
 
-        let creator_id = RecordId::parse_simple(creator_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let creator_id =
+            RecordId::parse_simple(creator_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         // Build embedding text for background update
         let embedding_text = build_location_embedding_text(
@@ -196,10 +196,11 @@ impl LocationModel {
             .map_err(|e| Error::Database(format!("Failed to fetch location: {}", e)))?;
 
         let location: Option<Location> = result.take(0)?;
-        location.ok_or_else(|| Error::NotFound)
+        location.ok_or(Error::NotFound)
     }
 
     /// List locations with optional filters
+    #[allow(clippy::too_many_arguments)]
     pub async fn list(
         limit: Option<usize>,
         public_only: bool,
@@ -251,10 +252,19 @@ impl LocationModel {
         if filter.is_some() || has_embedding {
             let mut text_or_vector = Vec::new();
             if filter.is_some() {
-                text_or_vector.push("string::lowercase(name) CONTAINS string::lowercase($filter)".to_string());
-                text_or_vector.push("string::lowercase(city) CONTAINS string::lowercase($filter)".to_string());
-                text_or_vector.push("string::lowercase(description ?? '') CONTAINS string::lowercase($filter)".to_string());
-                text_or_vector.push("string::lowercase(address) CONTAINS string::lowercase($filter)".to_string());
+                text_or_vector.push(
+                    "string::lowercase(name) CONTAINS string::lowercase($filter)".to_string(),
+                );
+                text_or_vector.push(
+                    "string::lowercase(city) CONTAINS string::lowercase($filter)".to_string(),
+                );
+                text_or_vector.push(
+                    "string::lowercase(description ?? '') CONTAINS string::lowercase($filter)"
+                        .to_string(),
+                );
+                text_or_vector.push(
+                    "string::lowercase(address) CONTAINS string::lowercase($filter)".to_string(),
+                );
             }
             if has_embedding {
                 text_or_vector.push(format!("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > {})", crate::config::search_weights().vector_threshold));
@@ -406,9 +416,7 @@ impl LocationModel {
             update_fields.join(", ")
         );
 
-        let mut db_query = DB
-            .query(&query)
-            .bind(("location_id", location_id.clone()));
+        let mut db_query = DB.query(&query).bind(("location_id", location_id.clone()));
 
         if let Some(name) = data.name {
             // Also update slug if name changes
@@ -474,7 +482,7 @@ impl LocationModel {
             .map_err(|e| Error::Database(format!("Failed to update location: {}", e)))?;
 
         let location: Option<Location> = result.take(0)?;
-        let location = location.ok_or_else(|| Error::NotFound)?;
+        let location = location.ok_or(Error::NotFound)?;
 
         // Fire-and-forget embedding update
         crate::services::embedding::spawn_embedding_update(location.id.clone(), embedding_text);
@@ -516,7 +524,8 @@ impl LocationModel {
     pub async fn can_edit(location_id: &RecordId, user_id: &str) -> Result<bool, Error> {
         debug!(
             "Checking edit permission for {} on location {}",
-            user_id, location_id.display()
+            user_id,
+            location_id.display()
         );
 
         #[derive(Debug, Deserialize, SurrealValue)]

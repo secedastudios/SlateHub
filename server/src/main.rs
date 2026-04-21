@@ -1,6 +1,7 @@
 use slatehub::config::Config;
 use slatehub::db::{DB, ensure_db_initialized};
 use slatehub::services::embedding::init_embedding_service;
+use slatehub::services::oidc_keys::ensure_signing_key;
 use slatehub::services::s3::init_s3;
 use surrealdb::{engine::remote::ws::Ws, opt::auth::Root};
 use tracing::{debug, error, info};
@@ -126,6 +127,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err(e.into());
         }
     }
+
+    // Ensure an OIDC signing key exists (generates one on first boot)
+    debug!("Ensuring OIDC signing key");
+    if let Err(e) = ensure_signing_key().await {
+        error!("Failed to ensure OIDC signing key: {}", e);
+        return Err(e.into());
+    }
+
+    // Start SSF / CAEP / RISC delivery worker.
+    slatehub::services::oidc_events::spawn_delivery_worker();
 
     // Initialize S3 service
     debug!("Initializing S3 service");

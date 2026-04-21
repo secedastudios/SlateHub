@@ -1,7 +1,7 @@
 /// Upload limits based on a person's verification status.
 pub struct UploadLimits {
-    pub max_photos: Option<usize>,  // None = unlimited
-    pub max_reels: Option<usize>,   // None = unlimited
+    pub max_photos: Option<usize>, // None = unlimited
+    pub max_reels: Option<usize>,  // None = unlimited
 }
 
 /// Returns the upload limits for a given verification status.

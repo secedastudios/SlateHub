@@ -1,4 +1,4 @@
-use slatehub::middleware::request_id::{is_valid_request_id, RequestId};
+use slatehub::middleware::request_id::{RequestId, is_valid_request_id};
 
 #[test]
 fn test_valid_request_ids() {

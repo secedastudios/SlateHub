@@ -1,6 +1,4 @@
-use slatehub::models::membership::{
-    InvitationStatus, MembershipModel, MembershipRole, Permission,
-};
+use slatehub::models::membership::{InvitationStatus, MembershipModel, MembershipRole, Permission};
 
 #[test]
 fn test_role_conversion() {

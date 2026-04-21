@@ -10,10 +10,7 @@ use tracing::{debug, error, info};
 use crate::{
     error::Error,
     middleware::AuthenticatedUser,
-    models::{
-        membership::MembershipModel,
-        notification::NotificationModel,
-    },
+    models::{membership::MembershipModel, notification::NotificationModel},
     record_id_ext::RecordIdExt,
     templates::{BaseContext, User},
 };
@@ -120,14 +117,14 @@ async fn mark_read(
     debug!("Marking notification as read: {}", form.notification_id);
 
     let notification_model = NotificationModel::new();
-    notification_model.mark_read(&form.notification_id, &user.id).await?;
+    notification_model
+        .mark_read(&form.notification_id, &user.id)
+        .await?;
 
     Ok(Redirect::to("/notifications"))
 }
 
-async fn mark_all_read(
-    AuthenticatedUser(user): AuthenticatedUser,
-) -> Result<Redirect, Error> {
+async fn mark_all_read(AuthenticatedUser(user): AuthenticatedUser) -> Result<Redirect, Error> {
     debug!("Marking all notifications as read for user: {}", user.id);
 
     let notification_model = NotificationModel::new();
@@ -147,20 +144,31 @@ async fn accept_invitation(
     AuthenticatedUser(user): AuthenticatedUser,
     Form(form): Form<InvitationActionForm>,
 ) -> Result<Redirect, Error> {
-    debug!("User {} accepting invitation to org {}", user.id, form.org_id);
+    debug!(
+        "User {} accepting invitation to org {}",
+        user.id, form.org_id
+    );
 
     let membership_model = MembershipModel::new();
     let notification_model = NotificationModel::new();
 
     // Find the membership for this user + org
-    if let Some(membership) = membership_model.find_by_person_and_org(&user.id, &form.org_id).await? {
+    if let Some(membership) = membership_model
+        .find_by_person_and_org(&user.id, &form.org_id)
+        .await?
+    {
         let membership_id = membership.id.to_raw_string();
         membership_model.accept_invitation(&membership_id).await?;
-        info!("User {} accepted invitation to org {}", user.id, form.org_id);
+        info!(
+            "User {} accepted invitation to org {}",
+            user.id, form.org_id
+        );
     }
 
     // Delete the notification (scoped to this user)
-    notification_model.delete(&form.notification_id, &user.id).await?;
+    notification_model
+        .delete(&form.notification_id, &user.id)
+        .await?;
 
     // Redirect to the link from the notification, or fall back to org slug lookup
     let redirect_url = if let Some(ref redirect) = form.redirect {
@@ -181,20 +189,31 @@ async fn decline_invitation(
     AuthenticatedUser(user): AuthenticatedUser,
     Form(form): Form<InvitationActionForm>,
 ) -> Result<Redirect, Error> {
-    debug!("User {} declining invitation to org {}", user.id, form.org_id);
+    debug!(
+        "User {} declining invitation to org {}",
+        user.id, form.org_id
+    );
 
     let membership_model = MembershipModel::new();
     let notification_model = NotificationModel::new();
 
     // Find the membership for this user + org
-    if let Some(membership) = membership_model.find_by_person_and_org(&user.id, &form.org_id).await? {
+    if let Some(membership) = membership_model
+        .find_by_person_and_org(&user.id, &form.org_id)
+        .await?
+    {
         let membership_id = membership.id.to_raw_string();
         membership_model.decline_invitation(&membership_id).await?;
-        info!("User {} declined invitation to org {}", user.id, form.org_id);
+        info!(
+            "User {} declined invitation to org {}",
+            user.id, form.org_id
+        );
     }
 
     // Delete the notification (scoped to this user)
-    notification_model.delete(&form.notification_id, &user.id).await?;
+    notification_model
+        .delete(&form.notification_id, &user.id)
+        .await?;
 
     Ok(Redirect::to("/notifications"))
 }
@@ -206,7 +225,9 @@ async fn delete_notification(
     debug!("Deleting notification: {}", form.notification_id);
 
     let notification_model = NotificationModel::new();
-    notification_model.delete(&form.notification_id, &user.id).await?;
+    notification_model
+        .delete(&form.notification_id, &user.id)
+        .await?;
 
     Ok(Redirect::to("/notifications"))
 }
@@ -230,12 +251,10 @@ async fn get_org_slug(org_id: &str) -> Option<String> {
 
 /// SSE endpoint that pushes notification count updates to the authenticated user.
 /// The person_id is derived from the JWT — never from URL params.
-async fn notification_stream_sse(
-    request: axum::extract::Request,
-) -> axum::response::Response {
+async fn notification_stream_sse(request: axum::extract::Request) -> axum::response::Response {
+    use crate::middleware::UserExtractor;
     use axum::body::Body;
     use axum::http::header;
-    use crate::middleware::UserExtractor;
 
     // Silently return empty stream if not authenticated
     let person_id = match request.get_user() {

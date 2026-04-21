@@ -27,8 +27,14 @@ pub fn router() -> Router {
         .route("/account/change-password", post(change_password))
         .route("/account/change-email", post(change_email))
         .route("/account/change-username", post(change_username))
-        .route("/account/messaging-preference", post(change_messaging_preference))
-        .route("/account/contact-visibility", post(change_contact_visibility))
+        .route(
+            "/account/messaging-preference",
+            post(change_messaging_preference),
+        )
+        .route(
+            "/account/contact-visibility",
+            post(change_contact_visibility),
+        )
         .route("/account/delete", post(delete_account))
 }
 
@@ -52,7 +58,11 @@ async fn account_settings_page(
     template.username = person.username;
     template.email = person.email;
     template.messaging_preference = person.messaging_preference;
-    template.show_contact_info = person.profile.as_ref().map(|p| p.is_public).unwrap_or(false);
+    template.show_contact_info = person
+        .profile
+        .as_ref()
+        .map(|p| p.is_public)
+        .unwrap_or(false);
     template.success = query.success;
 
     let html = template.render().map_err(|e| {
@@ -144,8 +154,7 @@ async fn change_email(
 
     // Check if email is already taken
     if Person::find_by_email(&new_email).await?.is_some() {
-        return render_settings_with_error(&current_user.id, "That email is already in use.")
-            .await;
+        return render_settings_with_error(&current_user.id, "That email is already in use.").await;
     }
 
     // Update email
@@ -164,11 +173,7 @@ async fn change_email(
     );
 
     // Issue new JWT with updated email
-    let token = auth::create_jwt(
-        &person.id.to_raw_string(),
-        &person.username,
-        &new_email,
-    )?;
+    let token = auth::create_jwt(&person.id.to_raw_string(), &person.username, &new_email)?;
 
     let cookie = Cookie::build(("auth_token", token))
         .path("/")
@@ -214,7 +219,7 @@ async fn change_username(
     }
 
     // Check if username is taken
-    if let Some(_) = Person::find_by_username(&new_username).await? {
+    if Person::find_by_username(&new_username).await?.is_some() {
         return render_settings_with_error(&current_user.id, "That username is already taken.")
             .await;
     }
@@ -235,11 +240,7 @@ async fn change_username(
     );
 
     // Issue new JWT with updated username
-    let token = auth::create_jwt(
-        &person.id.to_raw_string(),
-        &new_username,
-        &person.email,
-    )?;
+    let token = auth::create_jwt(&person.id.to_raw_string(), &new_username, &person.email)?;
 
     let cookie = Cookie::build(("auth_token", token))
         .path("/")
@@ -282,7 +283,10 @@ async fn change_messaging_preference(
         .await
         .map_err(|e| Error::Database(e.to_string()))?;
 
-    info!("Messaging preference changed to '{}' for user: {}", pref, current_user.username);
+    info!(
+        "Messaging preference changed to '{}' for user: {}",
+        pref, current_user.username
+    );
 
     render_settings_with_success(&current_user.id, "Messaging preference updated.").await
 }
@@ -398,7 +402,11 @@ async fn render_settings_with_error(person_id: &str, error_msg: &str) -> Result<
     template.username = person.username;
     template.email = person.email;
     template.messaging_preference = person.messaging_preference;
-    template.show_contact_info = person.profile.as_ref().map(|p| p.is_public).unwrap_or(false);
+    template.show_contact_info = person
+        .profile
+        .as_ref()
+        .map(|p| p.is_public)
+        .unwrap_or(false);
     template.error = Some(error_msg.to_string());
 
     let html = template.render().map_err(|e| {
@@ -427,7 +435,11 @@ async fn render_settings_with_success(
     template.username = person.username;
     template.email = person.email;
     template.messaging_preference = person.messaging_preference;
-    template.show_contact_info = person.profile.as_ref().map(|p| p.is_public).unwrap_or(false);
+    template.show_contact_info = person
+        .profile
+        .as_ref()
+        .map(|p| p.is_public)
+        .unwrap_or(false);
     template.success = Some(success_msg.to_string());
 
     let html = template.render().map_err(|e| {

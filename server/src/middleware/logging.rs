@@ -178,8 +178,7 @@ pub struct RequestStats {
 
 impl RequestStats {
     pub fn log_summary(&self) {
-        if self.total_requests > 0 {
-            let avg_duration = self.total_duration_ms / self.total_requests;
+        if let Some(avg_duration) = self.total_duration_ms.checked_div(self.total_requests) {
             let success_rate =
                 (self.successful_requests as f64 / self.total_requests as f64) * 100.0;
 

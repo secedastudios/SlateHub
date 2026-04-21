@@ -118,7 +118,9 @@ impl VerificationService {
 
         debug!(
             "Created {} code for person {}: {}",
-            code_type, person_id.display(), code
+            code_type,
+            person_id.display(),
+            code
         );
 
         Ok(code)
@@ -166,7 +168,8 @@ impl VerificationService {
 
         info!(
             "Successfully verified {} code for person {}",
-            code_type, person_id.display()
+            code_type,
+            person_id.display()
         );
 
         Ok(())
@@ -215,7 +218,10 @@ impl VerificationService {
 
         DB.query(sql).bind(("person_id", person_id.clone())).await?;
 
-        info!("Marked email as verified for person {}", person_id.display());
+        info!(
+            "Marked email as verified for person {}",
+            person_id.display()
+        );
 
         Ok(())
     }

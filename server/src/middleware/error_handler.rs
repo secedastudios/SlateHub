@@ -359,6 +359,7 @@ impl ErrorWithContext for Error {
 
 /// Extension trait for Result types to convert errors with context
 pub trait ResultExt<T> {
+    #[allow(clippy::result_large_err)]
     fn with_error_context(self, req: &Request) -> Result<T, Response>;
 }
 

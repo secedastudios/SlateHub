@@ -17,8 +17,8 @@ pub enum TmdbError {
 
 type Result<T> = std::result::Result<T, TmdbError>;
 
-static TMDB_SERVICE: LazyLock<Option<TmdbService>> = LazyLock::new(|| {
-    match TmdbService::from_env() {
+static TMDB_SERVICE: LazyLock<Option<TmdbService>> =
+    LazyLock::new(|| match TmdbService::from_env() {
         Ok(svc) => {
             info!("TMDB service initialized");
             Some(svc)
@@ -27,8 +27,7 @@ static TMDB_SERVICE: LazyLock<Option<TmdbService>> = LazyLock::new(|| {
             warn!("TMDB service not available: {}", e);
             None
         }
-    }
-});
+    });
 
 /// Get the global TMDB service instance, if configured.
 pub fn get_service() -> Result<&'static TmdbService> {
@@ -102,8 +101,7 @@ pub struct TmdbCredit {
 
 impl TmdbService {
     fn from_env() -> Result<Self> {
-        let api_key = env::var("TMDB_API_KEY")
-            .map_err(|_| TmdbError::NotConfigured)?;
+        let api_key = env::var("TMDB_API_KEY").map_err(|_| TmdbError::NotConfigured)?;
 
         if api_key.is_empty() {
             return Err(TmdbError::NotConfigured);
@@ -148,7 +146,10 @@ impl TmdbService {
 
         let resp: TmdbCombinedCreditsResponse = self
             .client
-            .get(format!("{}/person/{}/combined_credits", self.base_url, person_id))
+            .get(format!(
+                "{}/person/{}/combined_credits",
+                self.base_url, person_id
+            ))
             .query(&[("api_key", &self.api_key)])
             .send()
             .await?
@@ -184,14 +185,13 @@ impl TmdbService {
 
     fn entry_to_credit(&self, entry: &TmdbCreditEntry, is_cast: bool) -> Option<TmdbCredit> {
         let media_type = entry.media_type.as_deref().unwrap_or("movie");
-        let title = entry
-            .title
-            .as_ref()
-            .or(entry.name.as_ref())?
-            .clone();
+        let title = entry.title.as_ref().or(entry.name.as_ref())?.clone();
 
         let role = if is_cast {
-            entry.character.clone().unwrap_or_else(|| "Actor".to_string())
+            entry
+                .character
+                .clone()
+                .unwrap_or_else(|| "Actor".to_string())
         } else {
             entry.job.clone().unwrap_or_else(|| {
                 entry
@@ -211,7 +211,11 @@ impl TmdbService {
             tmdb_id: entry.id,
             title,
             role,
-            department: if is_cast { None } else { entry.department.clone() },
+            department: if is_cast {
+                None
+            } else {
+                entry.department.clone()
+            },
             overview: entry.overview.clone(),
             poster_url: entry.poster_path.as_ref().map(|p| self.poster_url(p)),
             tmdb_url: self.tmdb_page_url(media_type, entry.id),

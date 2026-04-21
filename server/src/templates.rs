@@ -157,26 +157,24 @@ impl User {
             .query("SELECT profile.avatar, verification_status, is_admin FROM ONLY $pid LIMIT 1")
             .bind(("pid", rid))
             .await
+            && let Ok(result) = response.take::<Option<serde_json::Value>>(0)
+            && let Some(data) = result
         {
-            if let Ok(result) = response.take::<Option<serde_json::Value>>(0) {
-                if let Some(data) = result {
-                    let avatar_url = data
-                        .get("profile")
-                        .and_then(|p| p.get("avatar"))
-                        .and_then(|a| a.as_str())
-                        .map(|s| s.to_string());
-                    let is_verified = data
-                        .get("verification_status")
-                        .and_then(|v| v.as_str())
-                        .map(|s| s == "identity")
-                        .unwrap_or(false);
-                    let is_admin = data
-                        .get("is_admin")
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(false);
-                    return (avatar_url, is_verified, is_admin);
-                }
-            }
+            let avatar_url = data
+                .get("profile")
+                .and_then(|p| p.get("avatar"))
+                .and_then(|a| a.as_str())
+                .map(|s| s.to_string());
+            let is_verified = data
+                .get("verification_status")
+                .and_then(|v| v.as_str())
+                .map(|s| s == "identity")
+                .unwrap_or(false);
+            let is_admin = data
+                .get("is_admin")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            return (avatar_url, is_verified, is_admin);
         }
 
         (None, false, false)

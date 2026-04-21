@@ -49,7 +49,10 @@ pub fn router() -> Router {
         .route("/productions/search", get(productions_search))
         .route("/productions/{slug}/claim", post(production_claim))
         .route("/involvements", post(create_involvement))
-        .route("/involvements/with-production", post(create_involvement_with_production))
+        .route(
+            "/involvements/with-production",
+            post(create_involvement_with_production),
+        )
         .route("/involvements/{id}", delete(delete_involvement))
         .route("/involvements/{id}/verify", post(verify_involvement))
         .route("/involvements/{id}/reject", post(reject_involvement))
@@ -131,22 +134,21 @@ async fn avatar(Query(params): Query<HashMap<String, String>>) -> impl IntoRespo
     };
 
     // Query for the person's avatar URL
-    if let Ok(rid) = person_rid {
-    if let Ok(mut response) = DB.query("SELECT profile.avatar FROM ONLY $pid LIMIT 1")
-        .bind(("pid", rid)).await {
-        if let Ok(result) = response.take::<Option<serde_json::Value>>(0) {
-            if let Some(data) = result {
-                if let Some(avatar_url) = data
-                    .get("profile")
-                    .and_then(|p| p.get("avatar"))
-                    .and_then(|a| a.as_str())
-                {
-                    // User has a custom avatar, redirect to it
-                    return Redirect::permanent(avatar_url);
-                }
-            }
-        }
-    }}
+    if let Ok(rid) = person_rid
+        && let Ok(mut response) = DB
+            .query("SELECT profile.avatar FROM ONLY $pid LIMIT 1")
+            .bind(("pid", rid))
+            .await
+        && let Ok(result) = response.take::<Option<serde_json::Value>>(0)
+        && let Some(data) = result
+        && let Some(avatar_url) = data
+            .get("profile")
+            .and_then(|p| p.get("avatar"))
+            .and_then(|a| a.as_str())
+    {
+        // User has a custom avatar, redirect to it
+        return Redirect::permanent(avatar_url);
+    }
 
     // Fall back to DiceBear for deterministic avatars based on user ID
     let avatar_url = format!(
@@ -237,7 +239,11 @@ async fn tmdb_import(
     AuthenticatedUser(user): AuthenticatedUser,
     Json(payload): Json<TmdbImportRequest>,
 ) -> impl IntoResponse {
-    info!("TMDB import: user={}, credits_count={}", user.username, payload.credits.len());
+    info!(
+        "TMDB import: user={}, credits_count={}",
+        user.username,
+        payload.credits.len()
+    );
     let person_id = &user.id;
     let mut imported = 0u32;
     let mut skipped = 0u32;
@@ -266,7 +272,10 @@ async fn tmdb_import(
         {
             Ok(p) => p,
             Err(e) => {
-                error!("Failed to find/create production for tmdb_id {}: {}", credit.tmdb_id, e);
+                error!(
+                    "Failed to find/create production for tmdb_id {}: {}",
+                    credit.tmdb_id, e
+                );
                 errors.push(format!("{}: {}", credit.title, e));
                 continue;
             }
@@ -320,7 +329,12 @@ async fn tmdb_import(
         }
     }
 
-    info!("TMDB import complete: imported={}, skipped={}, errors={}", imported, skipped, errors.len());
+    info!(
+        "TMDB import complete: imported={}, skipped={}, errors={}",
+        imported,
+        skipped,
+        errors.len()
+    );
     Json(serde_json::json!({
         "imported": imported,
         "skipped": skipped,
@@ -336,7 +350,7 @@ struct ImdbImportCredit {
     title: String,
     year: Option<String>,
     role: Option<String>,
-    category: String,          // "actor", "actress", "director", "producer", etc.
+    category: String, // "actor", "actress", "director", "producer", etc.
 }
 
 #[derive(Debug, Deserialize)]
@@ -362,7 +376,8 @@ async fn imdb_import(
     let mut errors: Vec<String> = Vec::new();
     let mut imported_credits: Vec<serde_json::Value> = Vec::new();
     // Cache productions found/created during this import to avoid duplicate DB lookups
-    let mut production_cache: HashMap<String, crate::models::production::Production> = HashMap::new();
+    let mut production_cache: HashMap<String, crate::models::production::Production> =
+        HashMap::new();
 
     for credit in &payload.credits {
         let category = credit.category.to_lowercase();
@@ -619,8 +634,7 @@ async fn create_involvement(
         .into_response(),
         Err(e) => {
             error!("Failed to create involvement: {}", e);
-            Json(serde_json::json!({ "error": format!("Failed to create: {}", e) }))
-                .into_response()
+            Json(serde_json::json!({ "error": format!("Failed to create: {}", e) })).into_response()
         }
     }
 }
@@ -664,8 +678,10 @@ async fn create_involvement_with_production(
         Ok(p) => p,
         Err(e) => {
             error!("Failed to create production: {}", e);
-            return Json(serde_json::json!({ "error": format!("Failed to create production: {}", e) }))
-                .into_response();
+            return Json(
+                serde_json::json!({ "error": format!("Failed to create production: {}", e) }),
+            )
+            .into_response();
         }
     };
 
@@ -729,8 +745,10 @@ async fn delete_involvement(
         Ok(r) => r,
         Err(e) => {
             error!("Failed to check involvement: {}", e);
-            return Json(serde_json::json!({ "error": format!("Failed to check involvement: {}", e) }))
-                .into_response();
+            return Json(
+                serde_json::json!({ "error": format!("Failed to check involvement: {}", e) }),
+            )
+            .into_response();
         }
     };
 
@@ -759,7 +777,11 @@ async fn delete_involvement(
 
     if !is_own {
         // Check if user is owner of the production
-        if let Some(prod_id) = InvolvementModel::get_production_id(&involvement_id).await.ok().flatten() {
+        if let Some(prod_id) = InvolvementModel::get_production_id(&involvement_id)
+            .await
+            .ok()
+            .flatten()
+        {
             match ProductionModel::can_edit(&prod_id, &user.id).await {
                 Ok(true) => {} // allowed
                 _ => {
@@ -776,8 +798,7 @@ async fn delete_involvement(
         Ok(()) => Json(serde_json::json!({ "success": true })).into_response(),
         Err(e) => {
             error!("Failed to delete involvement: {}", e);
-            Json(serde_json::json!({ "error": format!("Failed to delete: {}", e) }))
-                .into_response()
+            Json(serde_json::json!({ "error": format!("Failed to delete: {}", e) })).into_response()
         }
     }
 }
@@ -810,8 +831,10 @@ async fn verify_involvement(
     match ProductionModel::can_edit(&prod_id, &user.id).await {
         Ok(true) => {}
         _ => {
-            return Json(serde_json::json!({ "error": "Only production owners can verify credits" }))
-                .into_response();
+            return Json(
+                serde_json::json!({ "error": "Only production owners can verify credits" }),
+            )
+            .into_response();
         }
     }
 
@@ -819,8 +842,7 @@ async fn verify_involvement(
         Ok(()) => Json(serde_json::json!({ "success": true })).into_response(),
         Err(e) => {
             error!("Failed to verify involvement: {}", e);
-            Json(serde_json::json!({ "error": format!("Failed to verify: {}", e) }))
-                .into_response()
+            Json(serde_json::json!({ "error": format!("Failed to verify: {}", e) })).into_response()
         }
     }
 }
@@ -851,8 +873,10 @@ async fn reject_involvement(
     match ProductionModel::can_edit(&prod_id, &user.id).await {
         Ok(true) => {}
         _ => {
-            return Json(serde_json::json!({ "error": "Only production owners can reject credits" }))
-                .into_response();
+            return Json(
+                serde_json::json!({ "error": "Only production owners can reject credits" }),
+            )
+            .into_response();
         }
     }
 
@@ -860,8 +884,7 @@ async fn reject_involvement(
         Ok(()) => Json(serde_json::json!({ "success": true })).into_response(),
         Err(e) => {
             error!("Failed to reject involvement: {}", e);
-            Json(serde_json::json!({ "error": format!("Failed to reject: {}", e) }))
-                .into_response()
+            Json(serde_json::json!({ "error": format!("Failed to reject: {}", e) })).into_response()
         }
     }
 }
@@ -921,7 +944,10 @@ async fn submit_feedback(
                 }
             }
             Err(e) => {
-                debug!("Email service not configured, skipping feedback email: {}", e);
+                debug!(
+                    "Email service not configured, skipping feedback email: {}",
+                    e
+                );
             }
         }
     });
@@ -1089,8 +1115,12 @@ struct PeopleSearchSseQuery {
     scope: String,
 }
 
-fn default_value_field() -> String { "id".to_string() }
-fn default_scope() -> String { "ms".to_string() }
+fn default_value_field() -> String {
+    "id".to_string()
+}
+fn default_scope() -> String {
+    "ms".to_string()
+}
 
 #[axum::debug_handler]
 async fn people_search_sse(
@@ -1166,15 +1196,26 @@ async fn people_search_sse(
             .collect::<String>()
             .to_uppercase();
 
-        let value = if params.value_field == "username" { &p.username } else { &p.id };
-
-        let avatar_html = if let Some(ref url) = p.avatar_url {
-            format!(r#"<img src="{}" alt="" class="invite-search-avatar" />"#, escape_html(url))
+        let value = if params.value_field == "username" {
+            &p.username
         } else {
-            format!(r#"<span class="invite-search-initials">{}</span>"#, escape_html(&initials))
+            &p.id
         };
 
-        let select_url = format!("/api/people/select-sse?scope={}&value={}&name={}&avatar={}&username={}",
+        let avatar_html = if let Some(ref url) = p.avatar_url {
+            format!(
+                r#"<img src="{}" alt="" class="invite-search-avatar" />"#,
+                escape_html(url)
+            )
+        } else {
+            format!(
+                r#"<span class="invite-search-initials">{}</span>"#,
+                escape_html(&initials)
+            )
+        };
+
+        let select_url = format!(
+            "/api/people/select-sse?scope={}&value={}&name={}&avatar={}&username={}",
             scope,
             urlencoding::encode(value),
             urlencoding::encode(display_name),
@@ -1225,7 +1266,10 @@ async fn people_select_sse(
         return (status, msg).into_response();
     }
     let scope = &params.scope;
-    info!("People select SSE called: scope={}, value={}, name={}", scope, params.value, params.name);
+    info!(
+        "People select SSE called: scope={}, value={}, name={}",
+        scope, params.value, params.name
+    );
     let display = if let Some(ref u) = params.username {
         if u.is_empty() {
             params.name.clone()
@@ -1321,7 +1365,8 @@ async fn orgs_search_sse(
     }
 
     for o in &results {
-        let initials: String = o.name
+        let initials: String = o
+            .name
             .split_whitespace()
             .filter_map(|w| w.chars().next())
             .take(2)
@@ -1329,12 +1374,19 @@ async fn orgs_search_sse(
             .to_uppercase();
 
         let avatar_html = if let Some(ref url) = o.logo {
-            format!(r#"<img src="{}" alt="" class="invite-search-avatar" />"#, escape_html(url))
+            format!(
+                r#"<img src="{}" alt="" class="invite-search-avatar" />"#,
+                escape_html(url)
+            )
         } else {
-            format!(r#"<span class="invite-search-initials">{}</span>"#, escape_html(&initials))
+            format!(
+                r#"<span class="invite-search-initials">{}</span>"#,
+                escape_html(&initials)
+            )
         };
 
-        let select_url = format!("/api/orgs/select-sse?scope={}&value={}&name={}&avatar={}",
+        let select_url = format!(
+            "/api/orgs/select-sse?scope={}&value={}&name={}&avatar={}",
             scope,
             urlencoding::encode(&o.id),
             urlencoding::encode(&o.name),
@@ -1462,18 +1514,26 @@ async fn productions_search_sse(
         let poster = p.poster_photo.as_deref().or(p.poster_url.as_deref());
 
         let avatar_html = if let Some(url) = poster {
-            format!(r#"<img src="{}" alt="" class="invite-search-avatar" style="border-radius:4px;width:32px;height:32px;object-fit:cover" />"#, escape_html(url))
+            format!(
+                r#"<img src="{}" alt="" class="invite-search-avatar" style="border-radius:4px;width:32px;height:32px;object-fit:cover" />"#,
+                escape_html(url)
+            )
         } else {
-            let initials: String = p.title
+            let initials: String = p
+                .title
                 .split_whitespace()
                 .filter_map(|w| w.chars().next())
                 .take(2)
                 .collect::<String>()
                 .to_uppercase();
-            format!(r#"<span class="invite-search-initials">{}</span>"#, escape_html(&initials))
+            format!(
+                r#"<span class="invite-search-initials">{}</span>"#,
+                escape_html(&initials)
+            )
         };
 
-        let select_url = format!("/api/productions/select-sse?scope={}&value={}&name={}&avatar={}",
+        let select_url = format!(
+            "/api/productions/select-sse?scope={}&value={}&name={}&avatar={}",
             scope,
             urlencoding::encode(&p.id),
             urlencoding::encode(&p.title),
@@ -1534,14 +1594,16 @@ struct CheckUsernameQuery {
 }
 
 #[axum::debug_handler]
-async fn check_username(
-    Query(params): Query<CheckUsernameQuery>,
-) -> impl IntoResponse {
+async fn check_username(Query(params): Query<CheckUsernameQuery>) -> impl IntoResponse {
     use crate::models::person::{Person, validate_username};
 
     let username = match params.username {
         Some(u) => u,
-        None => return Json(serde_json::json!({ "available": false, "error": "Username is required" })),
+        None => {
+            return Json(
+                serde_json::json!({ "available": false, "error": "Username is required" }),
+            );
+        }
     };
 
     // Validate format
@@ -1552,9 +1614,13 @@ async fn check_username(
 
     // Check availability in DB
     match Person::find_by_username(&username).await {
-        Ok(Some(_)) => Json(serde_json::json!({ "available": false, "error": "Username is already taken" })),
+        Ok(Some(_)) => {
+            Json(serde_json::json!({ "available": false, "error": "Username is already taken" }))
+        }
         Ok(None) => Json(serde_json::json!({ "available": true, "error": null })),
-        Err(_) => Json(serde_json::json!({ "available": false, "error": "Unable to check username" })),
+        Err(_) => {
+            Json(serde_json::json!({ "available": false, "error": "Unable to check username" }))
+        }
     }
 }
 
@@ -1603,7 +1669,10 @@ async fn og_profile_image(
         debug!("OG image: no avatar URL set");
         None
     };
-    debug!("OG image: avatar_bytes len = {:?}", avatar_bytes.as_ref().map(|b| b.len()));
+    debug!(
+        "OG image: avatar_bytes len = {:?}",
+        avatar_bytes.as_ref().map(|b| b.len())
+    );
 
     // Render profile image + logo to PNG
     let png_data = render_og_png(avatar_bytes.as_deref())
@@ -1623,16 +1692,14 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
     const H: u32 = 630;
 
     // Decode avatar into an RGBA buffer
-    let avatar_rgba = avatar_bytes.and_then(|bytes| {
-        match image::load_from_memory(bytes) {
-            Ok(img) => {
-                tracing::debug!("OG image: decoded avatar {}x{}", img.width(), img.height());
-                Some(img)
-            }
-            Err(e) => {
-                tracing::error!("OG image: failed to decode avatar: {}", e);
-                None
-            }
+    let avatar_rgba = avatar_bytes.and_then(|bytes| match image::load_from_memory(bytes) {
+        Ok(img) => {
+            tracing::debug!("OG image: decoded avatar {}x{}", img.width(), img.height());
+            Some(img)
+        }
+        Err(e) => {
+            tracing::error!("OG image: failed to decode avatar: {}", e);
+            None
         }
     });
 
@@ -1649,7 +1716,8 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
         let src = avatar.to_rgba8();
         let scale = H as f32 / src.height() as f32;
         let scaled_w = (src.width() as f32 * scale).round() as u32;
-        let resized = image::imageops::resize(&src, scaled_w, H, image::imageops::FilterType::Lanczos3);
+        let resized =
+            image::imageops::resize(&src, scaled_w, H, image::imageops::FilterType::Lanczos3);
         image::imageops::overlay(&mut canvas, &resized, 0, 0);
         scaled_w
     } else {
@@ -1663,18 +1731,20 @@ fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
         let logo_w = (103.0 * scale) as u32;
         let logo_h = (16.0 * scale) as u32;
         let opts = resvg::usvg::Options::default();
-        if let Ok(tree) = resvg::usvg::Tree::from_str(&logo_svg, &opts) {
-            if let Some(mut logo_pixmap) = tiny_skia::Pixmap::new(logo_w, logo_h) {
-                let transform = tiny_skia::Transform::from_scale(scale, scale);
-                resvg::render(&tree, transform, &mut logo_pixmap.as_mut());
-                if let Some(logo_img) = image::RgbaImage::from_raw(logo_w, logo_h, logo_pixmap.data().to_vec()) {
-                    // Center logo in the remaining space to the right
-                    let right_space_start = avatar_right_edge;
-                    let right_space_w = W - right_space_start;
-                    let x = (right_space_start + (right_space_w - logo_w) / 2) as i64;
-                    let y = ((H - logo_h) / 2) as i64;
-                    image::imageops::overlay(&mut canvas, &logo_img, x, y);
-                }
+        if let Ok(tree) = resvg::usvg::Tree::from_str(&logo_svg, &opts)
+            && let Some(mut logo_pixmap) = tiny_skia::Pixmap::new(logo_w, logo_h)
+        {
+            let transform = tiny_skia::Transform::from_scale(scale, scale);
+            resvg::render(&tree, transform, &mut logo_pixmap.as_mut());
+            if let Some(logo_img) =
+                image::RgbaImage::from_raw(logo_w, logo_h, logo_pixmap.data().to_vec())
+            {
+                // Center logo in the remaining space to the right
+                let right_space_start = avatar_right_edge;
+                let right_space_w = W - right_space_start;
+                let x = (right_space_start + (right_space_w - logo_w) / 2) as i64;
+                let y = ((H - logo_h) / 2) as i64;
+                image::imageops::overlay(&mut canvas, &logo_img, x, y);
             }
         }
     }
@@ -1713,7 +1783,12 @@ async fn og_invite_image(
                     url
                 };
                 match reqwest::get(&abs_url).await {
-                    Ok(resp) => resp.bytes().await.ok().map(|b| b.to_vec()).filter(|b| !b.is_empty()),
+                    Ok(resp) => resp
+                        .bytes()
+                        .await
+                        .ok()
+                        .map(|b| b.to_vec())
+                        .filter(|b| !b.is_empty()),
                     Err(_) => None,
                 }
             } else {
@@ -1754,8 +1829,12 @@ async fn qr_profile_image(
     let profile_url = format!("{}/{}", crate::config::app_url(), username);
     debug!("QR code: generating for {}", profile_url);
 
-    let code = QrCode::new(profile_url.as_bytes())
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("QR encode error: {}", e)))?;
+    let code = QrCode::new(profile_url.as_bytes()).map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("QR encode error: {}", e),
+        )
+    })?;
 
     // Render QR matrix to image manually (qrcode image feature needs image 0.25)
     let matrix = code.to_colors();
@@ -1781,7 +1860,12 @@ async fn qr_profile_image(
     let mut buf = std::io::Cursor::new(Vec::new());
     image::DynamicImage::ImageLuma8(qr_image)
         .write_to(&mut buf, image::ImageFormat::Png)
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("PNG encode error: {}", e)))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                format!("PNG encode error: {}", e),
+            )
+        })?;
 
     Ok((
         [

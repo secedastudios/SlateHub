@@ -192,7 +192,11 @@ impl S3Service {
             .content_type(content_type);
 
         // Profile images, organization logos, location photos, and production media are public by default
-        if key.starts_with("profiles/") || key.starts_with("organizations/") || key.starts_with("locations/") || key.starts_with("productions/") {
+        if key.starts_with("profiles/")
+            || key.starts_with("organizations/")
+            || key.starts_with("locations/")
+            || key.starts_with("productions/")
+        {
             request = request.acl(aws_sdk_s3::types::ObjectCannedAcl::PublicRead);
         }
 

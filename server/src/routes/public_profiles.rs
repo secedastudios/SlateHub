@@ -42,7 +42,6 @@ pub fn router() -> Router {
         .route("/{username}", get(user_profile))
 }
 
-
 /// List of reserved routes that should not be treated as usernames
 const RESERVED_ROUTES: &[&str] = &[
     "about",
@@ -199,7 +198,7 @@ async fn user_profile(
     let mut base = BaseContext::new().with_page("profile");
     let mut is_liked = false;
     if let Some(ref user) = current_user {
-        base = base.with_user(User::from_session_user(&user).await);
+        base = base.with_user(User::from_session_user(user).await);
 
         // Check if current user has liked this profile
         if !is_own_profile {
@@ -239,13 +238,18 @@ async fn user_profile(
                     // Group by production_slug to merge multiple roles into one entry
                     let mut result: Vec<InvolvementDisplay> = Vec::new();
                     for inv in invs {
-                        if let Some(existing) = result.iter_mut().find(|d| d.production_slug == inv.production_slug) {
+                        if let Some(existing) = result
+                            .iter_mut()
+                            .find(|d| d.production_slug == inv.production_slug)
+                        {
                             if let Some(new_role) = &inv.role {
                                 if let Some(ref mut existing_role) = existing.role {
                                     let mut roles: Vec<&str> = existing_role.split(", ").collect();
                                     if !roles.contains(&new_role.as_str()) {
                                         roles.push(new_role);
-                                        roles.sort_unstable_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+                                        roles.sort_unstable_by(|a, b| {
+                                            a.to_lowercase().cmp(&b.to_lowercase())
+                                        });
                                         *existing_role = roles.join(", ");
                                     }
                                 } else {
@@ -295,12 +299,8 @@ async fn user_profile(
         social_links: to_social_link_displays(
             &profile.map(|p| p.social_links.clone()).unwrap_or_default(),
         ),
-        reels: to_reel_displays(
-            &profile.map(|p| p.reels.clone()).unwrap_or_default(),
-        ),
-        photos: to_photo_displays(
-            &profile.map(|p| p.photos.clone()).unwrap_or_default(),
-        ),
+        reels: to_reel_displays(&profile.map(|p| p.reels.clone()).unwrap_or_default()),
+        photos: to_photo_displays(&profile.map(|p| p.photos.clone()).unwrap_or_default()),
         is_own_profile,
         is_public: profile.map(|p| p.is_public).unwrap_or(false),
         verification_status: profile_user.verification_status.clone(),
@@ -314,7 +314,9 @@ async fn user_profile(
         ethnicity: profile.map(|p| p.ethnicity.clone()).unwrap_or_default(),
         acting_age_range_min: profile.and_then(|p| p.acting_age_range.as_ref().map(|r| r.min)),
         acting_age_range_max: profile.and_then(|p| p.acting_age_range.as_ref().map(|r| r.max)),
-        acting_ethnicities: profile.map(|p| p.acting_ethnicities.clone()).unwrap_or_default(),
+        acting_ethnicities: profile
+            .map(|p| p.acting_ethnicities.clone())
+            .unwrap_or_default(),
         nationality: profile.and_then(|p| p.nationality.clone()),
         messaging_preference: profile_user.messaging_preference.clone(),
         phone: profile.and_then(|p| p.phone.clone()),
@@ -348,7 +350,11 @@ async fn people(
     Query(params): Query<PeopleQuery>,
     request: Request,
 ) -> Result<Html<String>, Error> {
-    let filter = params.filter.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty());
+    let filter = params
+        .filter
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
     debug!("Rendering people page, filter: {:?}", filter);
 
     let mut base = BaseContext::new().with_page("people");
@@ -412,7 +418,8 @@ async fn people(
             LIMIT $limit
             START $offset
         "#;
-        let persons = match DB.query(query)
+        let persons = match DB
+            .query(query)
             .bind(("limit", PAGE_SIZE as i64 + 1))
             .bind(("offset", 0i64))
             .await
@@ -451,7 +458,8 @@ async fn people(
             .take(PAGE_SIZE)
             .filter_map(|person| {
                 if let Some(profile) = person.profile {
-                    if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some() {
+                    if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some()
+                    {
                         Some(PersonCard {
                             id: person.id.to_raw_string(),
                             name: profile
@@ -579,10 +587,7 @@ fn render_person_card(person: &PersonCard) -> String {
 
     html.push_str(r#"<div data-role="content">"#);
     if let Some(ref bio) = person.bio {
-        html.push_str(&format!(
-            r#"<p data-role="bio">{}</p>"#,
-            escape_html(bio)
-        ));
+        html.push_str(&format!(r#"<p data-role="bio">{}</p>"#, escape_html(bio)));
     }
     if !person.skills.is_empty() {
         html.push_str(r#"<p data-role="skills">"#);
@@ -662,7 +667,8 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
             .take(PAGE_SIZE)
             .filter_map(|person| {
                 if let Some(profile) = person.profile {
-                    if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some() {
+                    if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some()
+                    {
                         Some(PersonCard {
                             id: person.id.to_raw_string(),
                             name: profile
@@ -711,5 +717,9 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
         ));
     }
 
-    sse_response(sse_patch_elements("#people-sentinel", "outer", &replacement))
+    sse_response(sse_patch_elements(
+        "#people-sentinel",
+        "outer",
+        &replacement,
+    ))
 }

@@ -8,9 +8,7 @@ static RT: OnceCell<Runtime> = OnceCell::new();
 /// Get the shared tokio runtime for all integration tests.
 /// This ensures the WebSocket connection to SurrealDB outlives any single test.
 pub fn runtime() -> &'static Runtime {
-    RT.get_or_init(|| {
-        Runtime::new().expect("Failed to create test runtime")
-    })
+    RT.get_or_init(|| Runtime::new().expect("Failed to create test runtime"))
 }
 
 /// Connect the global DB singleton to the test SurrealDB instance.

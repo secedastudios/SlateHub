@@ -1,8 +1,11 @@
 use axum::extract::DefaultBodyLimit;
-use axum::http::{Method, Request, Response, header, HeaderValue};
+use axum::http::{HeaderValue, Method, Request, Response, header};
 use axum::{Router, middleware, routing::get_service};
 use std::time::Duration;
-use tower_http::{compression::CompressionLayer, cors::CorsLayer, services::ServeDir, set_header::SetResponseHeaderLayer, trace::TraceLayer};
+use tower_http::{
+    compression::CompressionLayer, cors::CorsLayer, services::ServeDir,
+    set_header::SetResponseHeaderLayer, trace::TraceLayer,
+};
 use tracing::{Span, error, info};
 
 use crate::middleware::{
@@ -14,6 +17,7 @@ mod admin;
 mod analytics;
 mod api;
 mod auth;
+mod developers;
 mod equipment;
 mod jobs;
 mod likes;
@@ -21,6 +25,8 @@ mod locations;
 mod media;
 mod messages;
 mod notifications;
+mod oidc;
+mod org_settings;
 mod organizations;
 mod pages;
 mod productions;
@@ -45,6 +51,13 @@ pub fn app() -> Router {
         .merge(search::router())
         // Mount organizations routes
         .merge(organizations::router())
+        // Mount org settings (must be before public_profiles' /{username} catchall;
+        // safe here because /orgs/{slug}/settings is a fully qualified path)
+        .merge(org_settings::router())
+        // Mount OIDC provider endpoints
+        .merge(oidc::router())
+        // Mount developer documentation
+        .merge(developers::router())
         // Mount productions routes
         .merge(productions::router())
         // Mount jobs routes
@@ -80,18 +93,18 @@ pub fn app() -> Router {
         // Static files — long cache with immutable (URLs include ?v= cache buster)
         .nest_service(
             "/static",
-            get_service(static_service).layer(
-                SetResponseHeaderLayer::overriding(
-                    header::CACHE_CONTROL,
-                    header::HeaderValue::from_static("public, max-age=31536000, immutable"),
-                ),
-            ),
+            get_service(static_service).layer(SetResponseHeaderLayer::overriding(
+                header::CACHE_CONTROL,
+                header::HeaderValue::from_static("public, max-age=31536000, immutable"),
+            )),
         )
         // Mount public profiles last to handle /<username> routes
         // This must be last to avoid conflicts with other routes
         .merge(public_profiles::router())
         // Track page view activity (runs after auth so user identity is available)
-        .layer(middleware::from_fn(crate::middleware::activity::activity_middleware))
+        .layer(middleware::from_fn(
+            crate::middleware::activity::activity_middleware,
+        ))
         // Apply auth middleware to extract user from JWT cookies
         .layer(middleware::from_fn(auth_middleware))
         // Error response middleware - converts errors to HTML/JSON based on Accept header
@@ -148,7 +161,7 @@ pub fn app() -> Router {
                         .map(|id| id.as_str())
                         .unwrap_or("unknown");
 
-                    span.record("request_id", &request_id);
+                    span.record("request_id", request_id);
 
                     info!(
                         request_id = %request_id,

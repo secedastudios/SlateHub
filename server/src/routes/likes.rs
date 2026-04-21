@@ -47,7 +47,8 @@ struct CheckResponse {
 
 /// Parse a "table:key" string into a RecordId
 fn parse_target_id(s: &str) -> Result<RecordId, Error> {
-    RecordId::parse_simple(s).map_err(|e| Error::BadRequest(format!("Invalid target ID '{}': {}", s, e)))
+    RecordId::parse_simple(s)
+        .map_err(|e| Error::BadRequest(format!("Invalid target ID '{}': {}", s, e)))
 }
 
 /// Validate that a target_id string is safe for use in CSS selectors and HTML attributes.
@@ -74,8 +75,7 @@ async fn toggle_like(
     debug!("Toggle like: user={} target={}", user.id, body.target_id);
 
     let person_id = if user.id.starts_with("person:") {
-        RecordId::parse_simple(&user.id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?
+        RecordId::parse_simple(&user.id).map_err(|e| Error::BadRequest(e.to_string()))?
     } else {
         RecordId::new("person", user.id.as_str())
     };
@@ -92,8 +92,7 @@ async fn check_likes(
     Json(body): Json<CheckRequest>,
 ) -> Result<Json<CheckResponse>, Error> {
     let person_id = if user.id.starts_with("person:") {
-        RecordId::parse_simple(&user.id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?
+        RecordId::parse_simple(&user.id).map_err(|e| Error::BadRequest(e.to_string()))?
     } else {
         RecordId::new("person", user.id.as_str())
     };
@@ -144,27 +143,54 @@ fn like_button_html(target_id: &str, liked: bool, variant: &str) -> String {
     match variant {
         "people" => format!(
             r#"<button type="button" data-role="card-like" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=people')" data-liked="{liked}" aria-label="{label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
-            tid = target_id, liked = liked, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
+            tid = target_id,
+            liked = liked,
+            label = label,
+            fill = fill,
+            stroke = stroke,
+            hp = HEART_PATH
         ),
         "locations" => format!(
             r#"<button type="button" class="loc-card-like" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=locations')" data-liked="{liked}" aria-label="{label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
-            tid = target_id, liked = liked, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
+            tid = target_id,
+            liked = liked,
+            label = label,
+            fill = fill,
+            stroke = stroke,
+            hp = HEART_PATH
         ),
         "profile" => {
             let type_val = if liked { "liked" } else { "outline" };
             let text = if liked { "Liked" } else { "Like" };
             format!(
                 r#"<button type="button" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=profile')" data-liked="{liked}" data-type="{type_val}" aria-label="{label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5" style="vertical-align:middle;margin-right:4px"><path d="{hp}"/></svg>{text}</button>"#,
-                tid = target_id, liked = liked, type_val = type_val, label = label, fill = fill, stroke = stroke, hp = HEART_PATH, text = text
+                tid = target_id,
+                liked = liked,
+                type_val = type_val,
+                label = label,
+                fill = fill,
+                stroke = stroke,
+                hp = HEART_PATH,
+                text = text
             )
-        },
+        }
         "likes" => format!(
             r#"<button type="button" data-role="card-like" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}?v=likes')" data-liked="{liked}" aria-label="{label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
-            tid = target_id, liked = liked, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
+            tid = target_id,
+            liked = liked,
+            label = label,
+            fill = fill,
+            stroke = stroke,
+            hp = HEART_PATH
         ),
         _ => format!(
             r#"<button type="button" data-like-target="{tid}" data-on:click="@post('/api/likes/toggle-sse/{tid}')" data-liked="{liked}" aria-label="{label}"><svg width="20" height="20" viewBox="0 0 24 24" fill="{fill}" stroke="{stroke}" stroke-width="1.5"><path d="{hp}"/></svg></button>"#,
-            tid = target_id, liked = liked, label = label, fill = fill, stroke = stroke, hp = HEART_PATH
+            tid = target_id,
+            liked = liked,
+            label = label,
+            fill = fill,
+            stroke = stroke,
+            hp = HEART_PATH
         ),
     }
 }
@@ -186,8 +212,7 @@ async fn toggle_like_sse(
     validate_target_id_str(&target_id_raw)?;
 
     let person_id = if user.id.starts_with("person:") {
-        RecordId::parse_simple(&user.id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?
+        RecordId::parse_simple(&user.id).map_err(|e| Error::BadRequest(e.to_string()))?
     } else {
         RecordId::new("person", user.id.as_str())
     };
@@ -207,11 +232,19 @@ async fn toggle_like_sse(
         sse += &sse_patch_elements(&card_selector, "remove", "");
 
         // Update the tab count
-        let count_tab = if target_id_raw.starts_with("location:") { "locations" } else { "people" };
-        let count = if count_tab == "people" {
-            LikesModel::count_liked_people(&person_id).await.unwrap_or(0)
+        let count_tab = if target_id_raw.starts_with("location:") {
+            "locations"
         } else {
-            LikesModel::count_liked_locations(&person_id).await.unwrap_or(0)
+            "people"
+        };
+        let count = if count_tab == "people" {
+            LikesModel::count_liked_people(&person_id)
+                .await
+                .unwrap_or(0)
+        } else {
+            LikesModel::count_liked_locations(&person_id)
+                .await
+                .unwrap_or(0)
         };
         let count_selector = format!("#likes-count-{}", count_tab);
         sse += &sse_patch_elements(&count_selector, "inner", &count.to_string());
@@ -231,21 +264,24 @@ async fn likes_page(request: Request) -> Result<Html<String>, Error> {
     base = base.with_user(User::from_session_user(&current_user).await);
 
     let person_id = if current_user.id.starts_with("person:") {
-        RecordId::parse_simple(&current_user.id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?
+        RecordId::parse_simple(&current_user.id).map_err(|e| Error::BadRequest(e.to_string()))?
     } else {
         RecordId::new("person", current_user.id.as_str())
     };
 
-    let liked_people = LikesModel::get_liked_people(&person_id).await.unwrap_or_else(|e| {
-        error!("Failed to get liked people: {}", e);
-        vec![]
-    });
+    let liked_people = LikesModel::get_liked_people(&person_id)
+        .await
+        .unwrap_or_else(|e| {
+            error!("Failed to get liked people: {}", e);
+            vec![]
+        });
 
-    let liked_locations = LikesModel::get_liked_locations(&person_id).await.unwrap_or_else(|e| {
-        error!("Failed to get liked locations: {}", e);
-        vec![]
-    });
+    let liked_locations = LikesModel::get_liked_locations(&person_id)
+        .await
+        .unwrap_or_else(|e| {
+            error!("Failed to get liked locations: {}", e);
+            vec![]
+        });
 
     let template = LikesTemplate {
         app_name: base.app_name,

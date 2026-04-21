@@ -1,7 +1,7 @@
 //! System stats tracking with 24h peak values
 
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::Mutex;
 
 struct PeakStats {
@@ -75,12 +75,17 @@ pub async fn get_stats() -> serde_json::Value {
 
     let uptime_secs = {
         static START: OnceLock<std::time::Instant> = OnceLock::new();
-        START.get_or_init(std::time::Instant::now).elapsed().as_secs()
+        START
+            .get_or_init(std::time::Instant::now)
+            .elapsed()
+            .as_secs()
     };
 
     // Disk stats
     let disks = sysinfo::Disks::new_with_refreshed_list();
-    let root_disk = disks.iter().find(|d| d.mount_point() == std::path::Path::new("/"));
+    let root_disk = disks
+        .iter()
+        .find(|d| d.mount_point() == std::path::Path::new("/"));
     let (disk_total, disk_available) = root_disk
         .map(|d| (d.total_space(), d.available_space()))
         .unwrap_or((0, 0));
@@ -112,7 +117,8 @@ const DISK_WARNING_BYTES: u64 = 5 * 1_073_741_824; // 5 GB
 
 pub fn disk_space_low() -> bool {
     let disks = sysinfo::Disks::new_with_refreshed_list();
-    disks.iter()
+    disks
+        .iter()
         .find(|d| d.mount_point() == std::path::Path::new("/"))
         .map(|d| d.available_space() < DISK_WARNING_BYTES)
         .unwrap_or(false)

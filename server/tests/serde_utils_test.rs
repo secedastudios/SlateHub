@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use serde_json::json;
-use slatehub::serde_utils::{deserialize_optional_i32, deserialize_optional_string, deserialize_string_list};
+use slatehub::serde_utils::{
+    deserialize_optional_i32, deserialize_optional_string, deserialize_string_list,
+};
 
 #[derive(Deserialize, Debug, PartialEq)]
 struct TestForm {

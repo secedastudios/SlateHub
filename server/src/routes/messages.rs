@@ -13,11 +13,7 @@ use tracing::{debug, error};
 use crate::{
     error::Error,
     middleware::AuthenticatedUser,
-    models::{
-        messaging::MessagingModel,
-        notification::NotificationModel,
-        person::Person,
-    },
+    models::{messaging::MessagingModel, notification::NotificationModel, person::Person},
     record_id_ext::RecordIdExt,
     services::email::EmailService,
     templates::{BaseContext, User},
@@ -147,9 +143,7 @@ fn sse_response(body: String) -> Response {
 
 // -- Handlers --
 
-async fn inbox(
-    AuthenticatedUser(user): AuthenticatedUser,
-) -> Result<Html<String>, Error> {
+async fn inbox(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<String>, Error> {
     debug!("Listing conversations for user: {}", user.id);
 
     let model = MessagingModel::new();
@@ -158,8 +152,9 @@ async fn inbox(
     let mut views = Vec::new();
     for conv in &conversations {
         let other_id = MessagingModel::get_other_participant(conv, &user.id);
-        let other_person = Person::find_by_id(&other_id).await?.unwrap_or_else(|| {
-            Person {
+        let other_person = Person::find_by_id(&other_id)
+            .await?
+            .unwrap_or_else(|| Person {
                 id: surrealdb::types::RecordId::parse_simple(&other_id)
                     .unwrap_or_else(|_| surrealdb::types::RecordId::new("person", "unknown")),
                 username: "deleted".to_string(),
@@ -168,8 +163,7 @@ async fn inbox(
                 verification_status: "unverified".to_string(),
                 profile: None,
                 messaging_preference: "nobody".to_string(),
-            }
-        });
+            });
 
         // Count unread messages in this conversation
         let conv_id = conv.id.to_raw_string();
@@ -299,8 +293,9 @@ async fn new_message_page(
     for conv in &conversations {
         let other_id = MessagingModel::get_other_participant(conv, &user.id);
         if other_id == recipient_id {
-            return Ok(Redirect::to(&format!("/messages/{}", conv.id.to_raw_string()))
-                .into_response());
+            return Ok(
+                Redirect::to(&format!("/messages/{}", conv.id.to_raw_string())).into_response(),
+            );
         }
     }
 
@@ -374,8 +369,14 @@ async fn send_message(
         .await?;
 
     // Create notification and send email
-    send_new_message_notification(&user.id, &user.username, &recipient, &conv_id, &sanitized_body)
-        .await;
+    send_new_message_notification(
+        &user.id,
+        &user.username,
+        &recipient,
+        &conv_id,
+        &sanitized_body,
+    )
+    .await;
 
     Ok(Redirect::to(&format!("/messages/{}", conv_id)))
 }

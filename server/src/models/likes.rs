@@ -107,21 +107,35 @@ impl LikesModel {
     /// Count liked people for a user
     pub async fn count_liked_people(person_id: &RecordId) -> Result<usize, Error> {
         Self::validate_person_id(person_id)?;
-        let query = format!("SELECT count() AS count FROM {}->likes->person GROUP ALL", person_id.display());
-        let mut result = DB.query(&query).await
+        let query = format!(
+            "SELECT count() AS count FROM {}->likes->person GROUP ALL",
+            person_id.display()
+        );
+        let mut result = DB
+            .query(&query)
+            .await
             .map_err(|e| Error::Database(format!("Failed to count liked people: {}", e)))?;
         let row: Option<serde_json::Value> = result.take(0)?;
-        Ok(row.and_then(|v| v.get("count").and_then(|c| c.as_u64())).unwrap_or(0) as usize)
+        Ok(row
+            .and_then(|v| v.get("count").and_then(|c| c.as_u64()))
+            .unwrap_or(0) as usize)
     }
 
     /// Count liked locations for a user
     pub async fn count_liked_locations(person_id: &RecordId) -> Result<usize, Error> {
         Self::validate_person_id(person_id)?;
-        let query = format!("SELECT count() AS count FROM {}->likes->location GROUP ALL", person_id.display());
-        let mut result = DB.query(&query).await
+        let query = format!(
+            "SELECT count() AS count FROM {}->likes->location GROUP ALL",
+            person_id.display()
+        );
+        let mut result = DB
+            .query(&query)
+            .await
             .map_err(|e| Error::Database(format!("Failed to count liked locations: {}", e)))?;
         let row: Option<serde_json::Value> = result.take(0)?;
-        Ok(row.and_then(|v| v.get("count").and_then(|c| c.as_u64())).unwrap_or(0) as usize)
+        Ok(row
+            .and_then(|v| v.get("count").and_then(|c| c.as_u64()))
+            .unwrap_or(0) as usize)
     }
 
     /// Get all liked people for a user using graph traversal
@@ -147,15 +161,29 @@ impl LikesModel {
                 let id_str = if let Some(s) = id.as_str() {
                     s.to_string()
                 } else {
-                    serde_json::to_string(id).unwrap_or_default().trim_matches('"').to_string()
+                    serde_json::to_string(id)
+                        .unwrap_or_default()
+                        .trim_matches('"')
+                        .to_string()
                 };
 
                 Some(LikedPerson {
                     id: id_str,
-                    username: row.get("username").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                    name: row.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
+                    username: row
+                        .get("username")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string(),
+                    name: row
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown")
+                        .to_string(),
                     avatar: row.get("avatar").and_then(|v| v.as_str()).map(String::from),
-                    headline: row.get("headline").and_then(|v| v.as_str()).map(String::from),
+                    headline: row
+                        .get("headline")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
                 })
             })
             .collect();
@@ -186,18 +214,39 @@ impl LikesModel {
                 let id_str = if let Some(s) = id.as_str() {
                     s.to_string()
                 } else {
-                    serde_json::to_string(id).unwrap_or_default().trim_matches('"').to_string()
+                    serde_json::to_string(id)
+                        .unwrap_or_default()
+                        .trim_matches('"')
+                        .to_string()
                 };
 
                 // Strip the "location:" prefix for template use
-                let id_clean = id_str.strip_prefix("location:").unwrap_or(&id_str).to_string();
+                let id_clean = id_str
+                    .strip_prefix("location:")
+                    .unwrap_or(&id_str)
+                    .to_string();
 
                 Some(LikedLocation {
                     id: id_clean,
-                    name: row.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
-                    city: row.get("city").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    state: row.get("state").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    profile_photo: row.get("profile_photo").and_then(|v| v.as_str()).map(String::from),
+                    name: row
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown")
+                        .to_string(),
+                    city: row
+                        .get("city")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    state: row
+                        .get("state")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    profile_photo: row
+                        .get("profile_photo")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
                 })
             })
             .collect();

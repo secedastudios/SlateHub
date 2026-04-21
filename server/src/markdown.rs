@@ -14,9 +14,7 @@ pub fn render(input: &str) -> String {
     let mut html_output = String::new();
     html::push_html(&mut html_output, parser);
 
-    Builder::default()
-        .clean(&html_output)
-        .to_string()
+    Builder::default().clean(&html_output).to_string()
 }
 
 #[cfg(test)]

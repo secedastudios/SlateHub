@@ -49,6 +49,7 @@ impl MembershipRole {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, Error> {
         match s.to_lowercase().as_str() {
             "owner" => Ok(MembershipRole::Owner),
@@ -102,6 +103,7 @@ impl InvitationStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, Error> {
         match s.to_lowercase().as_str() {
             "pending" => Ok(InvitationStatus::Pending),
@@ -139,6 +141,12 @@ pub struct UpdateMembershipData {
 // ============================
 
 pub struct MembershipModel;
+
+impl Default for MembershipModel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl MembershipModel {
     pub fn new() -> Self {
@@ -191,13 +199,18 @@ impl MembershipModel {
         let permissions_strs: Vec<String> = data
             .permissions
             .iter()
-            .map(|p| serde_json::to_string(p).unwrap_or_default().trim_matches('"').to_string())
+            .map(|p| {
+                serde_json::to_string(p)
+                    .unwrap_or_default()
+                    .trim_matches('"')
+                    .to_string()
+            })
             .collect();
 
         let inviter_rid: Option<RecordId> = data
             .invited_by
             .as_deref()
-            .map(|id| RecordId::parse_simple(id))
+            .map(RecordId::parse_simple)
             .transpose()
             .map_err(|e| Error::BadRequest(e.to_string()))?;
 
@@ -220,8 +233,7 @@ impl MembershipModel {
     pub async fn find_by_id(&self, id: &str) -> Result<Option<Membership>, Error> {
         debug!("Finding membership by ID: {}", id);
 
-        let record_id = RecordId::parse_simple(id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let record_id = RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let result: Option<Membership> = DB
             .query(
@@ -256,10 +268,10 @@ impl MembershipModel {
             person_id, org_id
         );
 
-        let person_id: RecordId = RecordId::parse_simple(person_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
-        let org_id: RecordId = RecordId::parse_simple(org_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let person_id: RecordId =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_id: RecordId =
+            RecordId::parse_simple(org_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let query = "SELECT
                         id,
@@ -335,9 +347,7 @@ impl MembershipModel {
                      invitation_status = 'accepted',
                      joined_at = time::now()";
 
-        DB.query(query)
-            .bind(("id", record_id))
-            .await?;
+        DB.query(query).bind(("id", record_id)).await?;
 
         Ok(())
     }
@@ -380,8 +390,8 @@ impl MembershipModel {
     ) -> Result<Vec<Membership>, Error> {
         debug!("Fetching memberships for organization: {}", org_id);
 
-        let org_record_id = RecordId::parse_simple(org_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_record_id =
+            RecordId::parse_simple(org_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let query = "SELECT
                         id,
@@ -412,8 +422,8 @@ impl MembershipModel {
     pub async fn get_person_memberships(&self, person_id: &str) -> Result<Vec<Membership>, Error> {
         debug!("Fetching memberships for person: {}", person_id);
 
-        let person_record_id = RecordId::parse_simple(person_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let person_record_id =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let query = "SELECT
                         id,
@@ -512,4 +522,3 @@ impl MembershipModel {
         }
     }
 }
-

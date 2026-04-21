@@ -139,4 +139,3 @@ pub fn decode_jwt(token: &str) -> Result<Claims> {
 
     Ok(token_data.claims)
 }
-

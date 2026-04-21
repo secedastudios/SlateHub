@@ -10,7 +10,6 @@ use tracing::info;
 use crate::{
     error::Error,
     middleware::{AuthenticatedUser, UserExtractor},
-    record_id_ext::RecordIdExt,
     models::{
         equipment::{
             CheckinData, CheckoutData, CreateEquipmentData, CreateKitData, Equipment,
@@ -18,6 +17,7 @@ use crate::{
         },
         organization::OrganizationModel,
     },
+    record_id_ext::RecordIdExt,
     templates::{
         BaseContext, User,
         equipment::{
@@ -340,14 +340,16 @@ pub async fn show_equipment_detail(
             equipment
                 .owner_person
                 .as_ref()
-                .map_or(false, |p| p.to_raw_string() == user.id)
+                .is_some_and(|p| p.to_raw_string() == user.id)
         } else if let Some(org_id) = equipment.owner_organization.as_ref() {
             let org_model = OrganizationModel::new();
             let members = org_model
                 .get_members(&org_id.to_raw_string())
                 .await
                 .unwrap_or_default();
-            members.iter().any(|m| m.person_id.to_raw_string() == user.id)
+            members
+                .iter()
+                .any(|m| m.person_id.to_raw_string() == user.id)
         } else {
             false
         }
@@ -391,7 +393,7 @@ pub async fn show_edit_equipment_form(
         if equipment
             .owner_person
             .as_ref()
-            .map_or(true, |p| p.to_raw_string() != current_user.id)
+            .is_none_or(|p| p.to_raw_string() != current_user.id)
         {
             return Err(Error::Unauthorized);
         }
@@ -467,7 +469,7 @@ pub async fn update_equipment(
         if equipment
             .owner_person
             .as_ref()
-            .map_or(true, |p| p.to_raw_string() != current_user.id)
+            .is_none_or(|p| p.to_raw_string() != current_user.id)
         {
             return Err(Error::Unauthorized);
         }
@@ -524,7 +526,7 @@ pub async fn delete_equipment(
         if equipment
             .owner_person
             .as_ref()
-            .map_or(true, |p| p.to_raw_string() != current_user.id)
+            .is_none_or(|p| p.to_raw_string() != current_user.id)
         {
             return Err(Error::Unauthorized);
         }
@@ -665,14 +667,16 @@ pub async fn show_kit_detail(Path(id): Path<String>, request: Request) -> Result
         if kit.owner_type == "person" {
             kit.owner_person
                 .as_ref()
-                .map_or(false, |p| p.to_raw_string() == user.id)
+                .is_some_and(|p| p.to_raw_string() == user.id)
         } else if let Some(org_id) = kit.owner_organization.as_ref() {
             let org_model = OrganizationModel::new();
             let members = org_model
                 .get_members(&org_id.to_raw_string())
                 .await
                 .unwrap_or_default();
-            members.iter().any(|m| m.person_id.to_raw_string() == user.id)
+            members
+                .iter()
+                .any(|m| m.person_id.to_raw_string() == user.id)
         } else {
             false
         }

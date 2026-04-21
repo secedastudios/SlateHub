@@ -37,13 +37,10 @@ async fn has_pending_verification(person_id: &str) -> bool {
         .query("SELECT count() AS c FROM verification_request WHERE person = $pid AND status = 'pending' GROUP ALL")
         .bind(("pid", rid))
         .await
-    {
-        if let Ok(Some(row)) = result.take::<Option<serde_json::Value>>(0) {
-            if let Some(c) = row.get("c").and_then(|v| v.as_i64()) {
+        && let Ok(Some(row)) = result.take::<Option<serde_json::Value>>(0)
+            && let Some(c) = row.get("c").and_then(|v| v.as_i64()) {
                 return c > 0;
             }
-        }
-    }
     false
 }
 

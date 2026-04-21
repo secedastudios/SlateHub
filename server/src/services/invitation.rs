@@ -1,8 +1,7 @@
 use crate::{
     error::Error,
     models::{
-        notification::NotificationModel,
-        organization::OrganizationModel,
+        notification::NotificationModel, organization::OrganizationModel,
         pending_invitation::PendingInvitationModel,
     },
     record_id_ext::RecordIdExt,
@@ -23,6 +22,7 @@ pub struct InvitationService;
 
 impl InvitationService {
     /// Invite a user to an organization. Handles both existing and non-existing users.
+    #[allow(clippy::too_many_arguments)]
     pub async fn invite_to_organization(
         org_id: &str,
         org_name: &str,
@@ -47,12 +47,12 @@ impl InvitationService {
 
                 // Check if already has a pending invitation (member_of with pending status)
                 let membership_model = crate::models::membership::MembershipModel::new();
-                if let Ok(Some(membership)) =
-                    membership_model.find_by_person_and_org(&person_id, org_id).await
+                if let Ok(Some(membership)) = membership_model
+                    .find_by_person_and_org(&person_id, org_id)
+                    .await
+                    && membership.invitation_status == "pending"
                 {
-                    if membership.invitation_status == "pending" {
-                        return Ok(InviteResult::AlreadyInvited);
-                    }
+                    return Ok(InviteResult::AlreadyInvited);
                 }
 
                 // Add member with pending status
@@ -65,10 +65,10 @@ impl InvitationService {
                     "{} invited you to join {} as a {}",
                     inviter_name, org_name, role
                 );
-                if let Some(msg) = message {
-                    if !msg.is_empty() {
-                        notification_msg.push_str(&format!("\n\n\"{}\"", msg));
-                    }
+                if let Some(msg) = message
+                    && !msg.is_empty()
+                {
+                    notification_msg.push_str(&format!("\n\n\"{}\"", msg));
                 }
 
                 notification_model
@@ -101,7 +101,11 @@ impl InvitationService {
                 let pending_model = PendingInvitationModel::new();
 
                 // Check for existing pending invitation
-                if let Some(_) = pending_model.find_existing(identifier, org_id).await? {
+                if pending_model
+                    .find_existing(identifier, org_id)
+                    .await?
+                    .is_some()
+                {
                     return Ok(InviteResult::AlreadyInvited);
                 }
 
@@ -136,7 +140,13 @@ impl InvitationService {
 
                         tokio::spawn(async move {
                             if let Err(e) = email_service
-                                .send_invitation_email(&to_email, &org, &inviter, &url, msg.as_deref())
+                                .send_invitation_email(
+                                    &to_email,
+                                    &org,
+                                    &inviter,
+                                    &url,
+                                    msg.as_deref(),
+                                )
                                 .await
                             {
                                 error!("Failed to send invitation email to {}: {}", to_email, e);
@@ -144,7 +154,10 @@ impl InvitationService {
                         });
                     }
                     Err(e) => {
-                        warn!("Email service not configured, skipping invitation email: {}", e);
+                        warn!(
+                            "Email service not configured, skipping invitation email: {}",
+                            e
+                        );
                     }
                 }
 
@@ -161,12 +174,13 @@ impl InvitationService {
 
     /// Invite a user to a production. Handles both existing and non-existing users.
     /// Creates a member_of relation with pending status for existing users.
+    #[allow(clippy::too_many_arguments)]
     pub async fn invite_to_production(
         production_id: &str,
         production_title: &str,
         production_slug: &str,
         identifier: &str,
-        permission_level: &str, // "owner", "admin", "member"
+        permission_level: &str,                // "owner", "admin", "member"
         production_roles: Option<Vec<String>>, // e.g. ["Director", "Producer"]
         inviter_id: &str,
         inviter_name: &str,
@@ -175,12 +189,20 @@ impl InvitationService {
         let org_model = OrganizationModel::new();
         let notification_model = NotificationModel::new();
 
-        let prod_rid = RecordId::new("production", production_id.split(':').last().unwrap_or(production_id));
+        let prod_rid = RecordId::new(
+            "production",
+            production_id
+                .split(':')
+                .next_back()
+                .unwrap_or(production_id),
+        );
 
         match org_model.find_user_by_username_or_email(identifier).await {
             Ok(person_id) => {
                 // Check if already a member
-                if crate::models::production::ProductionModel::is_member(&prod_rid, &person_id).await? {
+                if crate::models::production::ProductionModel::is_member(&prod_rid, &person_id)
+                    .await?
+                {
                     return Ok(InviteResult::AlreadyMember);
                 }
 
@@ -195,7 +217,8 @@ impl InvitationService {
                 .await?;
 
                 // Notify the invitee
-                let role_desc = production_roles.as_ref()
+                let role_desc = production_roles
+                    .as_ref()
                     .filter(|r| !r.is_empty())
                     .map(|r| r.join(", "))
                     .unwrap_or_else(|| permission_level.to_string());
@@ -203,10 +226,10 @@ impl InvitationService {
                     "{} invited you to join {} as {}",
                     inviter_name, production_title, role_desc
                 );
-                if let Some(msg) = message {
-                    if !msg.is_empty() {
-                        notification_msg.push_str(&format!("\n\n\"{}\"", msg));
-                    }
+                if let Some(msg) = message
+                    && !msg.is_empty()
+                {
+                    notification_msg.push_str(&format!("\n\n\"{}\"", msg));
                 }
 
                 notification_model
@@ -237,7 +260,11 @@ impl InvitationService {
 
                 let pending_model = PendingInvitationModel::new();
 
-                if pending_model.find_existing(identifier, production_id).await?.is_some() {
+                if pending_model
+                    .find_existing(identifier, production_id)
+                    .await?
+                    .is_some()
+                {
                     return Ok(InviteResult::AlreadyInvited);
                 }
 
@@ -271,15 +298,27 @@ impl InvitationService {
 
                         tokio::spawn(async move {
                             if let Err(e) = email_service
-                                .send_invitation_email(&to_email, &prod, &inviter, &url, msg.as_deref())
+                                .send_invitation_email(
+                                    &to_email,
+                                    &prod,
+                                    &inviter,
+                                    &url,
+                                    msg.as_deref(),
+                                )
                                 .await
                             {
-                                error!("Failed to send production invitation email to {}: {}", to_email, e);
+                                error!(
+                                    "Failed to send production invitation email to {}: {}",
+                                    to_email, e
+                                );
                             }
                         });
                     }
                     Err(e) => {
-                        warn!("Email service not configured, skipping invitation email: {}", e);
+                        warn!(
+                            "Email service not configured, skipping invitation email: {}",
+                            e
+                        );
                     }
                 }
 
@@ -331,12 +370,7 @@ impl InvitationService {
                 "organization" => {
                     // Add member with accepted status (they signed up via invite)
                     if let Err(e) = org_model
-                        .add_member(
-                            &invitation.target_id,
-                            person_id,
-                            &invitation.role,
-                            None,
-                        )
+                        .add_member(&invitation.target_id, person_id, &invitation.role, None)
                         .await
                     {
                         error!(
@@ -355,7 +389,7 @@ impl InvitationService {
                         .create(
                             &inviter_id,
                             "invitation_accepted",
-                            &format!("Invitation accepted"),
+                            "Invitation accepted",
                             &format!(
                                 "{} accepted your invitation to join {}",
                                 email, invitation.target_name
@@ -375,7 +409,11 @@ impl InvitationService {
                 "production" => {
                     let prod_rid = RecordId::new(
                         "production",
-                        invitation.target_id.split(':').last().unwrap_or(&invitation.target_id),
+                        invitation
+                            .target_id
+                            .split(':')
+                            .next_back()
+                            .unwrap_or(&invitation.target_id),
                     );
 
                     if let Err(e) = crate::models::production::ProductionModel::add_member_accepted(
@@ -411,8 +449,7 @@ impl InvitationService {
                         )
                         .await;
 
-                    most_recent_url =
-                        Some(format!("/productions/{}", invitation.target_slug));
+                    most_recent_url = Some(format!("/productions/{}", invitation.target_slug));
 
                     info!(
                         "Auto-joined person {} to production {} via pending invitation",

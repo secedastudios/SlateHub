@@ -1,0 +1,165 @@
+{% extends "_layout.html" %}
+{% block title %}Settings · {{ organization.name }} - {{ app_name }}{% endblock %}
+{% block page_name %}organization-settings{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/orgs.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section data-component="org-form-page" data-page-variant="settings">
+    <header data-role="page-header">
+        <nav data-role="breadcrumb" aria-label="Breadcrumb">
+            <a href="/orgs/{{ organization.slug }}">{{ organization.name }}</a>
+            <span aria-hidden="true">/</span>
+            <span>Settings</span>
+        </nav>
+        <h1>Settings</h1>
+        <p data-role="subtitle">Manage configuration for {{ organization.name }}</p>
+    </header>
+
+    <nav data-role="settings-nav" aria-label="Settings sections">
+        <a href="#general">General</a>
+        <a href="#api">API &amp; Integrations</a>
+    </nav>
+
+    <article id="general" data-section="general">
+        <header>
+            <h2>General</h2>
+            <p data-role="muted">Profile fields live on the <a href="/orgs/{{ organization.slug }}/edit">Edit Organization</a> page.</p>
+        </header>
+    </article>
+
+    <article id="api" data-section="api">
+        <header>
+            <h2>API &amp; Integrations</h2>
+            <p data-role="muted">Use Slatehub as an OpenID Connect provider for your own apps. <a href="/developers">Developer documentation &rarr;</a></p>
+        </header>
+
+        {% if new_secret.is_some() %}
+        <div role="alert" data-state="warning">
+            <h3>Save your client secret now</h3>
+            <p>This is the only time we will display the plaintext secret. Store it somewhere safe.</p>
+            <pre><code>{{ new_secret.as_ref().unwrap() }}</code></pre>
+        </div>
+        {% endif %}
+
+        {% match oidc %}
+        {% when None %}
+            <p>OIDC is not enabled for this organization.</p>
+            <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/enable">
+                <button type="submit" data-role="btn-primary">Enable OIDC</button>
+            </form>
+        {% when Some with (oidc) %}
+            <fieldset data-field="endpoints">
+                <legend>Endpoints</legend>
+                <dl>
+                    <dt>Issuer</dt><dd><code>{{ issuer }}</code></dd>
+                    <dt>Discovery</dt><dd><a href="{{ issuer }}/.well-known/openid-configuration"><code>{{ issuer }}/.well-known/openid-configuration</code></a></dd>
+                    <dt>JWKS</dt><dd><code>{{ issuer }}/.well-known/jwks.json</code></dd>
+                    <dt>Authorize</dt><dd><code>{{ issuer }}/authorize</code></dd>
+                    <dt>Token</dt><dd><code>{{ issuer }}/token</code></dd>
+                    <dt>UserInfo</dt><dd><code>{{ issuer }}/userinfo</code></dd>
+                    <dt>Revoke</dt><dd><code>{{ issuer }}/revoke</code></dd>
+                    <dt>Introspect</dt><dd><code>{{ issuer }}/introspect</code></dd>
+                    <dt>End Session</dt><dd><code>{{ issuer }}/logout</code></dd>
+                </dl>
+            </fieldset>
+
+            <fieldset data-field="credentials">
+                <legend>Client credentials</legend>
+                <p><strong>Client ID:</strong> <code>{{ oidc.client_id }}</code></p>
+                <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/rotate-secret" style="display:inline">
+                    <button type="submit" data-role="btn-secondary">Rotate secret</button>
+                </form>
+                <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/disable" style="display:inline">
+                    <button type="submit" data-role="btn-danger" onclick="return confirm('This will remove the client and revoke all active sessions. Continue?')">Disable OIDC</button>
+                </form>
+            </fieldset>
+
+            <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/redirect-uris">
+                <fieldset>
+                    <legend>Redirect URIs</legend>
+                    <p data-role="muted">One per line. Used as <code>redirect_uri</code> at <code>/authorize</code>.</p>
+                    <textarea name="uris" rows="4">{{ oidc.redirect_uris_text }}</textarea>
+                    <button type="submit" data-role="btn-primary">Save</button>
+                </fieldset>
+            </form>
+
+            <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/post-logout-uris">
+                <fieldset>
+                    <legend>Post-logout redirect URIs</legend>
+                    <p data-role="muted">One per line. Used by <code>/logout</code>.</p>
+                    <textarea name="uris" rows="3">{{ oidc.post_logout_uris_text }}</textarea>
+                    <button type="submit" data-role="btn-primary">Save</button>
+                </fieldset>
+            </form>
+
+            <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/scopes">
+                <fieldset>
+                    <legend>Allowed scopes</legend>
+                    {% for box in scope_checkboxes %}
+                    <label>
+                        <input type="checkbox" name="scopes" value="{{ box.scope }}"
+                            {% if box.checked %}checked{% endif %} />
+                        <code>{{ box.scope }}</code>
+                    </label>
+                    {% endfor %}
+                    <button type="submit" data-role="btn-primary">Save</button>
+                </fieldset>
+            </form>
+
+            <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/ssf">
+                <fieldset>
+                    <legend>Security event delivery (SSF / CAEP / RISC)</legend>
+                    <p data-role="muted">Subscribe to webhook events for role changes, revocations, and account events. <a href="/developers/security-events">How it works &rarr;</a></p>
+                    <label>
+                        Receiver endpoint
+                        {% match oidc.ssf_endpoint %}{% when Some with (ep) %}<input type="url" name="endpoint" value="{{ ep }}" placeholder="https://your-app.example/secevent" />{% when None %}<input type="url" name="endpoint" value="" placeholder="https://your-app.example/secevent" />{% endmatch %}
+                    </label>
+                    <label>
+                        Delivery
+                        <select name="delivery_method">
+                            <option value="push" {% if oidc.ssf_delivery == "push" %}selected{% endif %}>Push (HTTP POST)</option>
+                            <option value="poll" {% if oidc.ssf_delivery == "poll" %}selected{% endif %}>Poll</option>
+                        </select>
+                    </label>
+                    <fieldset>
+                        <legend>Events</legend>
+                        {% for box in ssf_checkboxes %}
+                        <label><input type="checkbox" name="events" value="{{ box.event_uri }}" {% if box.checked %}checked{% endif %} /> {{ box.label }}</label>
+                        {% endfor %}
+                    </fieldset>
+                    <button type="submit" data-role="btn-primary">Save</button>
+                </fieldset>
+            </form>
+
+            <fieldset>
+                <legend>Active sessions ({{ sessions.len() }})</legend>
+                {% if sessions.is_empty() %}
+                <p data-role="muted">No active sessions.</p>
+                {% else %}
+                <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/sessions/revoke-all">
+                    <button type="submit" data-role="btn-danger" onclick="return confirm('Revoke all active sessions for this app?')">Revoke all</button>
+                </form>
+                <table>
+                    <thead><tr><th>Person</th><th>Scopes</th><th>Created</th><th></th></tr></thead>
+                    <tbody>
+                    {% for s in sessions %}
+                        <tr>
+                            <td><code>{{ s.person_id }}</code></td>
+                            <td>{{ s.scopes.join(" ") }}</td>
+                            <td>{{ s.created_at }}</td>
+                            <td>
+                                <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/sessions/{{ s.session_id }}/revoke" style="display:inline">
+                                    <button type="submit" data-role="btn-secondary">Revoke</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </fieldset>
+        {% endmatch %}
+    </article>
+</section>
+{% endblock %}

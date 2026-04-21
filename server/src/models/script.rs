@@ -24,6 +24,7 @@ pub struct ScriptModel;
 
 impl ScriptModel {
     /// Create a new script version, auto-incrementing the version number
+    #[allow(clippy::too_many_arguments)]
     pub async fn create(
         production_id: &RecordId,
         title: &str,
@@ -136,10 +137,7 @@ impl ScriptModel {
     }
 
     /// Update script visibility
-    pub async fn update_visibility(
-        script_id: &RecordId,
-        visibility: &str,
-    ) -> Result<(), Error> {
+    pub async fn update_visibility(script_id: &RecordId, visibility: &str) -> Result<(), Error> {
         DB.query("UPDATE $id SET visibility = $visibility")
             .bind(("id", script_id.clone()))
             .bind(("visibility", visibility.to_string()))

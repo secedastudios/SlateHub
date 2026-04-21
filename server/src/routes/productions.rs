@@ -7,12 +7,15 @@ use crate::models::production::{
 };
 use crate::models::script::ScriptModel;
 use crate::record_id_ext::RecordIdExt;
+use crate::services::embedding::generate_embedding_async;
 use crate::services::invitation::InvitationService;
+use crate::services::search_log::log_search;
 use crate::templates::{
     BaseContext, CastCrewMember, ProductionCreateTemplate, ProductionEditTemplate,
     ProductionScriptView, ProductionTemplate, ProductionsTemplate, User,
 };
 use askama::Template;
+use axum::Form;
 use axum::{
     Json, Router,
     extract::{Path, Query, Request, multipart::Multipart},
@@ -20,12 +23,9 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
-use axum::Form;
 use axum_extra::extract::Form as HtmlForm;
 use serde::Deserialize;
 use tracing::{debug, error, info};
-use crate::services::embedding::generate_embedding_async;
-use crate::services::search_log::log_search;
 
 const PAGE_SIZE: usize = 20;
 
@@ -71,14 +71,20 @@ pub fn router() -> Router {
         .route("/productions/{slug}/members/add", post(add_member))
         .route("/productions/{slug}/members/add-org", post(add_org_member))
         .route("/productions/{slug}/members/remove", post(remove_member))
-        .route("/productions/{slug}/members/update-roles", post(update_member_roles))
-        .route("/productions/{slug}/invite", post(invite_to_production))
-        .route("/productions/{slug}/create-invite-link", post(create_invite_link))
-        .route("/productions/{slug}/revoke-invite", post(revoke_email_invite))
         .route(
-            "/productions/{slug}/scripts/upload",
-            post(upload_script),
+            "/productions/{slug}/members/update-roles",
+            post(update_member_roles),
         )
+        .route("/productions/{slug}/invite", post(invite_to_production))
+        .route(
+            "/productions/{slug}/create-invite-link",
+            post(create_invite_link),
+        )
+        .route(
+            "/productions/{slug}/revoke-invite",
+            post(revoke_email_invite),
+        )
+        .route("/productions/{slug}/scripts/upload", post(upload_script))
         .route(
             "/productions/{slug}/scripts/{script_id}/visibility",
             post(toggle_script_visibility),
@@ -330,8 +336,12 @@ async fn view_production(
         })
         .collect();
 
-    let production_roles = ProductionModel::get_roles_by_type("individual").await.unwrap_or_default();
-    let org_production_roles = ProductionModel::get_roles_by_type("organization").await.unwrap_or_default();
+    let production_roles = ProductionModel::get_roles_by_type("individual")
+        .await
+        .unwrap_or_default();
+    let org_production_roles = ProductionModel::get_roles_by_type("organization")
+        .await
+        .unwrap_or_default();
 
     let all_members: Vec<crate::templates::ProductionMemberView> = members
         .into_iter()
@@ -353,8 +363,16 @@ async fn view_production(
             is_verified: m.is_verified,
         })
         .collect();
-    let person_members: Vec<_> = all_members.iter().filter(|m| m.member_type == "person").cloned().collect();
-    let org_members: Vec<_> = all_members.iter().filter(|m| m.member_type == "organization").cloned().collect();
+    let person_members: Vec<_> = all_members
+        .iter()
+        .filter(|m| m.member_type == "person")
+        .cloned()
+        .collect();
+    let org_members: Vec<_> = all_members
+        .iter()
+        .filter(|m| m.member_type == "organization")
+        .cloned()
+        .collect();
 
     let template = ProductionTemplate {
         app_name: base.app_name,
@@ -383,11 +401,15 @@ async fn view_production(
             poster_url: production.poster_url,
             poster_photo: production.poster_photo,
             header_photo: production.header_photo,
-            photos: production.photos.into_iter().map(|p| crate::templates::ProductionPhotoView {
-                url: p.url,
-                thumbnail_url: p.thumbnail_url,
-                caption: p.caption,
-            }).collect(),
+            photos: production
+                .photos
+                .into_iter()
+                .map(|p| crate::templates::ProductionPhotoView {
+                    url: p.url,
+                    thumbnail_url: p.thumbnail_url,
+                    caption: p.caption,
+                })
+                .collect(),
             scripts,
             tmdb_url: production.tmdb_url,
             release_date: production.release_date,
@@ -465,8 +487,12 @@ async fn new_production_form(
         })
         .collect();
 
-    let production_roles = ProductionModel::get_roles_by_type("individual").await.unwrap_or_default();
-    let org_production_roles = ProductionModel::get_roles_by_type("organization").await.unwrap_or_default();
+    let production_roles = ProductionModel::get_roles_by_type("individual")
+        .await
+        .unwrap_or_default();
+    let org_production_roles = ProductionModel::get_roles_by_type("organization")
+        .await
+        .unwrap_or_default();
 
     let template = ProductionCreateTemplate {
         app_name: base.app_name,
@@ -512,14 +538,18 @@ async fn create_production(
     let mut production_tier: Option<String> = None;
     let mut poster_data: Option<Vec<u8>> = None;
 
-    while let Some(field) = multipart.next_field().await.map_err(|e| Error::BadRequest(e.to_string()))? {
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| Error::BadRequest(e.to_string()))?
+    {
         let name = field.name().unwrap_or("").to_string();
         match name.as_str() {
             "poster" => {
-                if let Ok(bytes) = field.bytes().await {
-                    if !bytes.is_empty() {
-                        poster_data = Some(bytes.to_vec());
-                    }
+                if let Ok(bytes) = field.bytes().await
+                    && !bytes.is_empty()
+                {
+                    poster_data = Some(bytes.to_vec());
                 }
             }
             _ => {
@@ -578,15 +608,30 @@ async fn create_production(
         (user.id.clone(), "person")
     };
 
-    let owner_production_roles = if owner_production_role.is_empty() { None } else { Some(owner_production_role) };
+    let owner_production_roles = if owner_production_role.is_empty() {
+        None
+    } else {
+        Some(owner_production_role)
+    };
 
-    let production = ProductionModel::create(production_data, &creator_id, creator_type, owner_production_roles).await?;
+    let production = ProductionModel::create(
+        production_data,
+        &creator_id,
+        creator_type,
+        owner_production_roles,
+    )
+    .await?;
 
     info!(
         "Created production: {} ({})",
-        production.title, production.id.display()
+        production.title,
+        production.id.display()
     );
-    crate::services::activity::log_activity(Some(&user.id), "production_create", &format!("/productions/{}", production.slug));
+    crate::services::activity::log_activity(
+        Some(&user.id),
+        "production_create",
+        &format!("/productions/{}", production.slug),
+    );
 
     // Upload poster if provided
     if let Some(image_bytes) = poster_data {
@@ -601,18 +646,28 @@ async fn create_production(
 }
 
 /// Upload a poster image for a production (used during creation)
-async fn upload_poster_for_production(production_id: &str, image_bytes: &[u8]) -> Result<(), Error> {
+async fn upload_poster_for_production(
+    production_id: &str,
+    image_bytes: &[u8],
+) -> Result<(), Error> {
     use crate::services::s3::s3;
 
     let (processed, thumbnail) = crate::routes::media::process_poster(image_bytes)?;
 
     let image_id = ulid::Ulid::new().to_string();
     let main_key = format!("productions/{}/poster_{}.jpg", production_id, image_id);
-    let thumb_key = format!("productions/{}/poster_thumb_{}.jpg", production_id, image_id);
+    let thumb_key = format!(
+        "productions/{}/poster_thumb_{}.jpg",
+        production_id, image_id
+    );
 
     let s3_service = s3()?;
-    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
-    s3_service.upload_file(&thumb_key, thumbnail, "image/jpeg").await?;
+    s3_service
+        .upload_file(&main_key, processed, "image/jpeg")
+        .await?;
+    s3_service
+        .upload_file(&thumb_key, thumbnail, "image/jpeg")
+        .await?;
 
     let main_url = format!("/api/media/{}", main_key);
 
@@ -661,8 +716,12 @@ async fn edit_production_form(
     let members = ProductionModel::get_members(&production.id)
         .await
         .unwrap_or_default();
-    let production_roles = ProductionModel::get_roles_by_type("individual").await.unwrap_or_default();
-    let org_production_roles = ProductionModel::get_roles_by_type("organization").await.unwrap_or_default();
+    let production_roles = ProductionModel::get_roles_by_type("individual")
+        .await
+        .unwrap_or_default();
+    let org_production_roles = ProductionModel::get_roles_by_type("organization")
+        .await
+        .unwrap_or_default();
 
     let template = ProductionEditTemplate {
         app_name: base.app_name,
@@ -682,11 +741,15 @@ async fn edit_production_form(
             location: production.location,
             header_photo: production.header_photo,
             poster_photo: production.poster_photo,
-            photos: production.photos.into_iter().map(|p| crate::templates::ProductionPhotoView {
-                url: p.url,
-                thumbnail_url: p.thumbnail_url,
-                caption: p.caption,
-            }).collect(),
+            photos: production
+                .photos
+                .into_iter()
+                .map(|p| crate::templates::ProductionPhotoView {
+                    url: p.url,
+                    thumbnail_url: p.thumbnail_url,
+                    caption: p.caption,
+                })
+                .collect(),
             budget_level: production.budget_level,
             production_tier: production.production_tier,
         },
@@ -725,9 +788,23 @@ async fn edit_production_form(
     };
     // Can't use closures in block initializers easily, so set after
     let template = {
-        let pm: Vec<_> = template.members.iter().filter(|m| m.member_type == "person").cloned().collect();
-        let om: Vec<_> = template.members.iter().filter(|m| m.member_type == "organization").cloned().collect();
-        ProductionEditTemplate { person_members: pm, org_members: om, ..template }
+        let pm: Vec<_> = template
+            .members
+            .iter()
+            .filter(|m| m.member_type == "person")
+            .cloned()
+            .collect();
+        let om: Vec<_> = template
+            .members
+            .iter()
+            .filter(|m| m.member_type == "organization")
+            .cloned()
+            .collect();
+        ProductionEditTemplate {
+            person_members: pm,
+            org_members: om,
+            ..template
+        }
     };
 
     let html = template.render().map_err(|e| {
@@ -770,7 +847,11 @@ async fn update_production(
     // Update the production
     let updated = ProductionModel::update(&production.id, update_data).await?;
 
-    info!("Updated production: {} ({})", updated.title, updated.id.display());
+    info!(
+        "Updated production: {} ({})",
+        updated.title,
+        updated.id.display()
+    );
 
     // Redirect to the production page
     Ok(Redirect::to(&format!("/productions/{}", updated.slug)).into_response())
@@ -796,7 +877,8 @@ async fn delete_production(
 
     info!(
         "Deleted production: {} ({})",
-        production.title, production.id.display()
+        production.title,
+        production.id.display()
     );
 
     // Redirect to productions list
@@ -846,7 +928,11 @@ async fn add_member(
         &production.slug,
         &data.member_id,
         &data.role,
-        if production_roles.is_empty() { None } else { Some(production_roles) },
+        if production_roles.is_empty() {
+            None
+        } else {
+            Some(production_roles)
+        },
         &user.id,
         user_name,
         None,
@@ -885,14 +971,12 @@ async fn add_org_member(
     let org_id = &data.org_id;
 
     // Add org directly as accepted member (orgs don't need to accept invitations)
-    let roles_opt = if production_roles.is_empty() { None } else { Some(production_roles.clone()) };
-    ProductionModel::add_member_accepted(
-        &production.id,
-        org_id,
-        &data.role,
-        roles_opt,
-    )
-    .await?;
+    let roles_opt = if production_roles.is_empty() {
+        None
+    } else {
+        Some(production_roles.clone())
+    };
+    ProductionModel::add_member_accepted(&production.id, org_id, &data.role, roles_opt).await?;
 
     info!(
         "Added organization {} to production {} with roles {:?}",
@@ -903,7 +987,11 @@ async fn add_org_member(
     let notification_model = crate::models::notification::NotificationModel::new();
     let org_model = crate::models::organization::OrganizationModel::new();
     if let Ok(owners) = org_model.get_org_owners(org_id).await {
-        let user_name = if user.name.is_empty() { &user.username } else { &user.name };
+        let user_name = if user.name.is_empty() {
+            &user.username
+        } else {
+            &user.name
+        };
         for owner_id in owners {
             let _ = notification_model
                 .create(
@@ -945,7 +1033,8 @@ async fn remove_member(
 
     info!(
         "Removed member {} from production {}",
-        data.member_id, production.id.display()
+        data.member_id,
+        production.id.display()
     );
 
     // Redirect back to production page
@@ -998,12 +1087,17 @@ async fn create_invite_link(
         return Err(Error::Forbidden);
     }
 
-    let roles: Vec<String> = data.production_role
+    let roles: Vec<String> = data
+        .production_role
         .iter()
         .map(|r| r.trim().to_string())
         .filter(|r| !r.is_empty())
         .collect();
-    let production_roles = if roles.is_empty() { None } else { Some(roles.as_slice()) };
+    let production_roles = if roles.is_empty() {
+        None
+    } else {
+        Some(roles.as_slice())
+    };
 
     let pi_model = crate::models::pending_invitation::PendingInvitationModel::new();
     pi_model
@@ -1038,16 +1132,12 @@ async fn update_member_roles(
 
     let new_roles = merge_production_roles(&data.production_role, &data.custom_role);
 
-    ProductionModel::update_member_roles(
-        &production.id,
-        &data.member_id,
-        new_roles,
-    )
-    .await?;
+    ProductionModel::update_member_roles(&production.id, &data.member_id, new_roles).await?;
 
     info!(
         "Updated roles for member {} in production {}",
-        data.member_id, production.id.display()
+        data.member_id,
+        production.id.display()
     );
 
     // Redirect back to edit page
@@ -1137,7 +1227,11 @@ async fn invite_to_production(
     if data.invite_type.as_deref() == Some("link") {
         debug!("Creating invite link for production: {}", slug);
         let pi_model = crate::models::pending_invitation::PendingInvitationModel::new();
-        let roles_slice = if production_roles.is_empty() { None } else { Some(production_roles.as_slice()) };
+        let roles_slice = if production_roles.is_empty() {
+            None
+        } else {
+            Some(production_roles.as_slice())
+        };
         pi_model
             .create_link_invite(
                 &production.id.to_raw_string(),
@@ -1154,13 +1248,19 @@ async fn invite_to_production(
 
     // Otherwise invite by identifier (username or email)
     if data.identifier.is_empty() {
-        return Err(Error::BadRequest("Please enter a username or email, or generate an invite link.".to_string()));
+        return Err(Error::BadRequest(
+            "Please enter a username or email, or generate an invite link.".to_string(),
+        ));
     }
 
     debug!("Inviting {} to production: {}", data.identifier, slug);
 
     let prod_id = production.id.to_raw_string();
-    let user_name = if user.name.is_empty() { &user.username } else { &user.name };
+    let user_name = if user.name.is_empty() {
+        &user.username
+    } else {
+        &user.name
+    };
 
     let result = InvitationService::invite_to_production(
         &prod_id,
@@ -1168,14 +1268,21 @@ async fn invite_to_production(
         &production.slug,
         &data.identifier,
         &data.role,
-        if production_roles.is_empty() { None } else { Some(production_roles) },
+        if production_roles.is_empty() {
+            None
+        } else {
+            Some(production_roles)
+        },
         &user.id,
         user_name,
         data.message.as_deref(),
     )
     .await?;
 
-    info!("Production invite result for {}: {:?}", data.identifier, result);
+    info!(
+        "Production invite result for {}: {:?}",
+        data.identifier, result
+    );
 
     Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
 }
@@ -1191,7 +1298,10 @@ async fn upload_script(
     AuthenticatedUser(user): AuthenticatedUser,
     mut multipart: Multipart,
 ) -> Result<Response, Error> {
-    debug!("User {} uploading script for production {}", user.username, slug);
+    debug!(
+        "User {} uploading script for production {}",
+        user.username, slug
+    );
 
     let production = ProductionModel::get_by_slug(&slug).await?;
 
@@ -1250,12 +1360,12 @@ async fn upload_script(
         return Err(Error::bad_request("Script title is required"));
     }
 
-    let (content_type, data) =
-        file_data.ok_or_else(|| Error::bad_request("No file provided"))?;
+    let (content_type, data) = file_data.ok_or_else(|| Error::bad_request("No file provided"))?;
 
     let prod_key = production.id.key_string();
     let file_id = ulid::Ulid::new().to_string();
-    let title_slug: String = title.to_lowercase()
+    let title_slug: String = title
+        .to_lowercase()
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>()
@@ -1315,7 +1425,10 @@ async fn toggle_script_visibility(
 
     ScriptModel::update_visibility(&script_rid, &data.visibility).await?;
 
-    info!("Script {} visibility changed to {}", script_id, data.visibility);
+    info!(
+        "Script {} visibility changed to {}",
+        script_id, data.visibility
+    );
 
     Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
 }
@@ -1441,9 +1554,17 @@ async fn productions_more_sse(Query(params): Query<MoreQuery>) -> Response {
     } else {
         None
     };
-    let all = ProductionModel::list(Some(PAGE_SIZE + 1), None, None, filter, query_embedding, sort, offset)
-        .await
-        .unwrap_or_default();
+    let all = ProductionModel::list(
+        Some(PAGE_SIZE + 1),
+        None,
+        None,
+        filter,
+        query_embedding,
+        sort,
+        offset,
+    )
+    .await
+    .unwrap_or_default();
     let has_more = all.len() > PAGE_SIZE;
 
     let prods: Vec<crate::templates::Production> = all

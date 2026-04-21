@@ -38,29 +38,51 @@ fn generate_pow_challenge() -> String {
 /// Generate a signed form token encoding the current timestamp.
 /// Uses jsonwebtoken to create a short-lived token.
 fn generate_form_token() -> String {
-    use jsonwebtoken::{encode, EncodingKey, Header};
+    use jsonwebtoken::{EncodingKey, Header, encode};
     #[derive(serde::Serialize)]
-    struct FormClaims { iat: i64 }
-    let claims = FormClaims { iat: chrono::Utc::now().timestamp() };
-    encode(&Header::default(), &claims, &EncodingKey::from_secret(std::env::var("JWT_SECRET").unwrap_or_else(|_| "fallback-secret".to_string()).as_bytes()))
-        .unwrap_or_default()
+    struct FormClaims {
+        iat: i64,
+    }
+    let claims = FormClaims {
+        iat: chrono::Utc::now().timestamp(),
+    };
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(
+            std::env::var("JWT_SECRET")
+                .unwrap_or_else(|_| "fallback-secret".to_string())
+                .as_bytes(),
+        ),
+    )
+    .unwrap_or_default()
 }
 
 /// Validate the form token and check minimum elapsed time (3 seconds).
 fn validate_form_token(token: &str) -> bool {
-    use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+    use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
     #[derive(serde::Deserialize)]
-    struct FormClaims { iat: i64 }
+    struct FormClaims {
+        iat: i64,
+    }
     let mut validation = Validation::new(Algorithm::HS256);
     validation.required_spec_claims = std::collections::HashSet::new();
     validation.validate_exp = false;
     validation.validate_aud = false;
-    let data = decode::<FormClaims>(token, &DecodingKey::from_secret(std::env::var("JWT_SECRET").unwrap_or_else(|_| "fallback-secret".to_string()).as_bytes()), &validation);
+    let data = decode::<FormClaims>(
+        token,
+        &DecodingKey::from_secret(
+            std::env::var("JWT_SECRET")
+                .unwrap_or_else(|_| "fallback-secret".to_string())
+                .as_bytes(),
+        ),
+        &validation,
+    );
     match data {
         Ok(token_data) => {
             let elapsed = chrono::Utc::now().timestamp() - token_data.claims.iat;
             debug!("Form token elapsed: {}s", elapsed);
-            elapsed >= 3 && elapsed <= 600
+            (3..=600).contains(&elapsed)
         }
         Err(e) => {
             debug!("Form token decode error: {}", e);
@@ -180,24 +202,32 @@ async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Resp
     let ip = client_ip(&headers);
     if !check_signup_rate_limit(&ip) {
         warn!("Signup rate limit exceeded for IP: {}", ip);
-        return Err(Error::Validation("Too many signup attempts. Please try again later.".to_string()));
+        return Err(Error::Validation(
+            "Too many signup attempts. Please try again later.".to_string(),
+        ));
     }
 
     // Layer 1: Honeypot — reject if the hidden "website" field is filled
     if form.website.as_ref().is_some_and(|w| !w.is_empty()) {
         warn!(ip = %ip, "Honeypot triggered on signup");
-        return Err(Error::Validation("Signup failed. Please try again.".to_string()));
+        return Err(Error::Validation(
+            "Signup failed. Please try again.".to_string(),
+        ));
     }
 
     // Layer 2: Time check — reject if form was submitted too fast (< 3 seconds)
     if let Some(ref token) = form.form_token {
         if !validate_form_token(token) {
             warn!(ip = %ip, "Form token invalid or submitted too fast");
-            return Err(Error::Validation("Signup failed. Please try again.".to_string()));
+            return Err(Error::Validation(
+                "Signup failed. Please try again.".to_string(),
+            ));
         }
     } else {
         warn!(ip = %ip, "Missing form token on signup");
-        return Err(Error::Validation("Signup failed. Please try again.".to_string()));
+        return Err(Error::Validation(
+            "Signup failed. Please try again.".to_string(),
+        ));
     }
 
     // Layer 3: Proof-of-Work — reject if PoW solution is missing or invalid
@@ -206,12 +236,16 @@ async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Resp
         Some(solution) if !solution.is_empty() => {
             if let Err(e) = Pow::validate(solution) {
                 warn!(ip = %ip, error = %e, "Invalid PoW solution on signup");
-                return Err(Error::Validation("Verification failed. Please reload and try again.".to_string()));
+                return Err(Error::Validation(
+                    "Verification failed. Please reload and try again.".to_string(),
+                ));
             }
         }
         _ => {
             warn!(ip = %ip, "Missing PoW solution on signup");
-            return Err(Error::Validation("Verification failed. Please reload and try again.".to_string()));
+            return Err(Error::Validation(
+                "Verification failed. Please reload and try again.".to_string(),
+            ));
         }
     }
 
@@ -221,7 +255,11 @@ async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Resp
     match Person::signup(form.username, form.email, form.password, Some(ip.clone())).await {
         Ok((token, person_id)) => {
             info!(ip = %ip, person_id = %person_id, "User created successfully");
-            crate::services::activity::log_activity(Some(&person_id), "signup", &format!("/signup [ip:{}]", ip));
+            crate::services::activity::log_activity(
+                Some(&person_id),
+                "signup",
+                &format!("/signup [ip:{}]", ip),
+            );
 
             // Create authentication cookie with the JWT token
             let cookie = Cookie::build(("auth_token", token))
@@ -402,7 +440,7 @@ async fn verify_email(
     // Find the person by email
     let person = Person::find_by_email(&form.email)
         .await?
-        .ok_or_else(|| Error::NotFound)?;
+        .ok_or(Error::NotFound)?;
 
     // Verify the code
     match VerificationService::verify_code(&person.id, &form.code, CodeType::EmailVerification)
@@ -418,21 +456,37 @@ async fn verify_email(
 
             // Process any pending invitations for this email
             let person_id = person.id.to_raw_string();
-            let redirect_url = match crate::services::invitation::InvitationService::process_pending_invitations(&person_id, &form.email).await {
-                Ok(Some(url)) => {
-                    info!("Processed pending invitations for {}, redirecting to {}", form.email, url);
-                    url
-                }
-                Ok(None) => form.redirect.clone().unwrap_or_else(|| "/profile".to_string()),
-                Err(e) => {
-                    error!("Failed to process pending invitations for {}: {}", form.email, e);
-                    form.redirect.clone().unwrap_or_else(|| "/profile".to_string())
-                }
-            };
+            let redirect_url =
+                match crate::services::invitation::InvitationService::process_pending_invitations(
+                    &person_id,
+                    &form.email,
+                )
+                .await
+                {
+                    Ok(Some(url)) => {
+                        info!(
+                            "Processed pending invitations for {}, redirecting to {}",
+                            form.email, url
+                        );
+                        url
+                    }
+                    Ok(None) => form
+                        .redirect
+                        .clone()
+                        .unwrap_or_else(|| "/profile".to_string()),
+                    Err(e) => {
+                        error!(
+                            "Failed to process pending invitations for {}: {}",
+                            form.email, e
+                        );
+                        form.redirect
+                            .clone()
+                            .unwrap_or_else(|| "/profile".to_string())
+                    }
+                };
 
             // Create authentication token for the verified user
-            let token =
-                crate::auth::create_jwt(&person_id, &person.username, &person.email)?;
+            let token = crate::auth::create_jwt(&person_id, &person.username, &person.email)?;
 
             // Create authentication cookie
             let cookie = Cookie::build(("auth_token", token))
@@ -479,7 +533,10 @@ async fn verify_email_link(
     jar: CookieJar,
     Query(query): Query<VerifyEmailQuery>,
 ) -> Result<Response, Error> {
-    debug!("Processing email verification via link for: {}", query.email);
+    debug!(
+        "Processing email verification via link for: {}",
+        query.email
+    );
 
     let form = VerifyEmailForm {
         code: query.code,
@@ -634,7 +691,7 @@ async fn reset_password(Form(form): Form<ResetPasswordForm>) -> Result<Response,
     // Find the person by email
     let person = Person::find_by_email(&form.email)
         .await?
-        .ok_or_else(|| Error::NotFound)?;
+        .ok_or(Error::NotFound)?;
 
     // Verify the reset code
     match VerificationService::verify_code(&person.id, &form.code, CodeType::PasswordReset).await {

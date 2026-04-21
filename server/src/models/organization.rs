@@ -110,6 +110,12 @@ pub struct UpdateOrganizationData {
 
 pub struct OrganizationModel;
 
+impl Default for OrganizationModel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OrganizationModel {
     pub fn new() -> Self {
         Self
@@ -132,8 +138,10 @@ impl OrganizationModel {
     ) -> Result<Organization, Error> {
         debug!("Creating organization with slug: {}", data.slug);
 
-        let org_type_id: RecordId = RecordId::parse_simple(&data.org_type).map_err(|e| Error::BadRequest(e.to_string()))?;
-        let owner_id: RecordId = RecordId::parse_simple(created_by).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_type_id: RecordId =
+            RecordId::parse_simple(&data.org_type).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let owner_id: RecordId =
+            RecordId::parse_simple(created_by).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         // Check if slug is available
         let (available, reason) = self.check_slug_availability(&data.slug).await?;
@@ -161,7 +169,9 @@ impl OrganizationModel {
 
         debug!(
             "Creating organization with data: name={}, slug={}, type={}",
-            data.name, data.slug, org_type_id.display()
+            data.name,
+            data.slug,
+            org_type_id.display()
         );
 
         // Get default owner permissions as strings (must match snake_case serialization)
@@ -234,9 +244,7 @@ impl OrganizationModel {
             return Err(Error::conflict("This slug is already taken"));
         }
         if response_debug.contains("cancelled transaction") {
-            return Err(Error::database(
-                "Organization creation transaction failed",
-            ));
+            return Err(Error::database("Organization creation transaction failed"));
         }
 
         // Fetch the created org with type details in a separate query
@@ -277,7 +285,8 @@ impl OrganizationModel {
     pub async fn get_by_id(&self, id: &str) -> Result<Organization, Error> {
         debug!("Fetching organization by ID: {}", id);
 
-        let id: RecordId = RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let id: RecordId =
+            RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let result: Option<Organization> = DB
             .query("SELECT *, type.* FROM organization WHERE $id")
@@ -325,8 +334,12 @@ impl OrganizationModel {
         if query.is_some() || has_embedding {
             let mut text_or_vector = Vec::new();
             if query.is_some() {
-                text_or_vector.push("string::lowercase(name) CONTAINS string::lowercase($query)".to_string());
-                text_or_vector.push("string::lowercase(description ?? '') CONTAINS string::lowercase($query)".to_string());
+                text_or_vector
+                    .push("string::lowercase(name) CONTAINS string::lowercase($query)".to_string());
+                text_or_vector.push(
+                    "string::lowercase(description ?? '') CONTAINS string::lowercase($query)"
+                        .to_string(),
+                );
             }
             if has_embedding {
                 text_or_vector.push(format!("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > {})", crate::config::search_weights().vector_threshold));
@@ -348,9 +361,15 @@ impl OrganizationModel {
         }
 
         if query.is_some() || has_embedding {
-            sql.push_str(&format!(" ORDER BY _score DESC, verified DESC, created_at DESC LIMIT {}", limit));
+            sql.push_str(&format!(
+                " ORDER BY _score DESC, verified DESC, created_at DESC LIMIT {}",
+                limit
+            ));
         } else {
-            sql.push_str(&format!(" ORDER BY verified DESC, created_at DESC LIMIT {}", limit));
+            sql.push_str(&format!(
+                " ORDER BY verified DESC, created_at DESC LIMIT {}",
+                limit
+            ));
         }
         if offset > 0 {
             sql.push_str(&format!(" START {}", offset));
@@ -377,9 +396,10 @@ impl OrganizationModel {
     /// Update an existing organization
     pub async fn update(&self, id: &str, data: UpdateOrganizationData) -> Result<(), Error> {
         debug!("Updating organization: {}", id);
-        let id: RecordId = RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
-        let org_type_id: RecordId = RecordId::parse_simple(&data.org_type)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let id: RecordId =
+            RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_type_id: RecordId =
+            RecordId::parse_simple(&data.org_type).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         // Build embedding text for background update
         let embedding_text = build_organization_embedding_text(
@@ -393,7 +413,7 @@ impl OrganizationModel {
         );
 
         DB.query(
-                "UPDATE $id SET
+            "UPDATE $id SET
                     name = $name,
                     `type` = $org_type,
                     description = $description,
@@ -406,21 +426,21 @@ impl OrganizationModel {
                     employees_count = $employees_count,
                     public = $public,
                     allow_join_requests = $allow_join_requests",
-            )
-            .bind(("id", id.clone()))
-            .bind(("name", data.name))
-            .bind(("org_type", org_type_id))
-            .bind(("description", data.description))
-            .bind(("location", data.location))
-            .bind(("website", data.website))
-            .bind(("contact_email", data.contact_email))
-            .bind(("phone", data.phone))
-            .bind(("services", data.services))
-            .bind(("founded_year", data.founded_year))
-            .bind(("employees_count", data.employees_count))
-            .bind(("public", data.public))
-            .bind(("allow_join_requests", data.allow_join_requests))
-            .await?;
+        )
+        .bind(("id", id.clone()))
+        .bind(("name", data.name))
+        .bind(("org_type", org_type_id))
+        .bind(("description", data.description))
+        .bind(("location", data.location))
+        .bind(("website", data.website))
+        .bind(("contact_email", data.contact_email))
+        .bind(("phone", data.phone))
+        .bind(("services", data.services))
+        .bind(("founded_year", data.founded_year))
+        .bind(("employees_count", data.employees_count))
+        .bind(("public", data.public))
+        .bind(("allow_join_requests", data.allow_join_requests))
+        .await?;
 
         // Fire-and-forget embedding update
         crate::services::embedding::spawn_embedding_update(id, embedding_text);
@@ -432,7 +452,8 @@ impl OrganizationModel {
     pub async fn delete(&self, id: &str) -> Result<(), Error> {
         debug!("Deleting organization: {}", id);
 
-        let id: RecordId = RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let id: RecordId =
+            RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         // Delete all memberships first
         let _: Vec<()> = DB
@@ -466,8 +487,10 @@ impl OrganizationModel {
             person_id, org_id, role
         );
 
-        let person_id: RecordId = RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
-        let org_id: RecordId = RecordId::parse_simple(org_id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let person_id: RecordId =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_id: RecordId =
+            RecordId::parse_simple(org_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let invitation_status = if role == "owner" {
             "accepted"
@@ -478,8 +501,8 @@ impl OrganizationModel {
         };
 
         let query = if let Some(inviter) = invited_by {
-            let inviter_rid = RecordId::parse_simple(inviter)
-                .map_err(|e| Error::BadRequest(e.to_string()))?;
+            let inviter_rid =
+                RecordId::parse_simple(inviter).map_err(|e| Error::BadRequest(e.to_string()))?;
             DB.query(
                 "RELATE $person->member_of->$org SET
                         role = $role,
@@ -519,8 +542,8 @@ impl OrganizationModel {
     pub async fn get_members(&self, org_id: &str) -> Result<Vec<OrganizationMember>, Error> {
         debug!("Fetching members for organization: {}", org_id);
 
-        let org_record_id = RecordId::parse_simple(org_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_record_id =
+            RecordId::parse_simple(org_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let result: Vec<OrganizationMember> = DB
             .query(
@@ -552,8 +575,8 @@ impl OrganizationModel {
     pub async fn get_join_requests(&self, org_id: &str) -> Result<Vec<OrganizationMember>, Error> {
         debug!("Fetching join requests for organization: {}", org_id);
 
-        let org_record_id = RecordId::parse_simple(org_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_record_id =
+            RecordId::parse_simple(org_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let result: Vec<OrganizationMember> = DB
             .query(
@@ -591,10 +614,10 @@ impl OrganizationModel {
             person_id, org_id
         );
 
-        let person_rid: RecordId = RecordId::parse_simple(person_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
-        let org_rid: RecordId = RecordId::parse_simple(org_id)
-            .map_err(|e| Error::BadRequest(e.to_string()))?;
+        let person_rid: RecordId =
+            RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let org_rid: RecordId =
+            RecordId::parse_simple(org_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         DB.query(
             "RELATE $person->member_of->$org SET
@@ -761,9 +784,7 @@ impl OrganizationModel {
             .await?
             .take(0)?;
 
-        result
-            .map(|p| p.id.to_raw_string())
-            .ok_or(Error::NotFound)
+        result.map(|p| p.id.to_raw_string()).ok_or(Error::NotFound)
     }
 
     /// Get all organizations a user is a member of
@@ -774,7 +795,8 @@ impl OrganizationModel {
         debug!("=== Starting get_user_organizations ===");
         debug!("Fetching organizations for user_id: '{}'", user_id);
 
-        let user_id: RecordId = RecordId::parse_simple(user_id).map_err(|e| Error::BadRequest(e.to_string()))?;
+        let user_id: RecordId =
+            RecordId::parse_simple(user_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         // First get the organization relationships
         // user_id should already be a full record ID like "person:xyz"
@@ -796,7 +818,10 @@ impl OrganizationModel {
             AND invitation_status = 'accepted'
             ORDER BY joined_at DESC";
 
-        debug!("Executing relationship query with user_id: '{}'", user_id.display());
+        debug!(
+            "Executing relationship query with user_id: '{}'",
+            user_id.display()
+        );
 
         let relationships: Vec<MemberRel> = DB
             .query(query)
@@ -826,7 +851,12 @@ impl OrganizationModel {
         } else {
             debug!("Found relationships:");
             for rel in &relationships {
-                debug!("  - Org: {}, Role: {}, Joined: {}", rel.org_id.display(), rel.role, rel.joined_at);
+                debug!(
+                    "  - Org: {}, Role: {}, Joined: {}",
+                    rel.org_id.display(),
+                    rel.role,
+                    rel.joined_at
+                );
             }
         }
 
@@ -846,7 +876,11 @@ impl OrganizationModel {
                 .bind(("id", rel.org_id.clone()))
                 .await
                 .map_err(|e| {
-                    error!("Failed to fetch organization {}: {:?}", rel.org_id.display(), e);
+                    error!(
+                        "Failed to fetch organization {}: {:?}",
+                        rel.org_id.display(),
+                        e
+                    );
                     e
                 })?
                 .take(0)?;
@@ -858,11 +892,14 @@ impl OrganizationModel {
                 );
                 result.push((org, rel.role, rel.joined_at.to_rfc3339()));
             } else {
-                warn!("Organization {} not found in database", rel.org_id.display());
+                warn!(
+                    "Organization {} not found in database",
+                    rel.org_id.display()
+                );
             }
         }
 
-        result.sort_by(|(a, _, _), (b, _, _)| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        result.sort_by_key(|(a, _, _)| a.name.to_lowercase());
 
         debug!(
             "=== Completed get_user_organizations: returning {} organizations ===",

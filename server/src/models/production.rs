@@ -134,18 +134,18 @@ pub struct UpdateProductionData {
 pub struct ProductionMember {
     pub id: String,
     pub name: String,
-    pub username: Option<String>,        // For persons
-    pub slug: Option<String>,            // For organizations
-    pub avatar: Option<String>,          // Profile avatar URL
-    pub role: String,                    // owner, admin, member (permission level)
+    pub username: Option<String>, // For persons
+    pub slug: Option<String>,     // For organizations
+    pub avatar: Option<String>,   // Profile avatar URL
+    pub role: String,             // owner, admin, member (permission level)
     #[serde(default)]
     #[surreal(default)]
     pub production_roles: Option<Vec<String>>, // e.g. ["Director", "Producer"]
-    pub member_type: String,             // person or organization
-    pub invitation_status: String,       // pending, accepted, declined
+    pub member_type: String,      // person or organization
+    pub invitation_status: String, // pending, accepted, declined
     #[serde(default)]
     #[surreal(default)]
-    pub is_verified: bool,               // Whether org is verified (gold checkmark)
+    pub is_verified: bool, // Whether org is verified (gold checkmark)
 }
 
 /// Production membership info (for "my productions" listing)
@@ -185,12 +185,8 @@ fn validate_record_id_str(id: &str) -> Result<RecordId, Error> {
     let key = parts[1];
     if table.is_empty()
         || key.is_empty()
-        || !table
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_')
-        || !key
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        || !table.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        || !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
     {
         return Err(Error::BadRequest("Invalid record ID format".to_string()));
     }
@@ -285,9 +281,7 @@ impl ProductionModel {
 
         // Create ownership relation — format IDs directly into query
         // because RELATE needs RecordIds, not strings
-        let roles = owner_production_roles
-            .as_ref()
-            .filter(|r| !r.is_empty());
+        let roles = owner_production_roles.as_ref().filter(|r| !r.is_empty());
 
         let ownership_query = format!(
             "RELATE {}->member_of->{} SET role = 'owner', invitation_status = 'accepted', production_roles = $production_roles;",
@@ -322,7 +316,10 @@ impl ProductionModel {
             .await
             .map_err(|e| Error::Database(format!("Failed to commit transaction: {}", e)))?;
 
-        debug!("Successfully created production: {}", production.id.display());
+        debug!(
+            "Successfully created production: {}",
+            production.id.display()
+        );
         Ok(production)
     }
 
@@ -331,12 +328,12 @@ impl ProductionModel {
         debug!("Fetching production: {}", production_id.display());
 
         let mut result = DB
-            .query(&format!("SELECT * FROM {}", production_id.display()))
+            .query(format!("SELECT * FROM {}", production_id.display()))
             .await
             .map_err(|e| Error::Database(format!("Failed to fetch production: {}", e)))?;
 
         let production: Option<Production> = result.take(0)?;
-        production.ok_or_else(|| Error::NotFound)
+        production.ok_or(Error::NotFound)
     }
 
     /// Get a production by slug
@@ -351,10 +348,7 @@ impl ProductionModel {
             .map_err(|e| Error::Database(format!("Failed to fetch production: {}", e)))?;
 
         let productions: Vec<Production> = result.take(0)?;
-        productions
-            .into_iter()
-            .next()
-            .ok_or_else(|| Error::NotFound)
+        productions.into_iter().next().ok_or(Error::NotFound)
     }
 
     /// List all productions with optional filters
@@ -404,9 +398,17 @@ impl ProductionModel {
         if filter.is_some() || has_embedding {
             let mut text_or_vector = Vec::new();
             if filter.is_some() {
-                text_or_vector.push("string::lowercase(title) CONTAINS string::lowercase($filter)".to_string());
-                text_or_vector.push("string::lowercase(description ?? '') CONTAINS string::lowercase($filter)".to_string());
-                text_or_vector.push("string::lowercase(location ?? '') CONTAINS string::lowercase($filter)".to_string());
+                text_or_vector.push(
+                    "string::lowercase(title) CONTAINS string::lowercase($filter)".to_string(),
+                );
+                text_or_vector.push(
+                    "string::lowercase(description ?? '') CONTAINS string::lowercase($filter)"
+                        .to_string(),
+                );
+                text_or_vector.push(
+                    "string::lowercase(location ?? '') CONTAINS string::lowercase($filter)"
+                        .to_string(),
+                );
             }
             if has_embedding {
                 text_or_vector.push(format!("(embedding IS NOT NONE AND $has_embedding = true AND vector::similarity::cosine(embedding, $query_embedding) > {})", crate::config::search_weights().vector_threshold));
@@ -530,8 +532,7 @@ impl ProductionModel {
             update_fields.join(", ")
         );
 
-        let mut db_query = DB
-            .query(&query);
+        let mut db_query = DB.query(&query);
 
         if let Some(title) = data.title {
             db_query = db_query.bind(("title", title));
@@ -566,7 +567,7 @@ impl ProductionModel {
             .map_err(|e| Error::Database(format!("Failed to update production: {}", e)))?;
 
         let production: Option<Production> = result.take(0)?;
-        let production = production.ok_or_else(|| Error::NotFound)?;
+        let production = production.ok_or(Error::NotFound)?;
 
         // Fire-and-forget embedding update
         crate::services::embedding::spawn_embedding_update(production.id.clone(), embedding_text);
@@ -584,19 +585,23 @@ impl ProductionModel {
             .map_err(|e| Error::Database(format!("Failed to start transaction: {}", e)))?;
 
         // Delete all member_of relations to this production
-        DB.query(&format!("DELETE member_of WHERE out = {}", production_id.display()))
-            .await
-            .map_err(|e| Error::Database(format!("Failed to delete member relations: {}", e)))?;
+        DB.query(format!(
+            "DELETE member_of WHERE out = {}",
+            production_id.display()
+        ))
+        .await
+        .map_err(|e| Error::Database(format!("Failed to delete member relations: {}", e)))?;
 
         // Delete all involvement relations to this production
-        DB.query(&format!("DELETE involvement WHERE out = {}", production_id.display()))
-            .await
-            .map_err(|e| {
-                Error::Database(format!("Failed to delete involvement relations: {}", e))
-            })?;
+        DB.query(format!(
+            "DELETE involvement WHERE out = {}",
+            production_id.display()
+        ))
+        .await
+        .map_err(|e| Error::Database(format!("Failed to delete involvement relations: {}", e)))?;
 
         // Delete the production
-        DB.query(&format!("DELETE {}", production_id.display()))
+        DB.query(format!("DELETE {}", production_id.display()))
             .await
             .map_err(|e| Error::Database(format!("Failed to delete production: {}", e)))?;
 
@@ -609,7 +614,9 @@ impl ProductionModel {
     }
 
     /// Get productions for a user or organization, with their role info
-    pub async fn get_member_productions(member_id: &str) -> Result<Vec<ProductionMembership>, Error> {
+    pub async fn get_member_productions(
+        member_id: &str,
+    ) -> Result<Vec<ProductionMembership>, Error> {
         let member_rid = validate_record_id_str(member_id)?;
         debug!("Fetching productions for member: {}", member_id);
 
@@ -645,7 +652,10 @@ impl ProductionModel {
 
     /// Get members of a production
     pub async fn get_members(production_id: &RecordId) -> Result<Vec<ProductionMember>, Error> {
-        debug!("Fetching members for production: {}", production_id.display());
+        debug!(
+            "Fetching members for production: {}",
+            production_id.display()
+        );
 
         let query = format!(
             "SELECT
@@ -679,7 +689,8 @@ impl ProductionModel {
         let member_rid = validate_record_id_str(member_id)?;
         debug!(
             "Checking membership for {} in production {}",
-            member_id, production_id.display()
+            member_id,
+            production_id.display()
         );
 
         let query = format!(
@@ -694,10 +705,10 @@ impl ProductionModel {
             .map_err(|e| Error::Database(format!("Failed to check membership: {}", e)))?;
 
         let count: Option<serde_json::Value> = result.take(0)?;
-        if let Some(count_obj) = count {
-            if let Some(count_val) = count_obj.get("count") {
-                return Ok(count_val.as_u64().unwrap_or(0) > 0);
-            }
+        if let Some(count_obj) = count
+            && let Some(count_val) = count_obj.get("count")
+        {
+            return Ok(count_val.as_u64().unwrap_or(0) > 0);
         }
         Ok(false)
     }
@@ -709,7 +720,8 @@ impl ProductionModel {
         let member_rid = validate_record_id_str(member_id)?;
         debug!(
             "Checking edit permission for {} in production {}",
-            member_id, production_id.display()
+            member_id,
+            production_id.display()
         );
 
         // Direct membership check
@@ -725,12 +737,11 @@ impl ProductionModel {
             .map_err(|e| Error::Database(format!("Failed to check edit permission: {}", e)))?;
 
         let member: Option<serde_json::Value> = result.take(0)?;
-        if let Some(member_obj) = member {
-            if let Some(role) = member_obj.get("role").and_then(|r| r.as_str()) {
-                if role == "owner" || role == "admin" {
-                    return Ok(true);
-                }
-            }
+        if let Some(member_obj) = member
+            && let Some(role) = member_obj.get("role").and_then(|r| r.as_str())
+            && (role == "owner" || role == "admin")
+        {
+            return Ok(true);
         }
 
         // Indirect check: person is owner/admin of an org that is owner/admin of this production
@@ -757,22 +768,22 @@ impl ProductionModel {
                 production_id.display()
             );
 
-            let mut prod_result = DB
-                .query(&prod_query)
-                .await
-                .map_err(|e| Error::Database(format!("Failed to check org production role: {}", e)))?;
+            let mut prod_result = DB.query(&prod_query).await.map_err(|e| {
+                Error::Database(format!("Failed to check org production role: {}", e))
+            })?;
 
             let org_member: Option<serde_json::Value> = prod_result.take(0)?;
-            if let Some(obj) = org_member {
-                if let Some(role) = obj.get("role").and_then(|r| r.as_str()) {
-                    if role == "owner" || role == "admin" {
-                        debug!(
-                            "User {} has edit access via org {} (role: {})",
-                            member_id, org_id.display(), role
-                        );
-                        return Ok(true);
-                    }
-                }
+            if let Some(obj) = org_member
+                && let Some(role) = obj.get("role").and_then(|r| r.as_str())
+                && (role == "owner" || role == "admin")
+            {
+                debug!(
+                    "User {} has edit access via org {} (role: {})",
+                    member_id,
+                    org_id.display(),
+                    role
+                );
+                return Ok(true);
             }
         }
 
@@ -791,7 +802,10 @@ impl ProductionModel {
         let invited_by_rid = invited_by.map(validate_record_id_str).transpose()?;
         debug!(
             "Adding member {} to production {} with role {} / production_roles {:?}",
-            member_id, production_id.display(), role, production_roles
+            member_id,
+            production_id.display(),
+            role,
+            production_roles
         );
 
         let invited_by_clause = if let Some(ref inviter_rid) = invited_by_rid {
@@ -828,7 +842,9 @@ impl ProductionModel {
         let member_rid = validate_record_id_str(member_id)?;
         debug!(
             "Adding accepted member {} to production {} with role {}",
-            member_id, production_id.display(), role
+            member_id,
+            production_id.display(),
+            role
         );
 
         let roles = production_roles.filter(|r| !r.is_empty());
@@ -872,7 +888,8 @@ impl ProductionModel {
         let member_rid = validate_record_id_str(member_id)?;
         debug!(
             "Removing member {} from production {}",
-            member_id, production_id.display()
+            member_id,
+            production_id.display()
         );
 
         let query = format!(
@@ -897,7 +914,9 @@ impl ProductionModel {
         let member_rid = validate_record_id_str(member_id)?;
         debug!(
             "Updating roles for member {} in production {} to {:?}",
-            member_id, production_id.display(), new_roles
+            member_id,
+            production_id.display(),
+            new_roles
         );
 
         // Get current roles from member_of
@@ -936,26 +955,32 @@ impl ProductionModel {
         // Delete involvements for roles that were removed
         for old_role in &old_roles {
             if !new_roles.contains(old_role) {
-                InvolvementModel::delete_by_person_production_role(member_id, production_id, old_role).await?;
+                InvolvementModel::delete_by_person_production_role(
+                    member_id,
+                    production_id,
+                    old_role,
+                )
+                .await?;
             }
         }
 
         // Create involvements for newly added roles
         // Use "manual" source since this is set by a production editor (owner/admin)
         for new_role in &new_roles {
-            if !new_role.is_empty() && !old_roles.contains(new_role) {
-                if !InvolvementModel::exists(member_id, production_id, Some(new_role)).await? {
-                    InvolvementModel::create(
-                        member_id,
-                        production_id,
-                        "crew",
-                        Some(new_role),
-                        None,
-                        None,
-                        "manual",
-                    )
-                    .await?;
-                }
+            if !new_role.is_empty()
+                && !old_roles.contains(new_role)
+                && !InvolvementModel::exists(member_id, production_id, Some(new_role)).await?
+            {
+                InvolvementModel::create(
+                    member_id,
+                    production_id,
+                    "crew",
+                    Some(new_role),
+                    None,
+                    None,
+                    "manual",
+                )
+                .await?;
             }
         }
 
@@ -1089,7 +1114,10 @@ impl ProductionModel {
             return Ok(existing);
         }
 
-        debug!("Creating production from TMDB: {} (tmdb_id={})", title, tmdb_id);
+        debug!(
+            "Creating production from TMDB: {} (tmdb_id={})",
+            title, tmdb_id
+        );
 
         // Map TMDB media_type to production_type
         let production_type = match media_type.as_str() {
@@ -1247,10 +1275,10 @@ impl ProductionModel {
             .map_err(|e| Error::Database(format!("Failed to check claim status: {}", e)))?;
 
         let count: Option<serde_json::Value> = result.take(0)?;
-        if let Some(obj) = count {
-            if let Some(c) = obj.get("count") {
-                return Ok(c.as_u64().unwrap_or(0) > 0);
-            }
+        if let Some(obj) = count
+            && let Some(c) = obj.get("count")
+        {
+            return Ok(c.as_u64().unwrap_or(0) > 0);
         }
         Ok(false)
     }
@@ -1283,9 +1311,7 @@ impl ProductionModel {
 
         DB.query(&promote_query)
             .await
-            .map_err(|e| {
-                Error::Database(format!("Failed to promote credits on claim: {}", e))
-            })?;
+            .map_err(|e| Error::Database(format!("Failed to promote credits on claim: {}", e)))?;
 
         Ok(())
     }

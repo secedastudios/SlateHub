@@ -21,7 +21,9 @@ pub fn subscribe() -> broadcast::Receiver<NotificationEvent> {
 
 pub async fn init() {
     let (tx, _) = broadcast::channel::<NotificationEvent>(256);
-    SENDER.set(tx.clone()).expect("notification stream already initialized");
+    SENDER
+        .set(tx.clone())
+        .expect("notification stream already initialized");
 
     tokio::spawn(async move {
         // Small delay to let DB fully initialize
@@ -48,10 +50,7 @@ async fn run_live_query(
 
     info!("Connecting LIVE SELECT on notification table...");
 
-    let stream_result = crate::db::DB
-        .select("notification")
-        .live()
-        .await;
+    let stream_result = crate::db::DB.select("notification").live().await;
 
     let mut stream: surrealdb::Stream<Vec<surrealdb::types::Value>> = match stream_result {
         Ok(s) => {
@@ -71,7 +70,11 @@ async fn run_live_query(
 
                 // Log raw data to understand the format
                 let data_debug = format!("{:?}", notification.data);
-                info!("LIVE event: action={} data={}", action, &data_debug[..data_debug.len().min(200)]);
+                info!(
+                    "LIVE event: action={} data={}",
+                    action,
+                    &data_debug[..data_debug.len().min(200)]
+                );
 
                 if let Some(pid) = extract_person_id_from_debug(&data_debug) {
                     info!("Broadcasting to {}", pid);
@@ -80,7 +83,10 @@ async fn run_live_query(
                         action,
                     });
                 } else {
-                    warn!("Failed to extract person_id from: {}", &data_debug[..data_debug.len().min(300)]);
+                    warn!(
+                        "Failed to extract person_id from: {}",
+                        &data_debug[..data_debug.len().min(300)]
+                    );
                 }
             }
             Err(e) => {

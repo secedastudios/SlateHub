@@ -1,6 +1,11 @@
 use askama::Template;
-use axum::{Router, extract::Request, response::{Html, IntoResponse, Redirect, Response}, routing::get};
-use axum::http::{header, HeaderValue};
+use axum::http::{HeaderValue, header};
+use axum::{
+    Router,
+    extract::Request,
+    response::{Html, IntoResponse, Redirect, Response},
+    routing::get,
+};
 use tracing::{debug, error};
 
 use crate::{
@@ -139,10 +144,9 @@ async fn about(request: Request) -> Result<Html<String>, Error> {
             .unwrap_or(0) as usize
     }
 
-    let (stat_creatives, stat_organizations, stat_locations, stat_jobs, stat_connections) =
-        match DB
-            .query(
-                "SELECT count() AS count FROM person GROUP ALL;
+    let (stat_creatives, stat_organizations, stat_locations, stat_jobs, stat_connections) = match DB
+        .query(
+            "SELECT count() AS count FROM person GROUP ALL;
                  SELECT count() AS count FROM organization GROUP ALL;
                  SELECT count() AS count FROM location GROUP ALL;
                  SELECT count() AS count FROM job_posting GROUP ALL;
@@ -150,28 +154,35 @@ async fn about(request: Request) -> Result<Html<String>, Error> {
                  SELECT count() AS count FROM likes GROUP ALL;
                  SELECT count() AS count FROM involvement GROUP ALL;
                  SELECT count() AS count FROM application GROUP ALL",
-            )
-            .await
-        {
-            Ok(mut response) => {
-                let creatives = extract_count(response.take(0).unwrap_or(None));
-                let organizations = extract_count(response.take(1).unwrap_or(None));
-                let locations = extract_count(response.take(2).unwrap_or(None));
-                let jobs = extract_count(response.take(3).unwrap_or(None));
-                let connections = extract_count(response.take(4).unwrap_or(None))
-                    + extract_count(response.take(5).unwrap_or(None))
-                    + extract_count(response.take(6).unwrap_or(None))
-                    + extract_count(response.take(7).unwrap_or(None));
+        )
+        .await
+    {
+        Ok(mut response) => {
+            let creatives = extract_count(response.take(0).unwrap_or(None));
+            let organizations = extract_count(response.take(1).unwrap_or(None));
+            let locations = extract_count(response.take(2).unwrap_or(None));
+            let jobs = extract_count(response.take(3).unwrap_or(None));
+            let connections = extract_count(response.take(4).unwrap_or(None))
+                + extract_count(response.take(5).unwrap_or(None))
+                + extract_count(response.take(6).unwrap_or(None))
+                + extract_count(response.take(7).unwrap_or(None));
 
-                (creatives, organizations, locations, jobs, connections)
-            }
-            Err(e) => {
-                error!("Failed to query about page stats: {}", e);
-                (0, 0, 0, 0, 0)
-            }
-        };
+            (creatives, organizations, locations, jobs, connections)
+        }
+        Err(e) => {
+            error!("Failed to query about page stats: {}", e);
+            (0, 0, 0, 0, 0)
+        }
+    };
 
-    let template = AboutTemplate::new(base, stat_creatives, stat_organizations, stat_locations, stat_jobs, stat_connections);
+    let template = AboutTemplate::new(
+        base,
+        stat_creatives,
+        stat_organizations,
+        stat_locations,
+        stat_jobs,
+        stat_connections,
+    );
 
     let html = template.render().map_err(|e| {
         error!("Failed to render about template: {}", e);
@@ -227,7 +238,10 @@ async fn profiles_ticker_sse(
         if usernames.is_empty() {
             String::new()
         } else {
-            let quoted: Vec<String> = usernames.iter().map(|u| format!("'{}'", u.replace('\'', ""))).collect();
+            let quoted: Vec<String> = usernames
+                .iter()
+                .map(|u| format!("'{}'", u.replace('\'', "")))
+                .collect();
             format!(" AND username NOT IN [{}]", quoted.join(","))
         }
     } else {
@@ -278,7 +292,10 @@ async fn profiles_ticker_sse(
 }
 
 fn escape_attr(s: &str) -> String {
-    s.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 const VERIFIED_BADGE_SVG: &str = "<svg data-role=\"verified-badge\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"#1d9bf0\" aria-label=\"Verified\"><path d=\"M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z\"/></svg>";
@@ -286,8 +303,14 @@ const VERIFIED_BADGE_SVG: &str = "<svg data-role=\"verified-badge\" width=\"12\"
 fn render_ticker_tile(row: &serde_json::Value, slot: usize) -> String {
     let username = row.get("username").and_then(|v| v.as_str()).unwrap_or("");
     let name = row.get("name").and_then(|v| v.as_str()).unwrap_or(username);
-    let headline = row.get("headline").and_then(|v| v.as_str()).unwrap_or("Creative Professional");
-    let avatar = row.get("avatar").and_then(|v| v.as_str()).unwrap_or("/static/images/default-avatar.png");
+    let headline = row
+        .get("headline")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Creative Professional");
+    let avatar = row
+        .get("avatar")
+        .and_then(|v| v.as_str())
+        .unwrap_or("/static/images/default-avatar.png");
     format!(
         r#"<a href="/{}" data-component="ticker-tile" data-slot="{}"><img src="{}" alt="{}" loading="lazy" /><span data-role="ticker-overlay"><span data-role="ticker-name">{} {}</span><span data-role="ticker-headline">{}</span></span></a>"#,
         escape_attr(username),
@@ -315,7 +338,10 @@ fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
 fn sse_response(body: String) -> Response {
     (
         [
-            (header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream")),
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("text/event-stream"),
+            ),
             (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
         ],
         body,
@@ -344,7 +370,10 @@ Sitemap: {base}/sitemap.xml
     );
 
     (
-        [(header::CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"))],
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        )],
         body,
     )
         .into_response()
@@ -402,8 +431,8 @@ SlateHub is a free, open-source creative networking platform — the professiona
         .await
     {
         // Profiles
-        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(0) {
-            if !rows.is_empty() {
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(0)
+            && !rows.is_empty() {
                 body.push_str("\n## Profiles\n\n");
                 for row in rows {
                     let username = row.get("username").and_then(|v| v.as_str()).unwrap_or_default();
@@ -411,11 +440,10 @@ SlateHub is a free, open-source creative networking platform — the professiona
                     body.push_str(&format!("- [{name}]({base}/{username})\n"));
                 }
             }
-        }
 
         // Productions
-        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(1) {
-            if !rows.is_empty() {
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(1)
+            && !rows.is_empty() {
                 body.push_str("\n## Productions\n\n");
                 for row in rows {
                     let slug = row.get("slug").and_then(|v| v.as_str()).unwrap_or_default();
@@ -423,11 +451,10 @@ SlateHub is a free, open-source creative networking platform — the professiona
                     body.push_str(&format!("- [{title}]({base}/productions/{slug})\n"));
                 }
             }
-        }
 
         // Organizations
-        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(2) {
-            if !rows.is_empty() {
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(2)
+            && !rows.is_empty() {
                 body.push_str("\n## Organizations\n\n");
                 for row in rows {
                     let slug = row.get("slug").and_then(|v| v.as_str()).unwrap_or_default();
@@ -435,11 +462,10 @@ SlateHub is a free, open-source creative networking platform — the professiona
                     body.push_str(&format!("- [{name}]({base}/orgs/{slug})\n"));
                 }
             }
-        }
 
         // Locations
-        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(3) {
-            if !rows.is_empty() {
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(3)
+            && !rows.is_empty() {
                 body.push_str("\n## Locations\n\n");
                 for row in rows {
                     let key = row.get("key").and_then(|v| v.as_str()).unwrap_or_default();
@@ -447,11 +473,10 @@ SlateHub is a free, open-source creative networking platform — the professiona
                     body.push_str(&format!("- [{name}]({base}/locations/{key})\n"));
                 }
             }
-        }
 
         // Jobs
-        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(4) {
-            if !rows.is_empty() {
+        if let Ok(rows) = result.take::<Vec<serde_json::Value>>(4)
+            && !rows.is_empty() {
                 body.push_str("\n## Open Jobs\n\n");
                 for row in rows {
                     let key = row.get("key").and_then(|v| v.as_str()).unwrap_or_default();
@@ -459,11 +484,13 @@ SlateHub is a free, open-source creative networking platform — the professiona
                     body.push_str(&format!("- [{title}]({base}/jobs/{key})\n"));
                 }
             }
-        }
     }
 
     (
-        [(header::CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"))],
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        )],
         body,
     )
         .into_response()
@@ -569,20 +596,20 @@ async fn sitemap_xml() -> Response {
     );
 
     (
-        [(header::CONTENT_TYPE, HeaderValue::from_static("application/xml; charset=utf-8"))],
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/xml; charset=utf-8"),
+        )],
         xml,
     )
         .into_response()
 }
 
 async fn healthcheck() -> impl IntoResponse {
-    use crate::{version, stats};
+    use crate::{stats, version};
 
     // Check DB
-    let db_ok = crate::db::DB
-        .query("RETURN true")
-        .await
-        .is_ok();
+    let db_ok = crate::db::DB.query("RETURN true").await.is_ok();
 
     // Check S3
     let s3_ok = match crate::services::s3::s3() {
@@ -636,4 +663,3 @@ async fn healthcheck() -> impl IntoResponse {
         pretty,
     )
 }
-

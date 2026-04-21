@@ -23,8 +23,9 @@ pub struct VideoInfo {
 }
 
 // YouTube patterns: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID, youtube.com/shorts/ID
-static YT_LONG: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?:youtube\.com/(?:watch\?.*v=|embed/|shorts/))([a-zA-Z0-9_-]{11})").unwrap());
+static YT_LONG: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:youtube\.com/(?:watch\?.*v=|embed/|shorts/))([a-zA-Z0-9_-]{11})").unwrap()
+});
 static YT_SHORT: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"youtu\.be/([a-zA-Z0-9_-]{11})").unwrap());
 
@@ -100,7 +101,10 @@ pub fn embed_url(platform: &str, video_id: &str) -> String {
         "youtube" => format!("https://www.youtube.com/embed/{}?autoplay=1", video_id),
         "vimeo" => format!("https://player.vimeo.com/video/{}?autoplay=1", video_id),
         "tiktok" => format!("https://www.tiktok.com/embed/v2/{}", video_id),
-        "dailymotion" => format!("https://www.dailymotion.com/embed/video/{}?autoplay=1", video_id),
+        "dailymotion" => format!(
+            "https://www.dailymotion.com/embed/video/{}?autoplay=1",
+            video_id
+        ),
         _ => String::new(),
     }
 }
@@ -201,7 +205,8 @@ mod tests {
 
     #[test]
     fn test_tiktok() {
-        let info = parse_video_url("https://www.tiktok.com/@user/video/7123456789012345678").unwrap();
+        let info =
+            parse_video_url("https://www.tiktok.com/@user/video/7123456789012345678").unwrap();
         assert_eq!(info.platform, "tiktok");
         assert_eq!(info.video_id, "7123456789012345678");
     }

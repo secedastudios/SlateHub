@@ -12,6 +12,12 @@ use ulid::Ulid;
 #[derive(Clone, Debug)]
 pub struct RequestId(pub String);
 
+impl Default for RequestId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RequestId {
     /// Create a new request ID
     pub fn new() -> Self {
@@ -46,7 +52,7 @@ impl std::fmt::Display for RequestId {
 pub async fn request_id_middleware(mut request: Request<Body>, next: Next) -> Response {
     // Check for existing request ID from various common headers
     // Priority order: X-Request-Id, X-Correlation-Id, X-Trace-Id, Request-Id
-    let request_id = extract_existing_request_id(&request).unwrap_or_else(|| RequestId::new());
+    let request_id = extract_existing_request_id(&request).unwrap_or_default();
 
     let id_str = request_id.as_str().to_string();
 
@@ -113,23 +119,23 @@ fn extract_existing_request_id(request: &Request<Body>) -> Option<RequestId> {
     ];
 
     for header_name in REQUEST_ID_HEADERS {
-        if let Some(header_value) = request.headers().get(*header_name) {
-            if let Ok(id_str) = header_value.to_str() {
-                // Validate the ID format (should be a valid ULID, UUID, or alphanumeric string)
-                if is_valid_request_id(id_str) {
-                    tracing::debug!(
-                        header = header_name,
-                        request_id = %id_str,
-                        "Using existing request ID from header"
-                    );
-                    return Some(RequestId::from_string(id_str.to_string()));
-                } else {
-                    tracing::warn!(
-                        header = header_name,
-                        value = %id_str,
-                        "Invalid request ID format in header, generating new ID"
-                    );
-                }
+        if let Some(header_value) = request.headers().get(*header_name)
+            && let Ok(id_str) = header_value.to_str()
+        {
+            // Validate the ID format (should be a valid ULID, UUID, or alphanumeric string)
+            if is_valid_request_id(id_str) {
+                tracing::debug!(
+                    header = header_name,
+                    request_id = %id_str,
+                    "Using existing request ID from header"
+                );
+                return Some(RequestId::from_string(id_str.to_string()));
+            } else {
+                tracing::warn!(
+                    header = header_name,
+                    value = %id_str,
+                    "Invalid request ID format in header, generating new ID"
+                );
             }
         }
     }

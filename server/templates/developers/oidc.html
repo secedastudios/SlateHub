@@ -1,0 +1,85 @@
+{% extends "_layout.html" %}
+{% block title %}OIDC Integration - {{ app_name }}{% endblock %}
+{% block page_name %}developers{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/orgs.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section data-component="org-form-page" data-page-variant="developers">
+    <header data-role="page-header">
+        <nav data-role="breadcrumb"><a href="/developers">Developers</a> / OIDC</nav>
+        <h1>OpenID Connect integration</h1>
+    </header>
+
+    <h2>Overview</h2>
+    <p>Slatehub implements the OpenID Connect Authorization Code flow with PKCE. Tokens are signed with EdDSA (Ed25519). One client per organization.</p>
+
+    <h2>Discovery</h2>
+    <pre><code>{{ issuer }}/.well-known/openid-configuration</code></pre>
+    <p>Most OIDC libraries (oidc-client-ts, openid-client, AppAuth, MSAL, etc.) auto-configure from this URL.</p>
+
+    <h2>Endpoints</h2>
+    <dl>
+        <dt><code>GET /authorize</code></dt><dd>Authorization endpoint &mdash; redirect users here.</dd>
+        <dt><code>POST /token</code></dt><dd>Token endpoint &mdash; exchange code or refresh.</dd>
+        <dt><code>GET /userinfo</code></dt><dd>Returns claims for the bearer token.</dd>
+        <dt><code>POST /revoke</code></dt><dd>RFC 7009 revocation.</dd>
+        <dt><code>POST /introspect</code></dt><dd>RFC 7662 introspection.</dd>
+        <dt><code>GET /logout</code></dt><dd>RP-initiated logout.</dd>
+        <dt><code>GET /.well-known/jwks.json</code></dt><dd>Public keys for verifying id_tokens.</dd>
+    </dl>
+
+    <h2>Scopes</h2>
+    <ul>
+        <li><code>openid</code> &mdash; required.</li>
+        <li><code>profile</code> &mdash; <code>name</code>, <code>preferred_username</code>.</li>
+        <li><code>email</code> &mdash; <code>email</code>, <code>email_verified</code>.</li>
+        <li><code>offline_access</code> &mdash; issues a refresh token.</li>
+        <li><code>slatehub:org_membership</code> &mdash; emits <code>slatehub_org</code>, <code>slatehub_org_role</code>, <code>slatehub_permissions</code>.</li>
+    </ul>
+
+    <h2>Authorization Code + PKCE flow</h2>
+    <p>Generate a <code>code_verifier</code> and a <code>code_challenge = BASE64URL(SHA256(code_verifier))</code>. Redirect the user to:</p>
+    <pre><code>{{ issuer }}/authorize
+  ?response_type=code
+  &amp;client_id=YOUR_CLIENT_ID
+  &amp;redirect_uri=https://your-app/callback
+  &amp;scope=openid%20profile%20email
+  &amp;code_challenge=...
+  &amp;code_challenge_method=S256
+  &amp;state=...
+  &amp;nonce=...</code></pre>
+    <p>After consent, the user is redirected back with <code>?code=...&amp;state=...</code>. Exchange the code:</p>
+    <pre><code>POST {{ issuer }}/token
+Authorization: Basic base64(client_id:client_secret)
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&amp;code=THE_CODE
+&amp;redirect_uri=https://your-app/callback
+&amp;code_verifier=THE_VERIFIER</code></pre>
+    <p>Response:</p>
+    <pre><code>{
+  "access_token": "...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "id_token": "eyJ...",
+  "refresh_token": "...",  // only if offline_access requested
+  "scope": "openid profile email"
+}</code></pre>
+
+    <h2>UserInfo</h2>
+    <pre><code>GET {{ issuer }}/userinfo
+Authorization: Bearer ACCESS_TOKEN</code></pre>
+
+    <h2>Refresh tokens</h2>
+    <p>Refresh tokens are <strong>rotated on use</strong>: each call to <code>/token</code> returns a new refresh token and revokes the previous one. Replaying a revoked token kills the entire session chain (RFC 6749 §10.4).</p>
+
+    <h2>Logout</h2>
+    <pre><code>{{ issuer }}/logout
+  ?id_token_hint=...
+  &amp;post_logout_redirect_uri=https://your-app/signed-out
+  &amp;state=...</code></pre>
+    <p>The redirect URI must be in your client's post-logout allowlist.</p>
+</section>
+{% endblock %}

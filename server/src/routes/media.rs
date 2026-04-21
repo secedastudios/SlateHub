@@ -13,7 +13,11 @@ use std::io::Cursor;
 use tracing::{debug, info};
 use ulid::Ulid;
 
-use crate::{db::DB, error::Error, middleware::AuthenticatedUser, models::location::LocationModel, models::organization::OrganizationModel, models::production::ProductionModel, record_id_ext::RecordIdExt, services::s3::s3, verification_limits};
+use crate::{
+    db::DB, error::Error, middleware::AuthenticatedUser, models::location::LocationModel,
+    models::organization::OrganizationModel, models::production::ProductionModel,
+    record_id_ext::RecordIdExt, services::s3::s3, verification_limits,
+};
 
 pub fn router() -> Router {
     Router::new()
@@ -156,9 +160,9 @@ async fn upload_profile_image(
 
         // Check file size
         if data.len() > MAX_FILE_SIZE {
-            return Err(Error::bad_request(format!(
-                "File too large. Maximum size is 10MB"
-            )));
+            return Err(Error::bad_request(
+                "File too large. Maximum size is 10MB".to_string(),
+            ));
         }
 
         image_data = Some((filename, content_type, data));
@@ -327,13 +331,13 @@ async fn upload_profile_photo(
         .and_then(|v| v.as_str())
         .unwrap_or("unverified");
     let limits = verification_limits::limits_for_status(verification_status);
-    if let Some(max) = limits.max_photos {
-        if photo_count >= max as i64 {
-            return Err(Error::bad_request(format!(
-                "Maximum of {} photos allowed for your account. Get verified for more uploads.",
-                max
-            )));
-        }
+    if let Some(max) = limits.max_photos
+        && photo_count >= max as i64
+    {
+        return Err(Error::bad_request(format!(
+            "Maximum of {} photos allowed for your account. Get verified for more uploads.",
+            max
+        )));
     }
 
     // Process the image (resize, maintain aspect ratio)
@@ -640,9 +644,9 @@ async fn upload_organization_logo(
 
             // Check file size
             if data.len() > MAX_FILE_SIZE {
-                return Err(Error::bad_request(format!(
-                    "File too large. Maximum size is 10MB"
-                )));
+                return Err(Error::bad_request(
+                    "File too large. Maximum size is 10MB".to_string(),
+                ));
             }
 
             image_data = Some((filename, content_type, data));
@@ -805,13 +809,13 @@ async fn get_organization_logo_url(
 
     let results: Vec<serde_json::Value> = response.take(0).unwrap_or_default();
 
-    if let Some(org) = results.first() {
-        if let Some(logo_url) = org.get("logo").and_then(|l| l.as_str()) {
-            return Ok(Json(serde_json::json!({
-                "url": logo_url,
-                "has_logo": true
-            })));
-        }
+    if let Some(org) = results.first()
+        && let Some(logo_url) = org.get("logo").and_then(|l| l.as_str())
+    {
+        return Ok(Json(serde_json::json!({
+            "url": logo_url,
+            "has_logo": true
+        })));
     }
 
     Ok(Json(serde_json::json!({
@@ -895,9 +899,9 @@ async fn upload_organization_logo_with_slug(
 
             // Check file size
             if data.len() > MAX_FILE_SIZE {
-                return Err(Error::bad_request(format!(
-                    "File too large. Maximum size is 10MB"
-                )));
+                return Err(Error::bad_request(
+                    "File too large. Maximum size is 10MB".to_string(),
+                ));
             }
 
             image_data = Some((filename, content_type, data));
@@ -992,7 +996,10 @@ async fn upload_location_profile_photo(
     Query(params): Query<ImageProcessParams>,
     mut multipart: Multipart,
 ) -> Result<Json<UploadResponse>, Error> {
-    debug!("User {} uploading profile photo for location {}", user.username, location_id);
+    debug!(
+        "User {} uploading profile photo for location {}",
+        user.username, location_id
+    );
 
     let loc_rid = surrealdb::types::RecordId::new("location", location_id.as_str());
     if !LocationModel::can_edit(&loc_rid, &user.id).await? {
@@ -1000,15 +1007,28 @@ async fn upload_location_profile_photo(
     }
 
     let mut image_data: Option<(String, Bytes)> = None;
-    while let Some(field) = multipart.next_field().await
-        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))? {
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))?
+    {
         let name = field.name().unwrap_or("").to_string();
-        if name != "image" { continue; }
-        let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
-        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
-            return Err(Error::bad_request(format!("Invalid file type: {}. Allowed: JPEG, PNG, WebP", content_type)));
+        if name != "image" {
+            continue;
         }
-        let data = field.bytes().await
+        let content_type = field
+            .content_type()
+            .unwrap_or("application/octet-stream")
+            .to_string();
+        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
+            return Err(Error::bad_request(format!(
+                "Invalid file type: {}. Allowed: JPEG, PNG, WebP",
+                content_type
+            )));
+        }
+        let data = field
+            .bytes()
+            .await
             .map_err(|e| Error::bad_request(format!("Failed to read file data: {}", e)))?;
         if data.len() > MAX_FILE_SIZE {
             return Err(Error::bad_request("File too large. Maximum size is 10MB"));
@@ -1017,15 +1037,19 @@ async fn upload_location_profile_photo(
         break;
     }
 
-    let (_content_type, data) = image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
+    let (_content_type, data) =
+        image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
 
-    let (processed, _thumbnail) = process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
+    let (processed, _thumbnail) =
+        process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
 
     let image_id = Ulid::new().to_string();
     let main_key = format!("locations/{}/{}.jpg", location_id, image_id);
 
     let s3_service = s3()?;
-    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
+    s3_service
+        .upload_file(&main_key, processed, "image/jpeg")
+        .await?;
 
     let main_url = format!("/api/media/{}", main_key);
 
@@ -1035,7 +1059,10 @@ async fn upload_location_profile_photo(
         .await
         .map_err(|e| Error::Internal(format!("Failed to update location profile photo: {}", e)))?;
 
-    info!("Location profile photo uploaded for location {}", location_id);
+    info!(
+        "Location profile photo uploaded for location {}",
+        location_id
+    );
 
     Ok(Json(UploadResponse {
         media_id: image_id,
@@ -1059,7 +1086,10 @@ async fn delete_location_profile_photo(
         .await
         .map_err(|e| Error::Internal(format!("Failed to delete location profile photo: {}", e)))?;
 
-    info!("Location profile photo deleted for location {}", location_id);
+    info!(
+        "Location profile photo deleted for location {}",
+        location_id
+    );
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
@@ -1069,7 +1099,10 @@ async fn upload_location_photo(
     Path(location_id): Path<String>,
     mut multipart: Multipart,
 ) -> Result<Json<UploadResponse>, Error> {
-    debug!("User {} uploading photo for location {}", user.username, location_id);
+    debug!(
+        "User {} uploading photo for location {}",
+        user.username, location_id
+    );
 
     let loc_rid = surrealdb::types::RecordId::new("location", location_id.as_str());
     if !LocationModel::can_edit(&loc_rid, &user.id).await? {
@@ -1077,7 +1110,8 @@ async fn upload_location_photo(
     }
 
     // Check current photo count
-    let mut count_resp = DB.query("SELECT array::len(photos) AS photo_count FROM $lid")
+    let mut count_resp = DB
+        .query("SELECT array::len(photos) AS photo_count FROM $lid")
         .bind(("lid", loc_rid.clone()))
         .await
         .map_err(|e| Error::Internal(format!("Failed to check photo count: {}", e)))?;
@@ -1089,19 +1123,35 @@ async fn upload_location_photo(
         .unwrap_or(0) as usize;
 
     if photo_count >= MAX_LOCATION_PHOTOS {
-        return Err(Error::bad_request(format!("Maximum of {} location photos allowed", MAX_LOCATION_PHOTOS)));
+        return Err(Error::bad_request(format!(
+            "Maximum of {} location photos allowed",
+            MAX_LOCATION_PHOTOS
+        )));
     }
 
     let mut image_data: Option<(String, Bytes)> = None;
-    while let Some(field) = multipart.next_field().await
-        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))? {
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))?
+    {
         let name = field.name().unwrap_or("").to_string();
-        if name != "image" { continue; }
-        let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
-        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
-            return Err(Error::bad_request(format!("Invalid file type: {}. Allowed: JPEG, PNG, WebP", content_type)));
+        if name != "image" {
+            continue;
         }
-        let data = field.bytes().await
+        let content_type = field
+            .content_type()
+            .unwrap_or("application/octet-stream")
+            .to_string();
+        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
+            return Err(Error::bad_request(format!(
+                "Invalid file type: {}. Allowed: JPEG, PNG, WebP",
+                content_type
+            )));
+        }
+        let data = field
+            .bytes()
+            .await
             .map_err(|e| Error::bad_request(format!("Failed to read file data: {}", e)))?;
         if data.len() > MAX_FILE_SIZE {
             return Err(Error::bad_request("File too large. Maximum size is 10MB"));
@@ -1110,7 +1160,8 @@ async fn upload_location_photo(
         break;
     }
 
-    let (_content_type, data) = image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
+    let (_content_type, data) =
+        image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
 
     let (processed, thumbnail) = process_photo(&data)?;
 
@@ -1119,19 +1170,26 @@ async fn upload_location_photo(
     let thumb_key = format!("locations/{}/photos/thumb_{}.jpg", location_id, image_id);
 
     let s3_service = s3()?;
-    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
-    s3_service.upload_file(&thumb_key, thumbnail, "image/jpeg").await?;
+    s3_service
+        .upload_file(&main_key, processed, "image/jpeg")
+        .await?;
+    s3_service
+        .upload_file(&thumb_key, thumbnail, "image/jpeg")
+        .await?;
 
     let main_url = format!("/api/media/{}", main_key);
     let thumb_url = format!("/api/media/{}", thumb_key);
 
     DB.query("UPDATE $lid SET photos += $photo")
         .bind(("lid", loc_rid))
-        .bind(("photo", serde_json::json!({
-            "url": main_url,
-            "thumbnail_url": thumb_url,
-            "caption": ""
-        })))
+        .bind((
+            "photo",
+            serde_json::json!({
+                "url": main_url,
+                "thumbnail_url": thumb_url,
+                "caption": ""
+            }),
+        ))
         .await
         .map_err(|e| Error::Internal(format!("Failed to update location photos: {}", e)))?;
 
@@ -1150,7 +1208,9 @@ async fn delete_location_photo(
     Path(location_id): Path<String>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Error> {
-    let url = body.get("url").and_then(|v| v.as_str())
+    let url = body
+        .get("url")
+        .and_then(|v| v.as_str())
         .ok_or_else(|| Error::bad_request("Missing 'url' field"))?;
 
     let loc_rid = surrealdb::types::RecordId::new("location", location_id.as_str());
@@ -1184,15 +1244,24 @@ pub fn process_poster(image_data: &[u8]) -> Result<(Bytes, Bytes), Error> {
     let img = image::load_from_memory(image_data)
         .map_err(|e| Error::bad_request(format!("Invalid image file: {}", e)))?;
 
-    let full = img.resize_to_fill(POSTER_WIDTH, POSTER_HEIGHT, image::imageops::FilterType::Lanczos3);
-    let thumb = img.resize_to_fill(POSTER_THUMB_WIDTH, POSTER_THUMB_HEIGHT, image::imageops::FilterType::Lanczos3);
+    let full = img.resize_to_fill(
+        POSTER_WIDTH,
+        POSTER_HEIGHT,
+        image::imageops::FilterType::Lanczos3,
+    );
+    let thumb = img.resize_to_fill(
+        POSTER_THUMB_WIDTH,
+        POSTER_THUMB_HEIGHT,
+        image::imageops::FilterType::Lanczos3,
+    );
 
     let mut full_bytes = Cursor::new(Vec::new());
     full.write_to(&mut full_bytes, ImageFormat::Jpeg)
         .map_err(|e| Error::Internal(format!("Failed to encode poster: {}", e)))?;
 
     let mut thumb_bytes = Cursor::new(Vec::new());
-    thumb.write_to(&mut thumb_bytes, ImageFormat::Jpeg)
+    thumb
+        .write_to(&mut thumb_bytes, ImageFormat::Jpeg)
         .map_err(|e| Error::Internal(format!("Failed to encode poster thumbnail: {}", e)))?;
 
     Ok((
@@ -1202,7 +1271,10 @@ pub fn process_poster(image_data: &[u8]) -> Result<(Bytes, Bytes), Error> {
 }
 
 /// Helper: check production edit permissions
-async fn check_production_edit(production_id: &str, user_id: &str) -> Result<surrealdb::types::RecordId, Error> {
+async fn check_production_edit(
+    production_id: &str,
+    user_id: &str,
+) -> Result<surrealdb::types::RecordId, Error> {
     let prod_rid = surrealdb::types::RecordId::new("production", production_id);
     if !ProductionModel::can_edit(&prod_rid, user_id).await? {
         return Err(Error::Forbidden);
@@ -1212,15 +1284,28 @@ async fn check_production_edit(production_id: &str, user_id: &str) -> Result<sur
 
 /// Helper: extract image from multipart
 async fn extract_image_from_multipart(multipart: &mut Multipart) -> Result<(String, Bytes), Error> {
-    while let Some(field) = multipart.next_field().await
-        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))? {
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| Error::bad_request(format!("Failed to read multipart: {}", e)))?
+    {
         let name = field.name().unwrap_or("").to_string();
-        if name != "image" { continue; }
-        let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
-        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
-            return Err(Error::bad_request(format!("Invalid file type: {}. Allowed: JPEG, PNG, WebP", content_type)));
+        if name != "image" {
+            continue;
         }
-        let data = field.bytes().await
+        let content_type = field
+            .content_type()
+            .unwrap_or("application/octet-stream")
+            .to_string();
+        if !ALLOWED_FORMATS.contains(&content_type.as_str()) {
+            return Err(Error::bad_request(format!(
+                "Invalid file type: {}. Allowed: JPEG, PNG, WebP",
+                content_type
+            )));
+        }
+        let data = field
+            .bytes()
+            .await
             .map_err(|e| Error::bad_request(format!("Failed to read file data: {}", e)))?;
         if data.len() > MAX_FILE_SIZE {
             return Err(Error::bad_request("File too large. Maximum size is 10MB"));
@@ -1237,18 +1322,24 @@ async fn upload_production_header_photo(
     Query(params): Query<ImageProcessParams>,
     mut multipart: Multipart,
 ) -> Result<Json<UploadResponse>, Error> {
-    debug!("User {} uploading header photo for production {}", user.username, production_id);
+    debug!(
+        "User {} uploading header photo for production {}",
+        user.username, production_id
+    );
 
     let prod_rid = check_production_edit(&production_id, &user.id).await?;
 
     let (_content_type, data) = extract_image_from_multipart(&mut multipart).await?;
-    let (processed, _thumbnail) = process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
+    let (processed, _thumbnail) =
+        process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
 
     let image_id = Ulid::new().to_string();
     let main_key = format!("productions/{}/{}.jpg", production_id, image_id);
 
     let s3_service = s3()?;
-    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
+    s3_service
+        .upload_file(&main_key, processed, "image/jpeg")
+        .await?;
 
     let main_url = format!("/api/media/{}", main_key);
 
@@ -1289,7 +1380,10 @@ async fn upload_production_poster(
     Path(production_id): Path<String>,
     mut multipart: Multipart,
 ) -> Result<Json<UploadResponse>, Error> {
-    debug!("User {} uploading poster for production {}", user.username, production_id);
+    debug!(
+        "User {} uploading poster for production {}",
+        user.username, production_id
+    );
 
     let prod_rid = check_production_edit(&production_id, &user.id).await?;
 
@@ -1298,11 +1392,18 @@ async fn upload_production_poster(
 
     let image_id = Ulid::new().to_string();
     let main_key = format!("productions/{}/poster_{}.jpg", production_id, image_id);
-    let thumb_key = format!("productions/{}/poster_thumb_{}.jpg", production_id, image_id);
+    let thumb_key = format!(
+        "productions/{}/poster_thumb_{}.jpg",
+        production_id, image_id
+    );
 
     let s3_service = s3()?;
-    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
-    s3_service.upload_file(&thumb_key, thumbnail, "image/jpeg").await?;
+    s3_service
+        .upload_file(&main_key, processed, "image/jpeg")
+        .await?;
+    s3_service
+        .upload_file(&thumb_key, thumbnail, "image/jpeg")
+        .await?;
 
     let main_url = format!("/api/media/{}", main_key);
     let thumb_url = format!("/api/media/{}", thumb_key);
@@ -1344,12 +1445,16 @@ async fn upload_production_photo(
     Path(production_id): Path<String>,
     mut multipart: Multipart,
 ) -> Result<Json<UploadResponse>, Error> {
-    debug!("User {} uploading gallery photo for production {}", user.username, production_id);
+    debug!(
+        "User {} uploading gallery photo for production {}",
+        user.username, production_id
+    );
 
     let prod_rid = check_production_edit(&production_id, &user.id).await?;
 
     // Check current photo count
-    let mut count_resp = DB.query("SELECT array::len(photos) AS photo_count FROM $pid")
+    let mut count_resp = DB
+        .query("SELECT array::len(photos) AS photo_count FROM $pid")
         .bind(("pid", prod_rid.clone()))
         .await
         .map_err(|e| Error::Internal(format!("Failed to check photo count: {}", e)))?;
@@ -1361,7 +1466,10 @@ async fn upload_production_photo(
         .unwrap_or(0) as usize;
 
     if photo_count >= MAX_PRODUCTION_PHOTOS {
-        return Err(Error::bad_request(format!("Maximum of {} production photos allowed", MAX_PRODUCTION_PHOTOS)));
+        return Err(Error::bad_request(format!(
+            "Maximum of {} production photos allowed",
+            MAX_PRODUCTION_PHOTOS
+        )));
     }
 
     let (_content_type, data) = extract_image_from_multipart(&mut multipart).await?;
@@ -1369,22 +1477,32 @@ async fn upload_production_photo(
 
     let image_id = Ulid::new().to_string();
     let main_key = format!("productions/{}/photos/{}.jpg", production_id, image_id);
-    let thumb_key = format!("productions/{}/photos/thumb_{}.jpg", production_id, image_id);
+    let thumb_key = format!(
+        "productions/{}/photos/thumb_{}.jpg",
+        production_id, image_id
+    );
 
     let s3_service = s3()?;
-    s3_service.upload_file(&main_key, processed, "image/jpeg").await?;
-    s3_service.upload_file(&thumb_key, thumbnail, "image/jpeg").await?;
+    s3_service
+        .upload_file(&main_key, processed, "image/jpeg")
+        .await?;
+    s3_service
+        .upload_file(&thumb_key, thumbnail, "image/jpeg")
+        .await?;
 
     let main_url = format!("/api/media/{}", main_key);
     let thumb_url = format!("/api/media/{}", thumb_key);
 
     DB.query("UPDATE $pid SET photos += $photo")
         .bind(("pid", prod_rid))
-        .bind(("photo", serde_json::json!({
-            "url": main_url,
-            "thumbnail_url": thumb_url,
-            "caption": ""
-        })))
+        .bind((
+            "photo",
+            serde_json::json!({
+                "url": main_url,
+                "thumbnail_url": thumb_url,
+                "caption": ""
+            }),
+        ))
         .await
         .map_err(|e| Error::Internal(format!("Failed to update production photos: {}", e)))?;
 
@@ -1403,7 +1521,9 @@ async fn delete_production_photo(
     Path(production_id): Path<String>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Error> {
-    let url = body.get("url").and_then(|v| v.as_str())
+    let url = body
+        .get("url")
+        .and_then(|v| v.as_str())
         .ok_or_else(|| Error::bad_request("Missing 'url' field"))?;
 
     let prod_rid = check_production_edit(&production_id, &user.id).await?;

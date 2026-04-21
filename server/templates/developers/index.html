@@ -1,0 +1,41 @@
+{% extends "_layout.html" %}
+{% block title %}Developer Documentation - {{ app_name }}{% endblock %}
+{% block page_name %}developers{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/orgs.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section data-component="org-form-page" data-page-variant="developers">
+    <header data-role="page-header">
+        <h1>Developer Documentation</h1>
+        <p data-role="subtitle">Build with the Slatehub platform.</p>
+    </header>
+
+    <article>
+        <h2>OpenID Connect provider</h2>
+        <p>Add &ldquo;Sign in with Slatehub&rdquo; to your app, and reuse your organization's roles and permissions for authorization decisions.</p>
+        <p><a href="/developers/oidc">Read the OIDC integration guide &rarr;</a></p>
+        <ul>
+            <li>Issuer: <code>{{ issuer }}</code></li>
+            <li>Discovery: <a href="{{ issuer }}/.well-known/openid-configuration"><code>/.well-known/openid-configuration</code></a></li>
+        </ul>
+    </article>
+
+    <article>
+        <h2>Security event delivery</h2>
+        <p>Receive realtime webhook notifications when role, profile, or membership changes affect your users.</p>
+        <p><a href="/developers/security-events">Read the security events guide &rarr;</a></p>
+    </article>
+
+    <article>
+        <h2>Setting up your app</h2>
+        <ol>
+            <li>Create or join an organization on Slatehub.</li>
+            <li>From your org profile, click the gear icon to open <strong>Settings</strong>.</li>
+            <li>Under <strong>API &amp; Integrations</strong>, click <strong>Enable OIDC</strong>. Save your client secret &mdash; it's shown only once.</li>
+            <li>Add your app's redirect URIs.</li>
+            <li>Configure your client library with the discovery URL above.</li>
+        </ol>
+    </article>
+</section>
+{% endblock %}

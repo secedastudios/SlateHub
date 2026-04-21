@@ -9,9 +9,8 @@
 use slatehub::config::Config;
 use slatehub::db::DB;
 use slatehub::services::embedding::{
-    build_location_embedding_text, build_organization_embedding_text,
-    build_person_embedding_text, build_production_embedding_text, generate_embedding,
-    init_embedding_service,
+    build_location_embedding_text, build_organization_embedding_text, build_person_embedding_text,
+    build_production_embedding_text, generate_embedding, init_embedding_service,
 };
 use surrealdb::engine::remote::ws::Ws;
 use surrealdb::opt::auth::Root;
@@ -183,8 +182,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 build_person_embedding_text(
                     &display_name,
-                    None, None, &[], None, None, None, &[], None, None, None, None, &[], &[], &[],
-                    None, &[], None,
+                    None,
+                    None,
+                    &[],
+                    None,
+                    None,
+                    None,
+                    &[],
+                    None,
+                    None,
+                    None,
+                    None,
+                    &[],
+                    &[],
+                    &[],
+                    None,
+                    &[],
+                    None,
                 )
             };
 
@@ -280,7 +294,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 Err(e) => {
-                    eprintln!("  Failed to generate embedding for location {}: {}", name, e);
+                    eprintln!(
+                        "  Failed to generate embedding for location {}: {}",
+                        name, e
+                    );
                     total_failed += 1;
                 }
             }
@@ -320,7 +337,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 Err(e) => {
-                    eprintln!("  Failed to generate embedding for production {}: {}", title, e);
+                    eprintln!(
+                        "  Failed to generate embedding for production {}: {}",
+                        title, e
+                    );
                     total_failed += 1;
                 }
             }

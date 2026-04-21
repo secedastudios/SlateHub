@@ -1,0 +1,63 @@
+{% extends "_layout.html" %}
+{% block title %}Security Event Delivery - {{ app_name }}{% endblock %}
+{% block page_name %}developers{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/orgs.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section data-component="org-form-page" data-page-variant="developers">
+    <header data-role="page-header">
+        <nav data-role="breadcrumb"><a href="/developers">Developers</a> / Security Events</nav>
+        <h1>Security event delivery (SSF / CAEP / RISC)</h1>
+    </header>
+
+    <p>Slatehub publishes Security Event Tokens (RFC 8417) to your registered webhook whenever something changes that affects an active user session at your app &mdash; e.g. a role update, profile change, or org-membership revocation.</p>
+
+    <h2>Configuring</h2>
+    <p>In your org's <strong>Settings &rarr; API &amp; Integrations</strong> page, set:</p>
+    <ul>
+        <li><strong>Receiver endpoint</strong> &mdash; HTTPS URL that will accept POST requests with <code>Content-Type: application/secevent+jwt</code>.</li>
+        <li><strong>Events</strong> &mdash; check the boxes for the event types you want.</li>
+    </ul>
+
+    <h2>SET format</h2>
+    <p>Each delivery is a single JWT (signed with EdDSA, same key as id_tokens) in the request body:</p>
+    <pre><code>{
+  "iss": "{{ issuer }}",
+  "aud": "your_client_id",
+  "iat": 1700000000,
+  "jti": "...",
+  "events": {
+    "https://schemas.openid.net/secevent/caep/event-type/token-claims-change": {
+      "subject": { "format": "opaque", "id": "person:abc123" },
+      "event_timestamp": 1700000000,
+      "claims": {
+        "slatehub_org_role": "admin",
+        "slatehub_permissions": ["billing.read","members.write"]
+      }
+    }
+  }
+}</code></pre>
+
+    <h2>Event types</h2>
+    <dl>
+        <dt><code>caep/token-claims-change</code></dt>
+        <dd>The user's claims have changed. Refresh your local cache or call <code>/userinfo</code>. Tokens remain valid.</dd>
+
+        <dt><code>caep/session-revoked</code></dt>
+        <dd>The user's session was revoked. Treat their tokens as invalid.</dd>
+
+        <dt><code>risc/account-disabled</code></dt>
+        <dd>The user's Slatehub account has been disabled.</dd>
+
+        <dt><code>slatehub/org-membership-revoked</code></dt>
+        <dd>The user is no longer a member of your org. Their session at your app is also revoked server-side.</dd>
+    </dl>
+
+    <h2>Verifying the signature</h2>
+    <p>Fetch <code>{{ issuer }}/.well-known/jwks.json</code> and verify with the JWK whose <code>kid</code> matches the JWT header.</p>
+
+    <h2>Responding</h2>
+    <p>Return any 2xx HTTP status to acknowledge. We retry non-2xx responses with backoff up to 8 attempts. 4xx (except 408) are treated as permanent failures and not retried.</p>
+</section>
+{% endblock %}

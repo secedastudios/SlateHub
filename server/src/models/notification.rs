@@ -24,6 +24,12 @@ struct CountResult {
 
 pub struct NotificationModel;
 
+impl Default for NotificationModel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NotificationModel {
     pub fn new() -> Self {
         Self
@@ -38,10 +44,7 @@ impl NotificationModel {
         link: Option<&str>,
         related_id: Option<&str>,
     ) -> Result<(), Error> {
-        debug!(
-            "Creating notification for person {}: {}",
-            person_id, title
-        );
+        debug!("Creating notification for person {}: {}", person_id, title);
 
         let person_id =
             RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
@@ -119,14 +122,19 @@ impl NotificationModel {
     }
 
     pub async fn mark_all_read(&self, person_id: &str) -> Result<(), Error> {
-        debug!("Marking all notifications as read for person: {}", person_id);
+        debug!(
+            "Marking all notifications as read for person: {}",
+            person_id
+        );
 
         let person_id =
             RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
-        DB.query("UPDATE notification SET read = true WHERE person_id = $person_id AND read = false")
-            .bind(("person_id", person_id))
-            .await?;
+        DB.query(
+            "UPDATE notification SET read = true WHERE person_id = $person_id AND read = false",
+        )
+        .bind(("person_id", person_id))
+        .await?;
 
         Ok(())
     }

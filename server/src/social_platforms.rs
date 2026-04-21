@@ -1,7 +1,7 @@
-/// Social media platform registry for profile links.
-///
-/// Each platform has an ID (stored in DB), display name, optional base URL
-/// for handle→URL expansion, placeholder text, and an inline SVG icon.
+//! Social media platform registry for profile links.
+//!
+//! Each platform has an ID (stored in DB), display name, optional base URL
+//! for handle→URL expansion, placeholder text, and an inline SVG icon.
 
 pub struct SocialPlatform {
     pub id: &'static str,
@@ -63,7 +63,6 @@ pub const SOCIAL_PLATFORMS: &[SocialPlatform] = &[
         placeholder: "handle.bsky.social or full URL",
         icon_svg: r#"<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.785 2.627 3.6 3.476 6.158 3.129-4.397.62-8.258 2.129-4.476 7.53C5.705 24.89 10.254 18.87 12 15.47c1.746 3.4 6.037 9.257 9.694 5.436 3.782-5.4-.08-6.91-4.476-7.53 2.558.347 5.373-.502 6.159-3.129.245-.828.623-5.789.623-6.479 0-.688-.139-1.86-.902-2.203-.659-.3-1.664-.621-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8z"/></svg>"#,
     },
-
     // ── Industry ──
     SocialPlatform {
         id: "imdb",
@@ -107,7 +106,6 @@ pub const SOCIAL_PLATFORMS: &[SocialPlatform] = &[
         placeholder: "https://crewunited.com/...",
         icon_svg: r#"<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>"#,
     },
-
     // ── Fallback ──
     SocialPlatform {
         id: "other",
@@ -141,7 +139,10 @@ pub fn expand_url(platform_id: &str, value: &str) -> String {
 
     // Reject dangerous URI schemes
     let lower = value.to_lowercase();
-    if lower.starts_with("javascript:") || lower.starts_with("data:") || lower.starts_with("vbscript:") {
+    if lower.starts_with("javascript:")
+        || lower.starts_with("data:")
+        || lower.starts_with("vbscript:")
+    {
         return String::new();
     }
 

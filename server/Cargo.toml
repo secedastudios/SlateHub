@@ -15,6 +15,10 @@ path = "src/main.rs"
 name = "rebuild-embeddings"
 path = "src/bin/rebuild_embeddings.rs"
 
+[[bin]]
+name = "oidc-rotate-key"
+path = "src/bin/oidc_rotate_key.rs"
+
 [dependencies]
 async-stream = "0.3"
 spow = { version = "0.6", features = ["server"] }
@@ -67,6 +71,12 @@ urlencoding = "2.1"
 # Markdown rendering + HTML sanitization
 pulldown-cmark = "0.12"
 ammonia = "4"
+
+# OIDC provider: ed25519 signing + token hashing + URL parsing
+ed25519-dalek = { version = "2", features = ["pkcs8", "rand_core"] }
+serde_urlencoded = "0.7"
+sha2 = "0.10"
+url = "2"
 
 # MCP server
 rmcp = { version = "1.2", features = ["server", "transport-streamable-http-server", "tower", "macros", "schemars"] }

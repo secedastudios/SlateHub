@@ -114,7 +114,10 @@ async fn search_page(
     // Extract user from request
     let (user, current_user_id) = if let Some(session_user) = request.get_user() {
         let uid = session_user.id.clone();
-        (Some(User::from_session_user(&session_user).await), Some(uid))
+        (
+            Some(User::from_session_user(&session_user).await),
+            Some(uid),
+        )
     } else {
         (None, None)
     };
@@ -198,11 +201,7 @@ async fn search_page(
             limit: 10,
             offset: 0,
         };
-        crate::services::search::search_organizations(
-            &search_params,
-            location.as_deref(),
-        )
-        .await?
+        crate::services::search::search_organizations(&search_params, location.as_deref()).await?
     } else {
         vec![]
     };
@@ -216,12 +215,7 @@ async fn search_page(
             offset: 0,
         };
         // For locations, pass extracted location as city filter
-        crate::services::search::search_locations(
-            &search_params,
-            location.as_deref(),
-            None,
-        )
-        .await?
+        crate::services::search::search_locations(&search_params, location.as_deref(), None).await?
     } else {
         vec![]
     };
@@ -247,12 +241,7 @@ async fn search_page(
             limit: 10,
             offset: 0,
         };
-        crate::services::search::search_jobs(
-            &search_params,
-            location.as_deref(),
-            true,
-        )
-        .await?
+        crate::services::search::search_jobs(&search_params, location.as_deref(), true).await?
     } else {
         vec![]
     };

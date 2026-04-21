@@ -1,6 +1,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::config::mcp_search_weights;
+use crate::db::DB;
+use crate::services::embedding::generate_embedding_async;
+use crate::services::search::{
+    SearchParams, search_jobs as svc_search_jobs, search_locations as svc_search_locations,
+    search_organizations as svc_search_organizations, search_people as svc_search_people,
+    search_productions as svc_search_productions,
+};
+use crate::services::search_log::log_search;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{ServerCapabilities, ServerInfo};
@@ -9,11 +18,6 @@ use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, Stream
 use rmcp::{ServerHandler, schemars, tool, tool_handler, tool_router};
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
-use crate::config::mcp_search_weights;
-use crate::db::DB;
-use crate::services::embedding::generate_embedding_async;
-use crate::services::search::{SearchParams, search_people as svc_search_people, search_productions as svc_search_productions, search_organizations as svc_search_organizations, search_locations as svc_search_locations, search_jobs as svc_search_jobs};
-use crate::services::search_log::log_search;
 
 // ---------------------------------------------------------------------------
 // Tool parameter types
@@ -113,6 +117,12 @@ pub struct SlateHubMcp {
     app_url: String,
 }
 
+impl Default for SlateHubMcp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SlateHubMcp {
     pub fn new() -> Self {
         Self {
@@ -126,7 +136,7 @@ fn clamp_limit(limit: Option<usize>) -> usize {
     limit.unwrap_or(50).min(100)
 }
 
-use crate::services::search_utils::{parse_query, extract_location, normalize_query};
+use crate::services::search_utils::{extract_location, normalize_query, parse_query};
 
 #[tool_router]
 impl SlateHubMcp {
@@ -207,10 +217,7 @@ impl SlateHubMcp {
         name = "get_profile",
         description = "Get a person's full profile on SlateHub by username. Returns detailed info: bio, skills, physical attributes, photos, reels, social links, and credits. Use this after search_people to get full details on specific candidates."
     )]
-    async fn get_profile(
-        &self,
-        Parameters(params): Parameters<GetProfileParams>,
-    ) -> String {
+    async fn get_profile(&self, Parameters(params): Parameters<GetProfileParams>) -> String {
         match self.do_get_profile(params).await {
             Ok(result) => result,
             Err(e) => format!("Error fetching profile: {}", e),
@@ -222,10 +229,7 @@ impl SlateHubMcp {
         name = "browse_credits",
         description = "Browse a person's credits and production involvement history on SlateHub. Provide a username to see their roles across productions."
     )]
-    async fn browse_credits(
-        &self,
-        Parameters(params): Parameters<BrowseCreditsParams>,
-    ) -> String {
+    async fn browse_credits(&self, Parameters(params): Parameters<BrowseCreditsParams>) -> String {
         match self.do_browse_credits(params).await {
             Ok(result) => result,
             Err(e) => format!("Error browsing credits: {}", e),
@@ -240,7 +244,9 @@ impl ServerHandler for SlateHubMcp {
 
         let mut server_impl = Implementation::new("slatehub", env!("CARGO_PKG_VERSION"))
             .with_title("SlateHub")
-            .with_description("Creative networking platform for the film, TV, and content creation industry")
+            .with_description(
+                "Creative networking platform for the film, TV, and content creation industry",
+            )
             .with_icons(vec![
                 Icon::new(format!("{}/favicon.svg", self.app_url))
                     .with_mime_type("image/svg+xml")
@@ -314,13 +320,9 @@ impl SlateHubMcp {
             offset: 0,
         };
 
-        let results = svc_search_people(
-            &search_params,
-            &parsed,
-            params.skill.as_deref(),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+        let results = svc_search_people(&search_params, &parsed, params.skill.as_deref())
+            .await
+            .map_err(|e| e.to_string())?;
 
         log_search(&params.query, "mcp", "people", Some(results.len()));
 
@@ -331,37 +333,40 @@ impl SlateHubMcp {
         let mut out = format!("Found {} people:\n\n", results.len());
         for r in &results {
             out.push_str(&format!("- **{}**", r.name));
-            if let Some(ref headline) = r.headline {
-                if !headline.is_empty() {
-                    out.push_str(&format!(" — {}", headline));
-                }
+            if let Some(ref headline) = r.headline
+                && !headline.is_empty()
+            {
+                out.push_str(&format!(" — {}", headline));
             }
             out.push('\n');
-            if let Some(ref location) = r.location {
-                if !location.is_empty() {
-                    out.push_str(&format!("  Location: {}\n", location));
-                }
+            if let Some(ref location) = r.location
+                && !location.is_empty()
+            {
+                out.push_str(&format!("  Location: {}\n", location));
             }
             if !r.skills.is_empty() {
                 out.push_str(&format!("  Skills: {}\n", r.skills.join(", ")));
             }
-            if let Some(ref avatar_url) = r.avatar_url {
-                if !avatar_url.is_empty() {
-                    out.push_str(&format!("  Photo: {}{}\n", self.app_url, avatar_url));
-                }
+            if let Some(ref avatar_url) = r.avatar_url
+                && !avatar_url.is_empty()
+            {
+                out.push_str(&format!("  Photo: {}{}\n", self.app_url, avatar_url));
             }
             out.push_str(&format!("  Profile: {}/{}\n", self.app_url, r.username));
-            if let Some(ref embedding_text) = r.embedding_text {
-                if !embedding_text.is_empty() {
-                    out.push_str(&format!("  Summary: {}\n", embedding_text));
-                }
+            if let Some(ref embedding_text) = r.embedding_text
+                && !embedding_text.is_empty()
+            {
+                out.push_str(&format!("  Summary: {}\n", embedding_text));
             }
             out.push('\n');
         }
         Ok(out)
     }
 
-    async fn do_search_productions(&self, params: SearchProductionsParams) -> Result<String, String> {
+    async fn do_search_productions(
+        &self,
+        params: SearchProductionsParams,
+    ) -> Result<String, String> {
         let limit = clamp_limit(params.limit);
 
         // Don't extract location — canonical search_productions has no location param.
@@ -379,12 +384,9 @@ impl SlateHubMcp {
             offset: 0,
         };
 
-        let results = svc_search_productions(
-            &search_params,
-            params.status.as_deref(),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+        let results = svc_search_productions(&search_params, params.status.as_deref())
+            .await
+            .map_err(|e| e.to_string())?;
 
         log_search(&params.query, "mcp", "productions", Some(results.len()));
 
@@ -399,32 +401,32 @@ impl SlateHubMcp {
                 out.push_str(&format!(" [{}]", r.status));
             }
             out.push('\n');
-            if let Some(ref location) = r.location {
-                if !location.is_empty() {
-                    out.push_str(&format!("  Location: {}\n", location));
-                }
+            if let Some(ref location) = r.location
+                && !location.is_empty()
+            {
+                out.push_str(&format!("  Location: {}\n", location));
             }
-            if let Some(ref description) = r.description {
-                if !description.is_empty() {
-                    let desc: String = description.chars().take(200).collect();
-                    let desc = if desc.len() < description.len() {
-                        format!("{}...", desc)
-                    } else {
-                        desc
-                    };
-                    out.push_str(&format!("  Description: {}\n", desc));
-                }
+            if let Some(ref description) = r.description
+                && !description.is_empty()
+            {
+                let desc: String = description.chars().take(200).collect();
+                let desc = if desc.len() < description.len() {
+                    format!("{}...", desc)
+                } else {
+                    desc
+                };
+                out.push_str(&format!("  Description: {}\n", desc));
             }
-            out.push_str(&format!(
-                "  URL: {}/productions/{}\n",
-                self.app_url, r.slug
-            ));
+            out.push_str(&format!("  URL: {}/productions/{}\n", self.app_url, r.slug));
             out.push('\n');
         }
         Ok(out)
     }
 
-    async fn do_search_organizations(&self, params: SearchOrganizationsParams) -> Result<String, String> {
+    async fn do_search_organizations(
+        &self,
+        params: SearchOrganizationsParams,
+    ) -> Result<String, String> {
         let limit = clamp_limit(params.limit);
 
         let (parsed_location, cleaned_query) = if params.location.is_none() {
@@ -446,12 +448,10 @@ impl SlateHubMcp {
             offset: 0,
         };
 
-        let results = svc_search_organizations(
-            &search_params,
-            effective_location.map(|s| s.as_str()),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+        let results =
+            svc_search_organizations(&search_params, effective_location.map(|s| s.as_str()))
+                .await
+                .map_err(|e| e.to_string())?;
 
         log_search(&params.query, "mcp", "organizations", Some(results.len()));
 
@@ -462,21 +462,21 @@ impl SlateHubMcp {
         let mut out = format!("Found {} organizations:\n\n", results.len());
         for r in &results {
             out.push_str(&format!("- **{}**\n", r.name));
-            if let Some(ref location) = r.location {
-                if !location.is_empty() {
-                    out.push_str(&format!("  Location: {}\n", location));
-                }
+            if let Some(ref location) = r.location
+                && !location.is_empty()
+            {
+                out.push_str(&format!("  Location: {}\n", location));
             }
-            if let Some(ref description) = r.description {
-                if !description.is_empty() {
-                    let desc: String = description.chars().take(200).collect();
-                    let desc = if desc.len() < description.len() {
-                        format!("{}...", desc)
-                    } else {
-                        desc
-                    };
-                    out.push_str(&format!("  Description: {}\n", desc));
-                }
+            if let Some(ref description) = r.description
+                && !description.is_empty()
+            {
+                let desc: String = description.chars().take(200).collect();
+                let desc = if desc.len() < description.len() {
+                    format!("{}...", desc)
+                } else {
+                    desc
+                };
+                out.push_str(&format!("  Description: {}\n", desc));
             }
             out.push_str(&format!("  URL: {}/orgs/{}\n", self.app_url, r.slug));
             out.push('\n');
@@ -536,21 +536,18 @@ impl SlateHubMcp {
                         .join(", ")
                 ));
             }
-            if let Some(ref description) = r.description {
-                if !description.is_empty() {
-                    let desc: String = description.chars().take(200).collect();
-                    let desc = if desc.len() < description.len() {
-                        format!("{}...", desc)
-                    } else {
-                        desc
-                    };
-                    out.push_str(&format!("  Description: {}\n", desc));
-                }
+            if let Some(ref description) = r.description
+                && !description.is_empty()
+            {
+                let desc: String = description.chars().take(200).collect();
+                let desc = if desc.len() < description.len() {
+                    format!("{}...", desc)
+                } else {
+                    desc
+                };
+                out.push_str(&format!("  Description: {}\n", desc));
             }
-            out.push_str(&format!(
-                "  URL: {}/locations/{}\n",
-                self.app_url, r.key
-            ));
+            out.push_str(&format!("  URL: {}/locations/{}\n", self.app_url, r.key));
             out.push('\n');
         }
         Ok(out)
@@ -597,13 +594,16 @@ impl SlateHubMcp {
         for r in &results {
             out.push_str(&format!("- **{}**", r.title));
             out.push('\n');
-            if let Some(ref location) = r.location {
-                if !location.is_empty() {
-                    out.push_str(&format!("  Location: {}\n", location));
-                }
+            if let Some(ref location) = r.location
+                && !location.is_empty()
+            {
+                out.push_str(&format!("  Location: {}\n", location));
             }
             if !r.poster_name.is_empty() {
-                out.push_str(&format!("  Posted by: {} ({})\n", r.poster_name, r.poster_type));
+                out.push_str(&format!(
+                    "  Posted by: {} ({})\n",
+                    r.poster_name, r.poster_type
+                ));
             }
             if r.role_count > 0 {
                 out.push_str(&format!("  Roles: {}\n", r.role_count));
@@ -617,10 +617,10 @@ impl SlateHubMcp {
                 };
                 out.push_str(&format!("  Description: {}\n", desc));
             }
-            if let Some(ref embedding_text) = r.embedding_text {
-                if !embedding_text.is_empty() {
-                    out.push_str(&format!("  Summary: {}\n", embedding_text));
-                }
+            if let Some(ref embedding_text) = r.embedding_text
+                && !embedding_text.is_empty()
+            {
+                out.push_str(&format!("  Summary: {}\n", embedding_text));
             }
             // Extract key from id (format: "job_posting:key")
             let key = r.id.strip_prefix("job_posting:").unwrap_or(&r.id);
@@ -661,7 +661,7 @@ impl SlateHubMcp {
                     profile.reels AS reels,
                     profile.social_links AS social_links,
                     embedding_text
-                FROM person WHERE username = $username LIMIT 1"
+                FROM person WHERE username = $username LIMIT 1",
             )
             .bind(("username", username.clone()))
             .await
@@ -730,10 +730,13 @@ impl SlateHubMcp {
         }
 
         // Acting range
-        if let Some(aar) = row["acting_age_range"].as_object() {
-            if let (Some(min), Some(max)) = (aar.get("min").and_then(|v| v.as_i64()), aar.get("max").and_then(|v| v.as_i64())) {
-                out.push_str(&format!("Can play ages: {}-{}\n", min, max));
-            }
+        if let Some(aar) = row["acting_age_range"].as_object()
+            && let (Some(min), Some(max)) = (
+                aar.get("min").and_then(|v| v.as_i64()),
+                aar.get("max").and_then(|v| v.as_i64()),
+            )
+        {
+            out.push_str(&format!("Can play ages: {}-{}\n", min, max));
         }
         if let Some(ae) = row["acting_ethnicities"].as_array() {
             let vals: Vec<&str> = ae.iter().filter_map(|v| v.as_str()).collect();
@@ -774,51 +777,51 @@ impl SlateHubMcp {
         }
 
         // Gallery photos
-        if let Some(photos) = row["photos"].as_array() {
-            if !photos.is_empty() {
-                out.push_str("**Gallery:**\n");
-                for photo in photos {
-                    if let Some(url) = photo["url"].as_str() {
-                        let caption = photo["caption"].as_str().unwrap_or("");
-                        if !caption.is_empty() {
-                            out.push_str(&format!("- {}{} ({})\n", self.app_url, url, caption));
-                        } else {
-                            out.push_str(&format!("- {}{}\n", self.app_url, url));
-                        }
+        if let Some(photos) = row["photos"].as_array()
+            && !photos.is_empty()
+        {
+            out.push_str("**Gallery:**\n");
+            for photo in photos {
+                if let Some(url) = photo["url"].as_str() {
+                    let caption = photo["caption"].as_str().unwrap_or("");
+                    if !caption.is_empty() {
+                        out.push_str(&format!("- {}{} ({})\n", self.app_url, url, caption));
+                    } else {
+                        out.push_str(&format!("- {}{}\n", self.app_url, url));
                     }
                 }
-                out.push('\n');
             }
+            out.push('\n');
         }
 
         // Reels
-        if let Some(reels) = row["reels"].as_array() {
-            if !reels.is_empty() {
-                out.push_str("**Reels:**\n");
-                for reel in reels {
-                    let title = reel["title"].as_str().unwrap_or("Untitled");
-                    let url = reel["url"].as_str().unwrap_or("");
-                    if !url.is_empty() {
-                        out.push_str(&format!("- {} — {}\n", title, url));
-                    }
+        if let Some(reels) = row["reels"].as_array()
+            && !reels.is_empty()
+        {
+            out.push_str("**Reels:**\n");
+            for reel in reels {
+                let title = reel["title"].as_str().unwrap_or("Untitled");
+                let url = reel["url"].as_str().unwrap_or("");
+                if !url.is_empty() {
+                    out.push_str(&format!("- {} — {}\n", title, url));
                 }
-                out.push('\n');
             }
+            out.push('\n');
         }
 
         // Social links
-        if let Some(links) = row["social_links"].as_array() {
-            if !links.is_empty() {
-                out.push_str("**Links:**\n");
-                for link in links {
-                    let platform = link["platform"].as_str().unwrap_or("link");
-                    let url = link["url"].as_str().unwrap_or("");
-                    if !url.is_empty() {
-                        out.push_str(&format!("- {}: {}\n", platform, url));
-                    }
+        if let Some(links) = row["social_links"].as_array()
+            && !links.is_empty()
+        {
+            out.push_str("**Links:**\n");
+            for link in links {
+                let platform = link["platform"].as_str().unwrap_or("link");
+                let url = link["url"].as_str().unwrap_or("");
+                if !url.is_empty() {
+                    out.push_str(&format!("- {}: {}\n", platform, url));
                 }
-                out.push('\n');
             }
+            out.push('\n');
         }
 
         if let Some(website) = row["website"].as_str().filter(|s| !s.is_empty()) {
@@ -867,13 +870,9 @@ impl SlateHubMcp {
              FROM involvement WHERE in = {person_id} ORDER BY out.start_date DESC"
         );
 
-        let mut cred_response = DB
-            .query(&credits_sql)
-            .await
-            .map_err(|e| e.to_string())?;
+        let mut cred_response = DB.query(&credits_sql).await.map_err(|e| e.to_string())?;
 
-        let credits: Vec<serde_json::Value> =
-            cred_response.take(0).map_err(|e| e.to_string())?;
+        let credits: Vec<serde_json::Value> = cred_response.take(0).map_err(|e| e.to_string())?;
 
         let mut out = format!("**{}**", name);
         if !headline.is_empty() {
@@ -883,10 +882,7 @@ impl SlateHubMcp {
         if !location.is_empty() {
             out.push_str(&format!("Location: {}\n", location));
         }
-        out.push_str(&format!(
-            "Profile: {}/{}\n\n",
-            self.app_url, username
-        ));
+        out.push_str(&format!("Profile: {}/{}\n\n", self.app_url, username));
 
         if credits.is_empty() {
             out.push_str("No production credits found.");
@@ -904,10 +900,7 @@ impl SlateHubMcp {
                 }
                 out.push('\n');
                 if !slug.is_empty() {
-                    out.push_str(&format!(
-                        "  URL: {}/productions/{}\n",
-                        self.app_url, slug
-                    ));
+                    out.push_str(&format!("  URL: {}/productions/{}\n", self.app_url, slug));
                 }
             }
         }

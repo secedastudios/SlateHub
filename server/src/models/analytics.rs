@@ -50,7 +50,10 @@ fn normalize_referrer(referrer: Option<&str>) -> String {
                 "google".to_string()
             } else if r_lower.contains("instagram") {
                 "instagram".to_string()
-            } else if r_lower.contains("twitter") || r_lower.contains("x.com") || r_lower.contains("t.co") {
+            } else if r_lower.contains("twitter")
+                || r_lower.contains("x.com")
+                || r_lower.contains("t.co")
+            {
                 "twitter".to_string()
             } else if r_lower.contains("facebook") || r_lower.contains("fb.com") {
                 "facebook".to_string()
@@ -146,7 +149,10 @@ impl AnalyticsModel {
     }
 
     /// Get view count for a period, plus the equivalent previous period for comparison
-    pub async fn get_views_for_period(profile_id: &RecordId, days: u32) -> Result<PeriodStat, Error> {
+    pub async fn get_views_for_period(
+        profile_id: &RecordId,
+        days: u32,
+    ) -> Result<PeriodStat, Error> {
         let query = format!(
             "SELECT count() AS count FROM profile_view WHERE profile_id = $pid AND viewed_at > time::now() - {days}d GROUP ALL;\
              SELECT count() AS count FROM profile_view WHERE profile_id = $pid AND viewed_at > time::now() - {prev}d AND viewed_at <= time::now() - {days}d GROUP ALL;",
@@ -174,7 +180,9 @@ impl AnalyticsModel {
     }
 
     /// Get referrer source breakdown
-    pub async fn get_referrer_breakdown(profile_id: &RecordId) -> Result<Vec<ReferrerCount>, Error> {
+    pub async fn get_referrer_breakdown(
+        profile_id: &RecordId,
+    ) -> Result<Vec<ReferrerCount>, Error> {
         let mut result = DB
             .query("SELECT referrer_source AS source, count() AS count FROM profile_view WHERE profile_id = $pid GROUP BY source ORDER BY count DESC")
             .bind(("pid", profile_id.clone()))
@@ -194,7 +202,15 @@ impl AnalyticsModel {
 
     /// Get all analytics data for a profile
     pub async fn get_profile_analytics(profile_id: &RecordId) -> Result<ProfileAnalytics, Error> {
-        let (total_views, unique_views, likes_received, views_30d, views_90d, views_1y, referrer_breakdown) = tokio::join!(
+        let (
+            total_views,
+            unique_views,
+            likes_received,
+            views_30d,
+            views_90d,
+            views_1y,
+            referrer_breakdown,
+        ) = tokio::join!(
             Self::get_total_views(profile_id),
             Self::get_unique_views(profile_id),
             Self::get_likes_received(profile_id),
@@ -208,9 +224,18 @@ impl AnalyticsModel {
             total_views: total_views.unwrap_or(0),
             unique_views: unique_views.unwrap_or(0),
             likes_received: likes_received.unwrap_or(0),
-            views_30d: views_30d.unwrap_or(PeriodStat { current: 0, previous: 0 }),
-            views_90d: views_90d.unwrap_or(PeriodStat { current: 0, previous: 0 }),
-            views_1y: views_1y.unwrap_or(PeriodStat { current: 0, previous: 0 }),
+            views_30d: views_30d.unwrap_or(PeriodStat {
+                current: 0,
+                previous: 0,
+            }),
+            views_90d: views_90d.unwrap_or(PeriodStat {
+                current: 0,
+                previous: 0,
+            }),
+            views_1y: views_1y.unwrap_or(PeriodStat {
+                current: 0,
+                previous: 0,
+            }),
             referrer_breakdown: referrer_breakdown.unwrap_or_default(),
         })
     }

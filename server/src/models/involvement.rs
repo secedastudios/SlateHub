@@ -79,11 +79,7 @@ impl InvolvementModel {
 
         debug!(
             "Creating involvement: {} -> {:?} (role={:?}, source={}, status={})",
-            person_id,
-            production_id,
-            role,
-            source,
-            verification_status
+            person_id, production_id, role, source, verification_status
         );
 
         let person_rid = to_record_id(person_id);
@@ -157,9 +153,7 @@ impl InvolvementModel {
             .query(query)
             .bind(("person", person_rid))
             .await
-            .map_err(|e| {
-                Error::Database(format!("Failed to fetch person involvements: {}", e))
-            })?;
+            .map_err(|e| Error::Database(format!("Failed to fetch person involvements: {}", e)))?;
 
         let involvements: Vec<InvolvementWithProduction> = result.take(0)?;
         debug!("Found {} involvements for person", involvements.len());
@@ -235,9 +229,7 @@ impl InvolvementModel {
             .query(query)
             .bind(("production_id", production_id.clone()))
             .await
-            .map_err(|e| {
-                Error::Database(format!("Failed to fetch pending involvements: {}", e))
-            })?;
+            .map_err(|e| Error::Database(format!("Failed to fetch pending involvements: {}", e)))?;
 
         let involvements: Vec<InvolvementWithPerson> = result.take(0)?;
         Ok(involvements)
@@ -267,10 +259,10 @@ impl InvolvementModel {
             .map_err(|e| Error::Database(format!("Failed to check involvement exists: {}", e)))?;
 
         let count: Option<serde_json::Value> = result.take(0)?;
-        if let Some(obj) = count {
-            if let Some(c) = obj.get("count") {
-                return Ok(c.as_u64().unwrap_or(0) > 0);
-            }
+        if let Some(obj) = count
+            && let Some(c) = obj.get("count")
+        {
+            return Ok(c.as_u64().unwrap_or(0) > 0);
         }
         Ok(false)
     }
@@ -367,14 +359,12 @@ impl InvolvementModel {
     pub async fn get_production_id(involvement_id: &str) -> Result<Option<RecordId>, Error> {
         let inv_rid = to_record_id(involvement_id);
 
-        let query =
-            "SELECT VALUE string::concat(meta::tb(out), ':', meta::id(out)) FROM ONLY $rid";
+        let query = "SELECT VALUE string::concat(meta::tb(out), ':', meta::id(out)) FROM ONLY $rid";
 
-        let mut result = DB
-            .query(query)
-            .bind(("rid", inv_rid))
-            .await
-            .map_err(|e| Error::Database(format!("Failed to get involvement production: {}", e)))?;
+        let mut result =
+            DB.query(query).bind(("rid", inv_rid)).await.map_err(|e| {
+                Error::Database(format!("Failed to get involvement production: {}", e))
+            })?;
 
         let prod_id_str: Option<String> = result.take(0)?;
         if let Some(id_str) = prod_id_str {

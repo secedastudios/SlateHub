@@ -1,26 +1,23 @@
 use crate::error::Error;
 use crate::middleware::{AuthenticatedUser, UserExtractor};
-use crate::models::job::{
-    CreateJobData, CreateJobRoleData, JobModel, UpdateJobData,
-};
+use crate::models::job::{CreateJobData, CreateJobRoleData, JobModel, UpdateJobData};
+use crate::services::embedding::generate_embedding_async;
+use crate::services::search_log::log_search;
 use crate::templates::{
-    BaseContext, JobCreateTemplate, JobDetailView, JobEditTemplate, JobListView,
-    JobOrgOption, JobRoleEditData, JobTemplate, JobsTemplate,
-    MyJobsTemplate, User, UserApplicationView,
+    BaseContext, JobCreateTemplate, JobDetailView, JobEditTemplate, JobListView, JobOrgOption,
+    JobRoleEditData, JobTemplate, JobsTemplate, MyJobsTemplate, User, UserApplicationView,
 };
 use askama::Template;
 use axum::{
     Router,
     extract::{Path, Query, Request},
     http::header,
-    response::{Html, Redirect, Response, IntoResponse},
+    response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
 use axum_extra::extract::Form;
 use serde::Deserialize;
 use tracing::{debug, error, info};
-use crate::services::embedding::generate_embedding_async;
-use crate::services::search_log::log_search;
 
 const JOBS_PAGE_SIZE: usize = 20;
 
@@ -34,7 +31,10 @@ pub fn router() -> Router {
         .route("/jobs/{id}/delete", post(delete_job))
         .route("/jobs/{id}/close", post(close_job))
         .route("/jobs/{id}/roles/{role_index}/apply", post(apply_to_role))
-        .route("/jobs/{id}/roles/{role_index}/withdraw", post(withdraw_from_role))
+        .route(
+            "/jobs/{id}/roles/{role_index}/withdraw",
+            post(withdraw_from_role),
+        )
         .route(
             "/jobs/{id}/applications/{app_id}/status",
             post(update_app_status),
@@ -63,7 +63,9 @@ async fn list_jobs(
     } else {
         None
     };
-    let all_jobs = JobModel::list(search, query_embedding, JOBS_PAGE_SIZE + 1, 0).await.unwrap_or_default();
+    let all_jobs = JobModel::list(search, query_embedding, JOBS_PAGE_SIZE + 1, 0)
+        .await
+        .unwrap_or_default();
 
     if let Some(s) = search {
         log_search(s, "web", "jobs", Some(all_jobs.len()));
@@ -73,7 +75,11 @@ async fn list_jobs(
         .into_iter()
         .take(JOBS_PAGE_SIZE)
         .map(|j| JobListView {
-            id: j.id.strip_prefix("job_posting:").unwrap_or(&j.id).to_string(),
+            id: j
+                .id
+                .strip_prefix("job_posting:")
+                .unwrap_or(&j.id)
+                .to_string(),
             title: j.title,
             description: j.description,
             location: j.location,
@@ -109,10 +115,7 @@ async fn list_jobs(
 }
 
 /// View a single job
-async fn view_job(
-    Path(id): Path<String>,
-    request: Request,
-) -> Result<Html<String>, Error> {
+async fn view_job(Path(id): Path<String>, request: Request) -> Result<Html<String>, Error> {
     let mut base = BaseContext::new().with_page("jobs");
     let current_user_id = if let Some(user) = request.get_user() {
         base = base.with_user(User::from_session_user(&user).await);
@@ -124,7 +127,11 @@ async fn view_job(
     let detail = JobModel::get(&id, current_user_id.as_deref()).await?;
 
     let job = JobDetailView {
-        id: detail.id.strip_prefix("job_posting:").unwrap_or(&detail.id).to_string(),
+        id: detail
+            .id
+            .strip_prefix("job_posting:")
+            .unwrap_or(&detail.id)
+            .to_string(),
         title: detail.title,
         description: detail.description,
         location: detail.location,
@@ -173,7 +180,9 @@ async fn new_job_form(request: Request) -> Result<Html<String>, Error> {
     base = base.with_user(User::from_session_user(&user).await);
 
     let pay_rate_types = JobModel::get_pay_rate_types().await.unwrap_or_default();
-    let orgs = JobModel::get_user_orgs_for_posting(&user.id).await.unwrap_or_default();
+    let orgs = JobModel::get_user_orgs_for_posting(&user.id)
+        .await
+        .unwrap_or_default();
 
     let user_organizations: Vec<JobOrgOption> = orgs
         .into_iter()
@@ -262,15 +271,29 @@ async fn create_job(
         }
         roles.push(CreateJobRoleData {
             title,
-            description: data.role_description.get(i).cloned().filter(|s| !s.is_empty()),
-            rate_type: data.role_rate_type.get(i).cloned().unwrap_or_else(|| "TBD".to_string()),
-            rate_amount: data.role_rate_amount.get(i).cloned().filter(|s| !s.is_empty()),
+            description: data
+                .role_description
+                .get(i)
+                .cloned()
+                .filter(|s| !s.is_empty()),
+            rate_type: data
+                .role_rate_type
+                .get(i)
+                .cloned()
+                .unwrap_or_else(|| "TBD".to_string()),
+            rate_amount: data
+                .role_rate_amount
+                .get(i)
+                .cloned()
+                .filter(|s| !s.is_empty()),
             location_override: data.role_location.get(i).cloned().filter(|s| !s.is_empty()),
         });
     }
 
     if roles.is_empty() {
-        return Err(Error::Validation("At least one role is required".to_string()));
+        return Err(Error::Validation(
+            "At least one role is required".to_string(),
+        ));
     }
 
     let job_data = CreateJobData {
@@ -293,10 +316,7 @@ async fn create_job(
 }
 
 /// Show edit job form
-async fn edit_job_form(
-    Path(id): Path<String>,
-    request: Request,
-) -> Result<Html<String>, Error> {
+async fn edit_job_form(Path(id): Path<String>, request: Request) -> Result<Html<String>, Error> {
     let user = request.get_user().ok_or(Error::Unauthorized)?;
 
     if !JobModel::can_edit(&id, &user.id).await.unwrap_or(false) {
@@ -327,14 +347,40 @@ async fn edit_job_form(
         active_page: base.active_page,
         user: base.user,
         job_id: id,
-        title: job.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        description: job.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        location: job.get("location").and_then(|v| v.as_str()).map(String::from),
-        contact_name: job.get("contact_name").and_then(|v| v.as_str()).map(String::from),
-        contact_email: job.get("contact_email").and_then(|v| v.as_str()).map(String::from),
-        contact_phone: job.get("contact_phone").and_then(|v| v.as_str()).map(String::from),
-        contact_website: job.get("contact_website").and_then(|v| v.as_str()).map(String::from),
-        applications_enabled: job.get("applications_enabled").and_then(|v| v.as_bool()).unwrap_or(true),
+        title: job
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        description: job
+            .get("description")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        location: job
+            .get("location")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        contact_name: job
+            .get("contact_name")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        contact_email: job
+            .get("contact_email")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        contact_phone: job
+            .get("contact_phone")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        contact_website: job
+            .get("contact_website")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        applications_enabled: job
+            .get("applications_enabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true),
         roles,
         pay_rate_types,
         errors: None,
@@ -387,15 +433,29 @@ async fn update_job(
         }
         roles.push(CreateJobRoleData {
             title,
-            description: data.role_description.get(i).cloned().filter(|s| !s.is_empty()),
-            rate_type: data.role_rate_type.get(i).cloned().unwrap_or_else(|| "TBD".to_string()),
-            rate_amount: data.role_rate_amount.get(i).cloned().filter(|s| !s.is_empty()),
+            description: data
+                .role_description
+                .get(i)
+                .cloned()
+                .filter(|s| !s.is_empty()),
+            rate_type: data
+                .role_rate_type
+                .get(i)
+                .cloned()
+                .unwrap_or_else(|| "TBD".to_string()),
+            rate_amount: data
+                .role_rate_amount
+                .get(i)
+                .cloned()
+                .filter(|s| !s.is_empty()),
             location_override: data.role_location.get(i).cloned().filter(|s| !s.is_empty()),
         });
     }
 
     if roles.is_empty() {
-        return Err(Error::Validation("At least one role is required".to_string()));
+        return Err(Error::Validation(
+            "At least one role is required".to_string(),
+        ));
     }
 
     let update_data = UpdateJobData {
@@ -456,7 +516,9 @@ async fn apply_to_role(
     Form(data): Form<ApplyForm>,
 ) -> Result<Response, Error> {
     let detail = JobModel::get(&id, Some(&user.id)).await?;
-    let role = detail.roles.get(role_index)
+    let role = detail
+        .roles
+        .get(role_index)
         .ok_or_else(|| Error::BadRequest("Invalid role index".to_string()))?;
 
     let full_job_id = format!("job_posting:{}", id);
@@ -468,7 +530,10 @@ async fn apply_to_role(
     )
     .await?;
 
-    info!("User {} applied to job {} role '{}'", user.id, id, role.title);
+    info!(
+        "User {} applied to job {} role '{}'",
+        user.id, id, role.title
+    );
     Ok(Redirect::to(&format!("/jobs/{}", id)).into_response())
 }
 
@@ -478,13 +543,18 @@ async fn withdraw_from_role(
     Path((id, role_index)): Path<(String, usize)>,
 ) -> Result<Response, Error> {
     let detail = JobModel::get(&id, Some(&user.id)).await?;
-    let role = detail.roles.get(role_index)
+    let role = detail
+        .roles
+        .get(role_index)
         .ok_or_else(|| Error::BadRequest("Invalid role index".to_string()))?;
 
     let full_job_id = format!("job_posting:{}", id);
     JobModel::withdraw(&user.id, &full_job_id, &role.title).await?;
 
-    info!("User {} withdrew from job {} role '{}'", user.id, id, role.title);
+    info!(
+        "User {} withdrew from job {} role '{}'",
+        user.id, id, role.title
+    );
     Ok(Redirect::to(&format!("/jobs/{}", id)).into_response())
 }
 
@@ -517,13 +587,21 @@ async fn my_jobs(request: Request) -> Result<Html<String>, Error> {
     let mut base = BaseContext::new().with_page("my-jobs");
     base = base.with_user(User::from_session_user(&user).await);
 
-    let postings = JobModel::get_user_postings(&user.id).await.unwrap_or_default();
-    let applications = JobModel::get_user_applications(&user.id).await.unwrap_or_default();
+    let postings = JobModel::get_user_postings(&user.id)
+        .await
+        .unwrap_or_default();
+    let applications = JobModel::get_user_applications(&user.id)
+        .await
+        .unwrap_or_default();
 
     let postings: Vec<JobListView> = postings
         .into_iter()
         .map(|j| JobListView {
-            id: j.id.strip_prefix("job_posting:").unwrap_or(&j.id).to_string(),
+            id: j
+                .id
+                .strip_prefix("job_posting:")
+                .unwrap_or(&j.id)
+                .to_string(),
             title: j.title,
             description: j.description,
             location: j.location,
@@ -545,7 +623,11 @@ async fn my_jobs(request: Request) -> Result<Html<String>, Error> {
         .into_iter()
         .map(|a| UserApplicationView {
             id: a.id,
-            job_id: a.job_id.strip_prefix("job_posting:").unwrap_or(&a.job_id).to_string(),
+            job_id: a
+                .job_id
+                .strip_prefix("job_posting:")
+                .unwrap_or(&a.job_id)
+                .to_string(),
             job_title: a.job_title,
             role_title: a.role_title,
             poster_name: a.poster_name,
@@ -606,7 +688,11 @@ const VERIFIED_BADGE_PATH: &str = "M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.43
 fn render_job_card(job: &JobListView) -> String {
     let mut html = String::new();
 
-    let verified_class = if job.is_poster_verified { " job-card-verified" } else { "" };
+    let verified_class = if job.is_poster_verified {
+        " job-card-verified"
+    } else {
+        ""
+    };
     html.push_str(&format!(r#"<article class="job-card{}">"#, verified_class));
 
     if let Some(ref poster) = job.production_poster {
@@ -649,19 +735,34 @@ fn render_job_card(job: &JobListView) -> String {
     html.push_str("</span>");
 
     if let Some(ref loc) = job.location {
-        html.push_str(&format!(r#"<span class="job-location">{}</span>"#, escape_html(loc)));
+        html.push_str(&format!(
+            r#"<span class="job-location">{}</span>"#,
+            escape_html(loc)
+        ));
     }
     html.push_str("</div></div>");
 
-    html.push_str(&format!(r#"<p class="job-card-desc">{}</p>"#, escape_html(&job.description)));
+    html.push_str(&format!(
+        r#"<p class="job-card-desc">{}</p>"#,
+        escape_html(&job.description)
+    ));
 
     html.push_str(r#"<div class="job-card-footer">"#);
     let role_s = if job.role_count != 1 { "s" } else { "" };
-    html.push_str(&format!(r#"<span class="job-roles">{} role{}</span>"#, job.role_count, role_s));
+    html.push_str(&format!(
+        r#"<span class="job-roles">{} role{}</span>"#,
+        job.role_count, role_s
+    ));
     if let Some(ref prod) = job.production_title {
-        html.push_str(&format!(r#"<span class="job-production">{}</span>"#, escape_html(prod)));
+        html.push_str(&format!(
+            r#"<span class="job-production">{}</span>"#,
+            escape_html(prod)
+        ));
     }
-    html.push_str(&format!(r#"<a href="/jobs/{}" class="jobs-btn-sm">View</a>"#, escape_html(&job.id)));
+    html.push_str(&format!(
+        r#"<a href="/jobs/{}" class="jobs-btn-sm">View</a>"#,
+        escape_html(&job.id)
+    ));
     html.push_str("</div></div></article>");
 
     html
@@ -674,9 +775,7 @@ struct JobsMoreQuery {
 }
 
 /// SSE endpoint for infinite scroll — appends more job cards
-async fn jobs_more_sse(
-    Query(params): Query<JobsMoreQuery>,
-) -> Response {
+async fn jobs_more_sse(Query(params): Query<JobsMoreQuery>) -> Response {
     let search = params.q.as_deref().filter(|s| !s.is_empty());
     let offset = params.offset;
 
@@ -695,7 +794,11 @@ async fn jobs_more_sse(
         .into_iter()
         .take(JOBS_PAGE_SIZE)
         .map(|j| JobListView {
-            id: j.id.strip_prefix("job_posting:").unwrap_or(&j.id).to_string(),
+            id: j
+                .id
+                .strip_prefix("job_posting:")
+                .unwrap_or(&j.id)
+                .to_string(),
             title: j.title,
             description: j.description,
             location: j.location,

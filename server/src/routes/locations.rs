@@ -6,6 +6,8 @@ use crate::models::location::{
 };
 use crate::record_id_ext::RecordIdExt;
 use crate::serde_utils::deserialize_optional_i32;
+use crate::services::embedding::generate_embedding_async;
+use crate::services::search_log::log_search;
 use crate::templates::{
     BaseContext, LocationCreateTemplate, LocationEditTemplate, LocationTemplate, LocationsTemplate,
     User,
@@ -21,8 +23,6 @@ use axum::{
 use serde::Deserialize;
 use surrealdb::types::RecordId;
 use tracing::{debug, error, info};
-use crate::services::embedding::generate_embedding_async;
-use crate::services::search_log::log_search;
 
 const PAGE_SIZE: usize = 20;
 
@@ -91,16 +91,30 @@ async fn list_locations(
     let (locations, show_private) = if params.public_only.unwrap_or(true) || user_id.is_none() {
         (
             LocationModel::list(
-                Some(PAGE_SIZE + 1), true, city_text.as_deref(), None,
-                filter_text.as_deref(), query_embedding.clone(), Some(sort_by.as_str()), 0,
-            ).await?,
+                Some(PAGE_SIZE + 1),
+                true,
+                city_text.as_deref(),
+                None,
+                filter_text.as_deref(),
+                query_embedding.clone(),
+                Some(sort_by.as_str()),
+                0,
+            )
+            .await?,
             false,
         )
     } else {
         let mut all_locations = LocationModel::list(
-            Some(PAGE_SIZE + 1), false, city_text.as_deref(), None,
-            filter_text.as_deref(), query_embedding.clone(), Some(sort_by.as_str()), 0,
-        ).await?;
+            Some(PAGE_SIZE + 1),
+            false,
+            city_text.as_deref(),
+            None,
+            filter_text.as_deref(),
+            query_embedding.clone(),
+            Some(sort_by.as_str()),
+            0,
+        )
+        .await?;
 
         if let Some(ref uid) = user_id {
             all_locations.retain(|loc| loc.is_public || loc.created_by.key_string() == *uid);
@@ -202,7 +216,9 @@ async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<
             Some(RecordId::new("person", user.id.as_str()))
         };
         if let Some(rid) = person_rid {
-            is_liked = LikesModel::is_liked(&rid, &location.id).await.unwrap_or(false);
+            is_liked = LikesModel::is_liked(&rid, &location.id)
+                .await
+                .unwrap_or(false);
         }
     }
 
@@ -235,11 +251,15 @@ async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<
             parking_info: location.parking_info,
             max_capacity: location.max_capacity,
             profile_photo: location.profile_photo,
-            photos: location.photos.into_iter().map(|p| crate::templates::LocationPhoto {
-                url: p.url,
-                thumbnail_url: p.thumbnail_url,
-                caption: p.caption,
-            }).collect(),
+            photos: location
+                .photos
+                .into_iter()
+                .map(|p| crate::templates::LocationPhoto {
+                    url: p.url,
+                    thumbnail_url: p.thumbnail_url,
+                    caption: p.caption,
+                })
+                .collect(),
             created_at: location.created_at.to_string(),
             updated_at: location.updated_at.to_string(),
             rates: rates
@@ -345,7 +365,11 @@ async fn create_location(
     // Create the location
     let location = LocationModel::create(location_data, &user.id).await?;
 
-    info!("Created location: {} ({})", location.name, location.id.display());
+    info!(
+        "Created location: {} ({})",
+        location.name,
+        location.id.display()
+    );
 
     // Redirect to the edit page so user can add photos
     Ok(Redirect::to(&format!("/locations/{}/edit", location.id.key_string())).into_response())
@@ -394,11 +418,15 @@ async fn edit_location_form(
             parking_info: location.parking_info,
             max_capacity: location.max_capacity,
             profile_photo: location.profile_photo,
-            photos: location.photos.into_iter().map(|p| crate::templates::LocationPhoto {
-                url: p.url,
-                thumbnail_url: p.thumbnail_url,
-                caption: p.caption,
-            }).collect(),
+            photos: location
+                .photos
+                .into_iter()
+                .map(|p| crate::templates::LocationPhoto {
+                    url: p.url,
+                    thumbnail_url: p.thumbnail_url,
+                    caption: p.caption,
+                })
+                .collect(),
         },
         errors: None,
     };
@@ -454,7 +482,11 @@ async fn update_location(
     // Update the location
     let updated = LocationModel::update(&location.id, update_data).await?;
 
-    info!("Updated location: {} ({})", updated.name, updated.id.display());
+    info!(
+        "Updated location: {} ({})",
+        updated.name,
+        updated.id.display()
+    );
 
     // Redirect to the location page
     Ok(Redirect::to(&format!("/locations/{}", updated.id.key_string())).into_response())
@@ -479,7 +511,11 @@ async fn delete_location(
     // Delete the location
     LocationModel::delete(&location.id).await?;
 
-    info!("Deleted location: {} ({})", location.name, location.id.display());
+    info!(
+        "Deleted location: {} ({})",
+        location.name,
+        location.id.display()
+    );
 
     // Redirect to locations list
     Ok(Redirect::to("/locations").into_response())
@@ -551,7 +587,11 @@ async fn delete_rate(
     let full_rate_id = format!("location_rate:{}", rate_id);
     LocationModel::delete_rate(&full_rate_id).await?;
 
-    info!("Deleted rate {} from location: {}", rate_id, location.id.display());
+    info!(
+        "Deleted rate {} from location: {}",
+        rate_id,
+        location.id.display()
+    );
 
     // Redirect back to location page
     Ok(Redirect::to(&format!("/locations/{}", location.id.key_string())).into_response())
@@ -568,7 +608,10 @@ struct MoreQuery {
 }
 
 fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!("event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n", selector, mode);
+    let mut s = format!(
+        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
+        selector, mode
+    );
     if !elements.is_empty() {
         s += &format!("data: elements {}\n", elements.replace('\n', " "));
     }
@@ -577,7 +620,14 @@ fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
 }
 
 fn sse_response(body: String) -> Response {
-    ([(header::CONTENT_TYPE, "text/event-stream"), (header::CACHE_CONTROL, "no-cache")], body).into_response()
+    (
+        [
+            (header::CONTENT_TYPE, "text/event-stream"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
 }
 
 fn escape_html(s: &str) -> String {
@@ -587,10 +637,17 @@ fn escape_html(s: &str) -> String {
 fn render_location_card(loc: &crate::templates::LocationView) -> String {
     let mut html = String::new();
     html.push_str(r#"<article class="loc-card">"#);
-    html.push_str(&format!(r#"<a href="/locations/{}" class="loc-card-visual">"#, escape_html(&loc.id)));
+    html.push_str(&format!(
+        r#"<a href="/locations/{}" class="loc-card-visual">"#,
+        escape_html(&loc.id)
+    ));
 
     if let Some(ref photo) = loc.profile_photo {
-        html.push_str(&format!(r#"<img src="{}" alt="{}" style="width:100%;height:100%;object-fit:cover;" />"#, escape_html(photo), escape_html(&loc.name)));
+        html.push_str(&format!(
+            r#"<img src="{}" alt="{}" style="width:100%;height:100%;object-fit:cover;" />"#,
+            escape_html(photo),
+            escape_html(&loc.name)
+        ));
     } else {
         html.push_str(r#"<div class="loc-card-placeholder"><svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>"#);
     }
@@ -598,7 +655,11 @@ fn render_location_card(loc: &crate::templates::LocationView) -> String {
     html.push_str(r#"<div class="loc-card-overlay">"#);
     html.push_str(&format!("<h3>{}</h3>", escape_html(&loc.name)));
     html.push_str(r#"<div class="loc-card-meta">"#);
-    html.push_str(&format!(r#"<span class="loc-city">{}, {}</span>"#, escape_html(&loc.city), escape_html(&loc.state)));
+    html.push_str(&format!(
+        r#"<span class="loc-city">{}, {}</span>"#,
+        escape_html(&loc.city),
+        escape_html(&loc.state)
+    ));
     if loc.is_public {
         html.push_str(r#"<span class="loc-badge" data-value="public">Public</span>"#);
     } else {
@@ -629,21 +690,36 @@ async fn locations_more_sse(Query(params): Query<MoreQuery>) -> Response {
     } else {
         None
     };
-    let all = LocationModel::list(Some(PAGE_SIZE + 1), true, city, None, filter, query_embedding, sort, offset).await.unwrap_or_default();
+    let all = LocationModel::list(
+        Some(PAGE_SIZE + 1),
+        true,
+        city,
+        None,
+        filter,
+        query_embedding,
+        sort,
+        offset,
+    )
+    .await
+    .unwrap_or_default();
     let has_more = all.len() > PAGE_SIZE;
 
-    let locs: Vec<crate::templates::LocationView> = all.into_iter().take(PAGE_SIZE).map(|l| crate::templates::LocationView {
-        id: l.id.key_string(),
-        name: l.name,
-        address: l.address,
-        city: l.city,
-        state: l.state,
-        country: l.country,
-        description: l.description,
-        is_public: l.is_public,
-        profile_photo: l.profile_photo,
-        created_at: l.created_at.to_string(),
-    }).collect();
+    let locs: Vec<crate::templates::LocationView> = all
+        .into_iter()
+        .take(PAGE_SIZE)
+        .map(|l| crate::templates::LocationView {
+            id: l.id.key_string(),
+            name: l.name,
+            address: l.address,
+            city: l.city,
+            state: l.state,
+            country: l.country,
+            description: l.description,
+            is_public: l.is_public,
+            profile_photo: l.profile_photo,
+            created_at: l.created_at.to_string(),
+        })
+        .collect();
 
     if locs.is_empty() {
         return sse_response(sse_patch_elements("#loc-sentinel", "remove", ""));

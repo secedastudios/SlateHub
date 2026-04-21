@@ -15,7 +15,9 @@ pub async fn init_embedding_service() -> Result<()> {
 
     let embedder = TextEmbedding::try_new(InitOptions::new(EmbeddingModel::BGELargeENV15))?;
 
-    EMBEDDER.set(embedder).map_err(|_| anyhow::anyhow!("Embedding service already initialized"))?;
+    EMBEDDER
+        .set(embedder)
+        .map_err(|_| anyhow::anyhow!("Embedding service already initialized"))?;
 
     info!("Embedding service initialized successfully");
     Ok(())
@@ -71,8 +73,7 @@ async fn process_single_embedding(
 ) {
     let text_clone = embedding_text.clone();
     let rid_clone = record_id.clone();
-    let embedding = match tokio::task::spawn_blocking(move || generate_embedding(&text_clone))
-        .await
+    let embedding = match tokio::task::spawn_blocking(move || generate_embedding(&text_clone)).await
     {
         Ok(Ok(emb)) => emb,
         Ok(Err(e)) => {
@@ -119,7 +120,10 @@ pub async fn backfill_pending_embeddings() {
         embedding_text: String,
     }
 
-    let mut resp = match db.query("SELECT target, embedding_text FROM pending_embedding").await {
+    let mut resp = match db
+        .query("SELECT target, embedding_text FROM pending_embedding")
+        .await
+    {
         Ok(r) => r,
         Err(e) => {
             warn!(error = %e, "Failed to query pending_embedding table");
@@ -271,7 +275,7 @@ pub fn build_person_embedding_text(
     let mut detected_roles = Vec::new();
     if let Some(h) = headline {
         // Split headline by common separators: "Director | Cinematographer, Editor"
-        for role_text in h.split(|c: char| c == ',' || c == '|' || c == '/') {
+        for role_text in h.split([',', '|', '/']) {
             let role = role_text.trim();
             if !role.is_empty() {
                 detected_roles.push(role.to_lowercase());
@@ -306,14 +310,24 @@ fn enrich_roles(roles: &[String]) -> String {
         // Above The Line
         (&["director"], "directing", &["helmer"]),
         (&["producer"], "above the line", &["prod"]),
-        (&["executive producer"], "above the line", &["ep", "exec producer"]),
+        (
+            &["executive producer"],
+            "above the line",
+            &["ep", "exec producer"],
+        ),
         (&["writer"], "above the line", &[]),
-        (&["screenwriter"], "above the line", &["scriptwriter", "screenplay writer"]),
-
+        (
+            &["screenwriter"],
+            "above the line",
+            &["scriptwriter", "screenplay writer"],
+        ),
         // Cast
-        (&["actor", "actress"], "cast", &["performer", "actor", "actress"]),
+        (
+            &["actor", "actress"],
+            "cast",
+            &["performer", "actor", "actress"],
+        ),
         (&["principal cast"], "cast", &["lead actor", "lead"]),
-
         // Art Department
         (&["production designer"], "art department", &["pd"]),
         (&["art director"], "art department", &[]),
@@ -321,72 +335,150 @@ fn enrich_roles(roles: &[String]) -> String {
         (&["set decorator"], "art department", &[]),
         (&["prop master"], "art department", &["props"]),
         (&["graphic designer"], "art department", &[]),
-
         // Camera
-        (&["director of photography"], "camera department", &["dop", "dp", "cinematographer"]),
-        (&["cinematographer"], "camera department", &["dop", "dp", "director of photography"]),
-        (&["camera operator"], "camera department", &["camera op", "cameraman"]),
-        (&["first ac", "1st ac"], "camera department", &["focus puller", "first assistant camera"]),
-        (&["second ac", "2nd ac"], "camera department", &["clapper loader", "second assistant camera"]),
-        (&["dit"], "camera department", &["digital imaging technician"]),
-        (&["photographer"], "camera department", &["still photographer", "stills"]),
+        (
+            &["director of photography"],
+            "camera department",
+            &["dop", "dp", "cinematographer"],
+        ),
+        (
+            &["cinematographer"],
+            "camera department",
+            &["dop", "dp", "director of photography"],
+        ),
+        (
+            &["camera operator"],
+            "camera department",
+            &["camera op", "cameraman"],
+        ),
+        (
+            &["first ac", "1st ac"],
+            "camera department",
+            &["focus puller", "first assistant camera"],
+        ),
+        (
+            &["second ac", "2nd ac"],
+            "camera department",
+            &["clapper loader", "second assistant camera"],
+        ),
+        (
+            &["dit"],
+            "camera department",
+            &["digital imaging technician"],
+        ),
+        (
+            &["photographer"],
+            "camera department",
+            &["still photographer", "stills"],
+        ),
         (&["videographer"], "camera department", &["video shooter"]),
-
         // Sound
-        (&["production sound mixer"], "sound department", &["sound mixer", "location sound"]),
+        (
+            &["production sound mixer"],
+            "sound department",
+            &["sound mixer", "location sound"],
+        ),
         (&["boom operator"], "sound department", &["boom op"]),
         (&["sound assistant"], "sound department", &[]),
-
         // Lighting
-        (&["gaffer"], "lighting department", &["chief lighting technician"]),
+        (
+            &["gaffer"],
+            "lighting department",
+            &["chief lighting technician"],
+        ),
         (&["best boy electric"], "lighting department", &["bbe"]),
-
         // Grip
         (&["key grip"], "grip department", &[]),
         (&["best boy grip"], "grip department", &["bbg"]),
-
         // Wardrobe
-        (&["costume designer"], "wardrobe department", &["wardrobe designer"]),
+        (
+            &["costume designer"],
+            "wardrobe department",
+            &["wardrobe designer"],
+        ),
         (&["costume coordinator"], "wardrobe department", &[]),
-
         // Makeup & Hair
-        (&["makeup artist"], "makeup and hair department", &["mua", "make-up artist"]),
-        (&["key makeup artist"], "makeup and hair department", &["head mua"]),
-        (&["hair stylist"], "makeup and hair department", &["hairdresser"]),
-
+        (
+            &["makeup artist"],
+            "makeup and hair department",
+            &["mua", "make-up artist"],
+        ),
+        (
+            &["key makeup artist"],
+            "makeup and hair department",
+            &["head mua"],
+        ),
+        (
+            &["hair stylist"],
+            "makeup and hair department",
+            &["hairdresser"],
+        ),
         // Production Management
-        (&["line producer"], "production management", &["physical producer"]),
-        (&["unit production manager"], "production management", &["upm"]),
-        (&["production coordinator"], "production management", &["poc"]),
+        (
+            &["line producer"],
+            "production management",
+            &["physical producer"],
+        ),
+        (
+            &["unit production manager"],
+            "production management",
+            &["upm"],
+        ),
+        (
+            &["production coordinator"],
+            "production management",
+            &["poc"],
+        ),
         (&["production assistant"], "production management", &["pa"]),
-
         // Locations
         (&["location manager"], "locations department", &[]),
         (&["location scout"], "locations department", &[]),
-
         // Directing Department (AD team)
-        (&["first ad", "1st ad", "first assistant director"], "directing department", &["first assistant director", "1st assistant director"]),
-        (&["second ad", "2nd ad", "second assistant director"], "directing department", &["second assistant director", "2nd assistant director"]),
+        (
+            &["first ad", "1st ad", "first assistant director"],
+            "directing department",
+            &["first assistant director", "1st assistant director"],
+        ),
+        (
+            &["second ad", "2nd ad", "second assistant director"],
+            "directing department",
+            &["second assistant director", "2nd assistant director"],
+        ),
         (&["script supervisor"], "directing department", &["scripty"]),
-
         // Post-Production
         (&["editor"], "post-production", &["film editor"]),
         (&["video editor"], "post-production", &[]),
-        (&["colorist"], "post-production", &["color grader", "colourist"]),
+        (
+            &["colorist"],
+            "post-production",
+            &["color grader", "colourist"],
+        ),
         (&["sound editor"], "post-production", &["dialogue editor"]),
         (&["on set editor"], "post-production", &[]),
-
         // VFX
-        (&["vfx supervisor"], "vfx department", &["visual effects supervisor"]),
-        (&["vfx artist"], "vfx department", &["visual effects artist", "compositor"]),
-
+        (
+            &["vfx supervisor"],
+            "vfx department",
+            &["visual effects supervisor"],
+        ),
+        (
+            &["vfx artist"],
+            "vfx department",
+            &["visual effects artist", "compositor"],
+        ),
         // Casting
         (&["casting director"], "casting", &["cd", "casting"]),
-
         // Stunts
-        (&["stunt coordinator"], "stunts department", &["fight coordinator", "action coordinator"]),
-        (&["stunt performer"], "stunts department", &["stunt double", "stunt actor"]),
-
+        (
+            &["stunt coordinator"],
+            "stunts department",
+            &["fight coordinator", "action coordinator"],
+        ),
+        (
+            &["stunt performer"],
+            "stunts department",
+            &["stunt double", "stunt actor"],
+        ),
         // Social Media / Marketing
         (&["influencer"], "social media", &["content influencer"]),
         (&["content creator"], "social media", &[]),
@@ -394,13 +486,28 @@ fn enrich_roles(roles: &[String]) -> String {
         (&["marketing manager"], "marketing", &[]),
         (&["publicist"], "marketing", &["pr"]),
         (&["copywriter"], "marketing", &[]),
-
         // Non-film roles that might appear in bios/skills
-        (&["mma", "mixed martial art"], "combat sports", &["mma fighter", "cage fighter"]),
-        (&["boxer", "boxing"], "combat sports", &["prizefighter", "pugilist"]),
-        (&["bjj", "jiu-jitsu", "jiu jitsu"], "combat sports", &["grappler", "brazilian jiu-jitsu"]),
+        (
+            &["mma", "mixed martial art"],
+            "combat sports",
+            &["mma fighter", "cage fighter"],
+        ),
+        (
+            &["boxer", "boxing"],
+            "combat sports",
+            &["prizefighter", "pugilist"],
+        ),
+        (
+            &["bjj", "jiu-jitsu", "jiu jitsu"],
+            "combat sports",
+            &["grappler", "brazilian jiu-jitsu"],
+        ),
         (&["wrestler", "wrestling"], "combat sports", &["grappler"]),
-        (&["dancer", "choreograph"], "performance", &["movement artist"]),
+        (
+            &["dancer", "choreograph"],
+            "performance",
+            &["movement artist"],
+        ),
         (&["musician"], "music", &[]),
         (&["composer"], "music", &["film composer", "score composer"]),
     ];
@@ -419,7 +526,9 @@ fn enrich_roles(roles: &[String]) -> String {
                 // Add synonyms not already present
                 for syn in *synonyms {
                     let syn_lower = syn.to_lowercase();
-                    if !roles.iter().any(|r| r.contains(&syn_lower)) && !added.iter().any(|a: &String| a.contains(&syn_lower)) {
+                    if !roles.iter().any(|r| r.contains(&syn_lower))
+                        && !added.iter().any(|a: &String| a.contains(&syn_lower))
+                    {
                         added.push(syn_lower);
                     }
                 }
@@ -488,6 +597,7 @@ pub fn build_organization_embedding_text(
 
 /// Build optimized text for location embedding
 /// Focuses on: type of space, amenities, capacity, accessibility, atmosphere
+#[allow(clippy::too_many_arguments)]
 pub fn build_location_embedding_text(
     name: &str,
     description: Option<&str>,
