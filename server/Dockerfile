@@ -31,7 +31,8 @@ COPY Cargo.toml Cargo.lock ./
 # Create dummy sources for dependency compilation
 RUN mkdir -p src/bin && \
     echo "fn main() {}" > src/main.rs && \
-    echo "fn main() {}" > src/bin/rebuild_embeddings.rs
+    echo "fn main() {}" > src/bin/rebuild_embeddings.rs && \
+    echo "fn main() {}" > src/bin/oidc_rotate_key.rs
 
 # Build dependencies - this is cached unless Cargo.toml or Cargo.lock change
 RUN cargo build --release
@@ -47,7 +48,7 @@ COPY templates ./templates
 COPY static ./static
 
 # Build the actual application
-RUN touch src/main.rs src/bin/rebuild_embeddings.rs && \
+RUN touch src/main.rs src/bin/rebuild_embeddings.rs src/bin/oidc_rotate_key.rs && \
     cargo build --release
 
 # Runtime stage - use the same bookworm base
