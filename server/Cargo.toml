@@ -1,6 +1,6 @@
 [package]
 name = "slatehub"
-version = "1.2.3"
+version = "1.2.4"
 edition = "2024"
 publish = false
 authors = ["Chris Bruce <chris@secedastudios.com>"]
@@ -36,8 +36,8 @@ argon2 = "0.5"
 base64 = "0.22"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0"
-surrealdb = "3.0.1"
-surrealdb-types = "3.0.1"
+surrealdb = "3.0.5"
+surrealdb-types = "3.0.5"
 askama = { version = "0.12", features = ["with-axum"] }
 askama_axum = "0.4"
 thiserror = "2.0.16"

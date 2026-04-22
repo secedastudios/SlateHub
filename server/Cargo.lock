@@ -6195,7 +6195,7 @@ checksum = "7a2ae44ef20feb57a68b23d846850f861394c2e02dc425a50098ae8c90267589"
 
 [[package]]
 name = "slatehub"
-version = "1.2.3"
+version = "1.2.4"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6462,9 +6462,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "surrealdb"
-version = "3.0.1"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a18997a4c20c9559461846bff0dad185854c32639407904e2bb97567b4fa6a63"
+checksum = "504a96b55e86ef8653a03b6b97e771f49c954e26bcc0308160b0134d94f334fd"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -6484,6 +6484,7 @@ dependencies = [
  "serde_json",
  "surrealdb-core",
  "surrealdb-types",
+ "surrealdb-types-derive",
  "tokio",
  "tokio-tungstenite",
  "tokio-tungstenite-wasm",
@@ -6499,9 +6500,9 @@ dependencies = [
 
 [[package]]
 name = "surrealdb-core"
-version = "3.0.1"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "470a61158ca8b4e774f8be3a8fbe1393bd33c026d9025a3db8f5ada0a06adf6a"
+checksum = "d3e6a7f248c958fd5000c4fab5759503663bf93c622be10a6d7bf7d2d676b8fc"
 dependencies = [
  "addr",
  "ahash 0.8.12",
@@ -6609,9 +6610,9 @@ dependencies = [
 
 [[package]]
 name = "surrealdb-types"
-version = "3.0.1"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58db59440236ec593dbbb2487c4db11e4452ee636f9a1da3e3672c1cc1f42259"
+checksum = "c79e71d035367b933cf528c09b7ed186bc17dea58c66a1bca84d22f9abf167db"
 dependencies = [
  "anyhow",
  "bytes",
@@ -6635,9 +6636,9 @@ dependencies = [
 
 [[package]]
 name = "surrealdb-types-derive"
-version = "3.0.1"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "617a808c9b3a2cd688c98027f4781c522507df73b42b1c56820ae72407eda016"
+checksum = "a76abdbfc597e062daae5269251e18a84553f9090cfff423591f57c8c6765aa8"
 dependencies = [
  "proc-macro2",
  "quote",

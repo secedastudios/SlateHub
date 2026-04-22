@@ -40,7 +40,8 @@ struct SigningKeyRow {
     id: String,
     kid: String,
     public_jwk: Value,
-    private_pkcs8: Vec<u8>,
+    /// Base64url-encoded PKCS8 DER of the ed25519 private key.
+    private_pkcs8: String,
     not_before: DateTime<Utc>,
     #[serde(default)]
     #[surreal(default)]
@@ -97,28 +98,26 @@ pub async fn ensure_signing_key() -> Result<()> {
     let verifying = signing.verifying_key();
     let kid = random_kid();
     let public_jwk = verifying_key_to_jwk(&kid, &verifying);
-    let private_pkcs8 = signing
-        .to_pkcs8_der()
-        .map_err(|e| Error::Internal(format!("ed25519 pkcs8 encode failed: {e}")))?
-        .as_bytes()
-        .to_vec();
+    let private_pkcs8_b64 = URL_SAFE_NO_PAD.encode(
+        signing
+            .to_pkcs8_der()
+            .map_err(|e| Error::Internal(format!("ed25519 pkcs8 encode failed: {e}")))?
+            .as_bytes(),
+    );
 
-    let _: Option<Value> = DB
-        .query(
-            "CREATE oidc_signing_key CONTENT {
-                kid: $kid,
-                algorithm: 'EdDSA',
-                public_jwk: $jwk,
-                private_pkcs8: $pkcs8,
-                active: true
-            } RETURN NONE",
-        )
-        .bind(("kid", kid.clone()))
-        .bind(("jwk", public_jwk))
-        .bind(("pkcs8", private_pkcs8))
-        .await?
-        .take(0)
-        .unwrap_or(None);
+    DB.query(
+        "CREATE oidc_signing_key CONTENT {
+            kid: $kid,
+            algorithm: 'EdDSA',
+            public_jwk: $jwk,
+            private_pkcs8: $pkcs8,
+            active: true
+        } RETURN NONE",
+    )
+    .bind(("kid", kid.clone()))
+    .bind(("jwk", public_jwk))
+    .bind(("pkcs8", private_pkcs8_b64))
+    .await?;
 
     info!(kid = %kid, "OIDC signing key created");
     Ok(())
@@ -148,14 +147,21 @@ async fn fetch_active_key() -> Result<Option<SigningKeyEntry>> {
         )
         .await?;
     let rows: Vec<SigningKeyRow> = resp.take(0).unwrap_or_default();
-    Ok(rows.into_iter().next().map(|row| SigningKeyEntry {
+    rows.into_iter().next().map(row_into_entry).transpose()
+}
+
+fn row_into_entry(row: SigningKeyRow) -> Result<SigningKeyEntry> {
+    let private_pkcs8 = URL_SAFE_NO_PAD
+        .decode(row.private_pkcs8.as_bytes())
+        .map_err(|e| Error::Internal(format!("decode stored pkcs8: {e}")))?;
+    Ok(SigningKeyEntry {
         kid: row.kid,
         public_jwk: row.public_jwk,
-        private_pkcs8: row.private_pkcs8,
+        private_pkcs8,
         not_before: row.not_before,
         not_after: row.not_after,
         active: row.active,
-    }))
+    })
 }
 
 /// Load every signing key whose `not_after` has not elapsed (for JWKS publication).
@@ -170,17 +176,7 @@ pub async fn load_published_keys() -> Result<Vec<SigningKeyEntry>> {
         )
         .await?;
     let rows: Vec<SigningKeyRow> = resp.take(0).unwrap_or_default();
-    Ok(rows
-        .into_iter()
-        .map(|r| SigningKeyEntry {
-            kid: r.kid,
-            public_jwk: r.public_jwk,
-            private_pkcs8: r.private_pkcs8,
-            not_before: r.not_before,
-            not_after: r.not_after,
-            active: r.active,
-        })
-        .collect())
+    rows.into_iter().map(row_into_entry).collect()
 }
 
 /// Build the JWKS JSON document. Self-heals: if no keys are published yet
@@ -220,11 +216,12 @@ pub async fn rotate_signing_key(grace_days: i64) -> Result<String> {
     let verifying = new_signing.verifying_key();
     let new_kid = random_kid();
     let new_jwk = verifying_key_to_jwk(&new_kid, &verifying);
-    let new_pkcs8 = new_signing
-        .to_pkcs8_der()
-        .map_err(|e| Error::Internal(format!("ed25519 pkcs8 encode failed: {e}")))?
-        .as_bytes()
-        .to_vec();
+    let new_pkcs8 = URL_SAFE_NO_PAD.encode(
+        new_signing
+            .to_pkcs8_der()
+            .map_err(|e| Error::Internal(format!("ed25519 pkcs8 encode failed: {e}")))?
+            .as_bytes(),
+    );
 
     // Retire the current active key (if any) and create the new active key in one transaction.
     let not_after = Utc::now() + chrono::Duration::days(grace_days);
