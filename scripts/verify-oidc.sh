@@ -15,12 +15,11 @@
 set -euo pipefail
 
 ISSUER="${ISSUER:-http://localhost:3000}"
+DB_HTTP="${DB_HTTP:-http://localhost:8000}"
 DB_USER="${DB_USER:-root}"
 DB_PASS="${DB_PASS:-root}"
 DB_NS="${DB_NAMESPACE:-slatehub}"
 DB_NAME="${DB_NAME:-main}"
-DB_CONTAINER="${DB_CONTAINER:-slatehub-surrealdb}"
-DB_ENDPOINT="${DB_ENDPOINT:-http://localhost:8000}"
 
 # Test fixtures we'll create + clean up.
 TEST_ORG_SLUG="oidc-verify-org-$$"
@@ -35,21 +34,63 @@ step() { printf "%s▶ %s%s\n" "$CYAN" "$1" "$NC"; }
 ok()   { printf "  %s✓ %s%s\n" "$GREEN" "$1" "$NC"; }
 fail() { printf "  %s✗ %s%s\n" "$RED" "$1" "$NC"; exit 1; }
 
+# Last raw DB response — dumped on unexpected exit so we can see what we got.
+LAST_SURQL_RESPONSE=""
+on_err() {
+  local rc=$?
+  printf "\n%s✗ unexpected exit (rc=%d)%s\n" "$RED" "$rc" "$NC"
+  if [ -n "$LAST_SURQL_RESPONSE" ]; then
+    printf "%slast surql response:%s\n%s\n" "$YEL" "$NC" "$LAST_SURQL_RESPONSE"
+  fi
+}
+trap on_err ERR
+
 require() {
   command -v "$1" >/dev/null 2>&1 || { echo "${RED}missing dep: $1${NC}"; exit 2; }
 }
 
+# Run SurrealQL via the HTTP /sql endpoint. Returns the raw JSON response —
+# always an array of `{status, result, time}` objects, one per statement. The
+# CLI shell pollutes stdout with a welcome banner, so HTTP is the only
+# reliable way to script this.
 surql() {
-  docker exec -i "$DB_CONTAINER" /surreal sql \
-    --endpoint "$DB_ENDPOINT" --username "$DB_USER" --password "$DB_PASS" \
-    --namespace "$DB_NS" --database "$DB_NAME" --json <<< "$1"
+  # No -f so that 4xx/5xx response bodies still come back in
+  # LAST_SURQL_RESPONSE (so on_err can dump them).
+  LAST_SURQL_RESPONSE=$(curl -s -X POST "$DB_HTTP/sql" \
+    -H "Accept: application/json" \
+    -H "surreal-ns: $DB_NS" \
+    -H "surreal-db: $DB_NAME" \
+    -u "$DB_USER:$DB_PASS" \
+    --data-binary "$1")
+  # Detect surql per-statement failure too (status != "OK").
+  if echo "$LAST_SURQL_RESPONSE" | jq -e '.[]?.status | select(. != "OK")' >/dev/null 2>&1; then
+    printf "  %ssurql statement failed: %s%s\n" "$RED" \
+      "$(echo "$LAST_SURQL_RESPONSE" | jq -c '.')" "$NC" >&2
+    return 1
+  fi
+  printf '%s' "$LAST_SURQL_RESPONSE"
 }
 
 require curl
 require jq
 require openssl
 require python3
-require docker
+
+# Auto-manage a venv with pynacl (needed for EdDSA id_token signature
+# verification). PEP 668 blocks system-wide pip on most modern setups; a venv
+# sidesteps it. First run creates + installs (~5s), later runs are instant.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_DIR="$SCRIPT_DIR/.venv-oidc-verify"
+VENV_PY="$VENV_DIR/bin/python3"
+if ! "$VENV_PY" -c 'import nacl.signing' >/dev/null 2>&1; then
+  step "Setting up Python venv (one-time, installs pynacl)"
+  python3 -m venv "$VENV_DIR" >/dev/null \
+    || fail "could not create venv at $VENV_DIR"
+  "$VENV_PY" -m pip install --quiet --upgrade pip pynacl \
+    || fail "pip install pynacl failed in $VENV_DIR"
+  ok "venv ready at $VENV_DIR"
+fi
+PY="$VENV_PY"
 
 cleanup() {
   step "Cleanup"
@@ -76,7 +117,7 @@ curl -sf "$ISSUER/.well-known/openid-configuration" >/dev/null \
   || fail "server not reachable at $ISSUER"
 ok "server alive"
 
-surql "INFO FOR DB" >/dev/null || fail "DB not reachable via $DB_CONTAINER"
+surql "INFO FOR DB" >/dev/null || fail "DB not reachable at $DB_HTTP"
 ok "db alive"
 
 # ---------- 1. /.well-known/openid-configuration -------------------------
@@ -102,11 +143,11 @@ ok "JWKS has $N_KEYS key(s); active kid=$KID"
 cleanup >/dev/null 2>&1 || true
 step "Bootstrap test user + org + oauth_client"
 
-# Hash the test password with the server's argon2 helper. Easiest path:
-# use surreal's crypto::argon2::generate.
+# Hash the test password with the server's argon2 helper.
 PASS_HASH=$(surql "RETURN crypto::argon2::generate('$TEST_USER_PASS')" \
-  | jq -r '.[0].result // .[0]')
-[ -n "$PASS_HASH" ] || fail "could not hash password via surreal crypto helper"
+  | jq -r '.[0].result')
+[ -n "$PASS_HASH" ] && [ "$PASS_HASH" != "null" ] \
+  || fail "could not hash password via surreal crypto helper"
 
 PERSON_ID=$(surql "
   CREATE person CONTENT {
@@ -115,16 +156,17 @@ PERSON_ID=$(surql "
     username: '$TEST_USER_NAME',
     profile: { name: 'OIDC Verify', skills: [], social_links: [], ethnicity: [], unions: [], languages: [], experience: [], education: [], reels: [], media_other: [], awards: [] }
   } RETURN string::concat('person:', meta::id(id)) AS id
-" | jq -r '.[0].result[0].id // .[0][0].id')
+" | jq -r '.[0].result[0].id')
 [ -n "$PERSON_ID" ] && [ "$PERSON_ID" != "null" ] || fail "person create failed"
 ok "created person $PERSON_ID"
 
 # Force email-verified so login isn't blocked.
 surql "UPDATE $PERSON_ID SET verification_status = 'email'" >/dev/null
 
-ORG_TYPE=$(surql "SELECT VALUE id FROM organization_type LIMIT 1" \
-  | jq -r '.[0].result[0] // .[0][0]')
-[ -n "$ORG_TYPE" ] || fail "no organization_type rows seeded — run make db-init"
+ORG_TYPE_RESP=$(surql "SELECT string::concat('organization_type:', meta::id(id)) AS id FROM organization_type LIMIT 1")
+ORG_TYPE=$(echo "$ORG_TYPE_RESP" | jq -r '.[0].result[0].id')
+[ -n "$ORG_TYPE" ] && [ "$ORG_TYPE" != "null" ] \
+  || fail "no organization_type rows seeded — run make db-init (raw: $ORG_TYPE_RESP)"
 
 ORG_ID=$(surql "
   CREATE organization CONTENT {
@@ -132,9 +174,10 @@ ORG_ID=$(surql "
     slug: '$TEST_ORG_SLUG',
     type: $ORG_TYPE,
     services: [],
+    social_links: [],
     public: true
   } RETURN string::concat('organization:', meta::id(id)) AS id
-" | jq -r '.[0].result[0].id // .[0][0].id')
+" | jq -r '.[0].result[0].id')
 [ -n "$ORG_ID" ] && [ "$ORG_ID" != "null" ] || fail "org create failed"
 ok "created org $ORG_ID"
 
@@ -146,7 +189,9 @@ ok "made user owner of org"
 CLIENT_ID="sh_verify_$$"
 CLIENT_SECRET="verify_secret_$$_$(openssl rand -hex 16)"
 SECRET_HASH=$(surql "RETURN crypto::argon2::generate('$CLIENT_SECRET')" \
-  | jq -r '.[0].result // .[0]')
+  | jq -r '.[0].result')
+[ -n "$SECRET_HASH" ] && [ "$SECRET_HASH" != "null" ] \
+  || fail "could not hash client secret"
 CLIENT_RID=$(surql "
   CREATE oauth_client CONTENT {
     organization: $ORG_ID,
@@ -161,7 +206,7 @@ CLIENT_RID=$(surql "
     ssf_delivery_method: 'push',
     ssf_events_subscribed: []
   } RETURN string::concat('oauth_client:', meta::id(id)) AS id
-" | jq -r '.[0].result[0].id // .[0][0].id')
+" | jq -r '.[0].result[0].id')
 [ -n "$CLIENT_RID" ] && [ "$CLIENT_RID" != "null" ] || fail "client create failed"
 ok "created oauth_client $CLIENT_RID (client_id=$CLIENT_ID)"
 
@@ -267,7 +312,7 @@ esac
 
 # ---------- 9. verify id_token signature against JWKS ---------------------
 step "id_token signature verification (EdDSA via JWKS)"
-python3 - <<PY || fail "id_token signature verification failed"
+"$PY" - <<PY || fail "id_token signature verification failed"
 import base64, json, hashlib, sys, urllib.request
 import nacl.signing  # PyNaCl
 b64u = lambda b: base64.urlsafe_b64encode(b).rstrip(b'=')

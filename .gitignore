@@ -47,3 +47,6 @@ dev.sh
 docker-compose.dev.yml
 
 history.txt
+
+# Auto-managed venv for scripts/verify-oidc.sh (holds pynacl)
+scripts/.venv-oidc-verify/

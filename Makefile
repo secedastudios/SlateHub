@@ -1,4 +1,4 @@
-.PHONY: all help start stop services services-start services-stop server server-start server-stop dev dev-start dev-stop logs logs-services logs-server build clean purge shell check-env db-init db-seed dirs wait-db rebuild-embeddings oidc-verify
+.PHONY: all help start stop services services-stop server server-stop dev dev-stop logs logs-services logs-server build clean purge shell check-env db-init db-seed dirs wait-db rebuild-embeddings oidc-verify
 
 # Default target
 all: help
@@ -25,23 +25,20 @@ help:
 	@echo "  make stop           - Stop all Docker containers"
 	@echo ""
 	@echo "Services (RustFS + SurrealDB):"
-	@echo "  make services-start - Start RustFS and SurrealDB containers"
+	@echo "  make services       - Start RustFS and SurrealDB containers"
 	@echo "  make services-stop  - Stop RustFS and SurrealDB containers"
 	@echo "  make logs-services  - View logs for services"
-	@echo "  make services       - Alias for services-start"
 	@echo ""
 	@echo "Server - Docker Mode:"
-	@echo "  make server-start   - Build and run server in Docker container"
+	@echo "  make server         - Build and run server in Docker container"
 	@echo "  make server-stop    - Stop Docker server container"
 	@echo "  make logs-server    - View server logs (Docker)"
 	@echo "  make build          - Rebuild server Docker image"
-	@echo "  make server         - Alias for server-start"
 	@echo ""
 	@echo "Development Mode (local filesystem):"
-	@echo "  make dev-start      - Run server locally with cargo"
+	@echo "  make dev            - Run server locally with cargo"
 	@echo "                        (CSS/static changes are instant!)"
 	@echo "  make dev-stop       - Instructions for stopping dev server (Ctrl+C)"
-	@echo "  make dev            - Alias for dev-start"
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-init           - Initialize database schema"
@@ -50,6 +47,11 @@ help:
 	@echo ""
 	@echo "Search:"
 	@echo "  make rebuild-embeddings - Rebuild all vector embeddings for semantic search"
+	@echo ""
+	@echo "OIDC / OAuth:"
+	@echo "  make oidc-verify    - End-to-end OIDC test against the running server"
+	@echo "                        (discovery → JWKS → authorize → token → userinfo →"
+	@echo "                         refresh → revoke → introspect; see scripts/verify-oidc.sh)"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make shell          - Open shell in server container"
@@ -77,7 +79,7 @@ wait-db:
 # Quick Start Commands
 # ============================================================================
 
-start: services-start server-start
+start: services server
 	@echo "✅ All Docker containers started!"
 	@echo "   Access at: http://localhost:${SERVER_PORT:-3000}"
 
@@ -90,7 +92,7 @@ stop:
 # Services Management (RustFS + SurrealDB)
 # ============================================================================
 
-services-start: check-env dirs
+services: check-env dirs
 	@echo "🚀 Starting services (RustFS + SurrealDB)..."
 	@docker-compose up -d surrealdb rustfs
 	@$(MAKE) wait-db
@@ -111,7 +113,7 @@ logs-services:
 # Server - Docker Mode (Production-like)
 # ============================================================================
 
-server-start: check-env services-start
+server: check-env services
 	@echo "🐳 Building and starting SlateHub server in Docker..."
 	@docker-compose up -d --build slatehub
 	@echo "✅ Server running in Docker on port ${SERVER_PORT:-3000}"
@@ -134,10 +136,10 @@ build:
 # Development Mode (Local filesystem with hot reload for static files)
 # ============================================================================
 
-dev-start: check-env
+dev: check-env
 	@echo "🚀 Starting SlateHub server in DEVELOPMENT mode..."
 	@echo ""
-	@echo "   ⚠️  Make sure services are running: make services-start"
+	@echo "   ⚠️  Make sure services are running: make services"
 	@echo ""
 	@echo "   Server will run locally with cargo:"
 	@echo "   - Static files from: ./server/static/"
@@ -283,7 +285,7 @@ shell:
 	@if docker ps | grep -q slatehub-server; then \
 		docker exec -it slatehub-server /bin/bash; \
 	else \
-		echo "❌ Server container not running. Start with 'make server-start' first."; \
+		echo "❌ Server container not running. Start with 'make server' first."; \
 	fi
 
 clean:
@@ -341,15 +343,6 @@ test: test-services test-db-init
 	EXIT_CODE=$$?; \
 	cd .. && $(MAKE) test-services-stop; \
 	exit $$EXIT_CODE
-
-# ============================================================================
-# Aliases for convenience
-# ============================================================================
-
-# Shorthand aliases
-dev: dev-start
-services: services-start
-server: server-start
 
 # End-to-end OIDC verification — assumes server + db are up locally.
 # Runs the full Authorization Code + PKCE flow and asserts every endpoint.
