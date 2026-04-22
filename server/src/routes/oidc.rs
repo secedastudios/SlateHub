@@ -432,9 +432,19 @@ async fn handle_auth_code_grant(client: OauthClient, req: TokenRequest) -> Resul
     let code = req
         .code
         .ok_or_else(|| token_error("invalid_request", "code required"))?;
-    let row = oidc_tokens::consume_authorization_code(&code)
-        .await?
-        .ok_or_else(|| token_error("invalid_grant", "code invalid or expired"))?;
+    let row = match oidc_tokens::consume_authorization_code(&code).await? {
+        Some(r) => r,
+        None => {
+            // Disambiguate the failure for operator diagnostics. RP-facing
+            // `error` field stays `invalid_grant` per RFC 6749 §5.2.
+            let reason = match oidc_tokens::peek_authorization_code(&code).await? {
+                Some(r) if r.consumed => "authorization code already used",
+                Some(r) if r.expires_at <= chrono::Utc::now() => "authorization code expired",
+                _ => "authorization code not found",
+            };
+            return Err(token_error("invalid_grant", reason));
+        }
+    };
     if row.client != client.id {
         return Err(token_error("invalid_grant", "code/client mismatch"));
     }

@@ -3,7 +3,9 @@ mod common;
 
 use chrono::{Duration, Utc};
 use slatehub::db::DB;
-use slatehub::services::oidc_tokens::{AUTHORIZATION_CODE_TTL_SECONDS, consume_authorization_code};
+use slatehub::services::oidc_tokens::{
+    AUTHORIZATION_CODE_TTL_SECONDS, consume_authorization_code, peek_authorization_code,
+};
 use surrealdb::types::SurrealValue;
 
 #[derive(serde::Deserialize, SurrealValue)]
@@ -235,4 +237,80 @@ fn test_authorization_code_ttl_is_300_seconds() {
     // 5 minutes — Google/Microsoft default. Single-use enforcement is the
     // replay protection; the TTL just shouldn't punish honest clients.
     assert_eq!(AUTHORIZATION_CODE_TTL_SECONDS, 300);
+}
+
+// ---------- peek_authorization_code: disambiguate the three failure modes ----------
+
+#[test]
+fn test_peek_returns_none_for_unknown_code() {
+    common::setup_test_db();
+    common::run(async {
+        cleanup().await;
+        let row = peek_authorization_code("does-not-exist")
+            .await
+            .expect("peek");
+        assert!(row.is_none(), "unknown code returns None");
+    });
+}
+
+#[test]
+fn test_peek_reports_consumed_for_already_used_code() {
+    common::setup_test_db();
+    common::run(async {
+        cleanup().await;
+        let (client_id, person_id) = seed_org_and_person().await;
+        create_code(&client_id, &person_id, "code-peek-used", true, 60).await;
+
+        let row = peek_authorization_code("code-peek-used")
+            .await
+            .expect("peek")
+            .expect("Some(row)");
+        assert!(row.consumed, "peek surfaces consumed = true");
+        assert!(
+            row.expires_at > Utc::now(),
+            "and expires_at is still in the future"
+        );
+
+        cleanup().await;
+    });
+}
+
+#[test]
+fn test_peek_reports_expired_for_expired_code() {
+    common::setup_test_db();
+    common::run(async {
+        cleanup().await;
+        let (client_id, person_id) = seed_org_and_person().await;
+        create_code(&client_id, &person_id, "code-peek-expired", false, -10).await;
+
+        let row = peek_authorization_code("code-peek-expired")
+            .await
+            .expect("peek")
+            .expect("Some(row)");
+        assert!(!row.consumed, "peek reports consumed = false");
+        assert!(
+            row.expires_at <= Utc::now(),
+            "and expires_at is in the past"
+        );
+
+        cleanup().await;
+    });
+}
+
+#[test]
+fn test_peek_does_not_mutate_row() {
+    common::setup_test_db();
+    common::run(async {
+        cleanup().await;
+        let (client_id, person_id) = seed_org_and_person().await;
+        create_code(&client_id, &person_id, "code-peek-readonly", false, 60).await;
+
+        let _ = peek_authorization_code("code-peek-readonly").await.unwrap();
+        assert!(
+            !is_consumed("code-peek-readonly").await,
+            "peek must not flip consumed"
+        );
+
+        cleanup().await;
+    });
 }

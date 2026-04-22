@@ -141,6 +141,18 @@ pub async fn consume_authorization_code(code: &str) -> Result<Option<Authorizati
     Ok(rows.into_iter().next())
 }
 
+/// Read an authorization-code row by `code` without mutating it. Used by the
+/// `/token` handler after a failed consume to report the precise failure
+/// reason (not found / already consumed / expired) in `error_description`.
+pub async fn peek_authorization_code(code: &str) -> Result<Option<AuthorizationCodeRow>> {
+    let mut resp = DB
+        .query("SELECT * FROM authorization_code WHERE code = $code LIMIT 1")
+        .bind(("code", code.to_string()))
+        .await?;
+    let rows: Vec<AuthorizationCodeRow> = resp.take(0).unwrap_or_default();
+    Ok(rows.into_iter().next())
+}
+
 // ----- Access token -----
 
 #[derive(Debug, Clone, SurrealValue, Serialize, Deserialize)]
