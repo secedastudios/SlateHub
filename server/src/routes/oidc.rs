@@ -180,11 +180,16 @@ async fn authorize(
         return Err(Error::BadRequest("redirect_uri not registered".into()));
     }
 
-    let requested_scopes: Vec<String> = params
-        .scope
-        .split_whitespace()
-        .map(|s| s.to_string())
-        .collect();
+    // Dedupe scopes — RFC 6749 §3.3 says scope is space-delimited and order
+    // doesn't matter; some RP libraries emit duplicates (e.g. `openid openid …`)
+    // which would otherwise show up twice on the consent screen.
+    let mut requested_scopes: Vec<String> = Vec::new();
+    for s in params.scope.split_whitespace() {
+        let s = s.to_string();
+        if !requested_scopes.contains(&s) {
+            requested_scopes.push(s);
+        }
+    }
     if !requested_scopes.iter().any(|s| s == "openid") {
         return Err(Error::BadRequest("scope must include 'openid'".into()));
     }
@@ -312,11 +317,13 @@ async fn consent(
         return Ok(Redirect::to(url.as_str()).into_response());
     }
 
-    let scopes: Vec<String> = params
-        .scope
-        .split_whitespace()
-        .map(|s| s.to_string())
-        .collect();
+    let mut scopes: Vec<String> = Vec::new();
+    for s in params.scope.split_whitespace() {
+        let s = s.to_string();
+        if !scopes.contains(&s) {
+            scopes.push(s);
+        }
+    }
     consent_grant::upsert_grant(&person_id, &client.id, &scopes).await?;
     issue_code_and_redirect(&client, &person_id, params, scopes).await
 }
