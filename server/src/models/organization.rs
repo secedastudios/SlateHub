@@ -289,7 +289,7 @@ impl OrganizationModel {
             RecordId::parse_simple(id).map_err(|e| Error::BadRequest(e.to_string()))?;
 
         let result: Option<Organization> = DB
-            .query("SELECT *, type.* FROM organization WHERE $id")
+            .query("SELECT *, type.* FROM $id")
             .bind(("id", id))
             .await?
             .take(0)?;
