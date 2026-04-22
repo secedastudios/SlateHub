@@ -809,6 +809,35 @@ footer#site-footer {
     align-items: start;
 }
 
+/* Bottom-row attribution — must use the same translucent overlay as
+   #footer-main so the two read as one continuous surface (the gradient
+   underneath would otherwise shine through differently and create a seam). */
+#footer-attribution {
+    background: rgba(214, 216, 202, 0.03);
+    text-align: center;
+    padding: var(--space-md) var(--page-gutter, 2rem) var(--space-lg);
+}
+
+#footer-attribution p {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted, #9ca39e);
+}
+
+#footer-attribution a {
+    color: var(--color-text-muted, #9ca39e);
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: rgba(214, 216, 202, 0.25);
+    text-underline-offset: 2px;
+    transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+#footer-attribution a:hover {
+    color: var(--color-accent, #eb5437);
+    text-decoration-color: var(--color-accent, #eb5437);
+}
+
 /* Brand section */
 #footer-brand {
     display: flex;
