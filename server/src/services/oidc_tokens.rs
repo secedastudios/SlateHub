@@ -118,21 +118,24 @@ pub async fn create_authorization_code(
 
 /// Atomically consume an authorization code by `code` value. Returns the row
 /// only if the code was unused and not expired.
+///
+/// The `WHERE` clause guarantees we only match a code that is currently
+/// unconsumed and not expired, and the `UPDATE` flips `consumed` in the same
+/// statement. `RETURN BEFORE` gives us the row's pre-update state — proof it
+/// was valid at the moment of consumption. Single-statement, no transaction
+/// needed, no ambiguity about which statement index carries the result.
 pub async fn consume_authorization_code(code: &str) -> Result<Option<AuthorizationCodeRow>> {
     let mut resp = DB
         .query(
-            "BEGIN;
-             LET $row = (SELECT * FROM authorization_code \
-                         WHERE code = $code AND consumed = false AND expires_at > time::now() \
-                         LIMIT 1)[0];
-             IF $row != NONE THEN UPDATE $row.id SET consumed = true END;
-             RETURN $row;
-             COMMIT;",
+            "UPDATE authorization_code \
+             SET consumed = true \
+             WHERE code = $code AND consumed = false AND expires_at > time::now() \
+             RETURN BEFORE;",
         )
         .bind(("code", code.to_string()))
         .await?;
-    let row: Option<AuthorizationCodeRow> = resp.take(0).unwrap_or(None);
-    Ok(row)
+    let rows: Vec<AuthorizationCodeRow> = resp.take(0).unwrap_or_default();
+    Ok(rows.into_iter().next())
 }
 
 // ----- Access token -----
