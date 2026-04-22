@@ -52,7 +52,7 @@ services:
                 condition: service_healthy
 
     surrealdb:
-        image: surrealdb/surrealdb:latest
+        image: surrealdb/surrealdb:v3.0.5
         container_name: slatehub-surrealdb
         restart: unless-stopped
         logging: *default-logging

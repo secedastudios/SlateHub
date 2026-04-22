@@ -1,6 +1,6 @@
 services:
     surrealdb-test:
-        image: surrealdb/surrealdb:latest
+        image: surrealdb/surrealdb:v3.0.5
         container_name: slatehub-surrealdb-test
         ports:
             - "127.0.0.1:8100:8000"
