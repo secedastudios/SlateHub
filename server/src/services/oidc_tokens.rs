@@ -16,7 +16,10 @@ use surrealdb::types::{RecordId, SurrealValue};
 const TOKEN_LEN: usize = 32;
 
 /// Lifetime of an authorization code (RFC 6749 §4.1.2 recommends ≤ 10 minutes).
-pub const AUTHORIZATION_CODE_TTL_SECONDS: i64 = 60;
+/// 5 minutes matches the Google/Microsoft default. Single-use enforcement via
+/// the `consumed` flag is the actual replay protection — the TTL just shouldn't
+/// punish honest clients whose browser pauses on the consent screen.
+pub const AUTHORIZATION_CODE_TTL_SECONDS: i64 = 300;
 /// Lifetime of an access token.
 pub const ACCESS_TOKEN_TTL_SECONDS: i64 = 3600;
 /// Lifetime of a refresh token (absolute, not sliding).

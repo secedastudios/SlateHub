@@ -3,7 +3,7 @@ mod common;
 
 use chrono::{Duration, Utc};
 use slatehub::db::DB;
-use slatehub::services::oidc_tokens::consume_authorization_code;
+use slatehub::services::oidc_tokens::{AUTHORIZATION_CODE_TTL_SECONDS, consume_authorization_code};
 use surrealdb::types::SurrealValue;
 
 #[derive(serde::Deserialize, SurrealValue)]
@@ -228,4 +228,11 @@ fn test_consume_expired_returns_none() {
 
         cleanup().await;
     });
+}
+
+#[test]
+fn test_authorization_code_ttl_is_300_seconds() {
+    // 5 minutes — Google/Microsoft default. Single-use enforcement is the
+    // replay protection; the TTL just shouldn't punish honest clients.
+    assert_eq!(AUTHORIZATION_CODE_TTL_SECONDS, 300);
 }
