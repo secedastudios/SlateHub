@@ -1,4 +1,4 @@
-.PHONY: all help start stop services services-start services-stop server server-start server-stop dev dev-start dev-stop logs logs-services logs-server build clean purge shell check-env db-init db-seed dirs wait-db rebuild-embeddings
+.PHONY: all help start stop services services-start services-stop server server-start server-stop dev dev-start dev-stop logs logs-services logs-server build clean purge shell check-env db-init db-seed dirs wait-db rebuild-embeddings oidc-verify
 
 # Default target
 all: help
@@ -350,3 +350,8 @@ test: test-services test-db-init
 dev: dev-start
 services: services-start
 server: server-start
+
+# End-to-end OIDC verification — assumes server + db are up locally.
+# Runs the full Authorization Code + PKCE flow and asserts every endpoint.
+oidc-verify:
+	@scripts/verify-oidc.sh

@@ -124,8 +124,22 @@ pub async fn ensure_signing_key() -> Result<()> {
     Ok(())
 }
 
-/// Load the single active signing key.
+/// Load the single active signing key. Self-heals: if the table has no active
+/// key (fresh DB, manual wipe, botched rotation) we generate one inline and
+/// retry. The startup `ensure_signing_key` is a fast-path; this guarantees
+/// `/token`, `/userinfo`, etc. never 500 because of a missing key.
 pub async fn load_active_key() -> Result<SigningKeyEntry> {
+    if let Some(entry) = fetch_active_key().await? {
+        return Ok(entry);
+    }
+    info!("No active OIDC signing key on read path — generating one");
+    ensure_signing_key().await?;
+    fetch_active_key()
+        .await?
+        .ok_or_else(|| Error::Internal("OIDC signing key generation failed".into()))
+}
+
+async fn fetch_active_key() -> Result<Option<SigningKeyEntry>> {
     let mut resp = DB
         .query(
             "SELECT <string> id AS id, kid, public_jwk, private_pkcs8, \
@@ -134,18 +148,14 @@ pub async fn load_active_key() -> Result<SigningKeyEntry> {
         )
         .await?;
     let rows: Vec<SigningKeyRow> = resp.take(0).unwrap_or_default();
-    let row = rows
-        .into_iter()
-        .next()
-        .ok_or_else(|| Error::Internal("no active OIDC signing key".into()))?;
-    Ok(SigningKeyEntry {
+    Ok(rows.into_iter().next().map(|row| SigningKeyEntry {
         kid: row.kid,
         public_jwk: row.public_jwk,
         private_pkcs8: row.private_pkcs8,
         not_before: row.not_before,
         not_after: row.not_after,
         active: row.active,
-    })
+    }))
 }
 
 /// Load every signing key whose `not_after` has not elapsed (for JWKS publication).
@@ -173,9 +183,16 @@ pub async fn load_published_keys() -> Result<Vec<SigningKeyEntry>> {
         .collect())
 }
 
-/// Build the JWKS JSON document.
+/// Build the JWKS JSON document. Self-heals: if no keys are published yet
+/// (fresh DB, manual wipe), generate one inline so RPs can always verify
+/// id_tokens.
 pub async fn jwks_document() -> Result<Value> {
-    let keys = load_published_keys().await?;
+    let mut keys = load_published_keys().await?;
+    if keys.is_empty() {
+        info!("JWKS would be empty — generating signing key");
+        ensure_signing_key().await?;
+        keys = load_published_keys().await?;
+    }
     let jwks: Vec<Value> = keys.into_iter().map(|k| k.public_jwk).collect();
     Ok(json!({ "keys": jwks }))
 }
