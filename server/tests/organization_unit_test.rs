@@ -88,6 +88,7 @@ fn test_update_organization_data() {
         founded_year: Some(2019),
         employees_count: Some(100),
         public: false,
+        allow_join_requests: false,
     };
 
     assert_eq!(update_data.name, "Updated Organization");
@@ -113,6 +114,7 @@ fn test_organization_member_structure() {
         role: "admin".to_string(),
         joined_at: Utc::now(),
         invitation_status: "accepted".to_string(),
+        request_note: None,
     };
 
     assert_eq!(member.person_username, "johndoe");

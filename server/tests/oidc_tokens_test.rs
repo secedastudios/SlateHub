@@ -53,6 +53,7 @@ async fn seed_org_and_person() -> (String, String) {
                 slug: $slug,
                 type: type::record('organization_type', $type_key),
                 services: [],
+                social_links: [],
                 public: true
             } RETURN string::concat('organization:', meta::id(id)) AS id",
         )

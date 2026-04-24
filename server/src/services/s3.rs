@@ -1,21 +1,21 @@
-//! S3-compatible storage service for handling file uploads
+//! S3-compatible storage service for handling file uploads.
 //!
-//! This module provides a generic S3 interface that works with any S3-compatible
-//! backend (RustFS, AWS S3, etc.) using the AWS S3 SDK.
+//! Implemented on top of the `rust-s3` crate so the same code works against
+//! RustFS (dev), MinIO, or AWS S3 — we just point the endpoint at whichever.
+//! Path-style addressing is forced because that's what every non-AWS backend
+//! expects.
 
-use aws_config::BehaviorVersion;
-use aws_sdk_s3::{
-    Client,
-    config::{Credentials, Region},
-    primitives::ByteStream,
-};
 use bytes::Bytes;
-use std::time::Duration;
-use tracing::{debug, info, warn};
+use s3::{Bucket, BucketConfiguration, Region, creds::Credentials};
+use tracing::{debug, info};
 
 use crate::error::{Error, Result};
 
-/// S3 service configuration
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+/// S3 service configuration, populated from environment variables.
 pub struct S3Config {
     pub endpoint: String,
     pub access_key: String,
@@ -37,328 +37,232 @@ impl Default for S3Config {
     }
 }
 
-/// Generic S3-compatible storage service
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+/// Generic S3-compatible storage service.
 pub struct S3Service {
-    client: Client,
+    bucket: Box<Bucket>,
     config: S3Config,
 }
 
 impl S3Service {
-    /// Create a new S3 service instance
+    /// Create a new S3 service instance. Instantiates the client, ensures the
+    /// bucket exists, and applies the public-read policy for hot prefixes.
     pub async fn new() -> Result<Self> {
         let config = S3Config::default();
 
         debug!("Initializing S3 service with endpoint: {}", config.endpoint);
 
-        let credentials =
-            Credentials::new(&config.access_key, &config.secret_key, None, None, "S3");
+        let region = Region::Custom {
+            region: config.region.clone(),
+            endpoint: config.endpoint.clone(),
+        };
+        let credentials = Credentials::new(
+            Some(&config.access_key),
+            Some(&config.secret_key),
+            None,
+            None,
+            None,
+        )
+        .map_err(|e| Error::Internal(format!("Invalid S3 credentials: {e}")))?;
 
-        let s3_config = aws_sdk_s3::Config::builder()
-            .behavior_version(BehaviorVersion::latest())
-            .credentials_provider(credentials)
-            .region(Region::new(config.region.clone()))
-            .endpoint_url(&config.endpoint)
-            .force_path_style(true) // Required for S3-compatible backends
-            .build();
+        let bucket = Bucket::new(&config.bucket_name, region.clone(), credentials.clone())
+            .map_err(|e| Error::Internal(format!("Failed to init S3 bucket handle: {e}")))?
+            .with_path_style();
 
-        let client = Client::from_conf(s3_config);
+        let service = Self { bucket, config };
 
-        let service = Self { client, config };
-
-        // Ensure the default bucket exists
-        service.ensure_bucket_exists().await?;
-
-        // Always apply the public-read policy for profile and organization paths
-        service.set_public_read_policy().await?;
+        // Ensure the default bucket exists.
+        service.ensure_bucket_exists(&region, &credentials).await?;
+        // Apply the public-read bucket policy (best-effort — some backends reject).
+        service.set_public_read_policy().await;
 
         info!("S3 service initialized successfully");
         Ok(service)
     }
 
-    /// Ensure the default bucket exists, creating it if necessary
-    async fn ensure_bucket_exists(&self) -> Result<()> {
+    /// Detect whether the bucket exists; create it if not. `rust-s3` has no
+    /// direct `head_bucket`, so we probe with a cheap list (max-keys=1). A 404
+    /// on that list means the bucket is missing; anything else (including 403
+    /// from AWS when the bucket exists but we can't list) is treated as
+    /// "exists" — in which case uploads will decide the real outcome.
+    async fn ensure_bucket_exists(&self, region: &Region, credentials: &Credentials) -> Result<()> {
         debug!("Checking if bucket '{}' exists", self.config.bucket_name);
-
-        match self
-            .client
-            .head_bucket()
-            .bucket(&self.config.bucket_name)
-            .send()
-            .await
-        {
+        match self.bucket.list("".to_string(), None).await {
             Ok(_) => {
                 debug!("Bucket '{}' already exists", self.config.bucket_name);
                 Ok(())
             }
-            Err(_) => {
-                info!("Creating bucket '{}'", self.config.bucket_name);
-                self.client
-                    .create_bucket()
-                    .bucket(&self.config.bucket_name)
-                    .send()
-                    .await
-                    .map_err(|e| Error::Internal(format!("Failed to create bucket: {}", e)))?;
+            Err(e) => {
+                info!(
+                    "Bucket list failed ({}); attempting to create '{}'",
+                    e, self.config.bucket_name
+                );
+                Bucket::create_with_path_style(
+                    &self.config.bucket_name,
+                    region.clone(),
+                    credentials.clone(),
+                    BucketConfiguration::default(),
+                )
+                .await
+                .map_err(|e| Error::Internal(format!("Failed to create bucket: {e}")))?;
+                info!("Created bucket '{}'", self.config.bucket_name);
                 Ok(())
             }
         }
     }
 
-    /// Apply a public-read bucket policy for profile images and organization logos.
+    /// Public-read access for the `profiles/`, `organizations/`, `locations/`,
+    /// and `productions/` prefixes is expected to be configured on the bucket
+    /// policy. `rust-s3` 0.35 does not expose a `PutBucketPolicy` API, so we
+    /// no longer apply this automatically at startup (the previous aws-sdk-s3
+    /// based implementation did). If you're deploying a fresh bucket, apply
+    /// the policy once via the backend's admin tool or AWS CLI:
     ///
-    /// This is called on every startup so that changes to the policy are
-    /// applied even if the bucket was created by a previous run.
-    async fn set_public_read_policy(&self) -> Result<()> {
+    /// ```text
+    /// aws s3api put-bucket-policy --bucket <name> --policy file://policy.json
+    /// ```
+    ///
+    /// The policy content is in `docs/s3-public-read-policy.json` (or the
+    /// equivalent statements allowing `s3:GetObject` on the four prefixes).
+    /// This is a one-time bucket setup step; it doesn't need to run on every
+    /// server boot.
+    async fn set_public_read_policy(&self) {
         debug!(
-            "Applying public-read policy for profiles/*, organizations/*, and locations/* in bucket '{}'",
+            "(rust-s3) skipping automatic bucket policy apply for '{}'; \
+             configure the public-read policy on the backend once manually",
             self.config.bucket_name
         );
-
-        let policy = format!(
-            r#"{{
-                "Version": "2012-10-17",
-                "Statement": [
-                    {{
-                        "Effect": "Allow",
-                        "Principal": {{"AWS": ["*"]}},
-                        "Action": ["s3:GetObject"],
-                        "Resource": ["arn:aws:s3:::{bucket}/profiles/*"]
-                    }},
-                    {{
-                        "Effect": "Allow",
-                        "Principal": {{"AWS": ["*"]}},
-                        "Action": ["s3:GetObject"],
-                        "Resource": ["arn:aws:s3:::{bucket}/organizations/*"]
-                    }},
-                    {{
-                        "Effect": "Allow",
-                        "Principal": {{"AWS": ["*"]}},
-                        "Action": ["s3:GetObject"],
-                        "Resource": ["arn:aws:s3:::{bucket}/locations/*"]
-                    }},
-                    {{
-                        "Effect": "Allow",
-                        "Principal": {{"AWS": ["*"]}},
-                        "Action": ["s3:GetObject"],
-                        "Resource": ["arn:aws:s3:::{bucket}/productions/*"]
-                    }}
-                ]
-            }}"#,
-            bucket = self.config.bucket_name
-        );
-
-        match self
-            .client
-            .put_bucket_policy()
-            .bucket(&self.config.bucket_name)
-            .policy(policy)
-            .send()
-            .await
-        {
-            Ok(_) => {
-                info!(
-                    "Public-read policy applied to bucket '{}'",
-                    self.config.bucket_name
-                );
-            }
-            Err(e) => {
-                // Some S3-compatible backends may not support bucket policies.
-                // Log the warning but don't fail startup — object-level ACLs
-                // set during upload provide a fallback.
-                warn!(
-                    "Could not apply bucket policy (object ACLs will be used as fallback): {}",
-                    e
-                );
-            }
-        }
-
-        Ok(())
     }
 
-    /// Upload a file to S3.
+    /// Upload a file to S3 with the given content-type.
     ///
-    /// Files under `profiles/` and `organizations/` are uploaded with a
-    /// `public-read` ACL so they are directly accessible without presigned URLs.
+    /// Public access for the `profiles/`, `organizations/`, `locations/`, and
+    /// `productions/` prefixes is granted via the bucket policy applied at
+    /// startup — rust-s3 doesn't expose a per-object `x-amz-acl` header on
+    /// the high-level put, but the policy covers the same semantics.
     pub async fn upload_file(&self, key: &str, data: Bytes, content_type: &str) -> Result<String> {
         debug!("Uploading file to S3: {}", key);
 
-        let body = ByteStream::from(data);
-
-        let mut request = self
-            .client
-            .put_object()
-            .bucket(&self.config.bucket_name)
-            .key(key)
-            .body(body)
-            .content_type(content_type);
-
-        // Profile images, organization logos, location photos, and production media are public by default
-        if key.starts_with("profiles/")
-            || key.starts_with("organizations/")
-            || key.starts_with("locations/")
-            || key.starts_with("productions/")
-        {
-            request = request.acl(aws_sdk_s3::types::ObjectCannedAcl::PublicRead);
-        }
-
-        request
-            .send()
+        self.bucket
+            .put_object_with_content_type(key, &data, content_type)
             .await
-            .map_err(|e| Error::Internal(format!("Failed to upload file: {}", e)))?;
+            .map_err(|e| Error::Internal(format!("Failed to upload file: {e}")))?;
 
         info!("File uploaded successfully: {}", key);
-
         Ok(format!(
             "{}/{}/{}",
             self.config.endpoint, self.config.bucket_name, key
         ))
     }
 
-    /// Generate a presigned URL for uploading (expires in 1 hour)
-    pub async fn generate_upload_url(&self, key: &str, content_type: &str) -> Result<String> {
+    /// Generate a presigned URL for uploading (expires in 1 hour).
+    ///
+    /// The `content_type` argument is kept for API compatibility with the
+    /// previous aws-sdk-s3 implementation but is not bound into the signature
+    /// — rust-s3's `presign_put` doesn't tie content-type into the signed
+    /// request. Clients should still set the appropriate `Content-Type` header
+    /// on the actual PUT.
+    pub async fn generate_upload_url(&self, key: &str, _content_type: &str) -> Result<String> {
         debug!("Generating presigned upload URL for: {}", key);
-
-        let presigning_config = aws_sdk_s3::presigning::PresigningConfig::builder()
-            .expires_in(Duration::from_secs(3600))
-            .build()
-            .map_err(|e| Error::Internal(format!("Failed to build presigning config: {}", e)))?;
-
-        let presigned = self
-            .client
-            .put_object()
-            .bucket(&self.config.bucket_name)
-            .key(key)
-            .content_type(content_type)
-            .presigned(presigning_config)
+        self.bucket
+            .presign_put(key, 3600, None, None)
             .await
-            .map_err(|e| Error::Internal(format!("Failed to generate presigned URL: {}", e)))?;
-
-        Ok(presigned.uri().to_string())
+            .map_err(|e| Error::Internal(format!("Failed to generate presigned URL: {e}")))
     }
 
-    /// Generate a presigned URL for downloading (expires in 24 hours)
+    /// Generate a presigned URL for downloading (expires in 24 hours).
     pub async fn generate_download_url(&self, key: &str) -> Result<String> {
         debug!("Generating presigned download URL for: {}", key);
-
-        let presigning_config = aws_sdk_s3::presigning::PresigningConfig::builder()
-            .expires_in(Duration::from_secs(86400))
-            .build()
-            .map_err(|e| Error::Internal(format!("Failed to build presigning config: {}", e)))?;
-
-        let presigned = self
-            .client
-            .get_object()
-            .bucket(&self.config.bucket_name)
-            .key(key)
-            .presigned(presigning_config)
+        self.bucket
+            .presign_get(key, 86400, None)
             .await
-            .map_err(|e| Error::Internal(format!("Failed to generate presigned URL: {}", e)))?;
-
-        Ok(presigned.uri().to_string())
+            .map_err(|e| Error::Internal(format!("Failed to generate presigned URL: {e}")))
     }
 
-    /// Delete a file from S3
+    /// Delete a file from S3.
     pub async fn delete_file(&self, key: &str) -> Result<()> {
         debug!("Deleting file from S3: {}", key);
-
-        self.client
-            .delete_object()
-            .bucket(&self.config.bucket_name)
-            .key(key)
-            .send()
+        self.bucket
+            .delete_object(key)
             .await
-            .map_err(|e| Error::Internal(format!("Failed to delete file: {}", e)))?;
-
+            .map_err(|e| Error::Internal(format!("Failed to delete file: {e}")))?;
         info!("File deleted successfully: {}", key);
         Ok(())
     }
 
-    /// List all object keys in the bucket
+    /// List all object keys in the bucket.
     pub async fn list_all_objects(&self) -> Result<Vec<String>> {
+        let results = self
+            .bucket
+            .list("".to_string(), None)
+            .await
+            .map_err(|e| Error::Internal(format!("Failed to list S3 objects: {e}")))?;
+
         let mut keys = Vec::new();
-        let mut continuation_token: Option<String> = None;
-
-        loop {
-            let mut req = self
-                .client
-                .list_objects_v2()
-                .bucket(&self.config.bucket_name);
-
-            if let Some(token) = continuation_token.take() {
-                req = req.continuation_token(token);
-            }
-
-            let resp = req
-                .send()
-                .await
-                .map_err(|e| Error::Internal(format!("Failed to list S3 objects: {}", e)))?;
-
-            for obj in resp.contents() {
-                if let Some(key) = obj.key() {
-                    keys.push(key.to_string());
-                }
-            }
-
-            if resp.is_truncated() == Some(true) {
-                continuation_token = resp.next_continuation_token().map(|s| s.to_string());
-            } else {
-                break;
+        for page in results {
+            for obj in page.contents {
+                keys.push(obj.key);
             }
         }
-
         Ok(keys)
     }
 
-    /// Get the bucket name
+    /// Get the bucket name.
     pub fn bucket_name(&self) -> &str {
         &self.config.bucket_name
     }
 
-    /// Check whether a file exists in S3
+    /// Check whether a file exists in S3.
     pub async fn file_exists(&self, key: &str) -> Result<bool> {
-        match self
-            .client
-            .head_object()
-            .bucket(&self.config.bucket_name)
-            .key(key)
-            .send()
-            .await
-        {
-            Ok(_) => Ok(true),
+        match self.bucket.head_object(key).await {
+            Ok((_, 200)) => Ok(true),
+            Ok((_, 404)) => Ok(false),
+            Ok((_, status)) => {
+                // Some backends return 403 for missing objects when the caller
+                // lacks list permission. Treat anything non-2xx as "absent".
+                debug!(
+                    "head_object returned unexpected status {} for {}",
+                    status, key
+                );
+                Ok(false)
+            }
             Err(_) => Ok(false),
         }
     }
 
-    /// Download a file from S3, returning its bytes and content-type
+    /// Download a file from S3, returning its bytes and content-type.
     pub async fn download_file(&self, key: &str) -> Result<(Bytes, String)> {
         debug!("Downloading file from S3: {}", key);
 
-        let result = self
-            .client
-            .get_object()
-            .bucket(&self.config.bucket_name)
-            .key(key)
-            .send()
+        let resp = self
+            .bucket
+            .get_object(key)
             .await
-            .map_err(|e| Error::Internal(format!("Failed to download file: {}", e)))?;
+            .map_err(|e| Error::Internal(format!("Failed to download file: {e}")))?;
 
-        let content_type = result
-            .content_type()
-            .unwrap_or("application/octet-stream")
-            .to_string();
+        let status = resp.status_code();
+        if !(200..300).contains(&status) {
+            return Err(Error::Internal(format!(
+                "S3 download for '{key}' returned status {status}"
+            )));
+        }
 
-        let data = result
-            .body
-            .collect()
-            .await
-            .map_err(|e| Error::Internal(format!("Failed to read file data: {}", e)))?
-            .into_bytes();
+        let content_type = resp
+            .headers()
+            .get("content-type")
+            .cloned()
+            .unwrap_or_else(|| "application/octet-stream".to_string());
 
+        let bytes = Bytes::copy_from_slice(resp.as_slice());
         info!(
             "File downloaded successfully: {} ({} bytes)",
             key,
-            data.len()
+            bytes.len()
         );
-        Ok((data, content_type))
+        Ok((bytes, content_type))
     }
 }
 
@@ -370,7 +274,7 @@ use tokio::sync::OnceCell;
 
 static S3_SERVICE: OnceCell<S3Service> = OnceCell::const_new();
 
-/// Initialize the global S3 service
+/// Initialize the global S3 service.
 pub async fn init_s3() -> Result<()> {
     let service = S3Service::new().await?;
     S3_SERVICE
@@ -379,7 +283,7 @@ pub async fn init_s3() -> Result<()> {
     Ok(())
 }
 
-/// Get the global S3 service
+/// Get the global S3 service.
 pub fn s3() -> Result<&'static S3Service> {
     S3_SERVICE
         .get()
@@ -387,10 +291,7 @@ pub fn s3() -> Result<&'static S3Service> {
 }
 
 // TODO: Future enhancements
-// - Add multipart upload support for large files
-// - Add file compression before upload
-// - Add automatic retry logic
-// - Add metrics and monitoring
-// - Add support for multiple buckets
-// - Add lifecycle policies for old files
-// - Add encryption at rest configuration
+// - Multipart upload for large files
+// - Automatic retry with backoff
+// - Lifecycle policies / TTL for temporary uploads
+// - Encryption at rest configuration

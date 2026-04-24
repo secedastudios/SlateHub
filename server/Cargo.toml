@@ -60,8 +60,7 @@ tracing-subscriber = { version = "0.3", features = [
 ] }
 ulid = "1.1"
 async-trait = "0.1.89"
-aws-config = "1.1"
-aws-sdk-s3 = "1.15"
+rust-s3 = { version = "0.35", default-features = false, features = ["tokio-rustls-tls"] }
 
 image = "0.24"
 bytes = "1.9"
