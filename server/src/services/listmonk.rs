@@ -39,6 +39,18 @@ impl ListmonkService {
             return None;
         }
 
+        // reqwest needs an absolute URL with a scheme. Catch this at config
+        // time rather than letting every subscribe call fail with the
+        // opaque "builder error: relative URL without a base".
+        let base = base.trim_end_matches('/').to_string();
+        if !(base.starts_with("http://") || base.starts_with("https://")) {
+            warn!(
+                base = %base,
+                "listmonk: LISTMONK_URL must include a scheme (http:// or https://); sink disabled"
+            );
+            return None;
+        }
+
         let list_ids: Vec<i64> = list_raw
             .split(',')
             .map(|s| s.trim())
@@ -60,7 +72,7 @@ impl ListmonkService {
 
         Some(Self {
             http,
-            base: base.trim_end_matches('/').to_string(),
+            base,
             user,
             token,
             list_ids,
@@ -129,7 +141,12 @@ impl ListmonkService {
                 }
             }
             Err(e) => {
-                warn!(email = %email, error = %e, "listmonk transport failed");
+                warn!(
+                    email = %email,
+                    url = %url,
+                    error = %e,
+                    "listmonk transport failed"
+                );
                 false
             }
         }
