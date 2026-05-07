@@ -1,0 +1,87 @@
+{% extends "_layout.html" %}
+{% block title %}Mailing List - Admin - {{ app_name }}{% endblock %}
+{% block page_name %}admin{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/admin.css" />
+{% endblock %}
+{% block content %}
+<div class="admin-page">
+    <div class="admin-header">
+        <h1>Mailing List</h1>
+    </div>
+
+    <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-item">Dashboard</a>
+        <a href="/admin/feedback" class="admin-nav-item">Feedback</a>
+        <a href="/admin/people" class="admin-nav-item">People</a>
+        <a href="/admin/productions" class="admin-nav-item">Productions</a>
+        <a href="/admin/organizations" class="admin-nav-item">Organizations</a>
+        <a href="/admin/locations" class="admin-nav-item">Locations</a>
+        <a href="/admin/mailing-list" class="admin-nav-item active">Mailing List</a>
+    </nav>
+
+    {% if let Some(msg) = flash %}
+    <div class="admin-flash admin-flash-{{ flash_kind }}" style="margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem;
+        {% if flash_kind == "ok" %}background:#0f2d1a;color:#7ee2a8;border:1px solid #1f5a37;
+        {% else if flash_kind == "err" %}background:#2d0f0f;color:#f08080;border:1px solid #5a1f1f;
+        {% else %}background:#0f1d2d;color:#7ec0e2;border:1px solid #1f3a5a;{% endif %}">
+        {{ msg }}
+    </div>
+    {% endif %}
+
+    <div class="admin-section">
+        <h2 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary, #eee);">Status</h2>
+        <div class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{% if enabled %}Enabled{% else %}Disabled{% endif %}</div>
+                <div class="admin-stat-label">Listmonk integration</div>
+                {% if !enabled %}
+                <div style="font-size: 0.75rem; color: var(--text-muted, #888); margin-top: 0.5rem;">
+                    Set LISTMONK_URL, LISTMONK_USER, LISTMONK_API_KEY, LISTMONK_LIST_IDS in .env.
+                </div>
+                {% endif %}
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ person_count }}</div>
+                <div class="admin-stat-label">Total users</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted, #888); margin-top: 0.5rem;">
+                    All can be synced to Listmonk.
+                </div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">
+                    {% if list_ids.is_empty() %}—{% else %}{% for id in list_ids %}{{ id }}{% if !loop.last %}, {% endif %}{% endfor %}{% endif %}
+                </div>
+                <div class="admin-stat-label">Configured list IDs</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-section" style="margin-top: 2rem;">
+        <h2 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary, #eee);">Subscribe one user</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted, #888); margin-bottom: 0.75rem;">
+            Enter the username or email of an existing SlateHub user to push them to Listmonk.
+        </p>
+        <form method="post" action="/admin/mailing-list/subscribe" style="display: flex; gap: 0.5rem; max-width: 500px;">
+            <input type="text" name="target" placeholder="username or email" required
+                   class="admin-search-input" style="flex: 1;" />
+            <button type="submit" class="admin-btn"{% if !enabled %} disabled{% endif %}>Subscribe</button>
+        </form>
+    </div>
+
+    <div class="admin-section" style="margin-top: 2rem;">
+        <h2 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary, #eee);">Sync all users</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted, #888); margin-bottom: 0.75rem;">
+            Push every existing SlateHub user to the configured Listmonk lists. Users already
+            subscribed are silently skipped. The sync runs in the background — check the server
+            logs for the completion line (<code>Listmonk sync complete</code>).
+        </p>
+        <form method="post" action="/admin/mailing-list/sync-all"
+              onsubmit="return confirm('Sync all {{ person_count }} users to Listmonk?')">
+            <button type="submit" class="admin-btn"{% if !enabled %} disabled{% endif %}>
+                Sync {{ person_count }} users
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@ pub mod email;
 pub mod embedding;
 pub mod geodata;
 pub mod invitation;
+pub mod listmonk;
 pub mod notification_stream;
 pub mod oidc_events;
 pub mod oidc_keys;

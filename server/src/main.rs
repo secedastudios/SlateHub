@@ -164,6 +164,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // Log Listmonk wiring status (no init needed — service is built per-call from env)
+    slatehub::services::listmonk::log_status();
+
     // Start system stats tracking
     slatehub::stats::init();
 

@@ -175,6 +175,21 @@ struct LocationRow {
     created_at: String,
 }
 
+#[derive(Template)]
+#[template(path = "admin/mailing_list.html")]
+struct AdminMailingListTemplate {
+    app_name: String,
+    year: i32,
+    version: String,
+    active_page: String,
+    user: Option<User>,
+    enabled: bool,
+    list_ids: Vec<i64>,
+    person_count: usize,
+    flash: Option<String>,
+    flash_kind: String,
+}
+
 // ============================
 // Router
 // ============================
@@ -205,6 +220,9 @@ pub fn router() -> Router {
         )
         .route("/admin/locations", get(list_locations))
         .route("/admin/locations/{id}/delete", post(delete_location))
+        .route("/admin/mailing-list", get(mailing_list_page))
+        .route("/admin/mailing-list/subscribe", post(mailing_list_subscribe))
+        .route("/admin/mailing-list/sync-all", post(mailing_list_sync_all))
         .route("/admin/rebuild-embeddings", post(rebuild_embeddings))
         .route("/admin/backup", post(backup_all))
         .route("/admin/cleanup-files", get(preview_orphaned_files))
@@ -1812,6 +1830,204 @@ async fn cleanup_orphaned_files(
     );
 
     Ok(Redirect::to("/admin/cleanup-files"))
+}
+
+// ============================
+// Mailing list (Listmonk)
+// ============================
+
+#[derive(Deserialize)]
+struct MailingListFlashQuery {
+    status: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct MailingListSubscribeForm {
+    /// Username or email of an existing user.
+    target: String,
+}
+
+async fn mailing_list_page(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Query(q): Query<MailingListFlashQuery>,
+) -> Result<Html<String>, Error> {
+    let template_user = require_admin(&user).await?;
+
+    let svc = crate::services::listmonk::ListmonkService::from_env();
+    let enabled = svc.is_some();
+    let list_ids = svc.as_ref().map(|s| s.list_ids().to_vec()).unwrap_or_default();
+
+    let person_count = count_table("person").await;
+
+    let (flash, flash_kind) = parse_mailing_list_flash(q.status.as_deref());
+
+    let base = BaseContext::new()
+        .with_page("admin")
+        .with_user(template_user);
+
+    let template = AdminMailingListTemplate {
+        app_name: base.app_name,
+        year: base.year,
+        version: base.version,
+        active_page: base.active_page,
+        user: base.user,
+        enabled,
+        list_ids,
+        person_count,
+        flash,
+        flash_kind,
+    };
+
+    Ok(Html(template.render().map_err(|e| {
+        error!("Failed to render admin mailing list: {}", e);
+        Error::template(e.to_string())
+    })?))
+}
+
+async fn mailing_list_subscribe(
+    AuthenticatedUser(user): AuthenticatedUser,
+    axum::Form(form): axum::Form<MailingListSubscribeForm>,
+) -> Result<Redirect, Error> {
+    require_admin(&user).await?;
+
+    let target = form.target.trim();
+    if target.is_empty() {
+        return Ok(Redirect::to("/admin/mailing-list?status=missing"));
+    }
+
+    let Some(svc) = crate::services::listmonk::ListmonkService::from_env() else {
+        return Ok(Redirect::to("/admin/mailing-list?status=disabled"));
+    };
+
+    #[derive(Debug, Deserialize, surrealdb::types::SurrealValue)]
+    struct PRow {
+        username: String,
+        email: String,
+        name: Option<String>,
+    }
+
+    let lookup = target.to_lowercase();
+    let row: Option<PRow> = DB
+        .query("SELECT username, email, name FROM person WHERE string::lowercase(username) = $q OR string::lowercase(email) = $q LIMIT 1")
+        .bind(("q", lookup))
+        .await
+        .map_err(|e| Error::Database(e.to_string()))?
+        .take(0)
+        .ok()
+        .and_then(|mut v: Vec<PRow>| v.pop());
+
+    let Some(person) = row else {
+        return Ok(Redirect::to("/admin/mailing-list?status=not_found"));
+    };
+
+    let display_name = person.name.unwrap_or_else(|| person.username.clone());
+    let ok = svc.subscribe(&display_name, &person.email).await;
+    if ok {
+        info!(
+            "Admin {} subscribed {} <{}> to Listmonk",
+            user.username, person.username, person.email
+        );
+        Ok(Redirect::to("/admin/mailing-list?status=subscribed"))
+    } else {
+        warn!(
+            "Admin {} subscribe of {} <{}> to Listmonk failed",
+            user.username, person.username, person.email
+        );
+        Ok(Redirect::to("/admin/mailing-list?status=failed"))
+    }
+}
+
+async fn mailing_list_sync_all(
+    AuthenticatedUser(user): AuthenticatedUser,
+) -> Result<Redirect, Error> {
+    require_admin(&user).await?;
+
+    let Some(svc) = crate::services::listmonk::ListmonkService::from_env() else {
+        return Ok(Redirect::to("/admin/mailing-list?status=disabled"));
+    };
+
+    #[derive(Debug, Deserialize, surrealdb::types::SurrealValue)]
+    struct PRow {
+        username: String,
+        email: String,
+        name: Option<String>,
+    }
+
+    let people: Vec<PRow> = DB
+        .query("SELECT username, email, name FROM person")
+        .await
+        .map_err(|e| Error::Database(e.to_string()))?
+        .take(0)
+        .unwrap_or_default();
+
+    let total = people.len();
+    info!(
+        "Admin {} starting Listmonk sync of {} users",
+        user.username, total
+    );
+
+    // Run the sync in a background task so the request returns immediately —
+    // syncing thousands of users serially can take a while. The admin page
+    // will reflect Listmonk state on refresh.
+    tokio::spawn(async move {
+        let mut ok = 0usize;
+        let mut failed = 0usize;
+        for p in people {
+            let display_name = p.name.unwrap_or_else(|| p.username.clone());
+            if svc.subscribe(&display_name, &p.email).await {
+                ok += 1;
+            } else {
+                failed += 1;
+            }
+        }
+        info!(
+            "Listmonk sync complete: {} ok, {} failed (of {} total)",
+            ok, failed, total
+        );
+    });
+
+    Ok(Redirect::to(
+        format!("/admin/mailing-list?status=sync_started:{}", total).as_str(),
+    ))
+}
+
+fn parse_mailing_list_flash(status: Option<&str>) -> (Option<String>, String) {
+    let Some(s) = status else {
+        return (None, String::new());
+    };
+    if let Some(rest) = s.strip_prefix("sync_started:") {
+        let n = rest.parse::<usize>().unwrap_or(0);
+        return (
+            Some(format!(
+                "Sync started for {} users — running in background; check the server logs for completion.",
+                n
+            )),
+            "info".to_string(),
+        );
+    }
+    match s {
+        "subscribed" => (Some("Subscribed.".to_string()), "ok".to_string()),
+        "failed" => (
+            Some("Listmonk subscribe failed — see server logs.".to_string()),
+            "err".to_string(),
+        ),
+        "not_found" => (
+            Some("No user matches that username or email.".to_string()),
+            "err".to_string(),
+        ),
+        "missing" => (
+            Some("Enter a username or email.".to_string()),
+            "err".to_string(),
+        ),
+        "disabled" => (
+            Some(
+                "Listmonk is not configured — set LISTMONK_URL, LISTMONK_USER, LISTMONK_API_KEY, LISTMONK_LIST_IDS."
+                    .to_string(),
+            ),
+            "err".to_string(),
+        ),
+        _ => (None, String::new()),
+    }
 }
 
 // ============================

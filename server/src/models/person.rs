@@ -1000,6 +1000,9 @@ impl Person {
             crate::services::embedding::spawn_embedding_update(person.id.clone(), embedding_text);
         }
 
+        // Subscribe to mailing list (fire-and-forget; no-ops if Listmonk env is missing).
+        crate::services::listmonk::spawn_subscribe(username.clone(), email.clone());
+
         // Generate verification code and send email
         use crate::services::email::EmailService;
         use crate::services::verification::{CodeType, VerificationService};
