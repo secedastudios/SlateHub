@@ -221,7 +221,10 @@ pub fn router() -> Router {
         .route("/admin/locations", get(list_locations))
         .route("/admin/locations/{id}/delete", post(delete_location))
         .route("/admin/mailing-list", get(mailing_list_page))
-        .route("/admin/mailing-list/subscribe", post(mailing_list_subscribe))
+        .route(
+            "/admin/mailing-list/subscribe",
+            post(mailing_list_subscribe),
+        )
         .route("/admin/mailing-list/sync-all", post(mailing_list_sync_all))
         .route("/admin/rebuild-embeddings", post(rebuild_embeddings))
         .route("/admin/backup", post(backup_all))
@@ -478,13 +481,12 @@ async fn delete_person(
         ));
     }
 
-    // Clean up related data then delete
-    DB.query("DELETE FROM involvement WHERE in = $pid; DELETE FROM notification WHERE person_id = $pid; DELETE FROM member_of WHERE in = $pid; DELETE $pid")
-        .bind(("pid", record_id))
-        .await
-        .map_err(|e| Error::Database(e.to_string()))?;
+    crate::models::person::Person::delete_with_cascade(&record_id).await?;
 
-    info!("Admin {} deleted person {}", user.username, id);
+    info!(
+        "Admin {} deleted person {} (GDPR cascade)",
+        user.username, id
+    );
     Ok(Redirect::to("/admin/people"))
 }
 
@@ -1855,7 +1857,10 @@ async fn mailing_list_page(
 
     let svc = crate::services::listmonk::ListmonkService::from_env();
     let enabled = svc.is_some();
-    let list_ids = svc.as_ref().map(|s| s.list_ids().to_vec()).unwrap_or_default();
+    let list_ids = svc
+        .as_ref()
+        .map(|s| s.list_ids().to_vec())
+        .unwrap_or_default();
 
     let person_count = count_table("person").await;
 

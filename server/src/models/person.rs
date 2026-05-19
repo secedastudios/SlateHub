@@ -14,7 +14,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 use surrealdb::types::{RecordId, SurrealValue};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 // -----------------------------------------------------------------------------
 // Username Validation
@@ -1156,15 +1156,166 @@ impl Person {
     }
 
     /// Delete unverified accounts older than the given number of days.
+    /// Uses the same cascade as admin deletion so dangling references are
+    /// cleaned up everywhere — GDPR-style full erasure.
     pub async fn cleanup_unverified(days: u64) {
         let sql = format!(
-            "DELETE person WHERE verification_status = 'unverified' AND created_at < time::now() - {}d",
+            "SELECT VALUE id FROM person WHERE verification_status = 'unverified' AND created_at < time::now() - {}d",
             days
         );
-        match DB.query(&sql).await {
-            Ok(_) => info!("Cleaned up unverified accounts older than {} days", days),
-            Err(e) => error!("Failed to cleanup unverified accounts: {}", e),
+        let ids: Vec<surrealdb::types::RecordId> = match DB.query(&sql).await {
+            Ok(mut r) => r.take(0).unwrap_or_default(),
+            Err(e) => {
+                error!("Failed to list unverified accounts for cleanup: {}", e);
+                return;
+            }
+        };
+        let total = ids.len();
+        if total == 0 {
+            return;
         }
+        let mut ok = 0usize;
+        let mut failed = 0usize;
+        use crate::record_id_ext::RecordIdExt;
+        for id in ids {
+            let id_str = id.to_raw_string();
+            match Self::delete_with_cascade(&id).await {
+                Ok(_) => ok += 1,
+                Err(e) => {
+                    failed += 1;
+                    warn!(person = %id_str, error = %e, "cleanup_unverified: cascade delete failed");
+                }
+            }
+        }
+        info!(
+            "Cleaned up unverified accounts older than {} days: {} ok, {} failed (of {} total)",
+            days, ok, failed, total
+        );
+    }
+
+    /// GDPR-compliant cascade delete. Scrubs every reference to this person:
+    /// messages they sent + conversations they participated in, notifications
+    /// (both received and triggered by their messages), media (DB rows + S3
+    /// objects), likes, job applications, OIDC consents/tokens, verification
+    /// codes, invitations they sent, profile-view rows, activity events,
+    /// production scripts (+ S3 PDFs), locations/jobs they created,
+    /// person-owned equipment + rentals, security events, involvements,
+    /// memberships, the entire `profiles/{id}/` S3 prefix, and finally the
+    /// person record itself.
+    ///
+    /// S3 failures are logged but don't block the DB cascade. The DB cascade
+    /// runs as a single transaction so partial-failure state is impossible.
+    pub async fn delete_with_cascade(person_id: &surrealdb::types::RecordId) -> Result<()> {
+        use crate::record_id_ext::RecordIdExt;
+        use crate::services::s3::s3;
+
+        let pid_str = person_id.to_raw_string();
+        let pid_key = person_id.key_string();
+        info!(person = %pid_str, "starting GDPR cascade delete");
+
+        // -- Phase 1: collect data we need before DB rows go away --
+
+        // Conversations this user participates in — used to scrub message-type
+        // notifications which reference the conversation by string id.
+        let conv_ids: Vec<surrealdb::types::RecordId> = DB
+            .query("SELECT VALUE id FROM conversation WHERE participant_a = $pid OR participant_b = $pid")
+            .bind(("pid", person_id.clone()))
+            .await?
+            .take(0)
+            .unwrap_or_default();
+        let conv_id_strings: Vec<String> = conv_ids.iter().map(|r| r.to_raw_string()).collect();
+
+        // Production script S3 keys (PDFs uploaded by this person).
+        let script_keys: Vec<String> = DB
+            .query("SELECT VALUE file_key FROM production_script WHERE uploaded_by = $pid")
+            .bind(("pid", person_id.clone()))
+            .await?
+            .take(0)
+            .unwrap_or_default();
+
+        // -- Phase 2: best-effort S3 cleanup --
+        // Nothing here should abort the DB cascade. Worst case is orphaned S3
+        // objects, which the admin "Cleanup Orphaned Files" tool can sweep.
+        if let Ok(s3) = s3() {
+            // Everything under profiles/{key}/ — avatars, thumbs, photos.
+            match s3
+                .delete_under_prefix(&format!("profiles/{}/", pid_key))
+                .await
+            {
+                Ok((deleted, failed)) => info!(
+                    person = %pid_str, deleted, failed,
+                    "cascade: profile prefix S3 wipe complete"
+                ),
+                Err(e) => {
+                    warn!(person = %pid_str, error = %e, "cascade: profile prefix wipe failed")
+                }
+            }
+            for key in &script_keys {
+                if let Err(e) = s3.delete_file(key).await {
+                    warn!(person = %pid_str, key = %key, error = %e, "cascade: script S3 delete failed");
+                }
+            }
+        } else {
+            warn!(
+                person = %pid_str,
+                "cascade: S3 service unavailable, skipping object deletion"
+            );
+        }
+
+        // -- Phase 3: DB cascade in one transaction --
+        // Order: dependent rows first, the person record last. We deliberately
+        // also delete `notification` rows about messages this user sent (by
+        // matching the conversation id stored in `related_id`).
+        let sql = "
+            BEGIN TRANSACTION;
+            DELETE direct_message WHERE sender = $pid;
+            DELETE direct_message WHERE conversation IN $convs;
+            DELETE notification WHERE notification_type = 'message' AND related_id IN $conv_strs;
+            DELETE conversation WHERE participant_a = $pid OR participant_b = $pid;
+            DELETE notification WHERE person_id = $pid;
+            DELETE FROM likes WHERE in = $pid OR out = $pid;
+            DELETE FROM application WHERE in = $pid;
+            DELETE FROM consent_grant WHERE in = $pid;
+            DELETE access_token WHERE person = $pid;
+            DELETE refresh_token WHERE person = $pid;
+            DELETE authorization_code WHERE person = $pid;
+            DELETE verification_codes WHERE person_id = $pid;
+            DELETE verification_request WHERE person = $pid;
+            DELETE pending_invitation WHERE invited_by = $pid;
+            DELETE profile_view WHERE profile_id = $pid OR viewer_id = $pid;
+            DELETE activity_event WHERE person_id = $pid;
+            DELETE production_script WHERE uploaded_by = $pid;
+            DELETE location WHERE created_by = $pid;
+            DELETE job_posting WHERE posted_by = $pid;
+            DELETE equipment_rental WHERE renter_person = $pid;
+            DELETE equipment_kit WHERE owner_person = $pid;
+            DELETE equipment WHERE owner_person = $pid;
+            DELETE security_event WHERE subject = $pid;
+            DELETE media WHERE uploaded_by = $pid;
+            DELETE FROM involvement WHERE in = $pid OR out = $pid;
+            DELETE FROM member_of WHERE in = $pid;
+            DELETE $pid;
+            COMMIT TRANSACTION;
+        ";
+
+        let response = DB
+            .query(sql)
+            .bind(("pid", person_id.clone()))
+            .bind(("convs", conv_ids))
+            .bind(("conv_strs", conv_id_strings))
+            .await
+            .map_err(|e| {
+                error!(person = %pid_str, error = %e, "cascade: DB transaction failed");
+                Error::Database(e.to_string())
+            })?;
+
+        response.check().map_err(|e| {
+            error!(person = %pid_str, error = %e, "cascade: DB transaction statement error");
+            Error::Database(e.to_string())
+        })?;
+
+        info!(person = %pid_str, "GDPR cascade delete complete");
+        Ok(())
     }
 }
 

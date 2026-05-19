@@ -337,6 +337,8 @@ async fn send_message(
     AuthenticatedUser(user): AuthenticatedUser,
     Form(form): Form<SendMessageForm>,
 ) -> Result<Redirect, Error> {
+    require_sender_identity_verified(&user.id).await?;
+
     let body = form.body.trim();
     if body.is_empty() {
         return Err(Error::BadRequest("Message cannot be empty.".to_string()));
@@ -391,6 +393,8 @@ async fn reply_message(
     Path(conversation_id): Path<String>,
     Form(form): Form<ReplyForm>,
 ) -> Result<Redirect, Error> {
+    require_sender_email_verified(&user.id).await?;
+
     let body = form.body.trim();
     if body.is_empty() {
         return Err(Error::BadRequest("Message cannot be empty.".to_string()));
@@ -443,6 +447,8 @@ async fn reply_message_sse(
     Path(conversation_id): Path<String>,
     Json(payload): Json<ReplySsePayload>,
 ) -> Result<Response, Error> {
+    require_sender_email_verified(&user.id).await?;
+
     let body = payload.body.trim();
     if body.is_empty() {
         return Err(Error::BadRequest("Message cannot be empty.".to_string()));
@@ -594,6 +600,34 @@ async fn delete_conversation(
 }
 
 // -- Helpers --
+
+/// Only fully identity-verified accounts can start a new conversation.
+/// This keeps throwaway accounts from cold-messaging the user base.
+async fn require_sender_identity_verified(sender_id: &str) -> Result<(), Error> {
+    match Person::find_by_id(sender_id).await {
+        Ok(Some(sender)) if sender.verification_status == "identity" => Ok(()),
+        Ok(Some(_)) => Err(Error::BadRequest(
+            "You must complete identity verification before starting a new conversation. Visit /get-verified to get started.".to_string(),
+        )),
+        Ok(None) => Err(Error::Unauthorized),
+        Err(e) => Err(e),
+    }
+}
+
+/// Replies are allowed for any verified account (email / sms / identity) —
+/// once someone has reached out to you, you can write back even with just an
+/// email-confirmed account. Fully unverified accounts are still blocked.
+async fn require_sender_email_verified(sender_id: &str) -> Result<(), Error> {
+    match Person::find_by_id(sender_id).await {
+        Ok(Some(sender)) if sender.verification_status != "unverified" => Ok(()),
+        Ok(Some(_)) => Err(Error::BadRequest(
+            "Please verify your email before replying. Check your inbox for the verification link."
+                .to_string(),
+        )),
+        Ok(None) => Err(Error::Unauthorized),
+        Err(e) => Err(e),
+    }
+}
 
 /// Check if the current user can message the recipient based on their messaging_preference.
 /// Returns None if allowed, Some(error_message) if not.

@@ -210,6 +210,41 @@ impl S3Service {
         Ok(keys)
     }
 
+    /// List all object keys under a given prefix (e.g. `profiles/abc/`).
+    pub async fn list_under_prefix(&self, prefix: &str) -> Result<Vec<String>> {
+        let results = self
+            .bucket
+            .list(prefix.to_string(), None)
+            .await
+            .map_err(|e| Error::Internal(format!("Failed to list S3 prefix '{prefix}': {e}")))?;
+
+        let mut keys = Vec::new();
+        for page in results {
+            for obj in page.contents {
+                keys.push(obj.key);
+            }
+        }
+        Ok(keys)
+    }
+
+    /// Delete every object under a given prefix. Returns `(deleted, failed)`.
+    /// Best-effort: per-key failures are logged but don't abort the loop.
+    pub async fn delete_under_prefix(&self, prefix: &str) -> Result<(usize, usize)> {
+        let keys = self.list_under_prefix(prefix).await?;
+        let mut deleted = 0usize;
+        let mut failed = 0usize;
+        for key in &keys {
+            match self.delete_file(key).await {
+                Ok(_) => deleted += 1,
+                Err(e) => {
+                    tracing::warn!(key = %key, error = %e, "s3: prefix delete failed for key");
+                    failed += 1;
+                }
+            }
+        }
+        Ok((deleted, failed))
+    }
+
     /// Get the bucket name.
     pub fn bucket_name(&self) -> &str {
         &self.config.bucket_name
