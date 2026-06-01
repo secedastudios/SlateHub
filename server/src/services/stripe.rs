@@ -240,7 +240,9 @@ impl StripeService {
             ("metadata[person_id]", person_id),
             ("options[document][require_matching_selfie]", "true"),
             ("options[document][require_live_capture]", "true"),
-            ("options[document][allowed_types][]", "driving_license"),
+            // Stripe's form parser requires consistent indexed-array notation;
+            // mixing `[]` (append) with `[N]` (positional) returns 400.
+            ("options[document][allowed_types][0]", "driving_license"),
             ("options[document][allowed_types][1]", "passport"),
             ("options[document][allowed_types][2]", "id_card"),
         ];
