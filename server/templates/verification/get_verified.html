@@ -89,9 +89,10 @@
                                 {% if status.as_str() == "paid" %}
                                 <p style="color: var(--color-warning, #d4a574); margin-bottom: 0.5rem;">
                                     Payment received — complete your ID check to finish verification.
+                                    You can pick up where you left off, including on a different device.
                                 </p>
-                                <form method="post" action="/get-verified/checkout">
-                                    <button type="submit" id="verify-btn">Resume verification</button>
+                                <form method="post" action="/get-verified/resume">
+                                    <button type="submit" id="verify-btn">Continue verification</button>
                                 </form>
                                 {% else if status.as_str() == "verified" %}
                                 <div id="verify-btn-pending">Verified ✓</div>

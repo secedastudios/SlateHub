@@ -12,7 +12,9 @@ use crate::{
     auth,
     error::Error,
     models::person::{Person, SessionUser},
+    record_id_ext::RecordIdExt,
 };
+use surrealdb::types::RecordId;
 
 // Re-export SessionUser as CurrentUser for compatibility
 pub type CurrentUser = SessionUser;
@@ -101,23 +103,26 @@ pub async fn auth_middleware(
     Ok(next.run(request).await)
 }
 
-/// Extract user information from ID using the Person model
+/// Extract user information from the JWT-sub claim using the Person model.
+/// `user_id` is the raw JWT `sub` value — either `"person:abc"` (current
+/// format) or a bare key (legacy/fallback). We parse it into a `RecordId`
+/// once here so the rest of the codebase never has to.
 async fn get_user_from_id(user_id: &str) -> Result<CurrentUser, Error> {
     let span = info_span!(
         "fetch_user",
         user_id = %user_id,
-        stripped_id = tracing::field::Empty,
     );
     let _enter = span.enter();
 
-    debug!("Starting user fetch");
+    let rid: RecordId = if user_id.starts_with("person:") {
+        RecordId::parse_simple(user_id)
+            .map_err(|e| Error::Internal(format!("invalid JWT sub claim: {e}")))?
+    } else {
+        RecordId::new("person", user_id)
+    };
 
-    // Extract just the ID part if it's in format "person:xxxxx"
-    let id = user_id.strip_prefix("person:").unwrap_or(user_id);
-
-    span.record("stripped_id", id);
-    debug!(stripped_id = %id, "Calling Person::find_by_id");
-    match Person::find_by_id(id).await {
+    debug!(record_id = %rid.to_raw_string(), "Calling Person::find_by_record_id");
+    match Person::find_by_record_id(&rid).await {
         Ok(Some(person)) => {
             debug!(
                 person_id = ?person.id,
@@ -134,7 +139,7 @@ async fn get_user_from_id(user_id: &str) -> Result<CurrentUser, Error> {
         }
         Ok(None) => {
             error!(
-                stripped_id = %id,
+                record_id = %rid.to_raw_string(),
                 "Person not found in database"
             );
             Err(Error::Internal("User not found".to_string()))
@@ -142,7 +147,8 @@ async fn get_user_from_id(user_id: &str) -> Result<CurrentUser, Error> {
         Err(e) => {
             error!(
                 "get_user_from_id: Failed to query user data for ID '{}': {}",
-                id, e
+                rid.to_raw_string(),
+                e
             );
             debug!("get_user_from_id: Error details: {:?}", e);
             Err(Error::database("Failed to get user information"))

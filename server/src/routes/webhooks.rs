@@ -65,10 +65,11 @@ async fn stripe_webhook(headers: HeaderMap, body: Bytes) -> impl IntoResponse {
 async fn handle_event(stripe: &StripeService, event: &WebhookEvent) -> Result<(), Error> {
     match event.event_type.as_str() {
         "checkout.session.completed" => on_checkout_completed(event).await,
+        "identity.verification_session.processing" => on_identity_processing(event).await,
         "identity.verification_session.verified" => on_identity_verified(event).await,
         "identity.verification_session.requires_input" => on_identity_requires_input(event).await,
         "identity.verification_session.canceled" => on_identity_canceled(stripe, event).await,
-        // Stripe also fires `processing` and other intermediates — ignore.
+        "charge.refunded" => on_charge_refunded(event).await,
         _ => Ok(()),
     }
 }
@@ -95,6 +96,29 @@ async fn on_checkout_completed(event: &WebhookEvent) -> Result<(), Error> {
     .await
     .map_err(|e| Error::Database(e.to_string()))?;
     info!(checkout_session = %sid, "verification_payment marked paid");
+    Ok(())
+}
+
+/// Stripe started reviewing the uploaded documents. Flip the payment row
+/// to `processing` so the admin UI and "Almost there" page can show an
+/// accurate state. We deliberately do NOT transition out of `verified`
+/// (a late-arriving `processing` event after `verified` should be a no-op).
+async fn on_identity_processing(event: &WebhookEvent) -> Result<(), Error> {
+    let obj = &event.data.object;
+    let isid = obj
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| Error::BadRequest("missing identity session id".into()))?;
+
+    DB.query(
+        "UPDATE verification_payment SET status = 'processing', updated_at = time::now() \
+         WHERE stripe_identity_session_id = $isid AND status IN ['paid']",
+    )
+    .bind(("isid", isid.to_string()))
+    .await
+    .map_err(|e| Error::Database(e.to_string()))?;
+
+    info!(identity_session = %isid, "verification_payment marked processing");
     Ok(())
 }
 
@@ -219,6 +243,50 @@ async fn on_identity_canceled(stripe: &StripeService, event: &WebhookEvent) -> R
     } else {
         warn!(identity_session = %isid, "no payment intent for canceled identity session; cannot auto-refund");
     }
+    Ok(())
+}
+
+/// Sync dashboard-initiated refunds back to our DB. When an admin issues a
+/// refund directly in Stripe (rather than via our /admin/payments refund
+/// button or the auto-refund job), Stripe still fires `charge.refunded` —
+/// this handler is the listener that keeps our state consistent.
+///
+/// The event's `data.object` is the **charge**, which carries
+/// `payment_intent` (matches our `stripe_payment_intent_id`) and a `refunds`
+/// sub-collection. We grab the first refund id for our records. We do NOT
+/// flip a row that's already `refunded` — `webhook events can arrive twice
+/// (Stripe retries).
+async fn on_charge_refunded(event: &WebhookEvent) -> Result<(), Error> {
+    let obj = &event.data.object;
+    let payment_intent = obj
+        .get("payment_intent")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| Error::BadRequest("missing payment_intent on charge".into()))?;
+
+    // The first (and usually only) refund id for this charge.
+    let refund_id = obj
+        .get("refunds")
+        .and_then(|r| r.get("data"))
+        .and_then(|d| d.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|first| first.get("id"))
+        .and_then(|id| id.as_str())
+        .map(|s| s.to_string());
+
+    DB.query(
+        "UPDATE verification_payment SET status = 'refunded', refund_id = $rid, updated_at = time::now() \
+         WHERE stripe_payment_intent_id = $pi AND status != 'refunded'",
+    )
+    .bind(("pi", payment_intent.to_string()))
+    .bind(("rid", refund_id.clone()))
+    .await
+    .map_err(|e| Error::Database(e.to_string()))?;
+
+    info!(
+        payment_intent = %payment_intent,
+        refund_id = ?refund_id,
+        "verification_payment synced from charge.refunded"
+    );
     Ok(())
 }
 

@@ -307,7 +307,7 @@ DEFINE FIELD stripe_identity_session_id ON verification_payment TYPE option<stri
 DEFINE FIELD amount_minor ON verification_payment TYPE int PERMISSIONS FULL;  -- amount in minor units (cents, pence, etc.)
 DEFINE FIELD currency ON verification_payment TYPE string PERMISSIONS FULL;   -- ISO 4217 lowercase (e.g. "eur", "usd")
 DEFINE FIELD status ON verification_payment TYPE string DEFAULT 'pending'
-    ASSERT $value IN ['pending', 'paid', 'verified', 'failed', 'refunded'] PERMISSIONS FULL;
+    ASSERT $value IN ['pending', 'paid', 'processing', 'verified', 'failed', 'refunded'] PERMISSIONS FULL;
 DEFINE FIELD failure_reason ON verification_payment TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD refund_id ON verification_payment TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD created_at ON verification_payment TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;

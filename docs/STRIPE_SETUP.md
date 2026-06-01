@@ -29,9 +29,11 @@ Dashboard → **Developers** → **Webhooks** → **Add endpoint**.
 - **API version:** latest
 - **Events to send:**
   - `checkout.session.completed`
+  - `identity.verification_session.processing` — fired when Stripe receives the docs and starts review; we flip `verification_payment.status = 'processing'` for accurate UI state
   - `identity.verification_session.verified`
   - `identity.verification_session.requires_input`
   - `identity.verification_session.canceled`
+  - `charge.refunded` — fired when *anyone* refunds a charge (us, the auto-refund job, or you in the dashboard); keeps `verification_payment.status` in sync with Stripe's source of truth
 
 After creating, **reveal the signing secret** and copy it — that's `STRIPE_WEBHOOK_SECRET`.
 

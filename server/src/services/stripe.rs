@@ -183,6 +183,11 @@ impl StripeService {
             ("success_url", success_url),
             ("cancel_url", cancel_url),
             ("customer_email", customer_email),
+            // Force Stripe to email a receipt independent of the dashboard
+            // "Email customers about successful payments" setting. In test
+            // mode the dashboard default is off; this makes test-mode
+            // receipts visible too.
+            ("payment_intent_data[receipt_email]", customer_email),
             ("automatic_tax[enabled]", "true"),
             ("client_reference_id", person_id),
             ("metadata[person_id]", person_id),
@@ -259,6 +264,19 @@ impl StripeService {
             "Stripe Identity VerificationSession created"
         );
         Ok(resp)
+    }
+
+    /// Retrieve a previously-created Identity session. Returns the live
+    /// `url` (when status is still `requires_input` or `processing`) so we
+    /// can redirect the user back into Stripe's hosted flow exactly where
+    /// they left off — same QR code, same scan-to-phone link, same partial
+    /// uploads.
+    pub async fn retrieve_identity_session(&self, session_id: &str) -> Result<IdentitySession> {
+        self.get(&format!(
+            "/v1/identity/verification_sessions/{}",
+            session_id
+        ))
+        .await
     }
 
     // ---- Refunds -------------------------------------------------------
@@ -407,6 +425,23 @@ pub struct IdentitySessionCreated {
     pub id: String,
     pub url: String,
     pub status: String,
+}
+
+/// Retrieved Identity session — `url` is `None` once Stripe is done with
+/// the session (verified or canceled). `last_error` carries the reason
+/// when status is `requires_input`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct IdentitySession {
+    pub id: String,
+    pub status: String,
+    pub url: Option<String>,
+    pub last_error: Option<IdentityLastError>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct IdentityLastError {
+    pub code: Option<String>,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

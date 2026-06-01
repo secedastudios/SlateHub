@@ -488,15 +488,8 @@ async fn delete_person(
     let record_id = surrealdb::types::RecordId::new("person", id.as_str());
 
     // Don't allow deleting yourself
-    let self_key = if user.id.starts_with("person:") {
-        user.id
-            .strip_prefix("person:")
-            .unwrap_or(&user.id)
-            .to_string()
-    } else {
-        user.id.clone()
-    };
-    if id == self_key {
+    let self_rid = user.record_id()?;
+    if record_id == self_rid {
         return Err(Error::BadRequest(
             "Cannot delete your own account from admin".to_string(),
         ));
@@ -520,15 +513,8 @@ async fn toggle_admin(
     let record_id = surrealdb::types::RecordId::new("person", id.as_str());
 
     // Don't allow toggling your own admin status
-    let self_key = if user.id.starts_with("person:") {
-        user.id
-            .strip_prefix("person:")
-            .unwrap_or(&user.id)
-            .to_string()
-    } else {
-        user.id.clone()
-    };
-    if id == self_key {
+    let self_rid = user.record_id()?;
+    if record_id == self_rid {
         return Err(Error::BadRequest(
             "Cannot change your own admin status".to_string(),
         ));
@@ -1928,7 +1914,7 @@ async fn set_feature_flag(
     };
 
     // Track who flipped the flag.
-    let updated_by = surrealdb::types::RecordId::parse_simple(&user.id).ok();
+    let updated_by = user.record_id().ok();
 
     match crate::services::feature_flag::set_state(&key, new_state, updated_by).await {
         Ok(_) => {

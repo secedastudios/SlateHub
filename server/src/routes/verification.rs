@@ -8,6 +8,8 @@ use axum::{
 };
 use serde::Deserialize;
 use surrealdb::types::{RecordId, SurrealValue};
+
+use crate::record_id_ext::RecordIdExt;
 use tracing::{error, info, warn};
 
 use crate::{
@@ -24,25 +26,15 @@ pub fn router() -> Router {
         .route("/get-verified", get(get_verified_page))
         .route("/get-verified/request", post(request_verification))
         .route("/get-verified/checkout", post(start_checkout))
+        .route("/get-verified/resume", post(resume_verification))
         .route("/get-verified/return", get(checkout_return))
         .route("/get-verified/done", get(done_page))
 }
 
-fn parse_person_rid(person_id: &str) -> Option<RecordId> {
-    if person_id.starts_with("person:") {
-        RecordId::parse_simple(person_id).ok()
-    } else {
-        Some(RecordId::new("person", person_id))
-    }
-}
-
-async fn has_pending_verification(person_id: &str) -> bool {
-    let Some(rid) = parse_person_rid(person_id) else {
-        return false;
-    };
+async fn has_pending_verification(person_id: &RecordId) -> bool {
     if let Ok(mut result) = DB
         .query("SELECT count() AS c FROM verification_request WHERE person = $pid AND status = 'pending' GROUP ALL")
-        .bind(("pid", rid))
+        .bind(("pid", person_id.clone()))
         .await
         && let Ok(Some(row)) = result.take::<Option<serde_json::Value>>(0)
             && let Some(c) = row.get("c").and_then(|v| v.as_i64()) {
@@ -52,32 +44,31 @@ async fn has_pending_verification(person_id: &str) -> bool {
 }
 
 /// Most recent verification_payment status for this person, if any.
-async fn latest_payment_status(person_id: &str) -> Option<String> {
-    let rid = parse_person_rid(person_id)?;
+async fn latest_payment_status(person_id: &RecordId) -> Option<String> {
     #[derive(serde::Deserialize, SurrealValue)]
     struct Row {
         status: String,
+        // Present in SELECT for v3's ORDER BY rule; unused in Rust.
+        #[allow(dead_code)]
+        created_at: chrono::DateTime<chrono::Utc>,
     }
     let mut response = DB
-        .query("SELECT status FROM verification_payment WHERE person = $pid ORDER BY created_at DESC LIMIT 1")
-        .bind(("pid", rid))
+        .query("SELECT status, created_at FROM verification_payment WHERE person = $pid ORDER BY created_at DESC LIMIT 1")
+        .bind(("pid", person_id.clone()))
         .await
         .ok()?;
     let row: Option<Row> = response.take(0).ok().flatten();
     row.map(|r| r.status)
 }
 
-async fn is_identity_verified(person_id: &str) -> bool {
-    let Some(rid) = parse_person_rid(person_id) else {
-        return false;
-    };
+async fn is_identity_verified(person_id: &RecordId) -> bool {
     #[derive(serde::Deserialize, SurrealValue)]
     struct Row {
         verification_status: String,
     }
     let mut response = match DB
         .query("SELECT verification_status FROM $pid")
-        .bind(("pid", rid))
+        .bind(("pid", person_id.clone()))
         .await
     {
         Ok(r) => r,
@@ -98,9 +89,11 @@ async fn get_verified_page(request: Request) -> Result<Response, Error> {
     if let Some(user) = request.get_user() {
         flag_allowed = feature_flag::allows("identity_verification", Some(&user)).await;
         base = base.with_user(User::from_session_user(&user).await);
-        pending = has_pending_verification(&user.id).await;
-        last_status = latest_payment_status(&user.id).await;
-        already_verified = is_identity_verified(&user.id).await;
+        if let Ok(rid) = user.record_id() {
+            pending = has_pending_verification(&rid).await;
+            last_status = latest_payment_status(&rid).await;
+            already_verified = is_identity_verified(&rid).await;
+        }
     } else {
         flag_allowed = feature_flag::allows("identity_verification", None).await;
     }
@@ -139,14 +132,11 @@ async fn get_verified_page(request: Request) -> Result<Response, Error> {
 async fn request_verification(
     AuthenticatedUser(user): AuthenticatedUser,
 ) -> Result<Response, Error> {
-    let person_id = &user.id;
+    let rid = user.record_id()?;
 
-    if has_pending_verification(person_id).await {
+    if has_pending_verification(&rid).await {
         return Ok(Redirect::to("/get-verified").into_response());
     }
-
-    let rid = parse_person_rid(person_id)
-        .ok_or_else(|| Error::BadRequest("Invalid person ID".to_string()))?;
 
     if let Err(e) = DB
         .query("CREATE verification_request SET person = $pid, status = 'pending', created_at = time::now()")
@@ -167,7 +157,9 @@ async fn start_checkout(
     AuthenticatedUser(user): AuthenticatedUser,
     headers: HeaderMap,
 ) -> Result<Response, Error> {
-    if is_identity_verified(&user.id).await {
+    let rid = user.record_id()?;
+
+    if is_identity_verified(&rid).await {
         return Ok(Redirect::to("/get-verified?status=already_verified").into_response());
     }
 
@@ -197,13 +189,18 @@ async fn start_checkout(
     );
     let cancel_url = format!("{}/get-verified?status=canceled", base_url);
 
+    let person_id_str = rid.to_raw_string();
     let session = stripe
-        .create_checkout_session(&user.id, &user.email, price, &success_url, &cancel_url)
+        .create_checkout_session(
+            &person_id_str,
+            &user.email,
+            price,
+            &success_url,
+            &cancel_url,
+        )
         .await?;
 
     // Record pending payment.
-    let rid = parse_person_rid(&user.id)
-        .ok_or_else(|| Error::BadRequest("Invalid person ID".to_string()))?;
     if let Err(e) = DB
         .query("CREATE verification_payment SET person = $pid, stripe_checkout_session_id = $sid, amount_minor = $amount, currency = $currency, status = 'pending'")
         .bind(("pid", rid))
@@ -236,14 +233,14 @@ async fn checkout_return(
         return Err(Error::BadRequest("Missing session id.".into()));
     };
 
+    let rid = user.record_id()?;
+
     let session = stripe.retrieve_checkout_session(&session_id).await?;
     if session.payment_status != "paid" {
         return Ok(Redirect::to("/get-verified?status=payment_failed").into_response());
     }
 
     // Mark payment row as paid + store payment_intent.
-    let rid = parse_person_rid(&user.id)
-        .ok_or_else(|| Error::BadRequest("Invalid person ID".to_string()))?;
     if let Err(e) = DB
         .query("UPDATE verification_payment SET status = 'paid', stripe_payment_intent_id = $pi, updated_at = time::now() WHERE stripe_checkout_session_id = $sid AND person = $pid")
         .bind(("pid", rid.clone()))
@@ -257,8 +254,9 @@ async fn checkout_return(
     // Create the Identity session and redirect.
     let base_url = crate::config::app_url();
     let return_url = format!("{}/get-verified/done", base_url);
+    let person_id_str = rid.to_raw_string();
     let id_session = stripe
-        .create_identity_session(&user.id, &return_url)
+        .create_identity_session(&person_id_str, &return_url)
         .await?;
 
     // Attach the Identity session id to the payment row.
@@ -276,9 +274,148 @@ async fn checkout_return(
     Ok(Redirect::to(&id_session.url).into_response())
 }
 
+/// Resume a verification that was paid for but never completed. The user
+/// might have closed the browser mid-upload, gotten disconnected, started
+/// on desktop and now wants mobile (scan QR), or hit a transient error
+/// when the Identity session was first created.
+///
+/// Strategy:
+///   1. Find the user's most recent `paid` (not yet `verified`) payment.
+///   2. If it has an Identity session id, retrieve from Stripe and
+///      redirect to its hosted URL — same session preserves the QR code,
+///      partial uploads, and Stripe's internal state.
+///   3. If the retrieved session is `canceled`/`redacted`/expired, or if
+///      we never created one (the transient-failure case), create a fresh
+///      Identity session against the same payment so the user doesn't
+///      pay again. Update the payment row with the new session id.
+async fn resume_verification(
+    AuthenticatedUser(user): AuthenticatedUser,
+) -> Result<Response, Error> {
+    let rid = user.record_id()?;
+
+    if is_identity_verified(&rid).await {
+        return Ok(Redirect::to("/get-verified/done").into_response());
+    }
+
+    let Some(stripe) = StripeService::from_env() else {
+        return Err(Error::BadRequest(
+            "Paid verification is unavailable.".into(),
+        ));
+    };
+
+    #[derive(serde::Deserialize, SurrealValue)]
+    struct Row {
+        id: surrealdb::types::RecordId,
+        stripe_identity_session_id: Option<String>,
+        // SurrealDB v3 requires ORDER BY fields to appear in SELECT; this
+        // field is unused in Rust but needed so the parser is happy.
+        #[allow(dead_code)]
+        created_at: chrono::DateTime<chrono::Utc>,
+    }
+    let mut response = DB
+        .query(
+            "SELECT id, stripe_identity_session_id, created_at FROM verification_payment \
+             WHERE person = $pid AND status = 'paid' \
+             ORDER BY created_at DESC LIMIT 1",
+        )
+        .bind(("pid", rid.clone()))
+        .await
+        .map_err(|e| Error::Database(e.to_string()))?;
+    let row: Option<Row> = response
+        .take(0)
+        .map_err(|e| Error::Database(e.to_string()))?;
+
+    let Some(row) = row else {
+        // No paid payment to resume — send them back to start.
+        return Ok(Redirect::to("/get-verified").into_response());
+    };
+
+    // Path 1: reuse an existing live Stripe Identity session.
+    if let Some(isid) = row.stripe_identity_session_id.clone() {
+        match stripe.retrieve_identity_session(&isid).await {
+            Ok(session) => {
+                match session.status.as_str() {
+                    "verified" => {
+                        info!(
+                            person = %user.id,
+                            "resume: identity already verified on Stripe side"
+                        );
+                        return Ok(Redirect::to("/get-verified/done").into_response());
+                    }
+                    "canceled" | "redacted" => {
+                        // Session is terminal — fall through to make a new one.
+                        info!(
+                            person = %user.id,
+                            identity = %isid,
+                            status = %session.status,
+                            "resume: previous Identity session terminal, creating fresh"
+                        );
+                    }
+                    _ if session.url.is_some() => {
+                        // Still live (requires_input / processing / etc.) — send the
+                        // user back to the same URL. Stripe preserves their progress,
+                        // QR code, scan-to-mobile link, partial uploads.
+                        let url = session.url.unwrap();
+                        info!(
+                            person = %user.id,
+                            identity = %isid,
+                            status = %session.status,
+                            "resume: redirecting to existing Identity session"
+                        );
+                        return Ok(Redirect::to(&url).into_response());
+                    }
+                    _ => {
+                        // Session exists but has no usable URL — make a new one.
+                        warn!(
+                            person = %user.id,
+                            identity = %isid,
+                            status = %session.status,
+                            "resume: existing Identity session has no URL, creating fresh"
+                        );
+                    }
+                }
+            }
+            Err(e) => {
+                // Retrieve failed (deleted? bad id?) — fall through to create new.
+                warn!(
+                    person = %user.id,
+                    identity = %isid,
+                    error = %e,
+                    "resume: retrieve failed, creating fresh Identity session"
+                );
+            }
+        }
+    }
+
+    // Path 2: create a fresh Identity session against the existing paid row.
+    let base_url = crate::config::app_url();
+    let return_url = format!("{}/get-verified/done", base_url);
+    let person_id_str = rid.to_raw_string();
+    let id_session = stripe
+        .create_identity_session(&person_id_str, &return_url)
+        .await?;
+
+    if let Err(e) = DB
+        .query("UPDATE $id SET stripe_identity_session_id = $isid, updated_at = time::now()")
+        .bind(("id", row.id))
+        .bind(("isid", id_session.id.clone()))
+        .await
+    {
+        error!("Failed to attach new identity session id on resume: {}", e);
+    }
+
+    info!(
+        person = %user.id,
+        identity = %id_session.id,
+        "resume: created new Identity session against existing payment"
+    );
+    Ok(Redirect::to(&id_session.url).into_response())
+}
+
 async fn done_page(AuthenticatedUser(user): AuthenticatedUser) -> Result<Response, Error> {
-    let verified = is_identity_verified(&user.id).await;
-    let last_status = latest_payment_status(&user.id).await;
+    let rid = user.record_id()?;
+    let verified = is_identity_verified(&rid).await;
+    let last_status = latest_payment_status(&rid).await;
 
     let state = if verified {
         "verified"

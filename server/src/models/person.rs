@@ -360,53 +360,23 @@ impl Person {
     /// A `Result` containing an `Option<Person>`. Returns `Some(Person)` if found,
     /// `None` if not found, or an `Error` if the database operation fails.
     pub async fn find_by_id(id: &str) -> Result<Option<Self>> {
-        use tracing::{debug, info_span};
-
-        let span = info_span!(
-            "find_person_by_id",
-            id = %id,
-            record_id = tracing::field::Empty,
-        );
-        let _enter = span.enter();
-
-        // Strip "person:" prefix if present to get just the key
-        let record_key = if id.starts_with("person:") {
-            id.strip_prefix("person:").unwrap()
+        let rid = if id.starts_with("person:") {
+            RecordId::parse_simple(id)
+                .map_err(|e| Error::BadRequest(format!("invalid person id: {e}")))?
         } else {
-            id
+            RecordId::new("person", id)
         };
+        Self::find_by_record_id(&rid).await
+    }
 
-        span.record("record_id", format!("person:{}", record_key));
-        debug!(
-            record_key = %record_key,
-            "Using parameterized query to fetch person"
-        );
-
-        let sql = "SELECT * OMIT embedding, embedding_text FROM type::record('person', $id)";
-        debug!(
-            sql = %sql,
-            "Executing parameterized record query"
-        );
-
-        let mut response = DB.query(sql).bind(("id", record_key.to_string())).await?;
-
-        debug!("Query executed, extracting results");
-
-        // Extract the person from the response
-        let persons: Vec<Person> = match response.take::<Vec<Person>>(0) {
-            Ok(p) => {
-                debug!(count = p.len(), "Extracted person records");
-                p
-            }
-            Err(e) => {
-                debug!(error = ?e, "Failed to extract person records");
-                return Err(e.into());
-            }
-        };
-
-        let result = persons.into_iter().next();
-        debug!(found = result.is_some(), "Query complete");
-        Ok(result)
+    /// Find a person by their full `RecordId`. Prefer this when you already
+    /// have a `RecordId` in hand (e.g., from `SessionUser.id`) — no string
+    /// round-trip, no risk of mis-parsing.
+    pub async fn find_by_record_id(rid: &RecordId) -> Result<Option<Self>> {
+        let sql = "SELECT * OMIT embedding, embedding_text FROM $id";
+        let mut response = DB.query(sql).bind(("id", rid.clone())).await?;
+        let persons: Vec<Person> = response.take(0)?;
+        Ok(persons.into_iter().next())
     }
 
     /// Finds a person by their email.
@@ -1158,26 +1128,73 @@ impl Person {
     /// Delete unverified accounts older than the given number of days.
     /// Uses the same cascade as admin deletion so dangling references are
     /// cleaned up everywhere — GDPR-style full erasure.
+    ///
+    /// **Protection layer**: skips anyone who has ever started the paid
+    /// identity flow (a `verification_payment` row exists) or filed a
+    /// manual verification request. They've expressed clear intent to
+    /// keep the account; the auto-cleanup must not nuke them mid-flight.
     pub async fn cleanup_unverified(days: u64) {
+        use std::collections::HashSet;
+        use surrealdb::types::RecordId;
+
         let sql = format!(
             "SELECT VALUE id FROM person WHERE verification_status = 'unverified' AND created_at < time::now() - {}d",
             days
         );
-        let ids: Vec<surrealdb::types::RecordId> = match DB.query(&sql).await {
+        let candidates: Vec<RecordId> = match DB.query(&sql).await {
             Ok(mut r) => r.take(0).unwrap_or_default(),
             Err(e) => {
                 error!("Failed to list unverified accounts for cleanup: {}", e);
                 return;
             }
         };
-        let total = ids.len();
-        if total == 0 {
+        if candidates.is_empty() {
             return;
         }
+
+        // Build the protected set: anyone with any verification_payment row
+        // (paid, refunded, doesn't matter — they're a real user) or any
+        // pending/approved verification_request.
+        let paid: Vec<RecordId> = DB
+            .query("SELECT VALUE person FROM verification_payment")
+            .await
+            .ok()
+            .and_then(|mut r| r.take(0).ok())
+            .unwrap_or_default();
+        let requested: Vec<RecordId> = DB
+            .query("SELECT VALUE person FROM verification_request")
+            .await
+            .ok()
+            .and_then(|mut r| r.take(0).ok())
+            .unwrap_or_default();
+        // Hash by raw-string form — RecordId has interior mutability and
+        // can't be a HashSet key directly.
+        use crate::record_id_ext::RecordIdExt;
+        let protected: HashSet<String> = paid
+            .into_iter()
+            .chain(requested)
+            .map(|r| r.to_raw_string())
+            .collect();
+
+        let to_delete: Vec<RecordId> = candidates
+            .into_iter()
+            .filter(|id| !protected.contains(&id.to_raw_string()))
+            .collect();
+        let skipped = protected.len();
+        let total = to_delete.len();
+        if total == 0 {
+            if skipped > 0 {
+                info!(
+                    "cleanup_unverified: nothing to delete ({} candidates protected by payment/request)",
+                    skipped
+                );
+            }
+            return;
+        }
+
         let mut ok = 0usize;
         let mut failed = 0usize;
-        use crate::record_id_ext::RecordIdExt;
-        for id in ids {
+        for id in to_delete {
             let id_str = id.to_raw_string();
             match Self::delete_with_cascade(&id).await {
                 Ok(_) => ok += 1,
@@ -1325,13 +1342,34 @@ impl Person {
 // API Data Structures
 // -----------------------------------------------------------------------------
 
-/// Simplified user representation for session/authentication purposes
+/// Simplified user representation for session/authentication purposes.
+///
+/// The `id` field is the raw `"person:abc"` string form for backward
+/// compatibility with the bulk of the codebase. For new code, use
+/// `record_id()` to get a proper `RecordId` for bind parameters — do NOT
+/// parse the string yourself. See `feedback-record-id-handling` in the
+/// project memory for why.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionUser {
     pub id: String,
     pub username: String,
     pub email: String,
     pub name: String,
+}
+
+impl SessionUser {
+    /// Parse the `id` string into a proper `RecordId` once, with proper
+    /// error handling. Use this everywhere new code needs to bind the
+    /// person id into a query — `.bind(("pid", user.record_id()?))` is
+    /// the supported pattern.
+    pub fn record_id(&self) -> Result<RecordId> {
+        if self.id.starts_with("person:") {
+            RecordId::parse_simple(&self.id)
+                .map_err(|e| Error::BadRequest(format!("invalid person id in session: {e}")))
+        } else {
+            Ok(RecordId::new("person", self.id.as_str()))
+        }
+    }
 }
 
 /// Represents the data required to create a new user account.
