@@ -176,6 +176,25 @@ struct LocationRow {
 }
 
 #[derive(Template)]
+#[template(path = "admin/feature_flags.html")]
+struct AdminFeatureFlagsTemplate {
+    app_name: String,
+    year: i32,
+    version: String,
+    active_page: String,
+    user: Option<User>,
+    flags: Vec<FeatureFlagRow>,
+    flash: Option<String>,
+}
+
+struct FeatureFlagRow {
+    key: String,
+    name: String,
+    description: String,
+    state: String,
+}
+
+#[derive(Template)]
 #[template(path = "admin/mailing_list.html")]
 struct AdminMailingListTemplate {
     app_name: String,
@@ -220,6 +239,8 @@ pub fn router() -> Router {
         )
         .route("/admin/locations", get(list_locations))
         .route("/admin/locations/{id}/delete", post(delete_location))
+        .route("/admin/feature-flags", get(feature_flags_page))
+        .route("/admin/feature-flags/{key}", post(set_feature_flag))
         .route("/admin/mailing-list", get(mailing_list_page))
         .route(
             "/admin/mailing-list/subscribe",
@@ -1832,6 +1853,94 @@ async fn cleanup_orphaned_files(
     );
 
     Ok(Redirect::to("/admin/cleanup-files"))
+}
+
+// ============================
+// Feature flags
+// ============================
+
+#[derive(Deserialize)]
+struct FeatureFlagFlashQuery {
+    status: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct FeatureFlagForm {
+    state: String,
+}
+
+async fn feature_flags_page(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Query(q): Query<FeatureFlagFlashQuery>,
+) -> Result<Html<String>, Error> {
+    let template_user = require_admin(&user).await?;
+
+    let rows = crate::services::feature_flag::list_flags().await;
+    let flags: Vec<FeatureFlagRow> = rows
+        .into_iter()
+        .map(|r| FeatureFlagRow {
+            key: r.key,
+            name: r.name,
+            description: r.description.unwrap_or_default(),
+            state: r.state,
+        })
+        .collect();
+
+    let flash = q.status.and_then(|s| match s.as_str() {
+        "updated" => Some("Flag updated.".to_string()),
+        "bad_state" => Some("Invalid state value.".to_string()),
+        "unknown_flag" => Some("Unknown flag key.".to_string()),
+        _ => None,
+    });
+
+    let base = BaseContext::new()
+        .with_page("admin")
+        .with_user(template_user);
+
+    let template = AdminFeatureFlagsTemplate {
+        app_name: base.app_name,
+        year: base.year,
+        version: base.version,
+        active_page: base.active_page,
+        user: base.user,
+        flags,
+        flash,
+    };
+
+    Ok(Html(template.render().map_err(|e| {
+        error!("Failed to render admin feature flags: {}", e);
+        Error::template(e.to_string())
+    })?))
+}
+
+async fn set_feature_flag(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(key): Path<String>,
+    axum::Form(form): axum::Form<FeatureFlagForm>,
+) -> Result<Redirect, Error> {
+    require_admin(&user).await?;
+
+    use crate::services::feature_flag::FlagState;
+    use std::str::FromStr;
+    let new_state = match FlagState::from_str(form.state.as_str()) {
+        Ok(s) => s,
+        Err(_) => return Ok(Redirect::to("/admin/feature-flags?status=bad_state")),
+    };
+
+    // Track who flipped the flag.
+    let updated_by = surrealdb::types::RecordId::parse_simple(&user.id).ok();
+
+    match crate::services::feature_flag::set_state(&key, new_state, updated_by).await {
+        Ok(_) => {
+            info!(
+                "Admin {} set feature flag {} -> {}",
+                user.username, key, new_state
+            );
+            Ok(Redirect::to("/admin/feature-flags?status=updated"))
+        }
+        Err(Error::BadRequest(_)) => Ok(Redirect::to("/admin/feature-flags?status=unknown_flag")),
+        Err(e) => Err(e),
+    }
 }
 
 // ============================

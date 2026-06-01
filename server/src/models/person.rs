@@ -1281,6 +1281,7 @@ impl Person {
             DELETE authorization_code WHERE person = $pid;
             DELETE verification_codes WHERE person_id = $pid;
             DELETE verification_request WHERE person = $pid;
+            DELETE verification_payment WHERE person = $pid;
             DELETE pending_invitation WHERE invited_by = $pid;
             DELETE profile_view WHERE profile_id = $pid OR viewer_id = $pid;
             DELETE activity_event WHERE person_id = $pid;
@@ -1292,6 +1293,7 @@ impl Person {
             DELETE equipment WHERE owner_person = $pid;
             DELETE security_event WHERE subject = $pid;
             DELETE media WHERE uploaded_by = $pid;
+            UPDATE feature_flag SET updated_by = NONE WHERE updated_by = $pid;
             DELETE FROM involvement WHERE in = $pid OR out = $pid;
             DELETE FROM member_of WHERE in = $pid;
             DELETE $pid;

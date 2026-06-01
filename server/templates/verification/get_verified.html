@@ -72,22 +72,51 @@
         <section id="section-cost" data-section="cost">
             <h2>One-time verification</h2>
             <div id="cost-card">
-                <div id="cost-amount">
-                    <span id="cost-currency">&euro;</span><span id="cost-value">10</span>
-                </div>
-                <p id="cost-label">One-time fee</p>
+                <div id="cost-amount" style="font-size: 2rem; font-weight: bold;">{{ price_label }}</div>
+                <p id="cost-label">One-time fee (VAT included where applicable)</p>
                 <p id="cost-description">
-                    We charge a small one-time fee to cover the cost of third-party identity verification.
-                    {{ app_name }} does not profit from this &mdash; the fee goes entirely toward
-                    the verification service provider. Once verified, your status is permanent.
+                    We charge a small one-time fee to cover identity verification. If verification fails
+                    or isn't completed within 24 hours, the fee is refunded automatically. Once verified,
+                    your status is permanent.
                 </p>
                 {% match user %}
                     {% when Some with (_user) %}
-                    {% if has_pending_request %}
-                    <div id="verify-btn-pending">Pending</div>
+                    {% if already_verified %}
+                    <div id="verify-btn-pending">Already verified ✓</div>
+                    {% else if paid_flow_enabled %}
+                        {% match last_payment_status %}
+                            {% when Some with (status) %}
+                                {% if status.as_str() == "paid" %}
+                                <p style="color: var(--color-warning, #d4a574); margin-bottom: 0.5rem;">
+                                    Payment received — complete your ID check to finish verification.
+                                </p>
+                                <form method="post" action="/get-verified/checkout">
+                                    <button type="submit" id="verify-btn">Resume verification</button>
+                                </form>
+                                {% else if status.as_str() == "verified" %}
+                                <div id="verify-btn-pending">Verified ✓</div>
+                                {% else if status.as_str() == "refunded" || status.as_str() == "failed" %}
+                                <p style="color: var(--color-error, #c44536); margin-bottom: 0.5rem;">
+                                    Previous attempt didn't complete — you've been refunded. Try again below.
+                                </p>
+                                <form method="post" action="/get-verified/checkout">
+                                    <button type="submit" id="verify-btn">Get Verified — {{ price_label }}</button>
+                                </form>
+                                {% else %}
+                                <form method="post" action="/get-verified/checkout">
+                                    <button type="submit" id="verify-btn">Get Verified — {{ price_label }}</button>
+                                </form>
+                                {% endif %}
+                            {% when None %}
+                            <form method="post" action="/get-verified/checkout">
+                                <button type="submit" id="verify-btn">Get Verified — {{ price_label }}</button>
+                            </form>
+                        {% endmatch %}
+                    {% else if has_pending_request %}
+                    <div id="verify-btn-pending">Pending manual review</div>
                     {% else %}
                     <form method="post" action="/get-verified/request">
-                        <button type="submit" id="verify-btn">Get Verified</button>
+                        <button type="submit" id="verify-btn">Request manual verification</button>
                     </form>
                     {% endif %}
                     {% when None %}

@@ -295,6 +295,46 @@ DEFINE FIELD created_at ON verification_request TYPE datetime VALUE $value OR ti
 DEFINE INDEX idx_verification_request_person ON verification_request FIELDS person UNIQUE;
 
 -- ------------------------------
+-- TABLE: verification_payment (Stripe Checkout + Identity)
+-- ------------------------------
+
+DEFINE TABLE verification_payment TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD person ON verification_payment TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD stripe_checkout_session_id ON verification_payment TYPE string PERMISSIONS FULL;
+DEFINE FIELD stripe_payment_intent_id ON verification_payment TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD stripe_identity_session_id ON verification_payment TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD amount_minor ON verification_payment TYPE int PERMISSIONS FULL;  -- amount in minor units (cents, pence, etc.)
+DEFINE FIELD currency ON verification_payment TYPE string PERMISSIONS FULL;   -- ISO 4217 lowercase (e.g. "eur", "usd")
+DEFINE FIELD status ON verification_payment TYPE string DEFAULT 'pending'
+    ASSERT $value IN ['pending', 'paid', 'verified', 'failed', 'refunded'] PERMISSIONS FULL;
+DEFINE FIELD failure_reason ON verification_payment TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD refund_id ON verification_payment TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD created_at ON verification_payment TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON verification_payment TYPE datetime VALUE time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_verification_payment_person ON verification_payment FIELDS person;
+DEFINE INDEX idx_verification_payment_checkout ON verification_payment FIELDS stripe_checkout_session_id UNIQUE;
+DEFINE INDEX idx_verification_payment_identity ON verification_payment FIELDS stripe_identity_session_id;
+DEFINE INDEX idx_verification_payment_status_created ON verification_payment FIELDS status, created_at;
+
+-- ------------------------------
+-- TABLE: feature_flag
+-- ------------------------------
+
+DEFINE TABLE feature_flag TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD key ON feature_flag TYPE string PERMISSIONS FULL;
+DEFINE FIELD name ON feature_flag TYPE string PERMISSIONS FULL;
+DEFINE FIELD description ON feature_flag TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD state ON feature_flag TYPE string DEFAULT 'off'
+    ASSERT $value IN ['off', 'admin_only', 'verified', 'all'] PERMISSIONS FULL;
+DEFINE FIELD updated_at ON feature_flag TYPE datetime VALUE time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_by ON feature_flag TYPE option<record<person>> PERMISSIONS FULL;
+
+DEFINE INDEX idx_feature_flag_key ON feature_flag FIELDS key UNIQUE;
+
+-- ------------------------------
 -- TABLE: person
 -- ------------------------------
 

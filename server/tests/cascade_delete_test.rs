@@ -71,6 +71,7 @@ fn clean_all() {
         "authorization_code",
         "verification_codes",
         "verification_request",
+        "verification_payment",
         "pending_invitation",
         "profile_view",
         "activity_event",

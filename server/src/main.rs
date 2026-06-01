@@ -167,6 +167,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Log Listmonk wiring status (no init needed — service is built per-call from env)
     slatehub::services::listmonk::log_status();
 
+    // Log Stripe wiring status
+    slatehub::services::stripe::StripeService::log_status();
+
+    // Seed any feature_flag rows missing from the DB (defaults to 'off').
+    slatehub::services::feature_flag::register_flags().await;
+
+    // Daily job: refund any verification_payment rows that have been in
+    // `paid` state for >24h without becoming `verified`. The webhook
+    // handles the happy path; this catches user-abandoned sessions.
+    tokio::spawn(async {
+        // Run once on startup (catches anything stranded across restarts),
+        // then daily.
+        slatehub::services::stripe::refund_stale_payments(24).await;
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(86400)).await;
+            info!("Running stale-payment refund sweep");
+            slatehub::services::stripe::refund_stale_payments(24).await;
+        }
+    });
+
     // Start system stats tracking
     slatehub::stats::init();
 

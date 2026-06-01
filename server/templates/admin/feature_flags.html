@@ -1,0 +1,87 @@
+{% extends "_layout.html" %}
+{% block title %}Feature Flags - Admin - {{ app_name }}{% endblock %}
+{% block page_name %}admin{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/admin.css" />
+{% endblock %}
+{% block content %}
+<div class="admin-page">
+    <div class="admin-header">
+        <h1>Feature Flags</h1>
+    </div>
+
+    <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-item">Dashboard</a>
+        <a href="/admin/feedback" class="admin-nav-item">Feedback</a>
+        <a href="/admin/people" class="admin-nav-item">People</a>
+        <a href="/admin/productions" class="admin-nav-item">Productions</a>
+        <a href="/admin/organizations" class="admin-nav-item">Organizations</a>
+        <a href="/admin/locations" class="admin-nav-item">Locations</a>
+        <a href="/admin/mailing-list" class="admin-nav-item">Mailing List</a>
+        <a href="/admin/feature-flags" class="admin-nav-item active">Feature Flags</a>
+    </nav>
+
+    {% if let Some(msg) = flash %}
+    <div style="margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem; background:#0f1d2d; color:#7ec0e2; border:1px solid #1f3a5a;">
+        {{ msg }}
+    </div>
+    {% endif %}
+
+    <p style="font-size: 0.85rem; color: var(--text-muted, #888); margin-bottom: 1rem;">
+        Flags are defined in code (<code>services/feature_flag.rs</code>) and toggled from here.
+        States:
+        <strong>off</strong> hides the feature from everyone;
+        <strong>admin only</strong> shows it only to admin accounts;
+        <strong>verified</strong> shows it only to identity-verified users;
+        <strong>all</strong> shows it to everyone.
+    </p>
+
+    {% if flags.is_empty() %}
+    <div class="admin-empty">No feature flags registered.</div>
+    {% else %}
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Flag</th>
+                    <th>Description</th>
+                    <th>State</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for flag in flags %}
+                <tr>
+                    <td>
+                        <strong>{{ flag.name }}</strong>
+                        <div style="font-size: 0.75rem; color: var(--text-muted, #888); font-family: monospace;">{{ flag.key }}</div>
+                    </td>
+                    <td style="max-width: 400px; font-size: 0.85rem;">{{ flag.description }}</td>
+                    <td>
+                        <span class="admin-badge" style="background:
+                            {%- if flag.state == "off" %}#3a2020;color:#f08080
+                            {%- else if flag.state == "admin_only" %}#3a2a10;color:#e2a87e
+                            {%- else if flag.state == "verified" %}#1a2a3a;color:#60a5fa
+                            {%- else %}#0f2d1a;color:#7ee2a8{% endif %};">
+                            {{ flag.state }}
+                        </span>
+                    </td>
+                    <td>
+                        <form method="post" action="/admin/feature-flags/{{ flag.key }}" class="admin-inline-form" style="display: flex; gap: 0.5rem;">
+                            <select name="state" class="admin-select">
+                                <option value="off"{% if flag.state == "off" %} selected{% endif %}>off</option>
+                                <option value="admin_only"{% if flag.state == "admin_only" %} selected{% endif %}>admin only</option>
+                                <option value="verified"{% if flag.state == "verified" %} selected{% endif %}>verified</option>
+                                <option value="all"{% if flag.state == "all" %} selected{% endif %}>all</option>
+                            </select>
+                            <button type="submit" class="admin-btn">Save</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

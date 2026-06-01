@@ -1,0 +1,35 @@
+{% extends "_layout.html" %}
+{% block title %}Verification - {{ app_name }}{% endblock %}
+{% block page_name %}get-verified{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/get-verified.css?v={{ version }}" />
+{% endblock %}
+{% block content %}
+<section id="get-verified-main" data-component="get-verified" style="max-width: 640px; margin: 4rem auto; text-align: center;">
+    {% if state.as_str() == "verified" %}
+    <div id="verified-badge-large" style="margin-bottom: 1rem;">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="#1d9bf0" aria-hidden="true">
+            <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
+        </svg>
+    </div>
+    <h1>You're verified!</h1>
+    <p>Your identity verification was approved. The blue checkmark now appears on your profile, and you can start direct conversations with anyone on {{ app_name }}.</p>
+    <p style="margin-top: 2rem;">
+        <a href="/account" data-role="btn-primary">View your account</a>
+    </p>
+    {% else if state.as_str() == "failed" %}
+    <h1>Verification didn't complete</h1>
+    <p>We couldn't verify your identity from the documents you provided, or the session was canceled. We've refunded the fee — you can try again whenever you're ready.</p>
+    <p style="margin-top: 2rem;">
+        <a href="/get-verified" data-role="btn-primary">Try again</a>
+    </p>
+    {% else %}
+    <h1>Almost there</h1>
+    <p>Your verification is being processed by Stripe — this usually takes under a minute, sometimes up to a few minutes. Refresh this page in a moment, or check your account.</p>
+    <p style="margin-top: 2rem;">
+        <a href="/account" data-role="btn-primary">Go to account</a>
+        <a href="/get-verified/done" data-role="btn-outline" style="margin-left: 0.5rem;">Refresh</a>
+    </p>
+    {% endif %}
+</section>
+{% endblock %}

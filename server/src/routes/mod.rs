@@ -34,6 +34,7 @@ mod profile;
 mod public_profiles;
 mod search;
 mod verification;
+mod webhooks;
 
 pub fn app() -> Router {
     // Static file service
@@ -78,6 +79,8 @@ pub fn app() -> Router {
         .merge(profile::router())
         // Mount verification routes
         .merge(verification::router())
+        // Mount inbound webhooks (stripe, …)
+        .merge(webhooks::router())
         // Mount account settings routes
         .merge(account::router())
         // Mount admin routes

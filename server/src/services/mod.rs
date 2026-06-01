@@ -1,6 +1,7 @@
 pub mod activity;
 pub mod email;
 pub mod embedding;
+pub mod feature_flag;
 pub mod geodata;
 pub mod invitation;
 pub mod listmonk;
@@ -12,5 +13,6 @@ pub mod s3;
 pub mod search;
 pub mod search_log;
 pub mod search_utils;
+pub mod stripe;
 pub mod tmdb;
 pub mod verification;

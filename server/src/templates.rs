@@ -863,6 +863,24 @@ pub struct GetVerifiedTemplate {
     pub active_page: String,
     pub user: Option<User>,
     pub has_pending_request: bool,
+    pub already_verified: bool,
+    pub paid_flow_enabled: bool,
+    pub price_label: String,
+    /// "verified" | "paid" | "failed" | "refunded" | "pending" — most recent payment status, if any.
+    pub last_payment_status: Option<String>,
+}
+
+/// Get Verified — post-verification landing
+#[derive(Template)]
+#[template(path = "verification/done.html")]
+pub struct GetVerifiedDoneTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    /// "verified" | "processing" | "failed" — what we know right now.
+    pub state: String,
 }
 
 /// Account settings page template
