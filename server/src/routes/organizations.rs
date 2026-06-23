@@ -1,8 +1,14 @@
+//! Organization directory and per-org pages.
+//!
+//! Serves `/orgs` (browse with infinite-scroll SSE), `/my-orgs`, org
+//! create/edit/delete, member invites/roles/removal, and the join-request
+//! flow. Private orgs are hidden from non-members; member management
+//! requires an owner/admin role (deletion: owner only).
+
 use askama::Template;
 use axum::{
     Router,
     extract::{Path, Query, Request},
-    http::header,
     response::{Html, IntoResponse, Json, Redirect, Response},
     routing::{get, post},
 };
@@ -11,7 +17,9 @@ use serde_json::json;
 use tracing::{debug, error, info};
 
 use crate::{
+    datastar,
     error::Error,
+    html::escape_html,
     middleware::{AuthenticatedUser, UserExtractor},
     models::organization::{
         CreateOrganizationData, Organization, OrganizationMember, OrganizationModel,
@@ -25,6 +33,10 @@ use crate::{
 
 const PAGE_SIZE: usize = 20;
 
+/// Mounts the org pages: `/orgs` (list) and `/my-orgs`, `/orgs/new`,
+/// `/orgs/{slug}` profile/edit/delete, member and join-request management
+/// POSTs, plus the `/api/orgs/more-sse` infinite-scroll feed and
+/// `/api/organizations/check-slug`.
 pub fn router() -> Router {
     Router::new()
         // Public organization routes
@@ -152,11 +164,8 @@ impl std::fmt::Display for OrgType {
     }
 }
 
-mod filters {
-    pub fn abs_url(path: &str) -> askama::Result<String> {
-        Ok(format!("{}{}", crate::config::app_url(), path))
-    }
-}
+// Shared Askama filters (abs_url, …) for the in-file Template derives.
+use crate::templates::filters;
 
 #[derive(Template)]
 #[template(path = "organizations/list.html")]
@@ -275,17 +284,12 @@ async fn list_organizations(
         .map(|(id, name)| OrgType { id, name })
         .collect();
 
-    let template = OrganizationsListTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(OrganizationsListTemplate, base, {
         organizations,
         search_query: params.q,
         org_types,
         has_more,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render organizations list template: {}", e);
@@ -341,14 +345,7 @@ async fn my_organizations(request: Request) -> Result<Html<String>, Error> {
         })
         .collect();
 
-    let template = MyOrganizationsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
-        organizations,
-    };
+    let template = crate::with_base!(MyOrganizationsTemplate, base, { organizations });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render my organizations template: {}", e);
@@ -371,15 +368,10 @@ async fn new_organization_page(request: Request) -> Result<Html<String>, Error> 
         .map(|(id, name)| OrgType { id, name })
         .collect();
 
-    let template = NewOrganizationTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(NewOrganizationTemplate, base, {
         org_types,
         error: None,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render new organization template: {}", e);
@@ -533,12 +525,7 @@ async fn organization_profile(
         .as_deref()
         .map(crate::markdown::render);
 
-    let template = OrganizationProfileTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(OrganizationProfileTemplate, base, {
         organization,
         description_html,
         members,
@@ -547,7 +534,7 @@ async fn organization_profile(
         is_admin,
         is_owner,
         has_pending_request,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render organization profile template: {}", e);
@@ -582,16 +569,11 @@ async fn edit_organization_page(
         .map(|(id, name)| OrgType { id, name })
         .collect();
 
-    let template = EditOrganizationTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(EditOrganizationTemplate, base, {
         organization,
         org_types,
         error: None,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render edit organization template: {}", e);
@@ -1041,33 +1023,6 @@ struct MoreQuery {
     q: Option<String>,
 }
 
-fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!(
-        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
-        selector, mode
-    );
-    if !elements.is_empty() {
-        s += &format!("data: elements {}\n", elements.replace('\n', " "));
-    }
-    s += "\n";
-    s
-}
-
-fn sse_response(body: String) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "text/event-stream"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
-}
-
-fn escape_html(s: &str) -> String {
-    ammonia::clean_text(s)
-}
-
 const VERIFIED_BADGE_PATH: &str = "M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z";
 
 fn render_org_card(org: &Organization) -> String {
@@ -1145,7 +1100,7 @@ async fn orgs_more_sse(Query(params): Query<MoreQuery>) -> Response {
     let orgs: Vec<Organization> = all.into_iter().take(PAGE_SIZE).collect();
 
     if orgs.is_empty() {
-        return sse_response(sse_patch_elements("#orgs-sentinel", "remove", ""));
+        return datastar::response(datastar::patch_elements("#orgs-sentinel", "remove", ""));
     }
 
     let mut replacement = String::new();
@@ -1165,7 +1120,11 @@ async fn orgs_more_sse(Query(params): Query<MoreQuery>) -> Response {
         ));
     }
 
-    sse_response(sse_patch_elements("#orgs-sentinel", "outer", &replacement))
+    datastar::response(datastar::patch_elements(
+        "#orgs-sentinel",
+        "outer",
+        &replacement,
+    ))
 }
 
 async fn check_slug_availability(

@@ -1,3 +1,7 @@
+//! Profile-analytics route: the private `/profile/analytics` page showing
+//! the signed-in member their own view counts (total/unique/30d/90d/1y),
+//! likes received, and referrer breakdown, sourced from `AnalyticsModel`.
+
 use askama::Template;
 use axum::{Router, extract::Request, response::Html, routing::get};
 use tracing::error;
@@ -10,6 +14,7 @@ use crate::{
     templates::{BaseContext, ProfileAnalyticsTemplate, User},
 };
 
+/// Single route: `/profile/analytics`, the owner-only profile stats page.
 pub fn router() -> Router {
     Router::new().route("/profile/analytics", get(analytics_page))
 }
@@ -30,12 +35,7 @@ async fn analytics_page(request: Request) -> Result<Html<String>, Error> {
     let profile_id = &person.id;
     let analytics = AnalyticsModel::get_profile_analytics(profile_id).await?;
 
-    let template = ProfileAnalyticsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(ProfileAnalyticsTemplate, base, {
         profile_name: person.get_display_name(),
         profile_username: person.username.clone(),
         total_views: analytics.total_views,
@@ -45,7 +45,7 @@ async fn analytics_page(request: Request) -> Result<Html<String>, Error> {
         views_90d: analytics.views_90d,
         views_1y: analytics.views_1y,
         referrer_breakdown: analytics.referrer_breakdown,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render analytics template: {}", e);

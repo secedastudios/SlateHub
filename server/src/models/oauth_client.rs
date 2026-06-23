@@ -1,6 +1,6 @@
 //! OAuth/OIDC client model — one per organization.
 
-use crate::auth::{hash_password, verify_password};
+use crate::auth::{hash_password, verify_password_sync};
 use crate::db::DB;
 use crate::error::{Error, Result};
 use chrono::{DateTime, Duration, Utc};
@@ -135,7 +135,7 @@ impl OauthClientModel {
 
         let client_id = format!("sh_{}", random_token(28));
         let plaintext = random_token(48);
-        let secret_hash = hash_password(&plaintext)?;
+        let secret_hash = hash_password(&plaintext).await?;
         let allowed_scopes: Vec<String> = DEFAULT_ALLOWED_SCOPES
             .iter()
             .map(|s| s.to_string())
@@ -181,7 +181,7 @@ impl OauthClientModel {
     /// rolling deploys; both validate during the window.
     pub async fn rotate_secret(&self, client_id: &RecordId, grace_hours: i64) -> Result<String> {
         let plaintext = random_token(48);
-        let new_hash = hash_password(&plaintext)?;
+        let new_hash = hash_password(&plaintext).await?;
         let previous_expires = Utc::now() + Duration::hours(grace_hours);
         DB.query(
             "UPDATE $id SET
@@ -200,14 +200,14 @@ impl OauthClientModel {
 
     /// Verify a plaintext secret against the stored hashes (current + grace-period previous).
     pub fn verify_secret(client: &OauthClient, plaintext: &str) -> bool {
-        if verify_password(plaintext, &client.client_secret_hash).unwrap_or(false) {
+        if verify_password_sync(plaintext, &client.client_secret_hash).unwrap_or(false) {
             return true;
         }
         if let (Some(prev_hash), Some(expires)) = (
             client.client_secret_hash_previous.as_ref(),
             client.previous_expires_at,
         ) && expires > Utc::now()
-            && verify_password(plaintext, prev_hash).unwrap_or(false)
+            && verify_password_sync(plaintext, prev_hash).unwrap_or(false)
         {
             return true;
         }

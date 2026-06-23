@@ -100,13 +100,13 @@
         <h2>Traffic Sources</h2>
         {% if !referrer_breakdown.is_empty() %}
         <div class="analytics-referrers">
-            {% for ref in referrer_breakdown %}
+            {% for referrer in referrer_breakdown %}
             <div class="analytics-referrer-row">
-                <span class="analytics-referrer-source">{{ ref.source }}</span>
+                <span class="analytics-referrer-source">{{ referrer.source }}</span>
                 <div class="analytics-referrer-bar-track">
-                    <div class="analytics-referrer-bar" style="width: {% if total_views > 0 %}{{ ref.count * 100 / total_views }}{% else %}0{% endif %}%"></div>
+                    <div class="analytics-referrer-bar" style="width: {% if total_views > 0 %}{{ referrer.count * 100 / total_views }}{% else %}0{% endif %}%"></div>
                 </div>
-                <span class="analytics-referrer-count">{{ ref.count|abbr }}</span>
+                <span class="analytics-referrer-count">{{ referrer.count|abbr }}</span>
             </div>
             {% endfor %}
         </div>

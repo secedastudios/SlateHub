@@ -1,3 +1,25 @@
+//! In-process text embeddings for semantic search, powered by `fastembed`
+//! running the BGE-Large-EN-v1.5 ONNX model (1024-dim vectors, matched by
+//! the HNSW indexes in `db/schema.surql`).
+//!
+//! No external service is involved — inference runs on local CPU threads.
+//! The loaded model lives in a `OnceLock` singleton: `main.rs` calls
+//! [`init_embedding_service`] once at boot (the app keeps running without
+//! semantic search if it fails) and then [`backfill_pending_embeddings`] to
+//! finish work left over from a previous run; the `rebuild_embeddings` bin
+//! reuses the same entry points. No env vars — the model name is hardcoded
+//! (fastembed downloads/caches the weights on first use).
+//!
+//! Writes are made durable via the `pending_embedding` table:
+//! [`spawn_embedding_update`] records the work item before computing, and
+//! deletes it only after the target row's `embedding` + `embedding_text`
+//! are updated.
+//!
+//! The `build_*_embedding_text` helpers assemble the searchable text blob
+//! for each entity type (enriched with [`super::geodata`] location context
+//! and role/department synonyms) — keep them in sync with what the search
+//! queries match against.
+
 use anyhow::Result;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use std::sync::OnceLock;
@@ -8,8 +30,18 @@ use tracing::{debug, info, warn};
 /// No Mutex needed: OnceLock guarantees safe one-time init, and TextEmbedding::embed takes &self.
 static EMBEDDER: OnceLock<TextEmbedding> = OnceLock::new();
 
-/// Initialize the embedding service
-/// This should be called once at application startup
+/// Initialize the embedding service by loading the BGE-Large-EN-v1.5 model
+/// into the global `OnceLock`. Called once at application startup from
+/// `main.rs` (and from the `rebuild_embeddings` bin).
+///
+/// Note: the model load (and a possible first-run weight download by
+/// fastembed) happens inline on the calling task — acceptable only because
+/// it runs before the server starts accepting requests.
+///
+/// # Errors
+///
+/// Fails if fastembed can't load the model (missing/corrupt weights, no
+/// network on first download) or if the service was already initialized.
 pub async fn init_embedding_service() -> Result<()> {
     info!("Initializing embedding service with BGE-Large-EN-v1.5 model");
 
@@ -23,7 +55,17 @@ pub async fn init_embedding_service() -> Result<()> {
     Ok(())
 }
 
-/// Generate embedding for a single text (blocking — use generate_embedding_async from async contexts)
+/// Generate embedding for a single text (blocking — use generate_embedding_async from async contexts).
+///
+/// # Errors
+///
+/// Fails if [`init_embedding_service`] hasn't run yet or if model
+/// inference fails.
+///
+/// # Panics
+///
+/// Unwraps the first vector of the batch result — fastembed returns exactly
+/// one embedding per input text, so this only fires if that invariant breaks.
 pub fn generate_embedding(text: &str) -> Result<Vec<f32>> {
     let embedder = EMBEDDER.get().ok_or_else(|| {
         anyhow::anyhow!("Embedding service not initialized. Call init_embedding_service() first.")
@@ -37,7 +79,12 @@ pub fn generate_embedding(text: &str) -> Result<Vec<f32>> {
     Ok(embeddings.into_iter().next().unwrap())
 }
 
-/// Async-safe embedding generation — runs on a blocking thread to avoid starving the async runtime
+/// Async-safe embedding generation — runs on a blocking thread to avoid starving the async runtime.
+///
+/// # Errors
+///
+/// Same failures as [`generate_embedding`], plus an error if the
+/// `spawn_blocking` task is cancelled or panics.
 pub async fn generate_embedding_async(text: &str) -> Result<Vec<f32>> {
     let text = text.to_string();
     tokio::task::spawn_blocking(move || generate_embedding(&text)).await?
@@ -152,7 +199,14 @@ pub async fn backfill_pending_embeddings() {
     info!("Pending embedding backfill complete");
 }
 
-/// Generate embeddings for multiple texts in batch (more efficient)
+/// Generate embeddings for multiple texts in batch (more efficient).
+/// Blocking, like [`generate_embedding`] — call from a blocking context or
+/// wrap in `spawn_blocking`.
+///
+/// # Errors
+///
+/// Fails if [`init_embedding_service`] hasn't run yet or if model
+/// inference fails.
 pub fn generate_embeddings_batch(texts: Vec<String>) -> Result<Vec<Vec<f32>>> {
     let embedder = EMBEDDER.get().ok_or_else(|| {
         anyhow::anyhow!("Embedding service not initialized. Call init_embedding_service() first.")

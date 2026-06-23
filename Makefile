@@ -1,4 +1,4 @@
-.PHONY: all help start stop services services-stop server server-stop dev dev-stop logs logs-services logs-server build clean purge shell check-env db-init db-seed dirs wait-db rebuild-embeddings oidc-verify
+.PHONY: all help start stop services services-stop server server-stop dev dev-stop unstick logs logs-services logs-server build clean purge shell check-env db-init db-seed dirs wait-db rebuild-embeddings oidc-verify
 
 # Default target
 all: help
@@ -39,6 +39,8 @@ help:
 	@echo "  make dev            - Run server locally with cargo"
 	@echo "                        (CSS/static changes are instant!)"
 	@echo "  make dev-stop       - Instructions for stopping dev server (Ctrl+C)"
+	@echo "  make unstick        - Clear stale rustc incremental locks"
+	@echo "                        (use if make dev hangs near the end of compile)"
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-init           - Initialize database schema"
@@ -157,6 +159,15 @@ dev-stop:
 	@echo "ℹ️  To stop the dev server, press Ctrl+C in the terminal where it's running"
 	@echo "   Services will continue running. To stop them: make services-stop"
 
+# Use after a SIGKILL/`killall -9` of cargo or rustc, which leaves orphan
+# lock files in target/debug/incremental/ that make the next build hang
+# forever at the slatehub crate. One full rebuild after this; then back
+# to fast incrementals.
+unstick:
+	@echo "🧹 Clearing stale rustc incremental locks..."
+	@rm -rf target/debug/incremental
+	@echo "✅ Done. Next build rebuilds incremental from scratch (one-time cost)."
+
 # ============================================================================
 # Database Management
 # ============================================================================
@@ -238,9 +249,24 @@ db-seed: wait-db
 		RELATE \$$chris->member_of->\$$seceda SET \
 			role = 'owner', \
 			invitation_status = 'accepted'; \
+		CREATE production SET \
+			title = 'Berlin Nights', \
+			slug = 'berlin-nights', \
+			type = 'Feature Film', \
+			status = 'in_development', \
+			description = 'A thriller set against the backdrop of a rapidly gentrifying Berlin neighborhood, where an aging private investigator takes on what looks like a routine missing-persons case and finds himself pulled into a decades-old conspiracy.', \
+			location = 'Berlin, Germany', \
+			budget_level = 'low', \
+			production_tier = 'indie', \
+			source = 'manual'; \
+		LET \$$berlin_nights = (SELECT id FROM production WHERE slug = 'berlin-nights')[0].id; \
+		RELATE \$$chris->member_of->\$$berlin_nights SET \
+			role = 'owner', \
+			invitation_status = 'accepted'; \
 	"
 	@echo "✅ Seeded users: kevin (pass123), chris (pass123, admin, verified)"
 	@echo "✅ Seeded org: Seceda (owned by chris)"
+	@echo "✅ Seeded production: Berlin Nights (owned by chris)"
 
 db-seed-jobs: wait-db
 	@echo "Seeding 100 job postings..."

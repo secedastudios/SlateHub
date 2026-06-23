@@ -1,4 +1,13 @@
+//! Filming-location directory and per-location pages.
+//!
+//! Serves `/locations` (browse with infinite-scroll SSE, public by default
+//! with an owner-only private view), location create/edit/delete, and rate
+//! management. Mutations are gated on `LocationModel::can_edit`; the list
+//! also marks which locations the signed-in user has liked.
+
+use crate::datastar;
 use crate::error::Error;
+use crate::html::escape_html;
 use crate::middleware::{AuthenticatedUser, UserExtractor};
 use crate::models::likes::LikesModel;
 use crate::models::location::{
@@ -16,7 +25,6 @@ use askama::Template;
 use axum::{
     Form, Json, Router,
     extract::{Path, Query, Request},
-    http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
@@ -26,7 +34,9 @@ use tracing::{debug, error, info};
 
 const PAGE_SIZE: usize = 20;
 
-/// Location routes
+/// Mounts the location pages: `/locations` (list), `/locations/new`,
+/// `/locations/{id}` view/edit/delete, rate list/add/delete endpoints, and
+/// the `/api/locations/more-sse` infinite-scroll feed.
 pub fn router() -> Router {
     Router::new()
         .route("/locations", get(list_locations))
@@ -166,12 +176,7 @@ async fn list_locations(
         vec![]
     };
 
-    let template = LocationsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(LocationsTemplate, base, {
         locations,
         filter: filter_text,
         city: city_text,
@@ -179,7 +184,7 @@ async fn list_locations(
         sort_by,
         liked_ids,
         has_more,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render locations template: {}", e);
@@ -227,12 +232,7 @@ async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<
         .await
         .unwrap_or_default();
 
-    let template = LocationTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(LocationTemplate, base, {
         location: crate::templates::LocationDetail {
             id: location.id.key_string(),
             name: location.name,
@@ -280,7 +280,7 @@ async fn view_location(Path(id): Path<String>, request: Request) -> Result<Html<
             can_edit,
         },
         is_liked,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render location template: {}", e);
@@ -300,14 +300,7 @@ async fn new_location_form(
     let mut base = BaseContext::new().with_page("locations");
     base = base.with_user(User::from_session_user(&user).await);
 
-    let template = LocationCreateTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
-        errors: None,
-    };
+    let template = crate::with_base!(LocationCreateTemplate, base, { errors: None });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render location create template: {}", e);
@@ -394,12 +387,7 @@ async fn edit_location_form(
     let mut base = BaseContext::new().with_page("locations");
     base = base.with_user(User::from_session_user(&user).await);
 
-    let template = LocationEditTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(LocationEditTemplate, base, {
         location: crate::templates::LocationEditData {
             id: location.id.key_string(),
             name: location.name,
@@ -429,7 +417,7 @@ async fn edit_location_form(
                 .collect(),
         },
         errors: None,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render location edit template: {}", e);
@@ -607,33 +595,6 @@ struct MoreQuery {
     sort: Option<String>,
 }
 
-fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!(
-        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
-        selector, mode
-    );
-    if !elements.is_empty() {
-        s += &format!("data: elements {}\n", elements.replace('\n', " "));
-    }
-    s += "\n";
-    s
-}
-
-fn sse_response(body: String) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "text/event-stream"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
-}
-
-fn escape_html(s: &str) -> String {
-    ammonia::clean_text(s)
-}
-
 fn render_location_card(loc: &crate::templates::LocationView) -> String {
     let mut html = String::new();
     html.push_str(r#"<article class="loc-card">"#);
@@ -722,7 +683,7 @@ async fn locations_more_sse(Query(params): Query<MoreQuery>) -> Response {
         .collect();
 
     if locs.is_empty() {
-        return sse_response(sse_patch_elements("#loc-sentinel", "remove", ""));
+        return datastar::response(datastar::patch_elements("#loc-sentinel", "remove", ""));
     }
 
     let mut replacement = String::new();
@@ -748,7 +709,11 @@ async fn locations_more_sse(Query(params): Query<MoreQuery>) -> Response {
         ));
     }
 
-    sse_response(sse_patch_elements("#loc-sentinel", "outer", &replacement))
+    datastar::response(datastar::patch_elements(
+        "#loc-sentinel",
+        "outer",
+        &replacement,
+    ))
 }
 
 // Form structures

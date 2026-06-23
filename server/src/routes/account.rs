@@ -1,3 +1,9 @@
+//! Account-settings routes under `/account`: the settings page plus
+//! password, email, and username changes (each re-verifying the current
+//! password and re-issuing the `auth_token` JWT cookie where identity
+//! claims change), messaging-preference and contact-visibility toggles,
+//! and password-confirmed account deletion with related-data cleanup.
+
 use askama::Template;
 use axum::{
     Form, Router,
@@ -21,6 +27,8 @@ use crate::{
     templates::{AccountSettingsTemplate, BaseContext, User},
 };
 
+/// Routes for the `/account` settings page and its credential, preference,
+/// and deletion form handlers.
 pub fn router() -> Router {
     Router::new()
         .route("/account", get(account_settings_page))
@@ -107,7 +115,7 @@ async fn change_password(
         .ok_or_else(|| Error::BadRequest("Current password is incorrect.".to_string()))?;
 
     // Hash and update password
-    let password_hash = auth::hash_password(&form.new_password)?;
+    let password_hash = auth::hash_password(&form.new_password).await?;
     let sql = "UPDATE person SET password = $password WHERE id = $id";
     DB.query(sql)
         .bind(("password", password_hash))

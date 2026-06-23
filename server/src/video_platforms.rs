@@ -1,7 +1,9 @@
-//! Video platform URL parsing and embed generation.
+//! Video platform URL parsing and embed generation for profile reels.
 //!
-//! Extracts video IDs from popular platforms and generates
-//! thumbnail URLs and embed URLs for display.
+//! Extracts video IDs from YouTube, Vimeo, TikTok, and Dailymotion URLs and
+//! generates thumbnail/embed URLs for display. `routes::profile` parses URLs
+//! (and fetches titles via oEmbed) when a reel is added; `routes::profile`
+//! and `routes::public_profiles` use the URL builders when rendering reels.
 
 use regex::Regex;
 use reqwest::Client;
@@ -18,7 +20,9 @@ static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
 
 /// Parsed video info from a URL
 pub struct VideoInfo {
+    /// Platform identifier: `"youtube"`, `"vimeo"`, `"tiktok"`, or `"dailymotion"`.
     pub platform: &'static str,
+    /// Platform-native video ID extracted from the URL.
     pub video_id: String,
 }
 
@@ -86,6 +90,9 @@ pub fn parse_video_url(url: &str) -> Option<VideoInfo> {
 }
 
 /// Generate a thumbnail URL for a given platform and video ID.
+///
+/// TikTok and unknown platforms have no static thumbnail source and yield an
+/// empty string.
 pub fn thumbnail_url(platform: &str, video_id: &str) -> String {
     match platform {
         "youtube" => format!("https://img.youtube.com/vi/{}/mqdefault.jpg", video_id),
@@ -96,6 +103,9 @@ pub fn thumbnail_url(platform: &str, video_id: &str) -> String {
 }
 
 /// Generate an embed URL for a given platform and video ID.
+///
+/// Embeds request autoplay where the platform supports it; unknown platforms
+/// yield an empty string.
 pub fn embed_url(platform: &str, video_id: &str) -> String {
     match platform {
         "youtube" => format!("https://www.youtube.com/embed/{}?autoplay=1", video_id),
@@ -117,6 +127,9 @@ struct OEmbedResponse {
 
 /// Fetch the video title from the platform's oEmbed API.
 /// Returns `None` on any failure (network, parse, unsupported platform).
+///
+/// Requests go through a shared HTTP client with a 5-second timeout, so this
+/// never blocks a handler for long.
 pub async fn fetch_video_title(platform: &str, url: &str) -> Option<String> {
     let oembed_url = match platform {
         "youtube" => format!(
@@ -160,7 +173,7 @@ pub async fn fetch_video_title(platform: &str, url: &str) -> Option<String> {
     }
 }
 
-/// Human-readable platform name.
+/// Human-readable platform name; falls back to `"Video"` for unknown IDs.
 pub fn platform_name(platform: &str) -> &'static str {
     match platform {
         "youtube" => "YouTube",

@@ -1,3 +1,13 @@
+//! Job postings and applications (the jobs board).
+//!
+//! Owns the `job_posting` table (roles are embedded as an object array) and
+//! the `application` RELATION from person to job_posting; also reads the
+//! `pay_rate_type` reference table. Called by `routes/jobs.rs`.
+//! Queries cast record ids and datetimes to `<string>` because the v3 SDK
+//! can't deserialize RecordId values into `serde_json::Value` rows, and
+//! RELATE/WHERE-on-edge clauses format validated record ids directly into the
+//! query text (bind params don't match RecordId `in`/`out` fields).
+
 use crate::db::DB;
 use crate::error::Error;
 use crate::record_id_ext::RecordIdExt;
@@ -40,6 +50,8 @@ pub struct JobPosting {
     pub contact_phone: Option<String>,
     pub contact_website: Option<String>,
     pub applications_enabled: bool,
+    /// One of "open" | "closed" | "filled" (schema ASSERT on
+    /// `job_posting.status`).
     pub status: String,
     pub expires_at: String,
     pub created_at: String,
@@ -55,9 +67,12 @@ pub struct JobListItem {
     pub location: Option<String>,
     pub poster_name: String,
     pub poster_slug: String,
+    /// "person" | "organization" — derived from the `posted_by` id's table.
     pub poster_type: String,
     pub is_poster_verified: bool,
     pub role_count: i64,
+    /// One of "open" | "closed" | "filled" (schema ASSERT on
+    /// `job_posting.status`).
     pub status: String,
     pub expires_at: String,
     pub created_at: String,
@@ -75,6 +90,7 @@ pub struct JobDetailView {
     pub location: Option<String>,
     pub poster_name: String,
     pub poster_slug: String,
+    /// "person" | "organization" — derived from the `posted_by` id's table.
     pub poster_type: String,
     pub is_poster_verified: bool,
     pub contact_name: Option<String>,
@@ -82,6 +98,8 @@ pub struct JobDetailView {
     pub contact_phone: Option<String>,
     pub contact_website: Option<String>,
     pub applications_enabled: bool,
+    /// One of "open" | "closed" | "filled" (schema ASSERT on
+    /// `job_posting.status`).
     pub status: String,
     pub expires_at: String,
     pub created_at: String,
@@ -101,6 +119,8 @@ pub struct JobDetailView {
 pub struct JobRoleView {
     pub title: String,
     pub description: Option<String>,
+    /// Pay-rate label from the `pay_rate_type` reference table; defaults to
+    /// "TBD" (no schema ASSERT).
     pub rate_type: String,
     pub rate_amount: Option<String>,
     pub location_override: Option<String>,
@@ -117,6 +137,8 @@ pub struct ApplicationView {
     pub applicant_avatar: Option<String>,
     pub role_title: String,
     pub cover_letter: Option<String>,
+    /// One of "submitted" | "reviewed" | "shortlisted" | "rejected" |
+    /// "withdrawn" (schema ASSERT on `application.status`).
     pub status: String,
     pub applied_at: String,
 }
@@ -130,6 +152,8 @@ pub struct UserApplicationView {
     pub role_title: String,
     pub poster_name: String,
     pub cover_letter: Option<String>,
+    /// One of "submitted" | "reviewed" | "shortlisted" | "rejected" |
+    /// "withdrawn" (schema ASSERT on `application.status`).
     pub status: String,
     pub applied_at: String,
 }
@@ -146,6 +170,8 @@ pub struct CreateJobData {
     pub contact_website: Option<String>,
     pub applications_enabled: bool,
     pub related_production: Option<String>,
+    /// Form value: "1day" | "1week" | "1month" (anything else is treated as
+    /// one week by `compute_expires_at`).
     pub expires_in: String,
 }
 
@@ -154,6 +180,8 @@ pub struct CreateJobData {
 pub struct CreateJobRoleData {
     pub title: String,
     pub description: Option<String>,
+    /// Pay-rate label from the `pay_rate_type` reference table; defaults to
+    /// "TBD" (no schema ASSERT).
     pub rate_type: String,
     pub rate_amount: Option<String>,
     pub location_override: Option<String>,
@@ -170,12 +198,17 @@ pub struct UpdateJobData {
     pub contact_phone: Option<String>,
     pub contact_website: Option<String>,
     pub applications_enabled: bool,
+    /// Form value: "1day" | "1week" | "1month" (anything else is treated as
+    /// one week by `compute_expires_at`).
     pub expires_in: String,
 }
 
+/// Query/mutation surface for job postings and their applications.
 pub struct JobModel;
 
 impl JobModel {
+    /// Map an `expires_in` form value ("1day" | "1week" | "1month") to an
+    /// absolute expiry; anything else falls back to one week.
     fn compute_expires_at(expires_in: &str) -> DateTime<Utc> {
         let now = Utc::now();
         match expires_in {
@@ -450,12 +483,24 @@ impl JobModel {
         Ok(jobs)
     }
 
-    /// Get full job detail by key
-    pub async fn get(key: &str, current_user_id: Option<&str>) -> Result<JobDetailView, Error> {
-        debug!("Fetching job: {}", key);
+    /// Get the full detail view of one posting by its bare record key.
+    ///
+    /// Joins poster and production info, marks which roles the viewer has
+    /// already applied to, counts live applications (`GROUP ALL` so the
+    /// aggregate returns a single row), and loads the applicant list when the
+    /// viewer can edit the posting.
+    ///
+    /// # Errors
+    /// `Error::BadRequest` for an unsafe key, `Error::NotFound` if the
+    /// posting doesn't exist, `Error::Database` on query failure.
+    pub async fn get(
+        job_id: &str,
+        current_person_id: Option<&str>,
+    ) -> Result<JobDetailView, Error> {
+        debug!("Fetching job: {}", job_id);
 
-        validate_record_key(key)?;
-        let job_id = RecordId::new("job_posting", key);
+        validate_record_key(job_id)?;
+        let job_rid = RecordId::new("job_posting", job_id);
 
         let basic_query = format!(
             r#"SELECT
@@ -476,7 +521,7 @@ impl JobModel {
                 <string> created_at AS created_at,
                 <string> updated_at AS updated_at
             FROM ONLY {}"#,
-            job_id.display()
+            job_rid.display()
         );
 
         let mut result = DB
@@ -537,12 +582,12 @@ impl JobModel {
             .unwrap_or_default();
 
         // Check per-role application state for current user
-        if let Some(uid) = current_user_id {
+        if let Some(uid) = current_person_id {
             let uid_record = parse_record_id(uid)?;
             let app_query = format!(
                 "SELECT role_title FROM application WHERE in = {} AND out = {} AND status != 'withdrawn'",
                 uid_record.display(),
-                job_id.display()
+                job_rid.display()
             );
             if let Ok(mut ar) = DB.query(&app_query).await {
                 let app_rows: Vec<serde_json::Value> = ar.take(0).unwrap_or_default();
@@ -564,7 +609,7 @@ impl JobModel {
         let application_count = {
             let count_query = format!(
                 "SELECT count() AS count FROM application WHERE out = {} AND status != 'withdrawn' GROUP ALL",
-                job_id.display()
+                job_rid.display()
             );
             if let Ok(mut cr) = DB.query(&count_query).await {
                 let v: Option<serde_json::Value> = cr.take(0).unwrap_or(None);
@@ -575,15 +620,15 @@ impl JobModel {
             }
         };
 
-        let can_edit = if let Some(uid) = current_user_id {
-            Self::can_edit(key, uid).await.unwrap_or(false)
+        let can_edit = if let Some(uid) = current_person_id {
+            Self::can_edit(job_id, uid).await.unwrap_or(false)
         } else {
             false
         };
 
         // Fetch applications if user can edit this job
         let applications = if can_edit {
-            Self::get_applications(key).await.unwrap_or_default()
+            Self::get_applications(job_id).await.unwrap_or_default()
         } else {
             Vec::new()
         };
@@ -664,16 +709,17 @@ impl JobModel {
         })
     }
 
-    /// Update a job posting
+    /// Update a job posting (full overwrite of fields and embedded roles)
+    /// identified by its bare record key.
     pub async fn update(
-        key: &str,
+        job_id: &str,
         data: UpdateJobData,
         roles: Vec<CreateJobRoleData>,
     ) -> Result<(), Error> {
-        debug!("Updating job posting: {}", key);
+        debug!("Updating job posting: {}", job_id);
 
-        validate_record_key(key)?;
-        let job_id = RecordId::new("job_posting", key);
+        validate_record_key(job_id)?;
+        let job_rid = RecordId::new("job_posting", job_id);
         let expires_at = Self::compute_expires_at(&data.expires_in);
         let roles_json = Self::roles_json(&roles);
 
@@ -689,7 +735,7 @@ impl JobModel {
                 applications_enabled = <bool> $applications_enabled,
                 roles = {},
                 expires_at = <datetime> $expires_at;"#,
-            job_id.display(),
+            job_rid.display(),
             roles_json
         );
 
@@ -716,21 +762,22 @@ impl JobModel {
         Ok(())
     }
 
-    /// Delete a job posting and its applications
-    pub async fn delete(key: &str) -> Result<(), Error> {
-        debug!("Deleting job posting: {}", key);
+    /// Delete a job posting (by bare record key) and all of its application
+    /// edges.
+    pub async fn delete(job_id: &str) -> Result<(), Error> {
+        debug!("Deleting job posting: {}", job_id);
 
-        validate_record_key(key)?;
-        let job_id = RecordId::new("job_posting", key);
+        validate_record_key(job_id)?;
+        let job_rid = RecordId::new("job_posting", job_id);
 
         // Delete applications
-        let delete_apps = format!("DELETE FROM application WHERE out = {}", job_id.display());
+        let delete_apps = format!("DELETE FROM application WHERE out = {}", job_rid.display());
         DB.query(&delete_apps)
             .await
             .map_err(|e| Error::Database(format!("Failed to delete applications: {}", e)))?;
 
         // Delete job
-        let delete_job = format!("DELETE {}", job_id.display());
+        let delete_job = format!("DELETE {}", job_rid.display());
         DB.query(&delete_job)
             .await
             .map_err(|e| Error::Database(format!("Failed to delete job: {}", e)))?;
@@ -738,17 +785,29 @@ impl JobModel {
         Ok(())
     }
 
-    /// Close a job posting
-    pub async fn close(key: &str) -> Result<(), Error> {
-        validate_record_key(key)?;
-        let job_id = RecordId::new("job_posting", key);
-        DB.query(format!("UPDATE {} SET status = 'closed'", job_id.display()))
-            .await
-            .map_err(|e| Error::Database(format!("Failed to close job: {}", e)))?;
+    /// Set a posting's status to 'closed' (by bare record key).
+    pub async fn close(job_id: &str) -> Result<(), Error> {
+        validate_record_key(job_id)?;
+        let job_rid = RecordId::new("job_posting", job_id);
+        DB.query(format!(
+            "UPDATE {} SET status = 'closed'",
+            job_rid.display()
+        ))
+        .await
+        .map_err(|e| Error::Database(format!("Failed to close job: {}", e)))?;
         Ok(())
     }
 
-    /// Apply to a specific role on a job posting
+    /// Apply to a specific role on a job posting by RELATE-ing an
+    /// `application` edge from the person to the posting.
+    ///
+    /// Both `person_id` and `job_id` are full `table:key` id strings (unlike
+    /// the bare-key getters above). The duplicate-application check counts
+    /// with `GROUP ALL` so the aggregate comes back as a single row.
+    ///
+    /// # Errors
+    /// `Error::BadRequest` if either id is malformed or the person already
+    /// has a live (non-withdrawn) application for that role.
     pub async fn apply(
         person_id: &str,
         job_id: &str,
@@ -798,7 +857,8 @@ impl JobModel {
         Ok(())
     }
 
-    /// Withdraw an application for a specific role
+    /// Mark a person's application for one role as 'withdrawn' (soft delete).
+    /// `person_id` and `job_id` are full `table:key` id strings.
     pub async fn withdraw(person_id: &str, job_id: &str, role_title: &str) -> Result<(), Error> {
         let person_record = parse_record_id(person_id)?;
         let job_record = parse_record_id(job_id)?;
@@ -815,7 +875,9 @@ impl JobModel {
         Ok(())
     }
 
-    /// Update application status
+    /// Set an application's status. `status` must satisfy the schema ASSERT
+    /// on `application.status`: "submitted" | "reviewed" | "shortlisted" |
+    /// "rejected" | "withdrawn"; `app_id` is a full `table:key` id string.
     pub async fn update_application_status(app_id: &str, status: &str) -> Result<(), Error> {
         let app_record = parse_record_id(app_id)?;
         DB.query(format!(
@@ -828,10 +890,12 @@ impl JobModel {
         Ok(())
     }
 
-    /// Get applications for a job posting
-    pub async fn get_applications(key: &str) -> Result<Vec<ApplicationView>, Error> {
-        validate_record_key(key)?;
-        let job_id = RecordId::new("job_posting", key);
+    /// Get non-withdrawn applications for a posting (by bare record key),
+    /// newest first, with applicant profile fields pulled through the `in`
+    /// edge link.
+    pub async fn get_applications(job_id: &str) -> Result<Vec<ApplicationView>, Error> {
+        validate_record_key(job_id)?;
+        let job_rid = RecordId::new("job_posting", job_id);
 
         let query = format!(
             r#"SELECT
@@ -847,7 +911,7 @@ impl JobModel {
             WHERE out = {}
             AND status != 'withdrawn'
             ORDER BY applied_at DESC"#,
-            job_id.display()
+            job_rid.display()
         );
 
         let mut result = DB
@@ -1073,14 +1137,16 @@ impl JobModel {
         Ok(jobs)
     }
 
-    /// Check if user can edit a job
-    pub async fn can_edit(key: &str, user_id: &str) -> Result<bool, Error> {
-        validate_record_key(key)?;
-        let job_id = RecordId::new("job_posting", key);
+    /// Check whether a person can edit a posting (by bare record key):
+    /// either they posted it directly, or it was posted by an organization
+    /// they own/administer with an accepted membership.
+    pub async fn can_edit(job_id: &str, person_id: &str) -> Result<bool, Error> {
+        validate_record_key(job_id)?;
+        let job_rid = RecordId::new("job_posting", job_id);
 
         let query = format!(
             "SELECT <string> posted_by AS poster FROM ONLY {}",
-            job_id.display()
+            job_rid.display()
         );
         let mut result = DB
             .query(&query)
@@ -1090,16 +1156,16 @@ impl JobModel {
 
         if let Some(obj) = row {
             let poster = obj.get("poster").and_then(|v| v.as_str()).unwrap_or("");
-            if poster == user_id {
+            if poster == person_id {
                 return Ok(true);
             }
 
             if poster.starts_with("organization:") {
-                let user_record = parse_record_id(user_id)?;
+                let person_record = parse_record_id(person_id)?;
                 let poster_record = parse_record_id(poster)?;
                 let org_check = format!(
                     "SELECT role FROM member_of WHERE in = {} AND out = {} AND role IN ['owner', 'admin'] AND invitation_status = 'accepted'",
-                    user_record.display(),
+                    person_record.display(),
                     poster_record.display()
                 );
                 let mut org_result = DB
@@ -1167,10 +1233,13 @@ impl JobModel {
             .collect())
     }
 
-    /// Get job data for editing
-    pub async fn get_for_edit(key: &str) -> Result<(serde_json::Value, Vec<JobRoleView>), Error> {
-        validate_record_key(key)?;
-        let job_id = RecordId::new("job_posting", key);
+    /// Get raw job data (by bare record key) plus parsed embedded roles, for
+    /// pre-filling the edit form.
+    pub async fn get_for_edit(
+        job_id: &str,
+    ) -> Result<(serde_json::Value, Vec<JobRoleView>), Error> {
+        validate_record_key(job_id)?;
+        let job_rid = RecordId::new("job_posting", job_id);
 
         let query = format!(
             r#"SELECT
@@ -1191,7 +1260,7 @@ impl JobModel {
                 <string> created_at AS created_at,
                 <string> updated_at AS updated_at
             FROM ONLY {}"#,
-            job_id.display()
+            job_rid.display()
         );
 
         let mut result = DB

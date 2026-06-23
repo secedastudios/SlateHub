@@ -1,3 +1,15 @@
+//! Template structs and shared Askama plumbing.
+//!
+//! This module is the bridge between route handlers and the files under
+//! `templates/`: every page's `#[derive(Template)]` context struct, the
+//! [`BaseContext`] carrying the fields every page needs (app name, year,
+//! asset-cache-busting version, active nav item, signed-in user), and the
+//! [`filters`] module Askama resolves `{{ x|filter }}` calls against.
+//!
+//! Handlers build a [`BaseContext`], then construct their template struct
+//! with [`crate::with_base!`] so the five shared fields are spread without
+//! boilerplate.
+
 use askama::Template;
 use chrono::Datelike;
 use serde::{Deserialize, Serialize};
@@ -7,22 +19,67 @@ use crate::models::likes::{LikedLocation, LikedPerson};
 use crate::models::notification::NotificationModel;
 use crate::models::person::SessionUser;
 
-mod filters {
+/// Construct a page-template struct, spreading the five [`BaseContext`]
+/// fields (`app_name`, `year`, `version`, `active_page`, `user`) so call
+/// sites list only what's specific to the page.
+///
+/// ```ignore
+/// let base = BaseContext::new().with_page("productions").with_user(user).await;
+/// let template = with_base!(OverviewTemplate, base, {
+///     production,
+///     active_tab: "overview".to_string(),
+///     role,
+/// });
+/// ```
+///
+/// The macro consumes `base`. Field-init shorthand works as in a normal
+/// struct literal. Any mismatch with the template struct's fields is a
+/// compile error, so conversions are mechanically safe.
+#[macro_export]
+macro_rules! with_base {
+    ($template:ident, $base:expr, { $($field:ident $(: $value:expr)?),* $(,)? }) => {{
+        let base = $base;
+        $template {
+            app_name: base.app_name,
+            year: base.year,
+            version: base.version,
+            active_page: base.active_page,
+            user: base.user,
+            $($field $(: $value)?),*
+        }
+    }};
+}
+
+// pub(crate): Template derives outside this module (e.g. routes/productions_manage.rs)
+// need `filters::` in scope — askama resolves filter calls at the derive site.
+//
+// askama 0.16 filter contract: each filter is a plain fn lifted into the
+// filter machinery by `#[askama::filter_fn]`, and must take a trailing
+// `&dyn askama::Values` environment argument (unused here, hence `_`).
+pub(crate) mod filters {
+    use askama::Values;
+
     /// Convert a relative path to an absolute URL using APP_URL
-    pub fn abs_url(path: &str) -> askama::Result<String> {
+    #[askama::filter_fn]
+    pub fn abs_url(path: &str, _: &dyn Values) -> askama::Result<String> {
         let base = crate::config::app_url();
         Ok(format!("{}{}", base, path))
     }
 
-    /// Check if a Vec<String> contains a given value
-    pub fn contains(list: &[String], value: &String) -> askama::Result<bool> {
+    /// Check if a Vec<String> contains a given value.
+    /// (0.16 filter ABI: the `Values` environment param sits between the
+    /// piped input and any template-supplied arguments.)
+    #[askama::filter_fn]
+    pub fn contains(list: &[String], _values: &dyn Values, value: &String) -> askama::Result<bool> {
         Ok(list.contains(value))
     }
 
-    /// Abbreviate a signed number: +1500 → "+1.5k", -200000 → "-200k"
-    pub fn abbr_i64(value: i64) -> askama::Result<String> {
-        let abs = value.unsigned_abs();
-        let formatted = abbr(&abs)?;
+    /// Abbreviate a signed number: +1500 → "+1.5k", -200000 → "-200k".
+    /// Takes `i64` by value: its template inputs are computed expressions
+    /// (`views_30d.trend()`), which 0.16 passes by value.
+    #[askama::filter_fn]
+    pub fn abbr_i64(value: i64, _: &dyn Values) -> askama::Result<String> {
+        let formatted = abbr_num(value.unsigned_abs() as usize)?;
         if value >= 0 {
             Ok(format!("+{}", formatted))
         } else {
@@ -31,12 +88,14 @@ mod filters {
     }
 
     /// Abbreviate large numbers: 1500 → "1.5k", 200000 → "200k", 1500000 → "1.5M"
-    pub fn abbr(value: &u64) -> askama::Result<String> {
+    #[askama::filter_fn]
+    pub fn abbr(value: &u64, _: &dyn Values) -> askama::Result<String> {
         abbr_num(*value as usize)
     }
 
     /// Abbreviate large usize numbers
-    pub fn abbr_usize(value: &usize) -> askama::Result<String> {
+    #[askama::filter_fn]
+    pub fn abbr_usize(value: &usize, _: &dyn Values) -> askama::Result<String> {
         abbr_num(*value)
     }
 
@@ -54,14 +113,22 @@ mod filters {
         Ok(format!("{}{}", s, suffix))
     }
 
+    /// Format a byte count as a human-readable label: "1.2 MB", "850 KB", "42 B".
+    /// Delegates to the canonical [`crate::text::format_bytes_i64`].
+    #[askama::filter_fn]
+    pub fn human_bytes(bytes: &i64, _: &dyn Values) -> askama::Result<String> {
+        Ok(crate::text::format_bytes_i64(*bytes))
+    }
+
     /// Format an ISO 8601 date string as relative time: "2 days ago", "in 4 weeks", "now"
-    pub fn time_ago(date_str: &str) -> askama::Result<String> {
+    #[askama::filter_fn]
+    pub fn time_ago(date_str: &str, _: &dyn Values) -> askama::Result<String> {
         use chrono::{DateTime, Utc};
         use chrono_humanize::HumanTime;
 
         let dt = date_str
             .parse::<DateTime<Utc>>()
-            .map_err(|_| askama::Error::Fmt(std::fmt::Error))?;
+            .map_err(|_| askama::Error::Fmt)?;
 
         Ok(HumanTime::from(dt).to_string())
     }
@@ -79,6 +146,9 @@ pub struct User {
     pub notification_count: u32,    // Unread notification count
     pub is_identity_verified: bool, // Whether user has identity verification
     pub is_admin: bool,             // Whether user is a system administrator
+    /// Whether the `production_management` feature flag admits this user —
+    /// drives the "Production Management" item in the profile dropdown.
+    pub can_manage_productions: bool,
 }
 
 impl User {
@@ -97,6 +167,11 @@ impl User {
             .await
             .unwrap_or(0);
 
+        // Feature-flag gate for the Production Management dropdown entry.
+        let can_manage_productions =
+            crate::services::feature_flag::allows("production_management", Some(session_user))
+                .await;
+
         // For compatibility, set avatar to the URL if it exists, otherwise use /api/avatar endpoint
         let avatar = avatar_url
             .clone()
@@ -112,6 +187,7 @@ impl User {
             notification_count,
             is_identity_verified,
             is_admin,
+            can_manage_productions,
         }
     }
 
@@ -196,7 +272,7 @@ impl Default for CommonData {
         Self {
             app_name: "SlateHub".to_string(),
             year: chrono::Utc::now().year(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: crate::version::asset_version().to_string(),
             active_page: String::new(),
             user: None,
         }
@@ -502,6 +578,27 @@ pub struct ProductionScriptView {
     pub created_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScriptVersionView {
+    pub id: String,
+    pub version: i64,
+    pub file_url: String,
+    pub file_size: i64,
+    pub mime_type: String,
+    pub visibility: String,
+    pub notes: Option<String>,
+    pub created_at: String,
+    pub uploader_username: Option<String>,
+    pub uploader_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScriptTitleGroupView {
+    pub title: String,
+    pub latest: ScriptVersionView,
+    pub older: Vec<ScriptVersionView>,
+}
+
 /// Single production view template
 #[derive(Template)]
 #[template(path = "productions/production.html")]
@@ -533,6 +630,12 @@ pub struct ProductionDetail {
     pub person_members: Vec<ProductionMemberView>,
     pub org_members: Vec<ProductionMemberView>,
     pub can_edit: bool,
+    /// True when the current user can access management mode for this
+    /// production — must be a `member_of` AND the `production_management`
+    /// feature flag must allow them. Drives whether the "Manage" toggle
+    /// shows in the hero header.
+    #[serde(default)]
+    pub can_manage: bool,
     pub poster_url: Option<String>,
     pub poster_photo: Option<String>,
     pub header_photo: Option<String>,
@@ -1108,19 +1211,18 @@ pub mod equipment {
     use crate::models::person::SessionUser;
     use askama::Template;
 
-    /// Custom Askama filters for equipment templates
+    /// Equipment-specific Askama filters; shared filters re-exported so the
+    /// in-module Template derives resolve everything through one `filters`.
     mod filters {
         use crate::record_id_ext::RecordIdExt;
+        use askama::Values;
         use surrealdb::types::RecordId;
 
-        /// Convert a relative path to an absolute URL using APP_URL
-        pub fn abs_url(path: &str) -> askama::Result<String> {
-            let base = crate::config::app_url();
-            Ok(format!("{}{}", base, path))
-        }
+        pub use crate::templates::filters::abs_url;
 
         /// Render a RecordId as "table:key" string for use in templates
-        pub fn rid(id: &RecordId) -> askama::Result<String> {
+        #[askama::filter_fn]
+        pub fn rid(id: &RecordId, _: &dyn Values) -> askama::Result<String> {
             Ok(id.to_raw_string())
         }
     }
@@ -1280,7 +1382,7 @@ impl Default for BaseContext {
         Self {
             app_name: "SlateHub".to_string(),
             year: chrono::Utc::now().year(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: crate::version::asset_version().to_string(),
             active_page: String::new(),
             user: None,
         }

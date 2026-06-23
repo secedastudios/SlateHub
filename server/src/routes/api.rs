@@ -1,7 +1,12 @@
+//! JSON/SSE API routes under `/api`: health and stats, TMDB/IMDB imports,
+//! production claims, involvement (credit) CRUD and verification, feedback,
+//! username checks, Datastar live-search/select endpoints for people, orgs,
+//! and productions, plus generated Open-Graph and QR profile images.
+
 use axum::{
     Extension, Json, Router,
     extract::{Path, Query},
-    http::{StatusCode, header},
+    http::StatusCode,
     response::{IntoResponse, Redirect, Response},
     routing::{delete, get, post},
 };
@@ -10,18 +15,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, error, info};
 
+use crate::datastar;
 use crate::db::DB;
+use crate::html::escape_html;
 use crate::middleware::{AuthenticatedUser, CurrentUser};
 use crate::models::involvement::InvolvementModel;
 use crate::models::production::ProductionModel;
 use crate::models::system::System;
 use crate::record_id_ext::RecordIdExt;
-
-/// Escape HTML special characters to prevent XSS in SSE HTML fragments.
-/// Uses ammonia::clean_text which escapes <, >, &, ", '.
-fn escape_html(s: &str) -> String {
-    ammonia::clean_text(s)
-}
 
 /// Validate that a scope parameter is a safe identifier (alphanumeric, underscore, hyphen only).
 /// Prevents injection into Datastar signal keys and CSS selectors.
@@ -36,6 +37,8 @@ fn validate_scope(scope: &str) -> Result<(), (StatusCode, &'static str)> {
     Ok(())
 }
 
+/// Routes for the `/api/*` JSON and Datastar-SSE endpoints (mounted under
+/// `/api` by the parent router).
 pub fn router() -> Router {
     Router::new()
         .route("/health", get(health_check))
@@ -1070,34 +1073,13 @@ async fn people_search(
 
 // -- SSE helpers for Datastar --
 
-fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!(
-        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
-        selector, mode
-    );
-    if !elements.is_empty() {
-        s += &format!("data: elements {}\n", elements.replace('\n', " "));
-    }
-    s += "\n";
-    s
-}
-
+/// Render one `datastar-patch-signals` SSE event (no shared equivalent in
+/// [`crate::datastar`] yet; only this module patches signals).
 fn sse_patch_signals(signals: &str) -> String {
     format!(
         "event: datastar-patch-signals\ndata: signals {}\n\n",
         signals
     )
-}
-
-fn sse_response(body: String) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "text/event-stream"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
 }
 
 /// People search via SSE (Datastar) — returns rendered HTML fragments
@@ -1139,8 +1121,8 @@ async fn people_search_sse(
         Some(q) => q,
         None => {
             // Clear results
-            let sse = sse_patch_elements(results_selector, "inner", "");
-            return sse_response(sse);
+            let sse = datastar::patch_elements(results_selector, "inner", "");
+            return datastar::response(sse);
         }
     };
 
@@ -1243,8 +1225,8 @@ async fn people_search_sse(
         ));
     }
 
-    let sse = sse_patch_elements(results_selector, "inner", &html);
-    sse_response(sse)
+    let sse = datastar::patch_elements(results_selector, "inner", &html);
+    datastar::response(sse)
 }
 
 /// Selection endpoint — sets signals when a user is selected from search results
@@ -1289,9 +1271,9 @@ async fn people_select_sse(
     ));
 
     // Clear results
-    sse += &sse_patch_elements(&format!("#{scope}-results"), "inner", "");
+    sse += &datastar::patch_elements(&format!("#{scope}-results"), "inner", "");
 
-    sse_response(sse)
+    datastar::response(sse)
 }
 
 // -----------------------------------------------------------------------------
@@ -1321,8 +1303,8 @@ async fn orgs_search_sse(
     let query = match params.q.filter(|q| q.len() >= 2) {
         Some(q) => q,
         None => {
-            let sse = sse_patch_elements(results_selector, "inner", "");
-            return sse_response(sse);
+            let sse = datastar::patch_elements(results_selector, "inner", "");
+            return datastar::response(sse);
         }
     };
 
@@ -1402,8 +1384,8 @@ async fn orgs_search_sse(
         ));
     }
 
-    let sse = sse_patch_elements(results_selector, "inner", &html);
-    sse_response(sse)
+    let sse = datastar::patch_elements(results_selector, "inner", &html);
+    datastar::response(sse)
 }
 
 #[derive(Debug, Deserialize)]
@@ -1432,9 +1414,9 @@ async fn orgs_select_sse(
         avatar = params.avatar.as_deref().unwrap_or("").replace('"', r#"\""#),
     ));
 
-    sse += &sse_patch_elements(&format!("#{scope}-results"), "inner", "");
+    sse += &datastar::patch_elements(&format!("#{scope}-results"), "inner", "");
 
-    sse_response(sse)
+    datastar::response(sse)
 }
 
 // -----------------------------------------------------------------------------
@@ -1464,8 +1446,8 @@ async fn productions_search_sse(
     let query = match params.q.filter(|q| q.len() >= 2) {
         Some(q) => q,
         None => {
-            let sse = sse_patch_elements(results_selector, "inner", "");
-            return sse_response(sse);
+            let sse = datastar::patch_elements(results_selector, "inner", "");
+            return datastar::response(sse);
         }
     };
 
@@ -1549,8 +1531,8 @@ async fn productions_search_sse(
         ));
     }
 
-    let sse = sse_patch_elements(results_selector, "inner", &html);
-    sse_response(sse)
+    let sse = datastar::patch_elements(results_selector, "inner", &html);
+    datastar::response(sse)
 }
 
 #[derive(Debug, Deserialize)]
@@ -1579,9 +1561,9 @@ async fn productions_select_sse(
         avatar = params.avatar.as_deref().unwrap_or("").replace('"', r#"\""#),
     ));
 
-    sse += &sse_patch_elements(&format!("#{scope}-results"), "inner", "");
+    sse += &datastar::patch_elements(&format!("#{scope}-results"), "inner", "");
 
-    sse_response(sse)
+    datastar::response(sse)
 }
 
 // -----------------------------------------------------------------------------
@@ -1675,7 +1657,8 @@ async fn og_profile_image(
     );
 
     // Render profile image + logo to PNG
-    let png_data = render_og_png(avatar_bytes.as_deref())
+    let png_data = render_og_png(avatar_bytes)
+        .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
     Ok((
@@ -1687,7 +1670,18 @@ async fn og_profile_image(
     ))
 }
 
-fn render_og_png(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
+/// Render the 1200×630 Open-Graph card (avatar/poster + logo) to JPEG.
+///
+/// Image decode, Lanczos3 resize, SVG rasterization, and encode are
+/// CPU-bound — callers go through this async wrapper so the work runs on
+/// tokio's blocking pool instead of stalling the request executor.
+async fn render_og_png(avatar_bytes: Option<Vec<u8>>) -> Result<Vec<u8>, String> {
+    tokio::task::spawn_blocking(move || render_og_png_blocking(avatar_bytes.as_deref()))
+        .await
+        .map_err(|e| format!("og render task join error: {e}"))?
+}
+
+fn render_og_png_blocking(avatar_bytes: Option<&[u8]>) -> Result<Vec<u8>, String> {
     const W: u32 = 1200;
     const H: u32 = 630;
 
@@ -1801,7 +1795,8 @@ async fn og_invite_image(
         None
     };
 
-    let png_data = render_og_png(poster_bytes.as_deref())
+    let png_data = render_og_png(poster_bytes)
+        .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
     Ok((
@@ -1818,7 +1813,6 @@ async fn qr_profile_image(
     Path(username): Path<String>,
 ) -> Result<impl IntoResponse, (axum::http::StatusCode, String)> {
     use crate::models::person::Person;
-    use qrcode::QrCode;
 
     // Verify user exists
     Person::find_by_username(&username)
@@ -1829,14 +1823,36 @@ async fn qr_profile_image(
     let profile_url = format!("{}/{}", crate::config::app_url(), username);
     debug!("QR code: generating for {}", profile_url);
 
-    let code = QrCode::new(profile_url.as_bytes()).map_err(|e| {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            format!("QR encode error: {}", e),
-        )
-    })?;
+    // QR matrix generation + pixel rasterization + PNG encode are CPU-bound;
+    // run them on the blocking pool.
+    let png = tokio::task::spawn_blocking(move || render_profile_qr_png(&profile_url))
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                format!("QR task join error: {e}"),
+            )
+        })?
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
-    // Render QR matrix to image manually (qrcode image feature needs image 0.25)
+    Ok((
+        [
+            (axum::http::header::CONTENT_TYPE, "image/png"),
+            (axum::http::header::CACHE_CONTROL, "public, max-age=86400"),
+        ],
+        png,
+    ))
+}
+
+/// Rasterize a profile-URL QR code to a ~400px PNG (white quiet zone,
+/// black modules). CPU-bound — call via `spawn_blocking`.
+fn render_profile_qr_png(profile_url: &str) -> Result<Vec<u8>, String> {
+    use qrcode::QrCode;
+
+    let code = QrCode::new(profile_url.as_bytes()).map_err(|e| format!("QR encode error: {e}"))?;
+
+    // Render the QR matrix to pixels manually (the qrcode crate's `image`
+    // feature requires image 0.25; we're on 0.24).
     let matrix = code.to_colors();
     let module_count = code.width() as u32;
     let quiet_zone = 4_u32;
@@ -1860,18 +1876,7 @@ async fn qr_profile_image(
     let mut buf = std::io::Cursor::new(Vec::new());
     image::DynamicImage::ImageLuma8(qr_image)
         .write_to(&mut buf, image::ImageFormat::Png)
-        .map_err(|e| {
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                format!("PNG encode error: {}", e),
-            )
-        })?;
+        .map_err(|e| format!("PNG encode error: {e}"))?;
 
-    Ok((
-        [
-            (axum::http::header::CONTENT_TYPE, "image/png"),
-            (axum::http::header::CACHE_CONTROL, "public, max-age=86400"),
-        ],
-        buf.into_inner(),
-    ))
+    Ok(buf.into_inner())
 }

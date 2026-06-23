@@ -1,3 +1,9 @@
+//! Global search route (`/search`): keyword-detects which entity types the
+//! query targets (people, organizations, locations, productions, jobs),
+//! runs hybrid text+vector search per type with one shared embedding, logs
+//! the query, and renders a combined results page with like-state for the
+//! signed-in user.
+
 use askama::Template;
 use axum::{
     Router,
@@ -26,15 +32,8 @@ use crate::services::search_log::log_search;
 use crate::services::search_utils;
 use crate::templates::User;
 
-mod filters {
-    pub fn abs_url(path: &str) -> askama::Result<String> {
-        Ok(format!("{}{}", crate::config::app_url(), path))
-    }
-
-    pub fn contains(list: &[String], value: &String) -> askama::Result<bool> {
-        Ok(list.contains(value))
-    }
-}
+// Shared Askama filters (abs_url, …) for the in-file Template derives.
+use crate::templates::filters;
 
 /// Thin wrapper around `services::search::PersonSearchResult` that adds
 /// template-only fields (like `initials`) not present in the canonical type.
@@ -101,6 +100,7 @@ pub struct SearchQuery {
     q: Option<String>,
 }
 
+/// Single route: `/search`, the cross-entity search results page.
 pub fn router() -> Router {
     Router::new().route("/search", get(search_page))
 }
@@ -126,7 +126,7 @@ async fn search_page(
         let template = SearchTemplate {
             app_name: "SlateHub".to_string(),
             year: chrono::Utc::now().year(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: crate::version::asset_version().to_string(),
             active_page: "search".to_string(),
             user: user.clone(),
             query: None,
@@ -276,7 +276,7 @@ async fn search_page(
     let template = SearchTemplate {
         app_name: "SlateHub".to_string(),
         year: chrono::Utc::now().year(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
+        version: crate::version::asset_version().to_string(),
         active_page: "search".to_string(),
         user,
         query: Some(query.to_string()),

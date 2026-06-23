@@ -99,8 +99,8 @@ fn test_update_organization_data() {
 
 #[tokio::test]
 async fn test_organization_model_new() {
+    // Constructing the model without panicking IS the assertion.
     let _model = OrganizationModel::new();
-    assert!(true);
 }
 
 #[test]

@@ -1,0 +1,116 @@
+{# This file must NOT be named `_layout.html`: askama resolves extends paths
+   relative to the current template's directory FIRST, so a file named
+   `_layout.html` in this directory extending "_layout.html" resolves to
+   ITSELF — an extends cycle (instant compile error on askama 0.16; an
+   infinite memory-eating loop on ≤0.12). #}
+{% extends "_layout.html" %}
+
+{% block title %}Manage — {{ production.title }} · {{ app_name }}{% endblock %}
+{% block page_name %}production-manage{% endblock %}
+
+{% block head %}
+{# productions.css supplies the shared prod-btn-* button vocabulary #}
+<link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
+<link rel="stylesheet" href="/static/css/pages/production-manage.css?v={{ version }}" />
+<script src="/static/js/manage-workspace.js?v={{ version }}" defer></script>
+{% endblock %}
+
+{% block content %}
+{# Inline by design: restores the persisted collapsed state BEFORE the
+   sidebar paints, so returning users don't see it flash open. The actual
+   toggle logic lives in static/js/manage-workspace.js. #}
+<script>
+    if (localStorage.getItem("manage-sidebar") === "collapsed")
+        document.documentElement.dataset.manageSidebar = "collapsed";
+</script>
+<div class="manage-workspace">
+    <aside class="manage-sidebar">
+        <header class="manage-identity">
+            <p class="manage-eyebrow">Production workspace</p>
+            <h1 class="manage-identity-title">
+                <a href="/productions/{{ production.slug }}/manage" title="{{ production.title }}">{{ production.title }}</a>
+            </h1>
+            <p class="manage-identity-meta">
+                <span class="manage-type-badge">{{ production.production_type }}</span>
+                <span class="manage-status-badge" data-status="{{ production.status }}">{{ production.status }}</span>
+            </p>
+        </header>
+
+        <button type="button" class="manage-collapse" aria-label="Collapse sidebar" title="Collapse sidebar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+
+        <nav class="manage-nav" aria-label="Management sections">
+            <a href="/productions/{{ production.slug }}/manage" title="Overview"
+               class="manage-nav-item{% if active_tab == "overview" %} is-active{% endif %}"
+               {% if active_tab == "overview" %}aria-current="page"{% endif %}>
+                <span class="manage-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
+                <span class="manage-nav-text">Overview</span>
+            </a>
+
+            <p class="manage-nav-label" id="manage-stages-label">Stages</p>
+            <ol class="manage-stages" aria-labelledby="manage-stages-label">
+                <li>
+                    <a href="/productions/{{ production.slug }}/manage/script" title="Script"
+                       class="manage-stage{% if active_tab == "script" %} is-active{% endif %}"
+                       {% if active_tab == "script" %}aria-current="page"{% endif %}>
+                        <span class="manage-stage-num">01</span>
+                        <span class="manage-stage-name">Script</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/productions/{{ production.slug }}/manage/breakdown" title="Breakdown"
+                       class="manage-stage{% if active_tab == "breakdown" %} is-active{% endif %}"
+                       {% if active_tab == "breakdown" %}aria-current="page"{% endif %}>
+                        <span class="manage-stage-num">02</span>
+                        <span class="manage-stage-name">Breakdown</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/productions/{{ production.slug }}/manage/schedule" title="Schedule"
+                       class="manage-stage{% if active_tab == "schedule" %} is-active{% endif %}"
+                       {% if active_tab == "schedule" %}aria-current="page"{% endif %}>
+                        <span class="manage-stage-num">03</span>
+                        <span class="manage-stage-name">Schedule</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/productions/{{ production.slug }}/manage/call-sheets" title="Call Sheets"
+                       class="manage-stage{% if active_tab == "call-sheets" %} is-active{% endif %}"
+                       {% if active_tab == "call-sheets" %}aria-current="page"{% endif %}>
+                        <span class="manage-stage-num">04</span>
+                        <span class="manage-stage-name">Call Sheets</span>
+                    </a>
+                </li>
+            </ol>
+
+            <p class="manage-nav-label" id="manage-production-label">Production</p>
+            <a href="/productions/{{ production.slug }}/manage/team" title="Team"
+               class="manage-nav-item{% if active_tab == "team" %} is-active{% endif %}"
+               {% if active_tab == "team" %}aria-current="page"{% endif %}>
+                <span class="manage-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                <span class="manage-nav-text">Team</span>
+            </a>
+            <span class="manage-nav-item is-disabled" aria-disabled="true" title="Files — coming soon">
+                <span class="manage-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+                <span class="manage-nav-text">Files</span>
+            </span>
+            <span class="manage-nav-item is-disabled" aria-disabled="true" title="Budget — coming soon">
+                <span class="manage-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+                <span class="manage-nav-text">Budget</span>
+            </span>
+        </nav>
+
+        <footer class="manage-sidebar-foot">
+            <p class="manage-role-badge"><span class="manage-nav-text">your role: </span><strong>{{ role }}</strong></p>
+            <a class="manage-exit" href="/productions/{{ production.slug }}" title="Back to public overview">
+                <span aria-hidden="true">←</span><span class="manage-nav-text"> Public overview</span>
+            </a>
+        </footer>
+    </aside>
+
+    <section class="manage-main" aria-labelledby="manage-content-heading">
+        {% block manage_content %}{% endblock %}
+    </section>
+</div>
+{% endblock %}

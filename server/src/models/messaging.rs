@@ -1,8 +1,18 @@
+//! Direct messaging between two people.
+//!
+//! Owns the `conversation` table (one row per unordered pair of people,
+//! with per-person soft delete via `deleted_by`) and the `direct_message`
+//! table. Called by `routes/messages.rs`; unread counts also feed the nav
+//! badge. Count queries use `GROUP ALL` so the aggregate returns one row.
+
 use crate::{db::DB, error::Error};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
 
+/// A two-person message thread. `participant_a`/`participant_b` are stored
+/// in canonical order (lexicographically smaller record id is `a`) so each
+/// pair maps to exactly one row.
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct Conversation {
     pub id: RecordId,
@@ -14,6 +24,7 @@ pub struct Conversation {
     pub deleted_by: Vec<RecordId>,
 }
 
+/// One message inside a [`Conversation`].
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct DirectMessage {
     pub id: RecordId,
@@ -29,6 +40,7 @@ struct CountResult {
     count: u32,
 }
 
+/// Query/mutation surface for `conversation` + `direct_message`.
 pub struct MessagingModel;
 
 impl Default for MessagingModel {
@@ -38,6 +50,7 @@ impl Default for MessagingModel {
 }
 
 impl MessagingModel {
+    /// Construct the (stateless) model handle.
     pub fn new() -> Self {
         Self
     }
@@ -95,7 +108,9 @@ impl MessagingModel {
         conv.ok_or_else(|| Error::Database("Failed to create conversation".to_string()))
     }
 
-    /// Send a message in a conversation.
+    /// Send a message in a conversation; also bumps the conversation's
+    /// `last_message_at` and clears `deleted_by` so the thread reappears for
+    /// both participants.
     pub async fn send_message(
         &self,
         conversation_id: &str,
@@ -196,7 +211,8 @@ impl MessagingModel {
         Ok(())
     }
 
-    /// Get unread message count for a person across all conversations.
+    /// Get unread message count for a person across all conversations they
+    /// haven't soft-deleted (`GROUP ALL` aggregate).
     pub async fn get_unread_count(&self, person_id: &str) -> Result<u32, Error> {
         let rid =
             RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;

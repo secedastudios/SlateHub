@@ -1,9 +1,14 @@
+//! Like/favorite routes: the `/likes` page listing a member's liked people
+//! and locations, plus JSON and Datastar-SSE APIs to toggle a like and to
+//! check which targets are already liked. SSE responses re-render the heart
+//! button in a page-specific variant and, on the likes page itself, remove
+//! the card and refresh the tab counts.
+
 use askama::Template;
 use axum::{
     Json, Router,
     extract::{Path, Query as AxumQuery, Request},
-    http::header,
-    response::{Html, IntoResponse, Response},
+    response::{Html, Response},
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
@@ -11,12 +16,14 @@ use surrealdb::types::RecordId;
 use tracing::{debug, error};
 
 use crate::{
+    datastar,
     error::Error,
     middleware::{AuthenticatedUser, UserExtractor},
     models::likes::LikesModel,
     templates::{BaseContext, LikesTemplate, User},
 };
 
+/// Routes for the `/likes` page and the `/api/likes/*` toggle/check APIs.
 pub fn router() -> Router {
     Router::new()
         .route("/likes", get(likes_page))
@@ -106,31 +113,6 @@ async fn check_likes(
     let liked_ids = LikesModel::get_liked_ids(&person_id, &target_ids).await?;
 
     Ok(Json(CheckResponse { liked_ids }))
-}
-
-// -- SSE helpers for Datastar --
-
-fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!(
-        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
-        selector, mode
-    );
-    if !elements.is_empty() {
-        s += &format!("data: elements {}\n", elements.replace('\n', " "));
-    }
-    s += "\n";
-    s
-}
-
-fn sse_response(body: String) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "text/event-stream"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
 }
 
 const HEART_PATH: &str = "M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z";
@@ -224,12 +206,12 @@ async fn toggle_like_sse(
     let btn_html = like_button_html(&target_id_raw, liked, variant);
     let selector = format!(r#"[data-like-target="{}"]"#, target_id_raw);
 
-    let mut sse = sse_patch_elements(&selector, "outer", &btn_html);
+    let mut sse = datastar::patch_elements(&selector, "outer", &btn_html);
 
     // On likes page, remove the card and update the tab count when unliked
     if !liked && variant == "likes" {
         let card_selector = format!(r#"[data-like-card="{}"]"#, target_id_raw);
-        sse += &sse_patch_elements(&card_selector, "remove", "");
+        sse += &datastar::patch_elements(&card_selector, "remove", "");
 
         // Update the tab count
         let count_tab = if target_id_raw.starts_with("location:") {
@@ -247,10 +229,10 @@ async fn toggle_like_sse(
                 .unwrap_or(0)
         };
         let count_selector = format!("#likes-count-{}", count_tab);
-        sse += &sse_patch_elements(&count_selector, "inner", &count.to_string());
+        sse += &datastar::patch_elements(&count_selector, "inner", &count.to_string());
     }
 
-    Ok(sse_response(sse))
+    Ok(datastar::response(sse))
 }
 
 /// Likes page (requires auth)
@@ -283,15 +265,10 @@ async fn likes_page(request: Request) -> Result<Html<String>, Error> {
             vec![]
         });
 
-    let template = LikesTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(LikesTemplate, base, {
         liked_people,
         liked_locations,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render likes template: {}", e);

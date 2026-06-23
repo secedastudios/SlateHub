@@ -1,3 +1,13 @@
+//! Production credits: the `involvement` graph edge.
+//!
+//! Owns the `involvement` RELATION (person|organization -> production) that
+//! records cast/crew credits and their verification lifecycle
+//! (self_asserted → pending_verification → verified/rejected, with
+//! externally_sourced for TMDB imports). Called by `routes/profile.rs`,
+//! `routes/productions.rs`, `routes/public_profiles.rs`, `routes/api.rs`,
+//! and by `models::production` when membership changes create or sync
+//! credits.
+
 use crate::db::DB;
 use crate::error::Error;
 use serde::{Deserialize, Serialize};
@@ -8,11 +18,23 @@ use tracing::debug;
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct InvolvementWithProduction {
     pub id: RecordId,
+    /// Character name or job title (free text).
     pub role: Option<String>,
+    /// "cast" | "crew" | "credit" (schema comment on
+    /// `involvement.relation_type`; no ASSERT).
     pub relation_type: String,
     pub department: Option<String>,
+    /// "cast" | "crew" | "above_the_line" | "below_the_line" (schema
+    /// comment; no ASSERT).
     pub credit_type: Option<String>,
+    /// Lifecycle state: "self_asserted" | "pending_verification" |
+    /// "verified" | "rejected" | "externally_sourced" (schema comment on
+    /// `involvement.verification_status`; no ASSERT; default
+    /// "self_asserted").
     pub verification_status: String,
+    /// How the credit was created: "manual" (default) | "tmdb_import" |
+    /// "imdb_import" | "claimed" | "invited" (no ASSERT; see
+    /// [`InvolvementModel::create`] for the status each maps to).
     pub source: String,
     // Production fields from out.*
     pub production_id: RecordId,
@@ -33,19 +55,30 @@ pub struct InvolvementWithProduction {
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct InvolvementWithPerson {
     pub id: RecordId,
+    /// Character name or job title (free text).
     pub role: Option<String>,
+    /// "cast" | "crew" | "credit" (schema comment on
+    /// `involvement.relation_type`; no ASSERT).
     pub relation_type: String,
     pub department: Option<String>,
+    /// "cast" | "crew" | "above_the_line" | "below_the_line" (schema
+    /// comment; no ASSERT).
     pub credit_type: Option<String>,
+    /// Lifecycle state: "self_asserted" | "pending_verification" |
+    /// "verified" | "rejected" | "externally_sourced" (schema comment; no
+    /// ASSERT).
     pub verification_status: String,
     pub person_id: RecordId,
     pub person_name: Option<String>,
     pub person_username: String,
     pub person_avatar: Option<String>,
+    /// One of "unverified" | "email" | "sms" | "identity" (schema ASSERT on
+    /// `person.verification_status`).
     #[serde(default)]
     pub person_verification_status: Option<String>,
 }
 
+/// Query/mutation surface for `involvement` credit edges.
 pub struct InvolvementModel;
 
 /// Parse a "table:key" string into a RecordId
@@ -59,7 +92,14 @@ fn to_record_id(id: &str) -> RecordId {
 }
 
 impl InvolvementModel {
-    /// Create an involvement edge: person->involvement->production
+    /// Create an involvement edge: person->involvement->production.
+    ///
+    /// `source` decides the initial `verification_status`: "tmdb_import" /
+    /// "imdb_import" → "externally_sourced", "claimed" → "verified",
+    /// "invited" → "pending_verification", anything else (e.g. "manual") →
+    /// "self_asserted". The RELATE result is piped through
+    /// `SELECT VALUE string::concat(meta::tb(id), ':', meta::id(id))` so the
+    /// new edge id comes back as a plain string (statement index 1).
     pub async fn create(
         person_id: &str,
         production_id: &RecordId,
@@ -117,7 +157,9 @@ impl InvolvementModel {
         Ok(involvement_id.unwrap_or_default())
     }
 
-    /// Get all involvements for a person with production details (graph traversal using out.*)
+    /// Get all non-rejected involvements for a person with production
+    /// details joined via `out.*`, newest production first (records without
+    /// a release date sort to the top).
     pub async fn get_for_person(person_id: &str) -> Result<Vec<InvolvementWithProduction>, Error> {
         debug!("Fetching involvements for person: {}", person_id);
 

@@ -1,3 +1,11 @@
+//! Filming-location records and their rental rates.
+//!
+//! Owns the `location` table (whose `created_by` may be a person or an
+//! organization) and the `location_rate` table. Called by
+//! `routes/locations.rs` for CRUD, browse, and search, and by
+//! `routes/media.rs` for photo management; `list()` powers the public browse
+//! page with optional keyword + vector-similarity scoring.
+
 use crate::db::DB;
 use crate::error::Error;
 use crate::record_id_ext::RecordIdExt;
@@ -88,6 +96,8 @@ pub struct UpdateLocationData {
 pub struct LocationRate {
     pub id: String,
     pub location: String,
+    /// One of "hourly" | "daily" | "weekly" | "monthly" | "custom"
+    /// (schema ASSERT on `location_rate.rate_type`).
     pub rate_type: String,
     pub amount: f64,
     pub currency: String,
@@ -99,6 +109,8 @@ pub struct LocationRate {
 /// Data for creating a location rate
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateRateData {
+    /// One of "hourly" | "daily" | "weekly" | "monthly" | "custom"
+    /// (schema ASSERT on `location_rate.rate_type`).
     pub rate_type: String,
     pub amount: f64,
     pub currency: Option<String>,
@@ -420,15 +432,7 @@ impl LocationModel {
 
         if let Some(name) = data.name {
             // Also update slug if name changes
-            let slug = name
-                .to_lowercase()
-                .chars()
-                .map(|c| if c.is_alphanumeric() { c } else { '-' })
-                .collect::<String>()
-                .split('-')
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>()
-                .join("-");
+            let slug = crate::text::slugify(&name);
             db_query = db_query.bind(("name", name));
             update_fields.push("slug = $slug");
             db_query = db_query.bind(("slug", slug));
@@ -490,8 +494,12 @@ impl LocationModel {
         Ok(location)
     }
 
-    /// Delete a location and all its rates
-    /// Delete a location
+    /// Delete a location (and any `rate` rows referencing it) in a single
+    /// transaction.
+    ///
+    /// Note: the cascade targets a table literally named `rate`; rates are
+    /// stored in `location_rate`, so this statement is a no-op cleanup kept
+    /// as-is for behavior preservation.
     pub async fn delete(location_id: &RecordId) -> Result<(), Error> {
         debug!("Deleting location: {}", location_id.display());
 
@@ -520,11 +528,16 @@ impl LocationModel {
         Ok(())
     }
 
-    /// Check if a user can edit a location
-    pub async fn can_edit(location_id: &RecordId, user_id: &str) -> Result<bool, Error> {
+    /// Check if a person can edit a location (only the creator can).
+    ///
+    /// Compares the location's `created_by` record id, rendered as a raw
+    /// string, against `person_id` — so it only matches when the location was
+    /// created by that person directly (organization-created locations never
+    /// match a person id).
+    pub async fn can_edit(location_id: &RecordId, person_id: &str) -> Result<bool, Error> {
         debug!(
             "Checking edit permission for {} on location {}",
-            user_id,
+            person_id,
             location_id.display()
         );
 
@@ -546,7 +559,7 @@ impl LocationModel {
         let location: Option<CreatedByResult> = result.take(0)?;
         if let Some(loc) = location {
             let created_by_str = loc.created_by.to_raw_string();
-            return Ok(created_by_str == user_id);
+            return Ok(created_by_str == person_id);
         }
         Ok(false)
     }

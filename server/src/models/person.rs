@@ -902,7 +902,7 @@ impl Person {
         let username = validate_username(&username)?;
 
         // Hash the password using SurrealDB-compatible Argon2id
-        let password_hash = auth::hash_password(&password)?;
+        let password_hash = auth::hash_password(&password).await?;
 
         // Check if user already exists
         if Self::find_by_username(&username).await?.is_some() {
@@ -1044,7 +1044,7 @@ impl Person {
         let person_with_password = persons.into_iter().next().ok_or(Error::Unauthorized)?;
 
         // Verify the password
-        if !auth::verify_password(&password, &person_with_password.password)? {
+        if !auth::verify_password(&password, &person_with_password.password).await? {
             debug!("Invalid password for user: {}", identifier);
             return Err(Error::Unauthorized);
         }
@@ -1310,6 +1310,9 @@ impl Person {
             DELETE equipment WHERE owner_person = $pid;
             DELETE security_event WHERE subject = $pid;
             DELETE media WHERE uploaded_by = $pid;
+            DELETE call_time WHERE person = $pid;
+            UPDATE call_sheet SET generated_by = NONE WHERE generated_by = $pid;
+            UPDATE call_sheet SET sent_by = NONE WHERE sent_by = $pid;
             UPDATE feature_flag SET updated_by = NONE WHERE updated_by = $pid;
             DELETE FROM involvement WHERE in = $pid OR out = $pid;
             DELETE FROM member_of WHERE in = $pid;

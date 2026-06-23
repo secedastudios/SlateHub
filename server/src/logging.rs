@@ -1,3 +1,12 @@
+//! Tracing initialization and ANSI-colored log formatting.
+//!
+//! `main.rs` calls [`init`] once at startup to install the global `tracing`
+//! subscriber; `LOG_FORMAT` selects the output style and `RUST_LOG` the
+//! filter. The `format_*` helpers wrap status codes and error messages in
+//! ANSI color codes for terminal output, and the exported macros defined here
+//! (`log_http_response!`, `log_db_error!`, `debug_log!`, …) give the rest of
+//! the crate consistent, colored log events with location info.
+
 use std::env;
 use std::fmt::Display;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -10,7 +19,8 @@ const COLOR_ORANGE: &str = "\x1b[38;5;214m"; // Light orange
 const COLOR_RED: &str = "\x1b[31m";
 const COLOR_LIGHT_ORANGE: &str = "\x1b[38;5;215m"; // Light orange for database errors
 
-/// Format an HTTP status code with appropriate color
+/// Format an HTTP status code with the ANSI color for its class:
+/// 2xx green, 3xx yellow, 4xx orange, 5xx red.
 pub fn format_http_status(status: u16) -> String {
     let color = match status {
         200..=299 => COLOR_GREEN,  // 2xx - Success (Green)
@@ -31,7 +41,11 @@ pub fn format_database_error<T: Display>(message: T) -> String {
     )
 }
 
-/// Format any error message with appropriate color based on type
+/// Format any error message with appropriate color based on type.
+///
+/// Recognized (case-insensitive) types: `"database"`/`"db"`,
+/// `"http"`/`"network"`, and `"internal"`/`"server"`; anything else gets a
+/// generic orange `Error:` prefix.
 pub fn format_colored_error<T: Display>(error_type: &str, message: T) -> String {
     match error_type.to_lowercase().as_str() {
         "database" | "db" => format!(
@@ -67,6 +81,11 @@ pub fn format_colored_error<T: Display>(error_type: &str, message: T) -> String 
 /// ```sh
 /// RUST_LOG=warn,slatehub::routes::search=debug
 /// ```
+///
+/// # Panics
+///
+/// Panics if a global tracing subscriber has already been installed; call
+/// this exactly once at startup.
 pub fn init() {
     // Get log format from environment, default to "dev" for better debugging
     // Options: "json", "compact", "dev", "pretty"

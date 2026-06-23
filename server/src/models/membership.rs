@@ -22,9 +22,14 @@ pub struct Membership {
     pub id: RecordId,
     pub person_id: RecordId,
     pub organization_id: RecordId,
+    /// One of "owner" | "admin" | "member" (schema comment on
+    /// `member_of.role`; no ASSERT — see [`MembershipRole`]).
     pub role: String,
     pub permissions: Vec<String>,
     pub joined_at: DateTime<Utc>,
+    /// One of "pending" | "accepted" | "declined" | "requested" (schema
+    /// comment on `member_of.invitation_status`; no ASSERT — see
+    /// [`InvitationStatus`]).
     pub invitation_status: String,
     pub invited_by: Option<RecordId>,
     pub invited_at: Option<DateTime<Utc>>,
@@ -41,6 +46,7 @@ pub enum MembershipRole {
 }
 
 impl MembershipRole {
+    /// The lowercase string stored in `member_of.role`.
     pub fn as_str(&self) -> &str {
         match self {
             MembershipRole::Owner => "owner",
@@ -49,6 +55,10 @@ impl MembershipRole {
         }
     }
 
+    /// Parse a stored/form value (case-insensitive).
+    ///
+    /// # Errors
+    /// `Error::Validation` for anything other than owner/admin/member.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, Error> {
         match s.to_lowercase().as_str() {
@@ -94,6 +104,7 @@ pub enum InvitationStatus {
 }
 
 impl InvitationStatus {
+    /// The lowercase string stored in `member_of.invitation_status`.
     pub fn as_str(&self) -> &str {
         match self {
             InvitationStatus::Pending => "pending",
@@ -103,6 +114,10 @@ impl InvitationStatus {
         }
     }
 
+    /// Parse a stored/form value (case-insensitive).
+    ///
+    /// # Errors
+    /// `Error::Validation` for an unknown status string.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, Error> {
         match s.to_lowercase().as_str() {
@@ -140,6 +155,8 @@ pub struct UpdateMembershipData {
 // Model Implementation
 // ============================
 
+/// Query/mutation surface for person -> organization `member_of` edges.
+/// (Production membership lives in `models::production` instead.)
 pub struct MembershipModel;
 
 impl Default for MembershipModel {
@@ -149,11 +166,18 @@ impl Default for MembershipModel {
 }
 
 impl MembershipModel {
+    /// Construct the (stateless) model handle.
     pub fn new() -> Self {
         Self
     }
 
-    /// Create a new membership relationship
+    /// Create a person -> organization membership edge via RELATE (record
+    /// keys are formatted into the RELATE statement; the other values are
+    /// bound).
+    ///
+    /// # Errors
+    /// `Error::Conflict` if a membership already exists for the pair,
+    /// `Error::BadRequest` for an invalid `invited_by` id.
     pub async fn create(&self, data: CreateMembershipData) -> Result<Membership, Error> {
         debug!(
             "Creating membership between person {} and organization {} with role {:?}",

@@ -1,3 +1,9 @@
+//! Notification routes: the `/notifications` list page, mark-read /
+//! delete / clear-all form actions, org-invitation accept/decline, and a
+//! long-lived SSE stream (`/api/notifications/stream`) that pushes unread
+//! badge counts to the navbar whenever a broadcast event for the signed-in
+//! user arrives.
+
 use askama::Template;
 use axum::{
     Form, Router,
@@ -15,11 +21,8 @@ use crate::{
     templates::{BaseContext, User},
 };
 
-mod filters {
-    pub fn abs_url(path: &str) -> askama::Result<String> {
-        Ok(format!("{}{}", crate::config::app_url(), path))
-    }
-}
+// Shared Askama filters (abs_url, …) for the in-file Template derives.
+use crate::templates::filters;
 
 /// Template-friendly notification view with String fields instead of RecordId
 struct NotificationView {
@@ -46,17 +49,12 @@ struct NotificationsTemplate {
 
 impl NotificationsTemplate {
     fn new(base: BaseContext, notifications: Vec<NotificationView>) -> Self {
-        Self {
-            app_name: base.app_name,
-            year: base.year,
-            version: base.version,
-            active_page: base.active_page,
-            user: base.user,
-            notifications,
-        }
+        crate::with_base!(NotificationsTemplate, base, { notifications })
     }
 }
 
+/// Routes for `/notifications` pages/actions, `/invitations` accept/decline,
+/// and the `/api/notifications/stream` SSE badge feed.
 pub fn router() -> Router {
     Router::new()
         .route("/notifications", get(list_notifications))

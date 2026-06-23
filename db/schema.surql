@@ -454,12 +454,52 @@ DEFINE FIELD budget_level ON production TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD production_tier ON production TYPE option<string> PERMISSIONS FULL;
 
 -- ------------------------------
+-- TABLE: season + episode (productions management)
+-- ------------------------------
+
+DEFINE TABLE season TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD production ON season TYPE record<production> PERMISSIONS FULL;
+DEFINE FIELD season_number ON season TYPE int ASSERT $value > 0 PERMISSIONS FULL;
+DEFINE FIELD title ON season TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD description ON season TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD premiere_date ON season TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD finale_date ON season TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD status ON season TYPE string DEFAULT 'in_development'
+    ASSERT $value IN ['in_development', 'in_production', 'released', 'on_hiatus', 'canceled'] PERMISSIONS FULL;
+DEFINE FIELD created_at ON season TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON season TYPE datetime VALUE time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_season_production_number ON season FIELDS production, season_number UNIQUE;
+DEFINE INDEX idx_season_production ON season FIELDS production;
+
+DEFINE TABLE episode TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD production ON episode TYPE record<production> PERMISSIONS FULL;
+DEFINE FIELD season ON episode TYPE record<season> PERMISSIONS FULL;  -- required; auto-created "Season 1" for flat series
+DEFINE FIELD episode_number ON episode TYPE int ASSERT $value > 0 PERMISSIONS FULL;
+DEFINE FIELD title ON episode TYPE string PERMISSIONS FULL;
+DEFINE FIELD slug ON episode TYPE string ASSERT string::len($value) > 0 PERMISSIONS FULL;
+DEFINE FIELD description ON episode TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD status ON episode TYPE string DEFAULT 'in_development'
+    ASSERT $value IN ['in_development', 'in_production', 'shot', 'edited', 'released', 'canceled'] PERMISSIONS FULL;
+DEFINE FIELD air_date ON episode TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD created_at ON episode TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON episode TYPE datetime VALUE time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_episode_season_number ON episode FIELDS season, episode_number UNIQUE;
+DEFINE INDEX idx_episode_production_slug ON episode FIELDS production, slug UNIQUE;
+DEFINE INDEX idx_episode_production ON episode FIELDS production;
+DEFINE INDEX idx_episode_season ON episode FIELDS season;
+
+-- ------------------------------
 -- TABLE: production_script (versioned script uploads)
 -- ------------------------------
 
 DEFINE TABLE production_script TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 
 DEFINE FIELD production ON production_script TYPE record<production> PERMISSIONS FULL;
+DEFINE FIELD episode ON production_script TYPE option<record<episode>> PERMISSIONS FULL;  -- NULL for production-level scripts (film, series bible)
 DEFINE FIELD title ON production_script TYPE string PERMISSIONS FULL;
 DEFINE FIELD version ON production_script TYPE int DEFAULT 1 PERMISSIONS FULL;
 DEFINE FIELD file_url ON production_script TYPE string PERMISSIONS FULL;
@@ -472,7 +512,155 @@ DEFINE FIELD notes ON production_script TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD created_at ON production_script TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 
 DEFINE INDEX idx_script_production ON production_script FIELDS production;
+DEFINE INDEX idx_script_episode ON production_script FIELDS episode;
 DEFINE INDEX idx_script_production_version ON production_script FIELDS production, title, version UNIQUE;
+
+-- ------------------------------
+-- TABLE: scene + breakdown_item (extracted from scripts via aristotle)
+-- ------------------------------
+
+DEFINE TABLE scene TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD production ON scene TYPE record<production> PERMISSIONS FULL;
+DEFINE FIELD episode ON scene TYPE option<record<episode>> PERMISSIONS FULL;
+DEFINE FIELD script ON scene TYPE option<record<production_script>> PERMISSIONS FULL;
+DEFINE FIELD scene_number ON scene TYPE string PERMISSIONS FULL;
+DEFINE FIELD heading ON scene TYPE string PERMISSIONS FULL;
+DEFINE FIELD int_ext ON scene TYPE option<string>
+    ASSERT $value = NONE OR $value IN ['int', 'ext', 'int_ext'] PERMISSIONS FULL;
+DEFINE FIELD location ON scene TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD location_record ON scene TYPE option<record<location>> PERMISSIONS FULL;
+DEFINE FIELD time_of_day ON scene TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD page_length ON scene TYPE option<decimal> PERMISSIONS FULL;
+DEFINE FIELD description ON scene TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD status ON scene TYPE string DEFAULT 'auto'
+    ASSERT $value IN ['auto', 'reviewed', 'shooting', 'wrapped'] PERMISSIONS FULL;
+DEFINE FIELD created_at ON scene TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON scene TYPE datetime VALUE time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_scene_production ON scene FIELDS production;
+DEFINE INDEX idx_scene_episode ON scene FIELDS episode;
+DEFINE INDEX idx_scene_script ON scene FIELDS script;
+
+DEFINE TABLE breakdown_item TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD scene ON breakdown_item TYPE record<scene> PERMISSIONS FULL;
+DEFINE FIELD category ON breakdown_item TYPE string
+    ASSERT $value IN [
+        'cast', 'cast_silent', 'cast_extra',
+        'prop', 'wardrobe', 'makeup_hair',
+        'sfx', 'vfx', 'sound_effect', 'stunt',
+        'animal', 'vehicle', 'music',
+        'location_note', 'introduction', 'other'
+    ] PERMISSIONS FULL;
+DEFINE FIELD value ON breakdown_item TYPE string PERMISSIONS FULL;
+DEFINE FIELD confidence ON breakdown_item TYPE option<decimal> PERMISSIONS FULL;
+DEFINE FIELD source ON breakdown_item TYPE string DEFAULT 'auto'
+    ASSERT $value IN ['auto', 'manual', 'edited'] PERMISSIONS FULL;
+DEFINE FIELD notes ON breakdown_item TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD created_at ON breakdown_item TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON breakdown_item TYPE datetime VALUE time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_breakdown_item_scene ON breakdown_item FIELDS scene;
+DEFINE INDEX idx_breakdown_item_scene_category ON breakdown_item FIELDS scene, category;
+
+-- ------------------------------
+-- TABLES: scheduling (schedule_day, schedule_scene, call_time, call_sheet)
+-- ------------------------------
+
+DEFINE TABLE schedule_day TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD production ON schedule_day TYPE record<production> PERMISSIONS FULL;
+DEFINE FIELD episode ON schedule_day TYPE option<record<episode>> PERMISSIONS FULL;
+DEFINE FIELD date ON schedule_day TYPE datetime PERMISSIONS FULL;
+DEFINE FIELD location ON schedule_day TYPE option<record<location>> PERMISSIONS FULL;
+DEFINE FIELD location_label ON schedule_day TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD general_call ON schedule_day TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD breakfast_time ON schedule_day TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD lunch_time ON schedule_day TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD weather_summary ON schedule_day TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD sunrise ON schedule_day TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD sunset ON schedule_day TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD notes ON schedule_day TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD status ON schedule_day TYPE string DEFAULT 'planned'
+    ASSERT $value IN ['planned', 'confirmed', 'shooting', 'wrapped', 'canceled'] PERMISSIONS FULL;
+DEFINE FIELD created_at ON schedule_day TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON schedule_day TYPE datetime VALUE time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_schedule_day_production_date ON schedule_day FIELDS production, date;
+DEFINE INDEX idx_schedule_day_episode ON schedule_day FIELDS episode;
+
+DEFINE TABLE schedule_scene TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD schedule_day ON schedule_scene TYPE record<schedule_day> PERMISSIONS FULL;
+DEFINE FIELD scene ON schedule_scene TYPE record<scene> PERMISSIONS FULL;
+DEFINE FIELD order_index ON schedule_scene TYPE int ASSERT $value >= 0 PERMISSIONS FULL;
+DEFINE FIELD start_time ON schedule_scene TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD estimated_duration_min ON schedule_scene TYPE option<int> PERMISSIONS FULL;
+DEFINE FIELD status ON schedule_scene TYPE string DEFAULT 'planned'
+    ASSERT $value IN ['planned', 'shooting', 'wrapped', 'skipped'] PERMISSIONS FULL;
+DEFINE FIELD created_at ON schedule_scene TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON schedule_scene TYPE datetime VALUE time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_schedule_scene_day_scene ON schedule_scene FIELDS schedule_day, scene UNIQUE;
+DEFINE INDEX idx_schedule_scene_day_order ON schedule_scene FIELDS schedule_day, order_index;
+
+DEFINE TABLE call_time TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD schedule_day ON call_time TYPE record<schedule_day> PERMISSIONS FULL;
+DEFINE FIELD person ON call_time TYPE record<person> PERMISSIONS FULL;
+DEFINE FIELD role ON call_time TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD department ON call_time TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD relation_type ON call_time TYPE option<string>
+    ASSERT $value = NONE OR $value IN ['cast', 'crew'] PERMISSIONS FULL;
+DEFINE FIELD call_at ON call_time TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD makeup_at ON call_time TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD on_set_at ON call_time TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD wrap_estimate ON call_time TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD work_status ON call_time TYPE option<string>
+    ASSERT $value = NONE OR $value IN ['W', 'H', 'SW', 'WF', 'TR'] PERMISSIONS FULL;
+DEFINE FIELD notes ON call_time TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD created_at ON call_time TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD updated_at ON call_time TYPE datetime VALUE time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_call_time_day_person ON call_time FIELDS schedule_day, person UNIQUE;
+DEFINE INDEX idx_call_time_person ON call_time FIELDS person;
+
+DEFINE TABLE call_sheet TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD schedule_day ON call_sheet TYPE record<schedule_day> PERMISSIONS FULL;
+DEFINE FIELD version ON call_sheet TYPE int DEFAULT 1 ASSERT $value > 0 PERMISSIONS FULL;
+DEFINE FIELD generated_at ON call_sheet TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD generated_by ON call_sheet TYPE option<record<person>> PERMISSIONS FULL;
+DEFINE FIELD pdf_key ON call_sheet TYPE string PERMISSIONS FULL;
+DEFINE FIELD pdf_size ON call_sheet TYPE option<int> PERMISSIONS FULL;
+DEFINE FIELD sent_at ON call_sheet TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD sent_by ON call_sheet TYPE option<record<person>> PERMISSIONS FULL;
+DEFINE FIELD recipient_count ON call_sheet TYPE option<int> PERMISSIONS FULL;
+
+DEFINE INDEX idx_call_sheet_day_version ON call_sheet FIELDS schedule_day, version UNIQUE;
+DEFINE INDEX idx_call_sheet_day ON call_sheet FIELDS schedule_day;
+
+-- ------------------------------
+-- TABLE: aristotle_job (in-process breakdown tracking)
+-- ------------------------------
+
+DEFINE TABLE aristotle_job TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD production ON aristotle_job TYPE record<production> PERMISSIONS FULL;
+DEFINE FIELD episode ON aristotle_job TYPE option<record<episode>> PERMISSIONS FULL;
+DEFINE FIELD script ON aristotle_job TYPE record<production_script> PERMISSIONS FULL;
+DEFINE FIELD status ON aristotle_job TYPE string DEFAULT 'queued'
+    ASSERT $value IN ['queued', 'running', 'complete', 'failed'] PERMISSIONS FULL;
+DEFINE FIELD scenes_produced ON aristotle_job TYPE option<int> PERMISSIONS FULL;
+DEFINE FIELD error ON aristotle_job TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD created_at ON aristotle_job TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+DEFINE FIELD started_at ON aristotle_job TYPE option<datetime> PERMISSIONS FULL;
+DEFINE FIELD completed_at ON aristotle_job TYPE option<datetime> PERMISSIONS FULL;
+
+DEFINE INDEX idx_aristotle_job_production ON aristotle_job FIELDS production;
+DEFINE INDEX idx_aristotle_job_script ON aristotle_job FIELDS script;
+DEFINE INDEX idx_aristotle_job_status_created ON aristotle_job FIELDS status, created_at;
 
 -- ------------------------------
 -- TABLE: location (filming locations)

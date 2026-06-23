@@ -1,0 +1,118 @@
+{% extends "productions/manage/manage_layout.html" %}
+
+{% block manage_content %}
+<header class="manage-tab-header">
+    <h2 id="manage-content-heading">Production at a glance</h2>
+    <p>Live status of every stage — jump in where the work is.</p>
+</header>
+
+<section class="lifecycle{% if lifecycle.canceled %} is-canceled{% endif %}"
+         aria-label="Production lifecycle"
+         data-current="{{ lifecycle.current_key }}">
+    <div class="lifecycle-head">
+        <span class="lifecycle-eyebrow">Current phase</span>
+        <span class="lifecycle-current" data-phase="{{ lifecycle.current_key }}">{{ lifecycle.current_label }}</span>
+    </div>
+    <ol class="lifecycle-track">
+        {% for step in lifecycle.steps %}
+        <li class="lifecycle-step{% if step.reached %} is-reached{% endif %}{% if step.current %} is-current{% endif %}"
+            data-phase="{{ step.key }}"
+            {% if step.current %}aria-current="step"{% endif %}>
+            <span class="lifecycle-dot">{% if step.current %}<span class="lifecycle-dot-pulse"></span>{% endif %}</span>
+            <span class="lifecycle-num">{% if step.number < 10 %}0{% endif %}{{ step.number }}</span>
+            <span class="lifecycle-label">{{ step.label }}</span>
+        </li>
+        {% endfor %}
+    </ol>
+    {% if lifecycle.canceled %}
+    <p class="lifecycle-canceled-note">This production is marked <strong>Canceled</strong>.</p>
+    {% endif %}
+</section>
+
+<div class="dash-grid">
+    <a class="dash-stage" href="/productions/{{ production.slug }}/manage/script">
+        <header class="dash-stage-head">
+            <span class="dash-stage-num">01</span>
+            <h3>Script</h3>
+        </header>
+        {% if stats.script_revisions > 0 %}
+        <p class="dash-big">
+            {% if stats.latest_script_version.is_some() %}v{{ stats.latest_script_version.unwrap() }}{% endif %}
+            {% if stats.latest_script_title.is_some() %}<span class="dash-big-label">{{ stats.latest_script_title.as_ref().unwrap() }}</span>{% endif %}
+        </p>
+        <dl class="dash-stats">
+            <div><dt>Revisions</dt><dd>{{ stats.script_revisions }}</dd></div>
+            <div><dt>Documents</dt><dd>{{ stats.script_documents }}</dd></div>
+        </dl>
+        {% else %}
+        <p class="dash-empty">Not started</p>
+        <p class="dash-cta">Upload your first script →</p>
+        {% endif %}
+    </a>
+
+    <a class="dash-stage" href="/productions/{{ production.slug }}/manage/breakdown">
+        <header class="dash-stage-head">
+            <span class="dash-stage-num">02</span>
+            <h3>Breakdown</h3>
+        </header>
+        {% if stats.scenes > 0 %}
+        <dl class="dash-stats dash-stats-quad">
+            <div><dt>Scenes</dt><dd>{{ stats.scenes }}</dd></div>
+            <div><dt>Cast</dt><dd>{{ stats.cast }}</dd></div>
+            <div><dt>Props</dt><dd>{{ stats.props }}</dd></div>
+            <div><dt>Locations</dt><dd>{{ stats.locations }}</dd></div>
+        </dl>
+        {% else %}
+        <p class="dash-empty">Not started</p>
+        {% if stats.script_revisions > 0 %}
+        <p class="dash-cta">Run a breakdown on your script →</p>
+        {% else %}
+        <p class="dash-cta">Needs a script first</p>
+        {% endif %}
+        {% endif %}
+    </a>
+
+    <a class="dash-stage" href="/productions/{{ production.slug }}/manage/schedule">
+        <header class="dash-stage-head">
+            <span class="dash-stage-num">03</span>
+            <h3>Schedule</h3>
+        </header>
+        {% if stats.shoot_days > 0 %}
+        <p class="dash-big">{{ stats.shoot_days }}<span class="dash-big-label">shoot day{% if stats.shoot_days != 1 %}s{% endif %} planned</span></p>
+        {% else %}
+        <p class="dash-empty">Not started</p>
+        {% if stats.scenes > 0 %}
+        <p class="dash-cta">Plan your first shoot day →</p>
+        {% else %}
+        <p class="dash-cta">Needs a breakdown first</p>
+        {% endif %}
+        {% endif %}
+    </a>
+
+    <a class="dash-stage" href="/productions/{{ production.slug }}/manage/call-sheets">
+        <header class="dash-stage-head">
+            <span class="dash-stage-num">04</span>
+            <h3>Call Sheets</h3>
+        </header>
+        {% if stats.call_sheets > 0 %}
+        <p class="dash-big">{{ stats.call_sheets }}<span class="dash-big-label">sheet{% if stats.call_sheets != 1 %}s{% endif %} generated</span></p>
+        {% else %}
+        <p class="dash-empty">None yet</p>
+        {% if stats.shoot_days > 0 %}
+        <p class="dash-cta">Generate from a shoot day →</p>
+        {% else %}
+        <p class="dash-cta">Needs a schedule first</p>
+        {% endif %}
+        {% endif %}
+    </a>
+</div>
+
+<aside class="manage-shell-note" role="note">
+    <p>
+        <strong>You're in Management mode.</strong>
+        Public viewers see the <a href="/productions/{{ production.slug }}">overview page</a>;
+        only production members see this workspace. Manage your crew on the
+        <a href="/productions/{{ production.slug }}/manage/team">Team</a> tab.
+    </p>
+</aside>
+{% endblock %}

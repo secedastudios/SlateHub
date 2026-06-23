@@ -1,0 +1,24 @@
+{% extends "productions/manage/manage_layout.html" %}
+
+{% block manage_content %}
+<header class="manage-tab-header">
+    <h2 id="manage-content-heading">Team</h2>
+    <p>Cast, crew, roles, and invitations for this production.</p>
+</header>
+
+<section class="manage-stub" aria-label="Team tab placeholder">
+    <p class="manage-stub-headline">Team management lands in <strong>Phase 1.5 / Phase 3</strong>.</p>
+    <p>This tab will show:</p>
+    <ul>
+        <li>Current cast + crew with roles, departments, and contact info</li>
+        <li>Pending invitations (email + SlateHub directory pulls)</li>
+        <li>Bulk invite from SlateHub search</li>
+        <li>Onboarding checklist per role (tax forms, NDA, deal memo)</li>
+        <li>Deal-memo template (signed offline for v1, e-sign later)</li>
+    </ul>
+    <p>
+        The team data already exists in <code>member_of</code> + <code>involvement</code>
+        — see the existing public production page for the read-only view.
+    </p>
+</section>
+{% endblock %}

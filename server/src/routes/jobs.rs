@@ -1,4 +1,13 @@
+//! Job board: public listings plus posting management.
+//!
+//! Serves `/jobs` (browse with infinite-scroll SSE), `/my-jobs`, job
+//! create/edit/close/delete, and role application/withdrawal/status flows.
+//! Posting as an organization requires an owner/admin org role; edits are
+//! gated on `JobModel::can_edit`.
+
+use crate::datastar;
 use crate::error::Error;
+use crate::html::escape_html;
 use crate::middleware::{AuthenticatedUser, UserExtractor};
 use crate::models::job::{CreateJobData, CreateJobRoleData, JobModel, UpdateJobData};
 use crate::services::embedding::generate_embedding_async;
@@ -11,7 +20,6 @@ use askama::Template;
 use axum::{
     Router,
     extract::{Path, Query, Request},
-    http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
@@ -21,6 +29,10 @@ use tracing::{debug, error, info};
 
 const JOBS_PAGE_SIZE: usize = 20;
 
+/// Mounts the job board: `/jobs` (list) and `/my-jobs`, `/jobs/new`,
+/// `/jobs/{id}` view/edit/close/delete, per-role apply/withdraw and
+/// application-status POSTs, and the `/api/jobs/more-sse` infinite-scroll
+/// feed.
 pub fn router() -> Router {
     Router::new()
         .route("/jobs", get(list_jobs))
@@ -97,16 +109,11 @@ async fn list_jobs(
         })
         .collect();
 
-    let template = JobsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(JobsTemplate, base, {
         jobs,
         search_query: params.q,
         has_more,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render jobs template: {}", e);
@@ -158,14 +165,7 @@ async fn view_job(Path(id): Path<String>, request: Request) -> Result<Html<Strin
         applications: detail.applications,
     };
 
-    let template = JobTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
-        job,
-    };
+    let template = crate::with_base!(JobTemplate, base, { job });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render job template: {}", e);
@@ -189,16 +189,11 @@ async fn new_job_form(request: Request) -> Result<Html<String>, Error> {
         .map(|(id, name)| JobOrgOption { id, name })
         .collect();
 
-    let template = JobCreateTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(JobCreateTemplate, base, {
         pay_rate_types,
         user_organizations,
         errors: None,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render job create template: {}", e);
@@ -340,12 +335,7 @@ async fn edit_job_form(Path(id): Path<String>, request: Request) -> Result<Html<
         })
         .collect();
 
-    let template = JobEditTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(JobEditTemplate, base, {
         job_id: id,
         title: job
             .get("title")
@@ -384,7 +374,7 @@ async fn edit_job_form(Path(id): Path<String>, request: Request) -> Result<Html<
         roles,
         pay_rate_types,
         errors: None,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render job edit template: {}", e);
@@ -637,15 +627,10 @@ async fn my_jobs(request: Request) -> Result<Html<String>, Error> {
         })
         .collect();
 
-    let template = MyJobsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(MyJobsTemplate, base, {
         postings,
         applications,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render my jobs template: {}", e);
@@ -654,33 +639,6 @@ async fn my_jobs(request: Request) -> Result<Html<String>, Error> {
 }
 
 // === SSE infinite scroll ===
-
-fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!(
-        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
-        selector, mode
-    );
-    if !elements.is_empty() {
-        s += &format!("data: elements {}\n", elements.replace('\n', " "));
-    }
-    s += "\n";
-    s
-}
-
-fn sse_response(body: String) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "text/event-stream"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
-}
-
-fn escape_html(s: &str) -> String {
-    ammonia::clean_text(s)
-}
 
 const VERIFIED_BADGE_PATH: &str = "M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z";
 
@@ -817,7 +775,7 @@ async fn jobs_more_sse(Query(params): Query<JobsMoreQuery>) -> Response {
         .collect();
 
     if jobs.is_empty() {
-        return sse_response(sse_patch_elements("#jobs-sentinel", "remove", ""));
+        return datastar::response(datastar::patch_elements("#jobs-sentinel", "remove", ""));
     }
 
     let mut replacement_html = String::new();
@@ -838,7 +796,7 @@ async fn jobs_more_sse(Query(params): Query<JobsMoreQuery>) -> Response {
     }
 
     // Replace sentinel with cards + new sentinel, keeping sentinel at the bottom
-    let sse = sse_patch_elements("#jobs-sentinel", "outer", &replacement_html);
+    let sse = datastar::patch_elements("#jobs-sentinel", "outer", &replacement_html);
 
-    sse_response(sse)
+    datastar::response(sse)
 }

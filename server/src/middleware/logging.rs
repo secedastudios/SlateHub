@@ -1,9 +1,36 @@
+//! Standalone request/response logging middleware.
+//!
+//! These handlers log one line when a request starts and one leveled line
+//! when it completes (info for 2xx/3xx, warn for 4xx, error for 5xx, plus a
+//! `performance` warning for requests over one second). They read the
+//! `Arc<CurrentUser>` extension left by the auth middleware to tag log lines
+//! with a username, and insert nothing into the request extensions
+//! themselves.
+//!
+//! Note that this module is re-exported from [`crate::middleware`] but is
+//! not installed in the default stack built by [`crate::routes::app`]; there,
+//! request logging comes from tower-http's `TraceLayer` and the request-ID
+//! middleware. To use these handlers, layer [`logging_middleware`] (or
+//! [`filtered_logging_middleware`], which skips health checks and static
+//! assets) inside the auth middleware so the user extension is populated.
+
 use crate::logging::format_http_status;
 use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 use std::time::Instant;
 use tracing::{debug, error, info, warn};
 
-/// Enhanced logging middleware that logs detailed request/response information
+/// Log detailed request and response information for a single request.
+///
+/// Emits an `http_request` event when the request starts and an
+/// `http_response` event when it completes, leveled by status class, with
+/// method, URI, duration, and the current user's username (or `anonymous`).
+/// Requests slower than one second additionally emit a `performance`
+/// warning.
+///
+/// # Errors
+///
+/// This function always returns `Ok`; the `Result` exists only to satisfy
+/// the middleware signature.
 pub async fn logging_middleware(request: Request, next: Next) -> Result<Response, StatusCode> {
     let start_time = Instant::now();
     let method = request.method().clone();
@@ -125,7 +152,16 @@ pub async fn logging_middleware(request: Request, next: Next) -> Result<Response
     Ok(response)
 }
 
-/// Middleware for logging only specific routes or with specific filters
+/// Variant of [`logging_middleware`] that skips noisy paths.
+///
+/// Health checks (`/api/health`), `/favicon.ico`, `/robots.txt`, and
+/// anything under `/static/` pass through without logging; every other
+/// request is delegated to [`logging_middleware`].
+///
+/// # Errors
+///
+/// This function always returns `Ok`; the `Result` exists only to satisfy
+/// the middleware signature.
 pub async fn filtered_logging_middleware(
     request: Request,
     next: Next,
@@ -148,35 +184,23 @@ fn should_skip_logging(path: &str) -> bool {
     matches!(path, "/api/health" | "/favicon.ico" | "/robots.txt") || path.starts_with("/static/")
 }
 
-/// Format bytes for human-readable output
-#[allow(dead_code)]
-fn format_bytes(bytes: u64) -> String {
-    const UNITS: &[&str] = &["B", "KB", "MB", "GB"];
-    let mut size = bytes as f64;
-    let mut unit_index = 0;
-
-    while size >= 1024.0 && unit_index < UNITS.len() - 1 {
-        size /= 1024.0;
-        unit_index += 1;
-    }
-
-    if unit_index == 0 {
-        format!("{} {}", size as u64, UNITS[unit_index])
-    } else {
-        format!("{:.2} {}", size, UNITS[unit_index])
-    }
-}
-
-/// Log summary statistics periodically
+/// Aggregate request counters for periodic summary logging.
 #[derive(Debug, Default)]
 pub struct RequestStats {
+    /// Total number of requests observed.
     pub total_requests: u64,
+    /// Requests that completed with a success status.
     pub successful_requests: u64,
+    /// Requests that completed with an error status.
     pub failed_requests: u64,
+    /// Sum of all request durations in milliseconds, used for averaging.
     pub total_duration_ms: u64,
 }
 
 impl RequestStats {
+    /// Log a single `http_stats` summary event with the request totals,
+    /// average duration, and success rate. Does nothing when no requests
+    /// have been recorded.
     pub fn log_summary(&self) {
         if let Some(avg_duration) = self.total_duration_ms.checked_div(self.total_requests) {
             let success_rate =

@@ -96,11 +96,11 @@
             <form method="post" action="/orgs/{{ organization.slug }}/settings/oidc/scopes">
                 <fieldset>
                     <legend>Allowed scopes</legend>
-                    {% for box in scope_checkboxes %}
+                    {% for checkbox in scope_checkboxes %}
                     <label>
-                        <input type="checkbox" name="scopes" value="{{ box.scope }}"
-                            {% if box.checked %}checked{% endif %} />
-                        <code>{{ box.scope }}</code>
+                        <input type="checkbox" name="scopes" value="{{ checkbox.scope }}"
+                            {% if checkbox.checked %}checked{% endif %} />
+                        <code>{{ checkbox.scope }}</code>
                     </label>
                     {% endfor %}
                     <button type="submit" data-role="btn-primary">Save</button>
@@ -124,8 +124,8 @@
                     </label>
                     <fieldset>
                         <legend>Events</legend>
-                        {% for box in ssf_checkboxes %}
-                        <label><input type="checkbox" name="events" value="{{ box.event_uri }}" {% if box.checked %}checked{% endif %} /> {{ box.label }}</label>
+                        {% for checkbox in ssf_checkboxes %}
+                        <label><input type="checkbox" name="events" value="{{ checkbox.event_uri }}" {% if checkbox.checked %}checked{% endif %} /> {{ checkbox.label }}</label>
                         {% endfor %}
                     </fieldset>
                     <button type="submit" data-role="btn-primary">Save</button>

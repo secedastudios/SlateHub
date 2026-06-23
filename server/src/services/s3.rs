@@ -4,6 +4,13 @@
 //! RustFS (dev), MinIO, or AWS S3 — we just point the endpoint at whichever.
 //! Path-style addressing is forced because that's what every non-AWS backend
 //! expects.
+//!
+//! Configured entirely from env vars (`S3_ENDPOINT`, `S3_ACCESS_KEY`,
+//! `S3_SECRET_KEY`, `S3_BUCKET`, `S3_REGION` — see [`S3Config`] for the dev
+//! defaults). A single [`S3Service`] lives in a `tokio::sync::OnceCell`
+//! singleton: `main.rs` calls [`init_s3`] once at boot (continuing without
+//! S3 if it fails — uploads then error per-request), and all other code
+//! grabs the instance via [`s3()`].
 
 use bytes::Bytes;
 use s3::{Bucket, BucketConfiguration, Region, creds::Credentials};
@@ -15,12 +22,18 @@ use crate::error::{Error, Result};
 // Config
 // ---------------------------------------------------------------------------
 
-/// S3 service configuration, populated from environment variables.
+/// S3 service configuration. `Default` populates every field from env vars,
+/// falling back to local-dev values when unset.
 pub struct S3Config {
+    /// `S3_ENDPOINT` — base URL of the backend (default `http://localhost:9000`).
     pub endpoint: String,
+    /// `S3_ACCESS_KEY` (default `admin` — dev only).
     pub access_key: String,
+    /// `S3_SECRET_KEY` (default `password` — dev only).
     pub secret_key: String,
+    /// `S3_BUCKET` — bucket to use/create (default `slatehub`).
     pub bucket_name: String,
+    /// `S3_REGION` (default `us-east-1`; non-AWS backends mostly ignore it).
     pub region: String,
 }
 
@@ -50,6 +63,12 @@ pub struct S3Service {
 impl S3Service {
     /// Create a new S3 service instance. Instantiates the client, ensures the
     /// bucket exists, and applies the public-read policy for hot prefixes.
+    ///
+    /// # Errors
+    ///
+    /// `Error::Internal` if the credentials are malformed, the bucket handle
+    /// can't be constructed, or the bucket is missing *and* can't be created
+    /// (backend unreachable / permission denied).
     pub async fn new() -> Result<Self> {
         let config = S3Config::default();
 
@@ -137,12 +156,18 @@ impl S3Service {
         );
     }
 
-    /// Upload a file to S3 with the given content-type.
+    /// Upload a file to S3 with the given content-type. Returns the object's
+    /// direct URL in the form `{endpoint}/{bucket}/{key}` (path-style).
     ///
     /// Public access for the `profiles/`, `organizations/`, `locations/`, and
     /// `productions/` prefixes is granted via the bucket policy applied at
     /// startup — rust-s3 doesn't expose a per-object `x-amz-acl` header on
     /// the high-level put, but the policy covers the same semantics.
+    ///
+    /// # Errors
+    ///
+    /// `Error::Internal` if the PUT fails (backend unreachable, auth
+    /// rejected, bucket missing).
     pub async fn upload_file(&self, key: &str, data: Bytes, content_type: &str) -> Result<String> {
         debug!("Uploading file to S3: {}", key);
 
@@ -268,7 +293,14 @@ impl S3Service {
         }
     }
 
-    /// Download a file from S3, returning its bytes and content-type.
+    /// Download a file from S3, returning its bytes and content-type
+    /// (`application/octet-stream` when the backend sends none).
+    ///
+    /// # Errors
+    ///
+    /// `Error::Internal` on transport failure or any non-2xx status —
+    /// including 404, so check [`file_exists`](Self::file_exists) first if
+    /// "missing" needs different handling than "broken".
     pub async fn download_file(&self, key: &str) -> Result<(Bytes, String)> {
         debug!("Downloading file from S3: {}", key);
 
@@ -309,7 +341,12 @@ use tokio::sync::OnceCell;
 
 static S3_SERVICE: OnceCell<S3Service> = OnceCell::const_new();
 
-/// Initialize the global S3 service.
+/// Initialize the global S3 service. Called once from `main.rs` at boot.
+///
+/// # Errors
+///
+/// Propagates [`S3Service::new`] failures, or `Error::Internal` if called
+/// a second time.
 pub async fn init_s3() -> Result<()> {
     let service = S3Service::new().await?;
     S3_SERVICE
@@ -319,6 +356,11 @@ pub async fn init_s3() -> Result<()> {
 }
 
 /// Get the global S3 service.
+///
+/// # Errors
+///
+/// `Error::Internal` when [`init_s3`] hasn't run (or failed at boot) —
+/// callers surface this as "uploads unavailable" rather than panicking.
 pub fn s3() -> Result<&'static S3Service> {
     S3_SERVICE
         .get()

@@ -1,8 +1,13 @@
+//! Direct-messaging routes: inbox, conversation view, starting a thread,
+//! replies (classic form POST and a Datastar SSE variant), polling for new
+//! messages, and conversation deletion. Starting a conversation requires
+//! identity verification; replying only requires a verified email. Each sent
+//! message fans out an in-app notification plus an email.
+
 use askama::Template;
 use axum::{
     Form, Json, Router,
     extract::{Path, Query as AxumQuery},
-    http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
@@ -11,6 +16,7 @@ use serde::Deserialize;
 use tracing::{debug, error};
 
 use crate::{
+    datastar,
     error::Error,
     middleware::AuthenticatedUser,
     models::{messaging::MessagingModel, notification::NotificationModel, person::Person},
@@ -19,11 +25,8 @@ use crate::{
     templates::{BaseContext, User},
 };
 
-mod filters {
-    pub fn abs_url(path: &str) -> askama::Result<String> {
-        Ok(format!("{}{}", crate::config::app_url(), path))
-    }
-}
+// Shared Askama filters (abs_url, …) for the in-file Template derives.
+use crate::templates::filters;
 
 // -- View structs for templates --
 
@@ -88,6 +91,8 @@ struct NewMessageTemplate {
     error: Option<String>,
 }
 
+/// Routes under `/messages`: inbox, new-message page, send/reply (form and
+/// SSE), new-message polling, and conversation deletion.
 pub fn router() -> Router {
     Router::new()
         .route("/messages", get(inbox))
@@ -111,34 +116,11 @@ pub fn router() -> Router {
 
 // -- SSE helpers for Datastar --
 
-fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!(
-        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
-        selector, mode
-    );
-    if !elements.is_empty() {
-        s += &format!("data: elements {}\n", elements.replace('\n', " "));
-    }
-    s += "\n";
-    s
-}
-
 fn sse_patch_signals(signals: &str) -> String {
     format!(
         "event: datastar-patch-signals\ndata: signals {}\n\n",
         signals
     )
-}
-
-fn sse_response(body: String) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "text/event-stream"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
 }
 
 // -- Handlers --
@@ -188,14 +170,9 @@ async fn inbox(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<String
         .with_page("messages")
         .with_user(User::from_session_user(&user).await);
 
-    let template = InboxTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(InboxTemplate, base, {
         conversations: views,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render inbox template: {}", e);
@@ -253,12 +230,7 @@ async fn view_conversation(
         .with_page("messages")
         .with_user(User::from_session_user(&user).await);
 
-    let template = ConversationTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(ConversationTemplate, base, {
         conversation_id,
         other_person_name: other_person.get_display_name(),
         other_person_username: other_person.username.clone(),
@@ -266,7 +238,7 @@ async fn view_conversation(
         other_person_initials: other_person.get_initials(),
         messages,
         last_message_time,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render conversation template: {}", e);
@@ -306,18 +278,13 @@ async fn new_message_page(
         .with_page("messages")
         .with_user(User::from_session_user(&user).await);
 
-    let template = NewMessageTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(NewMessageTemplate, base, {
         recipient_username: recipient.username.clone(),
         recipient_name: recipient.get_display_name(),
         recipient_avatar: recipient.get_avatar_url(),
         recipient_initials: recipient.get_initials(),
         error,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render new message template: {}", e);
@@ -496,11 +463,11 @@ async fn reply_message_sse(
 
     let mut sse = String::new();
     // Append the new message bubble
-    sse += &sse_patch_elements("#chat-messages", "append", &fragment);
+    sse += &datastar::patch_elements("#chat-messages", "append", &fragment);
     // Clear the body signal so the textarea resets
     sse += &sse_patch_signals(r#"{body: ""}"#);
 
-    Ok(sse_response(sse))
+    Ok(datastar::response(sse))
 }
 
 // -- Poll for new messages --

@@ -1,0 +1,56 @@
+{% extends "_layout.html" %}
+
+{% block title %}Production Management · {{ app_name }}{% endblock %}
+{% block page_name %}production-manage{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
+<link rel="stylesheet" href="/static/css/pages/production-manage.css?v={{ version }}" />
+{% endblock %}
+
+{% block content %}
+<div class="manage-hub">
+    <header class="manage-hub-header">
+        <div>
+            <p class="manage-eyebrow">Production workspace</p>
+            <h1 id="manage-content-heading">Production Management</h1>
+            <p class="manage-hub-sub">Pick a production to enter its workspace — script, breakdown, schedule, call sheets, team.</p>
+        </div>
+        <a href="/productions/new" class="prod-btn-primary">New production</a>
+    </header>
+
+    {% if productions.is_empty() %}
+    <section class="manage-hub-empty" aria-label="No productions">
+        <p class="manage-hub-empty-line">You're not on any productions yet.</p>
+        <p>Create one to start managing scripts, schedules, and call sheets — or ask a production owner to add you.</p>
+    </section>
+    {% else %}
+    <ul class="manage-hub-grid" aria-label="Your productions">
+        {% for p in productions %}
+        <li>
+            <a class="manage-hub-card" href="/productions/{{ p.slug }}/manage">
+                <span class="manage-hub-poster">
+                    {% if p.poster_photo.is_some() %}
+                        <img src="{{ p.poster_photo.as_ref().unwrap() }}" alt="" loading="lazy" />
+                    {% else if p.poster_url.is_some() %}
+                        <img src="{{ p.poster_url.as_ref().unwrap() }}" alt="" loading="lazy" />
+                    {% else %}
+                        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+                    {% endif %}
+                </span>
+                <span class="manage-hub-card-body">
+                    <span class="manage-hub-card-title">{{ p.title }}</span>
+                    <span class="manage-hub-card-meta">
+                        <span class="manage-type-badge">{{ p.production_type }}</span>
+                        <span class="manage-status-badge" data-status="{{ p.status }}">{{ p.status }}</span>
+                    </span>
+                    <span class="manage-hub-card-role">your role: <strong>{{ p.role }}</strong></span>
+                </span>
+                <span class="manage-hub-card-go" aria-hidden="true">→</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,3 +1,9 @@
+//! Admin-only routes under `/admin`: a stats dashboard plus management
+//! pages for feedback, people, productions, organizations, locations,
+//! feature flags, and the mailing list, along with maintenance actions
+//! (embedding rebuild, backup, orphaned-file cleanup). Every handler
+//! re-checks `is_admin` via [`require_admin`] before doing anything.
+
 use askama::Template;
 use axum::{
     Router,
@@ -20,11 +26,8 @@ use crate::{
     templates::{BaseContext, User},
 };
 
-mod filters {
-    pub fn abs_url(path: &str) -> askama::Result<String> {
-        Ok(format!("{}{}", crate::config::app_url(), path))
-    }
-}
+// Shared Askama filters (abs_url, …) for the in-file Template derives.
+use crate::templates::filters;
 
 /// Flag to prevent concurrent embedding rebuilds
 static REBUILD_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
@@ -213,6 +216,8 @@ struct AdminMailingListTemplate {
 // Router
 // ============================
 
+/// Routes for the `/admin` dashboard, entity-management pages, and
+/// maintenance actions; every handler enforces the admin check itself.
 pub fn router() -> Router {
     Router::new()
         .route("/admin", get(dashboard))
@@ -301,16 +306,11 @@ async fn dashboard(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<St
         .with_page("admin")
         .with_user(template_user);
 
-    let template = AdminDashboardTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(AdminDashboardTemplate, base, {
         stats,
         embedding_rebuild_in_progress: REBUILD_IN_PROGRESS.load(Ordering::Relaxed),
         build_info: format!("v{}", crate::version::VERSION),
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render admin dashboard: {}", e);
@@ -354,14 +354,9 @@ async fn list_feedback(AuthenticatedUser(user): AuthenticatedUser) -> Result<Htm
         .with_page("admin")
         .with_user(template_user);
 
-    let template = AdminFeedbackTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(AdminFeedbackTemplate, base, {
         feedback_items,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render admin feedback: {}", e);
@@ -463,15 +458,10 @@ async fn list_people(
         .with_page("admin")
         .with_user(template_user);
 
-    let template = AdminPeopleTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(AdminPeopleTemplate, base, {
         people,
         search_query: search,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render admin people: {}", e);
@@ -548,7 +538,7 @@ async fn admin_reset_password(
     }
 
     let record_id = surrealdb::types::RecordId::new("person", id.as_str());
-    let password_hash = crate::auth::hash_password(&form.new_password)?;
+    let password_hash = crate::auth::hash_password(&form.new_password).await?;
 
     DB.query("UPDATE $pid SET password = $password")
         .bind(("pid", record_id))
@@ -664,15 +654,10 @@ async fn list_productions(
         .with_page("admin")
         .with_user(template_user);
 
-    let template = AdminProductionsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(AdminProductionsTemplate, base, {
         productions,
         search_query: search,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render admin productions: {}", e);
@@ -754,15 +739,10 @@ async fn list_organizations(
         .with_page("admin")
         .with_user(template_user);
 
-    let template = AdminOrganizationsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(AdminOrganizationsTemplate, base, {
         organizations,
         search_query: search,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render admin organizations: {}", e);
@@ -860,15 +840,10 @@ async fn list_locations(
         .with_page("admin")
         .with_user(template_user);
 
-    let template = AdminLocationsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(AdminLocationsTemplate, base, {
         locations,
         search_query: search,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render admin locations: {}", e);
@@ -1277,43 +1252,27 @@ async fn backup_all(
 
     info!("DB export complete: {} bytes", db_export.len());
 
-    // 2. List all S3 objects
+    // 2. Download every S3 object first (network-bound, stays async).
+    //    A failed download skips that file rather than aborting the backup.
     let s3_service = s3()?;
     let all_keys = s3_service.list_all_objects().await?;
     info!("Found {} files in S3 to back up", all_keys.len());
 
-    // 3. Build zip archive in memory
-    let mut zip_buffer = Vec::new();
-    {
-        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut zip_buffer));
-        let options = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated);
-
-        // Add DB export
-        zip.start_file("db_export.surql", options)
-            .map_err(|e| Error::Internal(format!("Zip error: {}", e)))?;
-        std::io::Write::write_all(&mut zip, &db_export)
-            .map_err(|e| Error::Internal(format!("Zip write error: {}", e)))?;
-
-        // Add each S3 file
-        for key in &all_keys {
-            match s3_service.download_file(key).await {
-                Ok((data, _content_type)) => {
-                    let path = format!("files/{}", key);
-                    zip.start_file(&path, options)
-                        .map_err(|e| Error::Internal(format!("Zip error: {}", e)))?;
-                    std::io::Write::write_all(&mut zip, &data)
-                        .map_err(|e| Error::Internal(format!("Zip write error: {}", e)))?;
-                }
-                Err(e) => {
-                    warn!("Skipping file {} during backup: {}", key, e);
-                }
-            }
+    let mut files: Vec<(String, Vec<u8>)> = Vec::with_capacity(all_keys.len());
+    for key in all_keys {
+        match s3_service.download_file(&key).await {
+            Ok((data, _content_type)) => files.push((key, data.to_vec())),
+            Err(e) => warn!("Skipping file {} during backup: {}", key, e),
         }
-
-        zip.finish()
-            .map_err(|e| Error::Internal(format!("Zip finish error: {}", e)))?;
     }
+
+    // 3. Deflate-compressing the whole site's media is heavy CPU work —
+    //    build the archive on the blocking pool so the async executor
+    //    stays responsive. (Memory profile is unchanged: the zip was
+    //    always built fully in memory.)
+    let zip_buffer = tokio::task::spawn_blocking(move || build_backup_zip(&db_export, &files))
+        .await
+        .map_err(|e| Error::Internal(format!("backup zip task join error: {e}")))??;
 
     info!("Backup zip created: {} bytes", zip_buffer.len());
 
@@ -1333,6 +1292,35 @@ async fn backup_all(
     );
 
     Ok((headers, zip_buffer))
+}
+
+/// Assemble the backup archive: the SurrealDB export at `db_export.surql`
+/// plus every pre-downloaded S3 object under `files/`. Pure CPU (Deflate)
+/// — call via `spawn_blocking`.
+fn build_backup_zip(db_export: &[u8], files: &[(String, Vec<u8>)]) -> Result<Vec<u8>, Error> {
+    let mut zip_buffer = Vec::new();
+    {
+        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut zip_buffer));
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+
+        zip.start_file("db_export.surql", options)
+            .map_err(|e| Error::Internal(format!("Zip error: {}", e)))?;
+        std::io::Write::write_all(&mut zip, db_export)
+            .map_err(|e| Error::Internal(format!("Zip write error: {}", e)))?;
+
+        for (key, data) in files {
+            let path = format!("files/{}", key);
+            zip.start_file(&path, options)
+                .map_err(|e| Error::Internal(format!("Zip error: {}", e)))?;
+            std::io::Write::write_all(&mut zip, data)
+                .map_err(|e| Error::Internal(format!("Zip write error: {}", e)))?;
+        }
+
+        zip.finish()
+            .map_err(|e| Error::Internal(format!("Zip finish error: {}", e)))?;
+    }
+    Ok(zip_buffer)
 }
 
 // -- Cleanup orphaned files --
@@ -1883,15 +1871,10 @@ async fn feature_flags_page(
         .with_page("admin")
         .with_user(template_user);
 
-    let template = AdminFeatureFlagsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(AdminFeatureFlagsTemplate, base, {
         flags,
         flash,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render admin feature flags: {}", e);
@@ -1965,18 +1948,13 @@ async fn mailing_list_page(
         .with_page("admin")
         .with_user(template_user);
 
-    let template = AdminMailingListTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(AdminMailingListTemplate, base, {
         enabled,
         list_ids,
         person_count,
         flash,
         flash_kind,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render admin mailing list: {}", e);

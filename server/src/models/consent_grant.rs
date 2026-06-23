@@ -25,6 +25,11 @@ pub struct ConsentGrant {
     pub revoked_at: Option<DateTime<Utc>>,
 }
 
+/// Fetch the live (non-revoked) grant from `person` to `client`, if any.
+///
+/// Filters on the relation's `in`/`out` via bound RecordId params and reads
+/// the row back with `take::<Vec<_>>` (never `take::<Option<_>>`, which
+/// errors if more than one row matches).
 pub async fn get_for(person: &RecordId, client: &RecordId) -> Result<Option<ConsentGrant>> {
     let mut resp = DB
         .query(

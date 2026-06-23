@@ -1,3 +1,11 @@
+//! Invitations addressed to people who don't have an account yet.
+//!
+//! Owns the `pending_invitation` table: rows keyed by email (or an invite
+//! code for link invites) that record the target org/production and role.
+//! On signup with a matching email — or visiting the invite link — the
+//! pending row is converted into a real membership and deleted. Created by
+//! [`crate::services::invitation`].
+
 use crate::{db::DB, error::Error};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -1,3 +1,10 @@
+//! MCP (Model Context Protocol) server exposing read-only search tools.
+//!
+//! Mounted at `/mcp` (streamable-HTTP transport via rmcp) so AI agents can
+//! search people, organizations, productions, locations, and jobs, fetch
+//! profiles, and browse credits. Read-only by design: every tool delegates
+//! to `crate::services::search` / the models — no mutations are exposed.
+
 use std::sync::Arc;
 use std::time::Duration;
 

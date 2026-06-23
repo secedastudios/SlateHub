@@ -31,15 +31,20 @@ dotenv = "0.15.0"
 futures = "0.3"
 jsonwebtoken = "9.3"
 rand = "0.8"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
 argon2 = "0.5"
 base64 = "0.22"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0"
-surrealdb = "3.0.5"
-surrealdb-types = "3.0.5"
-askama = { version = "0.12", features = ["with-axum"] }
-askama_axum = "0.4"
+surrealdb = "3.1.4"
+# surrealdb-types is NOT needed as a direct dep: `surrealdb::types::*`
+# re-exports everything, and the SurrealValue derive ships with the
+# `sdk-path` feature so it expands to `::surrealdb::types::…` paths.
+# 0.16 (post-rinja-merge lineage). No axum-integration crate needed: all
+# handlers render to Html(String) manually. Custom filters use
+# #[askama::filter_fn] with a trailing `&dyn askama::Values` param.
+# Extends cycles are a compile error in 0.16 (0.12 looped forever on them).
+askama = "0.16"
 thiserror = "2.0.16"
 tokio = { version = "1.47.1", features = ["full"] }
 tokio-stream = "0.1"
@@ -61,6 +66,13 @@ tracing-subscriber = { version = "0.3", features = [
 ulid = "1.1"
 async-trait = "0.1.89"
 rust-s3 = { version = "0.35", default-features = false, features = ["tokio-rustls-tls"] }
+
+# Aristotle screenplay-breakdown deps (the parser/breakdown code lives
+# inline at src/aristotle/, kept as a self-contained module so it can be
+# extracted back into its own crate later).
+quick-xml = { version = "0.37", features = ["serialize"] }
+pdf-extract = "0.7"
+osf = "0.1"
 
 image = "0.24"
 bytes = "1.9"
@@ -101,3 +113,5 @@ tower = { version = "0.5", features = ["util"] }
 once_cell = "1.19"
 tokio-test = "0.4"
 serial_test = "3.0"
+# Used by aristotle integration test to synthesize PDFs.
+printpdf = "0.7"

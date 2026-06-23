@@ -13,6 +13,10 @@
 //!   - AdminOnly — only `is_admin = true` users
 //!   - Verified — only `verification_status = 'identity'` users
 //!   - All — everyone (including unauthenticated, where the route permits it)
+//!
+//! Reads always go to the `feature_flag` table (no in-process cache), and
+//! every failure path fails *closed*: an unknown key, a missing row, an
+//! unparseable `state` string, or a DB error all evaluate as `Off`.
 
 use std::fmt;
 use std::str::FromStr;
@@ -29,32 +33,77 @@ use crate::models::person::{Person, SessionUser};
 // Registry — the source of truth for which flags exist.
 // ---------------------------------------------------------------------------
 
+/// Compile-time definition of one feature flag. The registry entry is the
+/// flag's identity; the DB row only carries its current state.
 pub struct FlagDef {
+    /// Stable lookup key passed to [`allows`] / [`get_state`] (snake_case).
     pub key: &'static str,
+    /// Human-readable name shown on the admin page.
     pub name: &'static str,
+    /// What the flag gates, shown on the admin page.
     pub description: &'static str,
+    /// Seed value used by `register_flags()` when this flag has never been
+    /// stored before. Existing rows are *not* overwritten — an operator
+    /// who flips a flag in the admin UI keeps that change across reboots.
+    pub initial_state: FlagState,
 }
 
-pub const FLAG_REGISTRY: &[FlagDef] = &[FlagDef {
-    key: "identity_verification",
-    name: "Paid Identity Verification",
-    description: "Shows the paid Stripe Identity flow on /get-verified. When off, only manual verification requests are accepted.",
-}];
+/// Source of truth for which flags exist. [`set_state`] rejects keys not
+/// listed here, and [`list_flags`] returns rows in this order.
+pub const FLAG_REGISTRY: &[FlagDef] = &[
+    FlagDef {
+        key: "identity_verification",
+        name: "Paid Identity Verification",
+        description: "Shows the paid Stripe Identity flow on /get-verified. When off, only manual verification requests are accepted.",
+        initial_state: FlagState::Off,
+    },
+    FlagDef {
+        key: "production_management",
+        name: "Production Management",
+        description: "Master switch for the production-management workspace (`/productions/{slug}/manage/*`). Required for script versioning UI, breakdown, scheduling, and call sheets to render. Locked to slatehub admins until promoted.",
+        initial_state: FlagState::AdminOnly,
+    },
+    FlagDef {
+        key: "script_breakdown",
+        name: "Script Breakdown",
+        description: "Enables the aristotle-powered automated breakdown action on scripts. Gated separately so the master `production_management` flag can stay on while this subsystem is disabled or vice versa.",
+        initial_state: FlagState::AdminOnly,
+    },
+    FlagDef {
+        key: "call_sheet_email",
+        name: "Call Sheet Email Delivery",
+        description: "Permits the 'Publish & Email' call sheet action to send real emails to recipients. With this off, call sheets can still be generated and downloaded as PDFs but no email is sent.",
+        initial_state: FlagState::AdminOnly,
+    },
+];
 
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
+/// Visibility state of a flag. Stored in the DB as the snake_case strings
+/// produced by [`FlagState::as_str`] (`off`, `admin_only`, `verified`,
+/// `all`); see [`allows`] for the exact evaluation rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FlagState {
+    /// Feature hidden from everyone. Also the effective state for unknown
+    /// or unreadable flags (fail closed).
     Off,
+    /// Visible only to signed-in users whose `person` row has
+    /// `is_admin = true`.
     AdminOnly,
+    /// Visible only to signed-in users whose `person.verification_status`
+    /// is `'identity'` (paid identity verification).
     Verified,
+    /// Visible to everyone, including unauthenticated visitors where the
+    /// route itself permits anonymous access.
     All,
 }
 
 impl FlagState {
+    /// The snake_case string stored in the `feature_flag.state` column —
+    /// the inverse of the `FromStr` impl.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Off => "off",
@@ -88,11 +137,18 @@ impl fmt::Display for FlagState {
 // Row + queries
 // ---------------------------------------------------------------------------
 
+/// One row of the `feature_flag` table as read for the admin page and state
+/// checks. `state` stays a raw string here (the `SurrealValue` derive can't
+/// handle enums); parse it with `FlagState::from_str` when needed.
 #[derive(Debug, Clone, Deserialize, SurrealValue)]
 pub struct FeatureFlagRow {
+    /// Registry key ([`FlagDef::key`]).
     pub key: String,
+    /// Display name (kept in sync with the registry on every boot).
     pub name: String,
+    /// Display description (kept in sync with the registry on every boot).
     pub description: Option<String>,
+    /// Current state as its snake_case string form.
     pub state: String,
 }
 
@@ -101,10 +157,14 @@ pub struct FeatureFlagRow {
 /// boot from `main.rs`.
 pub async fn register_flags() {
     for def in FLAG_REGISTRY {
+        // If the row doesn't exist yet, create it with the registry's
+        // declared `initial_state`. If it already exists, update only the
+        // name + description (cosmetic metadata) and leave `state` alone —
+        // operators who flipped the flag in the admin UI keep their setting.
         let result = DB
             .query(
                 "IF (SELECT VALUE id FROM feature_flag WHERE key = $key LIMIT 1)[0] IS NONE THEN \
-                     CREATE feature_flag SET key = $key, name = $name, description = $desc, state = 'off' \
+                     CREATE feature_flag SET key = $key, name = $name, description = $desc, state = $initial \
                  ELSE \
                      UPDATE feature_flag SET name = $name, description = $desc WHERE key = $key \
                  END",
@@ -112,11 +172,12 @@ pub async fn register_flags() {
             .bind(("key", def.key.to_string()))
             .bind(("name", def.name.to_string()))
             .bind(("desc", def.description.to_string()))
+            .bind(("initial", def.initial_state.as_str().to_string()))
             .await;
         if let Err(e) = result {
             error!(flag = def.key, error = %e, "feature_flag: failed to register");
         } else {
-            debug!(flag = def.key, "feature_flag: registered");
+            debug!(flag = def.key, initial = %def.initial_state, "feature_flag: registered");
         }
     }
     info!(count = FLAG_REGISTRY.len(), "feature flags registered");
@@ -163,6 +224,12 @@ pub async fn get_state(key: &str) -> FlagState {
 
 /// Mutate state. `updated_by` is set on the row so admins can see who
 /// changed what.
+///
+/// # Errors
+///
+/// * `Error::BadRequest` if `key` is not in [`FLAG_REGISTRY`] (unknown
+///   flags can't be created through the admin UI).
+/// * `Error::Database` if the UPDATE fails.
 pub async fn set_state(
     key: &str,
     new_state: FlagState,
@@ -188,8 +255,21 @@ pub async fn set_state(
 /// Decide whether a feature is currently visible to the given session user.
 /// `None` for `user` means an unauthenticated visitor.
 ///
-/// Hits the DB once per call — cheap, and flags read on a serious hot path
-/// can be cached at the call site if it ever matters.
+/// Exact semantics per state (state comes from [`get_state`], so unknown
+/// flags and DB errors behave as `Off`):
+///
+/// * `Off` → `false` for everyone.
+/// * `All` → `true` for everyone, including `None` (anonymous).
+/// * `AdminOnly` → `true` only when `user` is `Some` *and* their `person`
+///   row has `is_admin = true` (looked up fresh from the DB; any lookup
+///   failure → `false`).
+/// * `Verified` → `true` only when `user` is `Some` *and* their `person`
+///   row has `verification_status = 'identity'` (email-verified is not
+///   enough; lookup failure → `false`).
+///
+/// Hits the DB once per call (plus a person lookup for the gated states) —
+/// cheap, and flags read on a serious hot path can be cached at the call
+/// site if it ever matters.
 pub async fn allows(flag_key: &str, user: Option<&SessionUser>) -> bool {
     match get_state(flag_key).await {
         FlagState::Off => false,

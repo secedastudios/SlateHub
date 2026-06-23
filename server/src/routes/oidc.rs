@@ -51,12 +51,11 @@ use crate::{
     templates::{BaseContext, User},
 };
 
-mod filters {
-    pub fn abs_url(path: &str) -> askama::Result<String> {
-        Ok(format!("{}{}", crate::config::app_url(), path))
-    }
-}
+// Shared Askama filters (abs_url, …) for the in-file Template derives.
+use crate::templates::filters;
 
+/// Routes for the OIDC provider: discovery, JWKS, authorize/consent, token,
+/// userinfo, revoke, introspect, and RP-initiated logout.
 pub fn router() -> Router {
     Router::new()
         .route("/.well-known/openid-configuration", get(discovery))
@@ -268,19 +267,14 @@ async fn render_consent(
     let _ = person_id; // silence unused if we move it later
     let mut base = BaseContext::new().with_page("oidc-consent");
     base = base.with_user(User::from_session_user(user).await);
-    let template = ConsentTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(ConsentTemplate, base, {
         client_name: client.name,
         org_name: org.name,
         requested_scopes: scope_views,
         already_granted: already,
         params_json: serde_json::to_string(&params)
             .map_err(|e| Error::Internal(format!("serialize params: {e}")))?,
-    };
+    });
     let html = template
         .render()
         .map_err(|e| Error::template(e.to_string()))?;

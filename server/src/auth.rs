@@ -53,8 +53,22 @@ impl PasswordConfig {
     }
 }
 
-/// Hash a password using SurrealDB-compatible Argon2id settings
-pub fn hash_password(password: &str) -> Result<String> {
+/// Hash a password using SurrealDB-compatible Argon2id settings.
+///
+/// Argon2id at these parameters costs ~50–100 ms of pure CPU, so this async
+/// variant runs the work on tokio's blocking pool — always prefer it inside
+/// handlers and async model code. Use [`hash_password_sync`] only from
+/// genuinely synchronous contexts (tests, CLI tools).
+pub async fn hash_password(password: &str) -> Result<String> {
+    let password = password.to_owned();
+    tokio::task::spawn_blocking(move || hash_password_sync(&password))
+        .await
+        .map_err(|e| Error::Internal(format!("hash task join error: {e}")))?
+}
+
+/// Synchronous [`hash_password`]. Blocks the calling thread for the full
+/// Argon2id derivation — never call directly from async code.
+pub fn hash_password_sync(password: &str) -> Result<String> {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = PasswordConfig::argon2();
 
@@ -65,8 +79,21 @@ pub fn hash_password(password: &str) -> Result<String> {
     Ok(password_hash.to_string())
 }
 
-/// Verify a password against a SurrealDB-compatible Argon2id hash
-pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
+/// Verify a password against a SurrealDB-compatible Argon2id hash.
+///
+/// Verification re-runs the full Argon2id derivation (~50–100 ms CPU), so
+/// this async variant uses the blocking pool — prefer it everywhere async.
+/// Returns `Ok(false)` on mismatch; `Err` only for malformed hashes.
+pub async fn verify_password(password: &str, hash: &str) -> Result<bool> {
+    let (password, hash) = (password.to_owned(), hash.to_owned());
+    tokio::task::spawn_blocking(move || verify_password_sync(&password, &hash))
+        .await
+        .map_err(|e| Error::Internal(format!("verify task join error: {e}")))?
+}
+
+/// Synchronous [`verify_password`]. Blocks for the full derivation — never
+/// call directly from async code.
+pub fn verify_password_sync(password: &str, hash: &str) -> Result<bool> {
     let parsed_hash = PasswordHash::new(hash)
         .map_err(|e| Error::Internal(format!("Invalid password hash format: {}", e)))?;
 
@@ -82,9 +109,15 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
 pub struct JwtConfig;
 
 impl JwtConfig {
-    /// Get the JWT secret from environment (required)
-    pub fn secret() -> String {
-        std::env::var("JWT_SECRET").expect("JWT_SECRET environment variable must be set")
+    /// The signing secret from `JWT_SECRET`.
+    ///
+    /// # Errors
+    /// Returns [`Error::Internal`] when the variable is unset — surfacing a
+    /// clean 500 instead of panicking the handler task on a misconfigured
+    /// deployment.
+    pub fn secret() -> Result<String> {
+        std::env::var("JWT_SECRET")
+            .map_err(|_| Error::Internal("JWT_SECRET environment variable must be set".into()))
     }
 
     /// Token validity duration in seconds (12 hours by default)
@@ -112,7 +145,7 @@ pub fn create_jwt(user_id: &str, username: &str, email: &str) -> Result<String> 
     };
 
     let header = Header::new(JwtAlgorithm::HS256);
-    let secret = JwtConfig::secret();
+    let secret = JwtConfig::secret()?;
 
     encode(
         &header,
@@ -124,7 +157,7 @@ pub fn create_jwt(user_id: &str, username: &str, email: &str) -> Result<String> 
 
 /// Decode and validate a JWT token
 pub fn decode_jwt(token: &str) -> Result<Claims> {
-    let secret = JwtConfig::secret();
+    let secret = JwtConfig::secret()?;
     let validation = Validation::new(JwtAlgorithm::HS256);
 
     let token_data = decode::<Claims>(

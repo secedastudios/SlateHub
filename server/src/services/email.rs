@@ -1,23 +1,52 @@
+//! Transactional email via the Mailjet REST API (`/v3.1/send`).
+//!
+//! Covers every outbound mail the app sends: email-verification codes,
+//! password resets, org/production invitations, generic notifications
+//! (e.g. new-message alerts), and user feedback forwarding. Bodies are
+//! built inline as paired plain-text + HTML strings; user-supplied content
+//! interpolated into HTML is sanitized with `ammonia` first.
+//!
+//! There is no global instance or boot-time init: call sites construct an
+//! [`EmailService`] with [`EmailService::from_env`] right before sending
+//! (and usually skip sending, with a log line, when it fails).
+//!
+//! Env vars:
+//! * `MAILJET_API_KEY` / `MAILJET_API_SECRET` — required (basic auth).
+//! * `MAILJET_FROM_EMAIL` — optional, default `noreply@slatehub.com`.
+//! * `MAILJET_FROM_NAME` — optional, default `SlateHub`.
+//! * `FEEDBACK_RECIPIENT_EMAIL` — optional, where
+//!   [`EmailService::send_feedback_email`] delivers (defaults to the from
+//!   address).
+
 use reqwest;
 use serde::{Deserialize, Serialize};
 use std::env;
 use thiserror::Error;
 use tracing::{debug, error, info};
 
+/// Errors produced by [`EmailService`].
 #[derive(Error, Debug)]
 pub enum EmailError {
+    /// Mailjet accepted the connection but answered non-2xx; carries the
+    /// status and response body.
     #[error("Failed to send email: {0}")]
     SendError(String),
+    /// A required `MAILJET_*` env var is missing.
     #[error("Missing configuration: {0}")]
     ConfigError(String),
+    /// Transport-level failure talking to the Mailjet API.
     #[error("HTTP request failed: {0}")]
     HttpError(#[from] reqwest::Error),
+    /// Payload serialization failure (effectively unreachable for our
+    /// static payload shapes).
     #[error("JSON serialization failed: {0}")]
     SerializationError(#[from] serde_json::Error),
 }
 
 type Result<T> = std::result::Result<T, EmailError>;
 
+/// Mailjet API client plus the configured sender identity. Cheap to build
+/// per call; holds no connection state beyond a `reqwest::Client`.
 #[derive(Debug, Clone)]
 pub struct EmailService {
     api_key: String,
@@ -57,7 +86,12 @@ struct EmailAddress {
 }
 
 impl EmailService {
-    /// Create a new EmailService instance from environment variables
+    /// Create a new EmailService instance from environment variables.
+    ///
+    /// # Errors
+    ///
+    /// `EmailError::ConfigError` when `MAILJET_API_KEY` or
+    /// `MAILJET_API_SECRET` is unset (the from-address vars have defaults).
     pub fn from_env() -> Result<Self> {
         let api_key = env::var("MAILJET_API_KEY")
             .map_err(|_| EmailError::ConfigError("MAILJET_API_KEY not set".to_string()))?;
@@ -79,7 +113,13 @@ impl EmailService {
         })
     }
 
-    /// Send an email through Mailjet
+    /// Send a single email through Mailjet's `/v3.1/send` endpoint.
+    ///
+    /// # Errors
+    ///
+    /// `EmailError::HttpError` on transport failure, `EmailError::SendError`
+    /// when Mailjet answers non-2xx (bad credentials, rejected recipient,
+    /// quota). All the public `send_*` wrappers share these failure modes.
     async fn send_email(
         &self,
         to_email: &str,
@@ -136,7 +176,10 @@ impl EmailService {
         }
     }
 
-    /// Send email verification code
+    /// Send the email-verification message: a confirm link
+    /// (`/verify-email/confirm?code=…&email=…` on [`crate::config::app_url`])
+    /// plus the bare 6-digit code for manual entry. Tells the user the code
+    /// expires in 24 hours (the TTL set by `services::verification`).
     pub async fn send_verification_email(
         &self,
         to_email: &str,
@@ -214,7 +257,9 @@ impl EmailService {
         .await
     }
 
-    /// Send password reset email
+    /// Send the password-reset message: the 6-digit reset code plus a link
+    /// to `/reset-password?email=…`. Tells the user the code expires in
+    /// 1 hour (the TTL set by `services::verification`).
     pub async fn send_password_reset_email(
         &self,
         to_email: &str,
@@ -298,7 +343,11 @@ impl EmailService {
         .await
     }
 
-    /// Send organization invitation email to a non-user
+    /// Send an invitation email to someone with no SlateHub account yet
+    /// (used for both org and production invites — `org_name` is whichever
+    /// the target is). The optional personal `message` is sanitized with
+    /// `ammonia` before being embedded in the HTML body; `signup_url` should
+    /// carry the `ref=invite&email=…` query so signup auto-joins them.
     pub async fn send_invitation_email(
         &self,
         to_email: &str,
@@ -383,7 +432,9 @@ impl EmailService {
             .await
     }
 
-    /// Send a generic notification email (e.g., new message notification)
+    /// Send a generic notification email (e.g., new message notification).
+    /// The caller supplies ready-made text and HTML bodies; this just
+    /// forwards them to Mailjet unchanged.
     pub async fn send_notification_email(
         &self,
         to_email: &str,
@@ -396,7 +447,9 @@ impl EmailService {
             .await
     }
 
-    /// Send feedback notification email
+    /// Forward a user-submitted feedback message to the operators. Recipient
+    /// is `FEEDBACK_RECIPIENT_EMAIL`, falling back to the configured from
+    /// address; the message is `ammonia`-sanitized for the HTML body.
     pub async fn send_feedback_email(
         &self,
         username: &str,
@@ -453,7 +506,15 @@ impl EmailService {
     }
 }
 
-/// Initialize the global email service
+/// Async-flavored convenience constructor; identical to
+/// [`EmailService::from_env`]. Note there is no global email singleton —
+/// call sites build the service from env per send, and nothing in the boot
+/// path currently calls this function.
+///
+/// # Errors
+///
+/// Same as [`EmailService::from_env`]: `EmailError::ConfigError` when a
+/// required `MAILJET_*` var is missing.
 pub async fn init() -> Result<EmailService> {
     EmailService::from_env()
 }

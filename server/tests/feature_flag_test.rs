@@ -196,3 +196,79 @@ fn test_unknown_flag_defaults_to_off() {
         assert!(!feature_flag::allows("nonexistent_flag", None).await);
     });
 }
+
+#[test]
+fn test_register_flags_seeds_initial_state_for_new_flags() {
+    // First-time register: every registry flag should land at its declared
+    // initial_state, not 'off' for everything.
+    common::setup_test_db();
+    clean();
+
+    common::run(async {
+        feature_flag::register_flags().await;
+
+        // identity_verification declares initial_state = Off
+        assert_eq!(
+            feature_flag::get_state("identity_verification").await,
+            FlagState::Off,
+            "identity_verification should seed as Off"
+        );
+
+        // production_management declares initial_state = AdminOnly
+        assert_eq!(
+            feature_flag::get_state("production_management").await,
+            FlagState::AdminOnly,
+            "production_management should seed as AdminOnly"
+        );
+
+        // script_breakdown declares initial_state = AdminOnly
+        assert_eq!(
+            feature_flag::get_state("script_breakdown").await,
+            FlagState::AdminOnly,
+            "script_breakdown should seed as AdminOnly"
+        );
+
+        // call_sheet_email declares initial_state = AdminOnly
+        assert_eq!(
+            feature_flag::get_state("call_sheet_email").await,
+            FlagState::AdminOnly,
+            "call_sheet_email should seed as AdminOnly"
+        );
+    });
+}
+
+#[test]
+fn test_register_flags_preserves_operator_state_on_existing_row() {
+    // Critical: an operator flipping a flag via the admin UI must not be
+    // clobbered on next register_flags() (which runs at every boot).
+    common::setup_test_db();
+    clean();
+
+    common::run(async {
+        // First run: seed with declared initial states.
+        feature_flag::register_flags().await;
+        assert_eq!(
+            feature_flag::get_state("identity_verification").await,
+            FlagState::Off
+        );
+
+        // Operator flips it in the admin UI: identity_verification → All
+        feature_flag::set_state("identity_verification", FlagState::All, None)
+            .await
+            .expect("operator promotes flag");
+        assert_eq!(
+            feature_flag::get_state("identity_verification").await,
+            FlagState::All
+        );
+
+        // Server reboots and calls register_flags() again.
+        feature_flag::register_flags().await;
+
+        // Operator's choice must still be in effect, NOT reset to Off.
+        assert_eq!(
+            feature_flag::get_state("identity_verification").await,
+            FlagState::All,
+            "register_flags() must not overwrite an existing operator-set state"
+        );
+    });
+}

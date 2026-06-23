@@ -1,4 +1,9 @@
 //! Incoming webhook handlers (Stripe today; other providers later).
+//!
+//! `/webhooks/stripe` verifies the signature, then syncs checkout,
+//! Identity-verification, and refund events onto `verification_payment`
+//! rows (and the person's `verification_status`). Handlers ack 200 even on
+//! internal errors so Stripe doesn't retry-storm programmer bugs.
 
 use axum::{
     Router,
@@ -16,6 +21,7 @@ use crate::{
     services::stripe::{RefundReason, StripeService, WebhookEvent},
 };
 
+/// Single route: `POST /webhooks/stripe`, the signed Stripe event sink.
 pub fn router() -> Router {
     Router::new().route("/webhooks/stripe", post(stripe_webhook))
 }

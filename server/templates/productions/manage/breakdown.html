@@ -1,0 +1,23 @@
+{% extends "productions/manage/manage_layout.html" %}
+
+{% block manage_content %}
+<header class="manage-tab-header">
+    <h2 id="manage-content-heading">Breakdown</h2>
+    <p>Scene-by-scene breakdown produced from the latest script.</p>
+</header>
+
+<section class="manage-stub" aria-label="Breakdown tab placeholder">
+    <p class="manage-stub-headline">Breakdown UI lands in <strong>Phase 1.4</strong>.</p>
+    <p>This tab will show:</p>
+    <ul>
+        <li>Per-scene list with heading, location, int/ext, time of day, page count</li>
+        <li>Chips per category (cast, props, wardrobe, makeup, sfx, vfx, sound, stunt, animal, music, vehicle) with confidence + edit-in-place</li>
+        <li>"Approve scene" affordance to flip <code>scene.status</code> to <code>reviewed</code></li>
+        <li>"Re-run breakdown" against an updated script</li>
+        <li>Export as PDF or JSON</li>
+    </ul>
+    <p>
+        Backed by aristotle running in-process — see <code>aristotle_runner</code>.
+    </p>
+</section>
+{% endblock %}

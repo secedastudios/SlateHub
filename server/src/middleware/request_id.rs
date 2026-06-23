@@ -1,3 +1,14 @@
+//! Request-ID generation and propagation middleware.
+//!
+//! [`request_id_middleware`] is the outermost layer in the stack built by
+//! [`crate::routes::app`], so it runs before every other middleware. It
+//! adopts an inbound ID from common proxy headers (`X-Request-Id`,
+//! `X-Correlation-Id`, `X-Trace-Id`, `Request-Id`) or generates a fresh
+//! ULID, inserts a [`RequestId`] into the request extensions, wraps the rest
+//! of the stack in a tracing span carrying the ID, and echoes the ID back in
+//! the `X-Request-Id` response header. Downstream code reads the ID through
+//! the [`RequestIdExt`] trait.
+
 use crate::logging::format_http_status;
 use axum::{
     body::Body,
@@ -8,7 +19,7 @@ use axum::{
 use tracing::{Instrument, info_span};
 use ulid::Ulid;
 
-/// Extension type for the request ID
+/// Extension type carrying the unique ID assigned to a request.
 #[derive(Clone, Debug)]
 pub struct RequestId(pub String);
 

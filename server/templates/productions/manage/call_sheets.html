@@ -1,0 +1,24 @@
+{% extends "productions/manage/manage_layout.html" %}
+
+{% block manage_content %}
+<header class="manage-tab-header">
+    <h2 id="manage-content-heading">Call sheets</h2>
+    <p>Generate, version, preview, and distribute daily call sheets.</p>
+</header>
+
+<section class="manage-stub" aria-label="Call sheets tab placeholder">
+    <p class="manage-stub-headline">Call sheets land in <strong>Phase 2</strong>.</p>
+    <p>This tab will show:</p>
+    <ul>
+        <li>Per-day generated call sheet (header, scenes, cast, crew, locations, emergency)</li>
+        <li>Side-by-side HTML preview + downloadable PDF</li>
+        <li>Versioning &amp; audit history of every regenerate</li>
+        <li>"Publish &amp; Email" to all recipients</li>
+        <li>WhatsApp delivery (Phase 4)</li>
+    </ul>
+    <p>
+        PDF rendering technology — Typst vs. headless Chromium —
+        will be resolved in the Phase 0.3 spike before this tab ships.
+    </p>
+</section>
+{% endblock %}

@@ -1,3 +1,9 @@
+//! Authentication routes: signup (honeypot + form-token timing +
+//! proof-of-work spam layers, IP rate limiting), login/logout with the
+//! `auth_token` JWT cookie, email verification (code form and direct
+//! link), password reset, resend-verification, and `/i/{token}` short
+//! invite links that either join the target directly or land on signup.
+
 use askama::Template;
 use axum::{
     Form, Router,
@@ -142,6 +148,8 @@ use crate::{
     },
 };
 
+/// Routes for signup, login/logout, email verification, password reset,
+/// and short invite links.
 pub fn router() -> Router {
     Router::new()
         .route("/i/{token}", get(invite_link))
@@ -700,7 +708,7 @@ async fn reset_password(Form(form): Form<ResetPasswordForm>) -> Result<Response,
             use crate::auth;
             use crate::db::DB;
 
-            let password_hash = auth::hash_password(&form.password)?;
+            let password_hash = auth::hash_password(&form.password).await?;
 
             let sql = "UPDATE person SET password = $password WHERE id = $id";
             DB.query(sql)
@@ -869,19 +877,14 @@ async fn invite_link(
         };
 
         let base = crate::templates::BaseContext::new().with_page("invite");
-        let template = InviteLandingTemplate {
-            app_name: base.app_name,
-            year: base.year,
-            version: base.version,
-            active_page: base.active_page,
-            user: base.user,
+        let template = crate::with_base!(InviteLandingTemplate, base, {
             target_name: invite.target_name.clone(),
             target_type: invite.target_type.clone(),
             production_roles: invite.production_roles.clone(),
             poster_url,
             redirect_url,
             token: token.clone(),
-        };
+        });
 
         let html = template.render().map_err(|e| {
             error!("Failed to render invite landing template: {}", e);

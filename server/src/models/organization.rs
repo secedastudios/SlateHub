@@ -1,3 +1,10 @@
+//! Organization records and their membership graph.
+//!
+//! Owns the `organization` table plus org-side `member_of` edges (via
+//! [`crate::models::membership`]), slug-based lookup, profile updates, and
+//! the embedding text used by semantic search. Called from
+//! `routes::organizations` and `routes::org_settings`.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};

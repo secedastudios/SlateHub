@@ -1,19 +1,33 @@
+//! Site-wide activity metrics for the admin dashboard.
+//!
+//! Read-side aggregation over the `activity_event` time-series table
+//! (page views, logins, etc. — events are written by the tracking
+//! middleware, not here), plus a retention `cleanup`. Called by
+//! `routes/admin.rs` for the dashboard and by the periodic cleanup task
+//! spawned in `main.rs`. Aggregate queries use `GROUP ALL` (or a `GROUP BY`
+//! subquery for distinct counts) so `count()` comes back as a single row.
+
 use crate::db::DB;
 use serde::{Deserialize, Serialize};
 use surrealdb::types::SurrealValue;
 use tracing::debug;
 
+/// Row shape for `SELECT count() AS count ... GROUP ALL` aggregates.
 #[derive(Debug, Serialize, Deserialize, SurrealValue)]
 pub struct CountResult {
     pub count: u64,
 }
 
+/// Per-path page-view total (last 30 days), for the "top pages" table.
 #[derive(Debug, Serialize, Deserialize, SurrealValue)]
 pub struct PageStat {
     pub path: String,
     pub views: u64,
 }
 
+/// Events per calendar day; `day` is `time::floor(created_at, 1d)` cast to
+/// `<string>` in the query (RecordId/datetime values can't deserialize into
+/// plain `String` fields otherwise).
 #[derive(Debug, Serialize, Deserialize, SurrealValue)]
 pub struct DayStat {
     pub day: String,
@@ -43,6 +57,7 @@ pub struct EngagementMetrics {
     pub unique_visitors_30d: String,
 }
 
+/// Abbreviate large counts for display: 1532 → "1.5k", 2_000_000 → "2M".
 fn abbr(n: u64) -> String {
     if n >= 1_000_000 {
         let v = n as f64 / 1_000_000.0;
@@ -57,9 +72,12 @@ fn abbr(n: u64) -> String {
     }
 }
 
+/// Read-only aggregation surface over `activity_event` (plus `cleanup`).
 pub struct ActivityModel;
 
 impl ActivityModel {
+    /// Run a `count() AS count` query, swallowing errors as 0 (metrics are
+    /// best-effort and must never fail the dashboard).
     async fn count(query: &str) -> u64 {
         let result: Option<CountResult> = DB
             .query(query)
@@ -70,6 +88,8 @@ impl ActivityModel {
         result.map(|r| r.count).unwrap_or(0)
     }
 
+    /// Count distinct signed-in people with any event in the trailing
+    /// `duration` (a SurrealQL duration literal like "7d").
     async fn active_users(duration: &str) -> u64 {
         let query = format!(
             "SELECT count() AS count FROM (SELECT person_id FROM activity_event WHERE person_id IS NOT NONE AND created_at > time::now() - {} GROUP BY person_id)",
@@ -78,6 +98,10 @@ impl ActivityModel {
         Self::count(&query).await
     }
 
+    /// Compute the full admin-dashboard engagement block (DAU/WAU/MAU,
+    /// stickiness, retention, page views, unique visitors) with all count
+    /// queries issued concurrently via `tokio::join!`. Infallible: each
+    /// failed sub-count degrades to 0.
     pub async fn engagement_metrics() -> EngagementMetrics {
         debug!("Fetching engagement metrics");
 
@@ -162,6 +186,7 @@ impl ActivityModel {
         }
     }
 
+    /// Most-viewed paths over the last 30 days (best-effort; empty on error).
     pub async fn top_pages(limit: u32) -> Vec<PageStat> {
         debug!("Fetching top pages");
         DB.query("SELECT path, count() AS views FROM activity_event WHERE event_type = 'page_view' AND created_at > time::now() - 30d GROUP BY path ORDER BY views DESC LIMIT $limit")
@@ -172,6 +197,8 @@ impl ActivityModel {
             .unwrap_or_default()
     }
 
+    /// Event totals per day for the trailing `days` window, oldest first
+    /// (best-effort; empty on error).
     pub async fn daily_activity(days: u32) -> Vec<DayStat> {
         debug!("Fetching daily activity");
         let query = format!(
@@ -185,6 +212,8 @@ impl ActivityModel {
             .unwrap_or_default()
     }
 
+    /// 30-day totals per `event_type` ("page_view", "login", …), highest
+    /// first (best-effort; empty on error).
     pub async fn event_counts() -> Vec<(String, u64)> {
         debug!("Fetching event type counts");
         #[derive(Deserialize, SurrealValue)]
@@ -204,6 +233,8 @@ impl ActivityModel {
             .collect()
     }
 
+    /// Delete events older than `days`; errors are logged, never returned
+    /// (runs unattended from the background task in `main.rs`).
     pub async fn cleanup(days: u32) {
         debug!("Cleaning up activity events older than {} days", days);
         let query = format!(

@@ -1,3 +1,10 @@
+//! Query normalization and natural-language filter parsing for search.
+//!
+//! Pure string helpers shared by [`crate::services::search`] and the MCP
+//! server: depluralizing industry job titles so `CONTAINS` matching works,
+//! and extracting structured filters (location, skills …) from free-form
+//! queries. No I/O.
+
 use regex::Regex;
 
 /// Normalize common industry search terms to their singular form.

@@ -1,3 +1,10 @@
+//! Equipment inventory: items, kits, and rental tracking.
+//!
+//! Owns the `equipment`, `equipment_kit`, and `equipment_rental` tables —
+//! gear that people/orgs list (cameras, lenses, lighting …), optional
+//! bundling into kits, and check-out/check-in state. Called from
+//! `routes::equipment`.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};

@@ -18,12 +18,16 @@ use tracing::{debug, error, info, warn};
 
 /// Standard event URIs we emit.
 pub mod events {
+    /// CAEP: a subject's token claims changed (e.g. org role updated).
     pub const CAEP_TOKEN_CLAIMS_CHANGE: &str =
         "https://schemas.openid.net/secevent/caep/event-type/token-claims-change";
+    /// CAEP: a session was revoked at the issuer.
     pub const CAEP_SESSION_REVOKED: &str =
         "https://schemas.openid.net/secevent/caep/event-type/session-revoked";
+    /// RISC: the subject's account was disabled.
     pub const RISC_ACCOUNT_DISABLED: &str =
         "https://schemas.openid.net/secevent/risc/event-type/account-disabled";
+    /// SlateHub-specific: the subject's org membership was revoked.
     pub const SLATEHUB_ORG_MEMBERSHIP_REVOKED: &str =
         "https://schemas.slatehub.com/secevent/event-type/org-membership-revoked";
 }

@@ -1,3 +1,10 @@
+//! Six-digit email codes for address verification and password reset.
+//!
+//! Owns the `verification_codes` table: code generation (rand), expiry,
+//! attempt limits, and consumption. Distinct from Stripe *identity*
+//! verification (`routes::verification`) — this module is only about
+//! proving control of an email address.
+
 use chrono::{DateTime, Duration, Utc};
 use rand::Rng;
 use serde::{Deserialize, Serialize};

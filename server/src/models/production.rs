@@ -1,3 +1,13 @@
+//! Production records and their membership/credit graph.
+//!
+//! Owns the `production` table plus its `member_of` edges (ownership and
+//! membership), and reads the reference tables `production_type`,
+//! `production_status`, `budget_level`, `production_tier`, and `role` for
+//! dropdown values. Credit edges are delegated to [`crate::models::involvement`].
+//! Called by the production routes (`routes/productions.rs`,
+//! `routes/productions_manage.rs`), `routes/api.rs`, `routes/media.rs`,
+//! `routes/auth.rs`, and `services/invitation.rs`.
+
 use crate::db::DB;
 use crate::error::Error;
 use crate::record_id_ext::RecordIdExt;
@@ -22,9 +32,13 @@ pub struct Production {
     pub id: RecordId,
     pub title: String,
     pub slug: String,
+    /// Production type name, e.g. "Film" or "TV Series". Values come from the
+    /// `production_type` reference table (no schema ASSERT).
     #[serde(rename = "type")]
     #[surreal(rename = "type")]
     pub production_type: String,
+    /// Production status name. Values come from the `production_status`
+    /// reference table (no schema ASSERT).
     pub status: String,
     pub start_date: Option<DateTime<Utc>>,
     pub end_date: Option<DateTime<Utc>>,
@@ -46,6 +60,7 @@ pub struct Production {
     #[serde(default)]
     #[surreal(default)]
     pub tmdb_id: Option<i64>,
+    /// TMDB media type: "movie" | "tv" (schema comment; no ASSERT).
     #[serde(default)]
     #[surreal(default)]
     pub media_type: Option<String>,
@@ -62,6 +77,8 @@ pub struct Production {
     #[surreal(default)]
     pub overview: Option<String>,
     // Source tracking
+    /// Record origin: "manual" (default, user-created) or "tmdb" (imported);
+    /// scraped imports store the scraper's source name (no schema ASSERT).
     #[serde(default = "default_source")]
     #[surreal(default)]
     pub source: String,
@@ -69,9 +86,13 @@ pub struct Production {
     #[surreal(default)]
     pub source_overrides: Vec<String>,
     // Classification
+    /// Budget classification name; values come from the `budget_level`
+    /// reference table (no schema ASSERT).
     #[serde(default)]
     #[surreal(default)]
     pub budget_level: Option<String>,
+    /// Tier classification name; values come from the `production_tier`
+    /// reference table (no schema ASSERT).
     #[serde(default)]
     #[surreal(default)]
     pub production_tier: Option<String>,
@@ -105,7 +126,11 @@ fn parse_datetime(s: Option<String>) -> Option<DateTime<Utc>> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateProductionData {
     pub title: String,
+    /// Production type name; sourced from the `production_type` reference
+    /// table (no schema ASSERT).
     pub production_type: String,
+    /// Production status name; sourced from the `production_status` reference
+    /// table (no schema ASSERT).
     pub status: String,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
@@ -119,7 +144,11 @@ pub struct CreateProductionData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateProductionData {
     pub title: Option<String>,
+    /// Production type name; sourced from the `production_type` reference
+    /// table (no schema ASSERT).
     pub production_type: Option<String>,
+    /// Production status name; sourced from the `production_status` reference
+    /// table (no schema ASSERT).
     pub status: Option<String>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
@@ -137,15 +166,202 @@ pub struct ProductionMember {
     pub username: Option<String>, // For persons
     pub slug: Option<String>,     // For organizations
     pub avatar: Option<String>,   // Profile avatar URL
-    pub role: String,             // owner, admin, member (permission level)
+    /// Permission level on the production: "owner" | "admin" | "member"
+    /// (schema comment on `member_of.role`; no ASSERT).
+    pub role: String,
+    /// Credited production roles, e.g. ["Director", "Producer"].
     #[serde(default)]
     #[surreal(default)]
-    pub production_roles: Option<Vec<String>>, // e.g. ["Director", "Producer"]
-    pub member_type: String,      // person or organization
-    pub invitation_status: String, // pending, accepted, declined
+    pub production_roles: Option<Vec<String>>,
+    /// "person" | "organization" — computed as `type::table(in)` in the query.
+    pub member_type: String,
+    /// One of "pending" | "accepted" | "declined" | "requested"
+    /// (schema comment on `member_of.invitation_status`; no ASSERT).
+    pub invitation_status: String,
     #[serde(default)]
     #[surreal(default)]
     pub is_verified: bool, // Whether org is verified (gold checkmark)
+}
+
+/// The canonical six-phase production lifecycle.
+///
+/// A production's stored `status` string (sourced from the
+/// `production_status` reference table, plus older free-form values) is
+/// mapped onto exactly one of these phases for display — see
+/// [`LifecyclePhase::from_status`]. The management overview renders them as
+/// an ordered stepper so a producer can see at a glance where the project
+/// sits and what comes next. `Canceled` is intentionally *not* part of the
+/// linear order; it's surfaced separately.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LifecyclePhase {
+    Development,
+    PreProduction,
+    Production,
+    PostProduction,
+    MarketingDistribution,
+    Released,
+    Canceled,
+}
+
+impl LifecyclePhase {
+    /// The six linear phases, in order. `Canceled` is excluded.
+    pub const ORDERED: [LifecyclePhase; 6] = [
+        LifecyclePhase::Development,
+        LifecyclePhase::PreProduction,
+        LifecyclePhase::Production,
+        LifecyclePhase::PostProduction,
+        LifecyclePhase::MarketingDistribution,
+        LifecyclePhase::Released,
+    ];
+
+    /// Map a stored status string onto a lifecycle phase.
+    ///
+    /// Tolerant of casing, separators, and the legacy `production_status`
+    /// vocabulary (`Completed`, `Festival`, `Pre-Sales` …) that predates the
+    /// six canonical phases. Unrecognized values fall back to
+    /// [`LifecyclePhase::Development`] so the stepper always renders.
+    pub fn from_status(status: &str) -> Self {
+        // Normalize: lowercase, keep only alphanumerics ("Pre-Production",
+        // "pre_production", "preproduction" all collapse to "preproduction").
+        let key: String = status
+            .to_lowercase()
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .collect();
+        match key.as_str() {
+            "development" | "indevelopment" | "dev" => Self::Development,
+            "preproduction" | "prep" => Self::PreProduction,
+            "production" | "inproduction" | "principalphotography" | "shooting" => Self::Production,
+            "postproduction" | "post" | "editing" => Self::PostProduction,
+            "marketingdistribution"
+            | "marketing"
+            | "distribution"
+            | "completed"
+            | "festival"
+            | "presales"
+            | "sales" => Self::MarketingDistribution,
+            "released" | "complete" | "live" | "published" => Self::Released,
+            "canceled" | "cancelled" | "abandoned" => Self::Canceled,
+            _ => Self::Development,
+        }
+    }
+
+    /// Zero-based position in the linear flow, or `None` for `Canceled`.
+    pub fn order(self) -> Option<usize> {
+        Self::ORDERED.iter().position(|p| *p == self)
+    }
+
+    /// Human-readable label for the phase.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Development => "Development",
+            Self::PreProduction => "Pre-Production",
+            Self::Production => "Production",
+            Self::PostProduction => "Post-Production",
+            Self::MarketingDistribution => "Marketing / Distribution",
+            Self::Released => "Released",
+            Self::Canceled => "Canceled",
+        }
+    }
+
+    /// Stable kebab-case key for CSS hooks and data attributes.
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Development => "development",
+            Self::PreProduction => "pre-production",
+            Self::Production => "production",
+            Self::PostProduction => "post-production",
+            Self::MarketingDistribution => "marketing-distribution",
+            Self::Released => "released",
+            Self::Canceled => "canceled",
+        }
+    }
+}
+
+/// One step in the lifecycle stepper rendered on the management overview.
+#[derive(Debug, Clone)]
+pub struct LifecycleStep {
+    /// 1-based step number for display (`01`–`06`).
+    pub number: usize,
+    /// Phase label, e.g. "Pre-Production".
+    pub label: String,
+    /// Kebab-case key for styling hooks.
+    pub key: String,
+    /// True for phases at or before the current phase (filled in the UI).
+    pub reached: bool,
+    /// True only for the production's current phase (the highlight).
+    pub current: bool,
+}
+
+/// The full lifecycle view for the overview: an ordered stepper plus the
+/// current phase, with a `canceled` flag for the off-flow state.
+#[derive(Debug, Clone)]
+pub struct LifecycleView {
+    /// Current phase label (including "Canceled").
+    pub current_label: String,
+    /// Current phase key.
+    pub current_key: String,
+    /// True when the production is canceled (stepper shown muted).
+    pub canceled: bool,
+    /// The six ordered steps with reached/current flags applied.
+    pub steps: Vec<LifecycleStep>,
+}
+
+impl LifecycleView {
+    /// Build the stepper view from a stored status string.
+    pub fn from_status(status: &str) -> Self {
+        let current = LifecyclePhase::from_status(status);
+        let canceled = current == LifecyclePhase::Canceled;
+        // Canceled has no position; nothing is "reached" in the linear flow.
+        let current_order = current.order();
+
+        let steps = LifecyclePhase::ORDERED
+            .iter()
+            .enumerate()
+            .map(|(idx, phase)| LifecycleStep {
+                number: idx + 1,
+                label: phase.label().to_string(),
+                key: phase.key().to_string(),
+                reached: current_order.is_some_and(|cur| idx <= cur),
+                current: current_order == Some(idx),
+            })
+            .collect();
+
+        Self {
+            current_label: current.label().to_string(),
+            current_key: current.key().to_string(),
+            canceled,
+            steps,
+        }
+    }
+}
+
+/// Per-stage counters for the management Overview dashboard.
+///
+/// Zero values are meaningful: the dashboard shows "not started" states
+/// for stages with no data instead of a wall of zeros.
+#[derive(Debug, Clone, Default)]
+pub struct ManageDashboardStats {
+    /// Total script uploads (all versions of all documents).
+    pub script_revisions: i64,
+    /// Distinct script titles (a film usually has 1; series have several).
+    pub script_documents: i64,
+    /// Title of the most recently uploaded script, if any.
+    pub latest_script_title: Option<String>,
+    /// Version number of the most recently uploaded script, if any.
+    pub latest_script_version: Option<i64>,
+    /// Scenes produced by breakdown runs.
+    pub scenes: i64,
+    /// Unique cast names across all scene breakdowns.
+    pub cast: i64,
+    /// Unique props across all scene breakdowns.
+    pub props: i64,
+    /// Unique scene locations (from parsed scene headings).
+    pub locations: i64,
+    /// Planned shoot days.
+    pub shoot_days: i64,
+    /// Generated call sheets (all versions).
+    pub call_sheets: i64,
 }
 
 /// Production membership info (for "my productions" listing)
@@ -154,7 +370,11 @@ pub struct ProductionMembership {
     pub production_id: String,
     pub title: String,
     pub slug: String,
+    /// Production status name (from the `production_status` reference table;
+    /// no schema ASSERT).
     pub status: String,
+    /// Production type name (from the `production_type` reference table;
+    /// no schema ASSERT).
     pub production_type: String,
     #[serde(default)]
     #[surreal(default)]
@@ -165,10 +385,14 @@ pub struct ProductionMembership {
     #[serde(default)]
     #[surreal(default)]
     pub location: Option<String>,
+    /// Permission level: "owner" | "admin" | "member" (schema comment on
+    /// `member_of.role`; no ASSERT).
     pub role: String,
     #[serde(default)]
     #[surreal(default)]
     pub production_roles: Option<Vec<String>>,
+    /// One of "pending" | "accepted" | "declined" | "requested"
+    /// (schema comment on `member_of.invitation_status`; no ASSERT).
     pub invitation_status: String,
     pub created_at: DateTime<Utc>,
 }
@@ -197,7 +421,17 @@ fn validate_record_id_str(id: &str) -> Result<RecordId, Error> {
 pub struct ProductionModel;
 
 impl ProductionModel {
-    /// Create a new production and establish ownership
+    /// Create a production, RELATE the creator as an accepted `owner` member,
+    /// and add `involvement` credit edges for any owner production roles.
+    ///
+    /// The ownership edge formats both record IDs directly into the RELATE
+    /// statement (bind params don't work for RecordIds in RELATE), so
+    /// `creator_id` is validated to a strict `table:key` shape first. The
+    /// search embedding is generated in a fire-and-forget background task.
+    ///
+    /// # Errors
+    /// `Error::BadRequest` if `creator_id` is not a plain `table:key` id;
+    /// `Error::Database` if any statement fails.
     pub async fn create(
         data: CreateProductionData,
         creator_id: &str,
@@ -213,16 +447,7 @@ impl ProductionModel {
         );
 
         // Generate slug from title
-        let slug = data
-            .title
-            .to_lowercase()
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '-' })
-            .collect::<String>()
-            .split('-')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-            .join("-");
+        let slug = crate::text::slugify(&data.title);
 
         // Start a transaction
         let _response = DB
@@ -613,7 +838,72 @@ impl ProductionModel {
         Ok(())
     }
 
-    /// Get productions for a user or organization, with their role info
+    /// Aggregate counters for the management-workspace Overview dashboard.
+    ///
+    /// Every field is a cheap indexed count; zeros mean the stage hasn't
+    /// been started, which the dashboard renders as an explicit empty state.
+    pub async fn manage_dashboard_stats(
+        production_id: &RecordId,
+    ) -> Result<ManageDashboardStats, Error> {
+        // One round-trip, nine statements. Aggregates use the v3.1-safe
+        // patterns: `count()` + GROUP ALL (no empty-group -Infinity issue,
+        // empty set → no row → None → 0), and `array::distinct(field)`
+        // under GROUP ALL where the field collects into an array.
+        let mut response = DB
+            .query("SELECT VALUE count() FROM production_script WHERE production = $p GROUP ALL")
+            .query("SELECT title FROM production_script WHERE production = $p GROUP BY title")
+            .query("SELECT title, version, created_at FROM production_script WHERE production = $p ORDER BY created_at DESC LIMIT 1")
+            .query("SELECT VALUE count() FROM scene WHERE production = $p GROUP ALL")
+            .query("SELECT VALUE array::len(array::distinct(value)) FROM breakdown_item WHERE scene.production = $p AND category IN ['cast', 'cast_silent', 'cast_extra'] GROUP ALL")
+            .query("SELECT VALUE array::len(array::distinct(value)) FROM breakdown_item WHERE scene.production = $p AND category = 'prop' GROUP ALL")
+            .query("SELECT VALUE array::len(array::distinct(location)) FROM scene WHERE production = $p AND location != NONE GROUP ALL")
+            .query("SELECT VALUE count() FROM schedule_day WHERE production = $p GROUP ALL")
+            .query("SELECT VALUE count() FROM call_sheet WHERE schedule_day.production = $p GROUP ALL")
+            .bind(("p", production_id.clone()))
+            .await
+            .map_err(|e| Error::Database(format!("Failed to load dashboard stats: {e}")))?;
+
+        #[derive(serde::Deserialize, SurrealValue)]
+        struct TitleRow {
+            #[allow(dead_code)]
+            title: String,
+        }
+        #[derive(serde::Deserialize, SurrealValue)]
+        struct LatestScriptRow {
+            title: String,
+            version: i64,
+        }
+
+        let script_revisions: Option<i64> = response.take(0)?;
+        let script_documents: Vec<TitleRow> = response.take(1)?;
+        let latest: Vec<LatestScriptRow> = response.take(2)?;
+        let scenes: Option<i64> = response.take(3)?;
+        let cast: Option<i64> = response.take(4)?;
+        let props: Option<i64> = response.take(5)?;
+        let locations: Option<i64> = response.take(6)?;
+        let shoot_days: Option<i64> = response.take(7)?;
+        let call_sheets: Option<i64> = response.take(8)?;
+
+        let latest = latest.into_iter().next();
+        Ok(ManageDashboardStats {
+            script_revisions: script_revisions.unwrap_or(0),
+            script_documents: script_documents.len() as i64,
+            latest_script_title: latest.as_ref().map(|l| l.title.clone()),
+            latest_script_version: latest.map(|l| l.version),
+            scenes: scenes.unwrap_or(0),
+            cast: cast.unwrap_or(0),
+            props: props.unwrap_or(0),
+            locations: locations.unwrap_or(0),
+            shoot_days: shoot_days.unwrap_or(0),
+            call_sheets: call_sheets.unwrap_or(0),
+        })
+    }
+
+    /// Get productions a person or organization belongs to, with role info.
+    ///
+    /// Reads `member_of` edges with `in` formatted into the query (string
+    /// bind params don't match RecordId edge fields) and casts `out.id` to
+    /// `<string>` so it deserializes into [`ProductionMembership`].
     pub async fn get_member_productions(
         member_id: &str,
     ) -> Result<Vec<ProductionMembership>, Error> {
@@ -650,7 +940,11 @@ impl ProductionModel {
         Ok(productions)
     }
 
-    /// Get members of a production
+    /// Get members (people and organizations) of a production.
+    ///
+    /// Casts `in.id` and `type::table(in)` to `<string>` in the query because
+    /// RecordId values can't deserialize into the `String` fields of
+    /// [`ProductionMember`].
     pub async fn get_members(production_id: &RecordId) -> Result<Vec<ProductionMember>, Error> {
         debug!(
             "Fetching members for production: {}",
@@ -711,6 +1005,29 @@ impl ProductionModel {
             return Ok(count_val.as_u64().unwrap_or(0) > 0);
         }
         Ok(false)
+    }
+
+    /// Return the user's role on a production (`owner` / `admin` / `member`) if
+    /// they have a direct `member_of` edge to it, otherwise `None`.
+    /// Unlike [`can_edit`], this does NOT walk through org memberships — it's
+    /// for the management-mode gate where org-level access already implies a
+    /// person-level edge has been created during invitation.
+    pub async fn get_role(
+        production_id: &RecordId,
+        member_id: &str,
+    ) -> Result<Option<String>, Error> {
+        let member_rid = validate_record_id_str(member_id)?;
+        let query = format!(
+            "SELECT VALUE role FROM member_of WHERE in = {} AND out = {} LIMIT 1",
+            member_rid.display(),
+            production_id.display()
+        );
+        let mut result = DB
+            .query(&query)
+            .await
+            .map_err(|e| Error::Database(format!("Failed to check role: {e}")))?;
+        let role: Option<String> = result.take(0)?;
+        Ok(role)
     }
 
     /// Check if a user can edit a production (owner or admin).
@@ -1317,15 +1634,10 @@ impl ProductionModel {
     }
 }
 
-/// Generate a URL-friendly slug from a title
+/// Generate a URL-friendly slug from a title.
+///
+/// Thin wrapper over the canonical [`crate::text::slugify`], kept so the
+/// TMDB/scrape creation paths read naturally.
 fn generate_slug(title: &str) -> String {
-    title
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
+    crate::text::slugify(title)
 }

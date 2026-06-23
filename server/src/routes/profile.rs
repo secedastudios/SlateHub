@@ -1,3 +1,9 @@
+//! Own-profile routes: `/profile` and `/profile/{username}` redirect to the
+//! public `/{username}` page, while `/profile/edit` renders and processes
+//! the profile-edit form — parsing the flat `social_links[i][..]`,
+//! `reels[i][..]`, and `photos[i][..]` form fields, converting height and
+//! weight units, and enforcing verification-based photo/reel limits.
+
 use askama::Template;
 use axum::{
     Form, Router,
@@ -22,6 +28,8 @@ use crate::{
     verification_limits, video_platforms,
 };
 
+/// Routes for the `/profile` redirects and the `/profile/edit` form
+/// (GET renders, POST saves).
 pub fn router() -> Router {
     Router::new()
         .route("/profile", get(own_profile))
@@ -230,12 +238,7 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
     let is_verified = verification_limits::is_identity_verified(&profile_user.verification_status);
 
     // Create and render template
-    let template = ProfileEditTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(ProfileEditTemplate, base, {
         photo_count: profile_data.photos.len(),
         reel_count: profile_data.reels.len(),
         photo_limit: limits.max_photos,
@@ -245,7 +248,7 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         platforms: platform_options(),
         error: None,
         success: None,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render profile edit template: {}", e);

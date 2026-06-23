@@ -85,6 +85,15 @@ fn clean_all() {
         "media",
         "involvement",
         "member_of",
+        // Productions-management tables (added Phase 0):
+        "call_time",
+        "call_sheet",
+        "schedule_scene",
+        "schedule_day",
+        "scene",
+        "episode",
+        "season",
+        "production",
         "person",
     ] {
         common::clean_table(table);
@@ -209,6 +218,43 @@ fn test_delete_with_cascade_wipes_everything_for_target_and_spares_others() {
             .await
             .expect("seed pending_invitation");
 
+        // ── Productions-management seeds ───────────────────────────────────
+        // schedule_day for a production (alice is on the crew via call_time).
+        // call_sheet.generated_by + sent_by reference alice — must be nulled
+        // by the cascade (not deleted, so the sheet remains for audit).
+        // (Reusing the `R` struct defined earlier in this scope.)
+
+        let prod_rows: Vec<R> = DB
+            .query("CREATE production CONTENT { title: 'Cascade Prod', slug: 'cascade-prod', type: 'Feature Film', status: 'in_production' } RETURN id")
+            .await
+            .expect("seed production")
+            .take(0)
+            .expect("take production");
+        let prod = prod_rows.into_iter().next().expect("one prod").id;
+
+        let day_rows: Vec<R> = DB
+            .query("CREATE schedule_day SET production = $p, date = time::now() RETURN id")
+            .bind(("p", prod.clone()))
+            .await
+            .expect("seed schedule_day")
+            .take(0)
+            .expect("take schedule_day");
+        let day = day_rows.into_iter().next().expect("one day").id;
+
+        // alice gets a call_time on this shoot day (cast/crew row)
+        DB.query("CREATE call_time SET schedule_day = $d, person = $pid, role = 'Director'")
+            .bind(("d", day.clone()))
+            .bind(("pid", alice.clone()))
+            .await
+            .expect("seed call_time");
+
+        // alice generated AND sent the call sheet
+        DB.query("CREATE call_sheet SET schedule_day = $d, version = 1, pdf_key = 'cs/1.pdf', generated_by = $pid, sent_by = $pid, sent_at = time::now(), recipient_count = 5")
+            .bind(("d", day.clone()))
+            .bind(("pid", alice.clone()))
+            .await
+            .expect("seed call_sheet");
+
         // ── Sanity: everything is in place before the cascade ──────────────
         assert_eq!(count("direct_message", "sender = $pid", &alice).await, 2);
         assert_eq!(count("direct_message", "sender = $pid", &bob).await, 1);
@@ -241,6 +287,9 @@ fn test_delete_with_cascade_wipes_everything_for_target_and_spares_others() {
             count("pending_invitation", "invited_by = $pid", &alice).await,
             1
         );
+        assert_eq!(count("call_time", "person = $pid", &alice).await, 1);
+        assert_eq!(count("call_sheet", "generated_by = $pid", &alice).await, 1);
+        assert_eq!(count("call_sheet", "sent_by = $pid", &alice).await, 1);
         assert_eq!(count("person", "id = $pid", &alice).await, 1);
 
         // ── Run the cascade ────────────────────────────────────────────────
@@ -303,6 +352,26 @@ fn test_delete_with_cascade_wipes_everything_for_target_and_spares_others() {
             count("pending_invitation", "invited_by = $pid", &alice).await,
             0,
             "pending_invitation still present"
+        );
+        assert_eq!(
+            count("call_time", "person = $pid", &alice).await,
+            0,
+            "alice's call_time row should be deleted on cascade"
+        );
+        assert_eq!(
+            count("call_sheet", "generated_by = $pid", &alice).await,
+            0,
+            "alice's call_sheet.generated_by should be nulled — row remains for audit but not linked to her"
+        );
+        assert_eq!(
+            count("call_sheet", "sent_by = $pid", &alice).await,
+            0,
+            "alice's call_sheet.sent_by should be nulled"
+        );
+        assert_eq!(
+            count("call_sheet", "schedule_day != NONE", &alice).await,
+            1,
+            "the call_sheet row itself should remain (production data, not alice's)"
         );
         assert_eq!(
             count("person", "id = $pid", &alice).await,

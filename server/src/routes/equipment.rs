@@ -1,3 +1,9 @@
+//! Equipment inventory: gear and kit CRUD plus rental checkout/check-in.
+//!
+//! Items are owned by either a person or an organization; list/create/edit/
+//! delete verify the signed-in user is the owner (or a member of the owning
+//! org). Detail pages are public, but edit affordances stay owner-only.
+
 use axum::{
     Form, Router,
     extract::{Path, Query, Request},
@@ -854,6 +860,10 @@ pub async fn checkin_equipment_post(
 // Router Configuration
 // ============================
 
+/// Mounts the equipment pages: `/equipment` (list), `/equipment/new`,
+/// `/equipment/{id}` detail/edit/delete, kit creation and detail under
+/// `/equipment/kit/...`, and the rental `/equipment/checkout` and
+/// `/equipment/rental/{id}/checkin` flows.
 pub fn router() -> Router {
     Router::new()
         // Equipment list

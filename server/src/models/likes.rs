@@ -1,10 +1,22 @@
+//! Likes/favorites: the `likes` graph edge.
+//!
+//! Owns the `likes` RELATION (person -> person|location). Called by
+//! `routes/likes.rs` (toggle), `routes/search.rs` and
+//! `routes/public_profiles.rs` (liked-state badges), and
+//! `routes/locations.rs`. Reads traverse `person->likes->target` with the
+//! person id formatted into the query — bind params don't work in the graph
+//! traversal FROM position — so the id's table is validated first.
+
 use crate::{db::DB, error::Error, record_id_ext::RecordIdExt};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::RecordId;
 use tracing::debug;
 
+/// Query/mutation surface for `likes` edges.
 pub struct LikesModel;
 
+/// Profile card data for a liked person; `id` is the raw "person:key"
+/// string (cast with `<string>` in the query).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LikedPerson {
     pub id: String,
@@ -14,6 +26,8 @@ pub struct LikedPerson {
     pub headline: Option<String>,
 }
 
+/// Card data for a liked location; `id` is the bare record key (the
+/// "location:" prefix is stripped for template URLs).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LikedLocation {
     pub id: String,
@@ -104,7 +118,8 @@ impl LikesModel {
         Ok(ids.iter().map(|id| id.to_raw_string()).collect())
     }
 
-    /// Count liked people for a user
+    /// Count people this person has liked (`GROUP ALL` aggregate over the
+    /// `->likes->person` traversal; person id formatted into the query).
     pub async fn count_liked_people(person_id: &RecordId) -> Result<usize, Error> {
         Self::validate_person_id(person_id)?;
         let query = format!(
@@ -121,7 +136,8 @@ impl LikesModel {
             .unwrap_or(0) as usize)
     }
 
-    /// Count liked locations for a user
+    /// Count locations this person has liked (`GROUP ALL` aggregate over the
+    /// `->likes->location` traversal; person id formatted into the query).
     pub async fn count_liked_locations(person_id: &RecordId) -> Result<usize, Error> {
         Self::validate_person_id(person_id)?;
         let query = format!(
@@ -138,7 +154,9 @@ impl LikesModel {
             .unwrap_or(0) as usize)
     }
 
-    /// Get all liked people for a user using graph traversal
+    /// Get all people this person has liked, via `->likes->person` graph
+    /// traversal (person id formatted into the query because bind params
+    /// don't work in the traversal FROM position).
     pub async fn get_liked_people(person_id: &RecordId) -> Result<Vec<LikedPerson>, Error> {
         Self::validate_person_id(person_id)?;
         // Build query with record ID directly — bind params don't work in graph traversal FROM position
@@ -191,7 +209,9 @@ impl LikesModel {
         Ok(people)
     }
 
-    /// Get all liked locations for a user using graph traversal
+    /// Get all locations this person has liked, via `->likes->location`
+    /// graph traversal (person id formatted into the query because bind
+    /// params don't work in the traversal FROM position).
     pub async fn get_liked_locations(person_id: &RecordId) -> Result<Vec<LikedLocation>, Error> {
         Self::validate_person_id(person_id)?;
         let query = format!(

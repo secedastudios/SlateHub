@@ -642,6 +642,190 @@ button.prod-btn-danger:hover:not(:disabled) {
     gap: 0.5rem;
 }
 
+/* ========================================
+   Team table (columnar member list)
+   ========================================
+   Aligned columns: Member · Production Roles · Access · Actions. The header
+   and every row share one grid template (set on both selectors) so columns
+   line up; column labels live once in the header, not repeated per row. */
+
+.prod-team {
+    --prod-team-cols: minmax(0, 2.2fr) minmax(0, 2fr) minmax(90px, 0.9fr) auto;
+}
+
+.prod-team-head,
+.prod-team-row {
+    display: grid;
+    grid-template-columns: var(--prod-team-cols);
+    align-items: center;
+    gap: 0.75rem 1rem;
+}
+
+.prod-team-head {
+    padding: 0 1rem 0.5rem;
+    border-bottom: 1px solid rgba(214, 216, 202, 0.12);
+}
+
+.prod-team-head span {
+    font-family: var(--font-body);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(156, 163, 158, 0.6);
+}
+
+.prod-team-head .prod-team-col-actions {
+    text-align: right;
+}
+
+.prod-team-list {
+    list-style: none;
+    margin: 0.25rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.prod-team-row {
+    padding: 0.7rem 1rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.prod-team-row:hover {
+    background: rgba(214, 216, 202, 0.025);
+    border-color: rgba(214, 216, 202, 0.1);
+}
+
+.prod-team-row.is-pending {
+    opacity: 0.85;
+}
+
+/* Member cell: avatar + name */
+.prod-team-member {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.prod-team-avatar {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.prod-team-avatar img {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.prod-team-name {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.prod-team-name a {
+    text-decoration: none;
+    min-width: 0;
+}
+
+.prod-team-name strong {
+    font-size: var(--text-sm);
+    color: var(--color-text-primary, #d6d8ca);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.prod-team-name a:hover strong {
+    color: var(--color-accent, #eb5437);
+}
+
+/* Roles cell: wrap job-role chips; em-dash when none */
+.prod-team-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.prod-team-roles .prod-empty-cell {
+    color: rgba(156, 163, 158, 0.4);
+    font-size: var(--text-sm);
+}
+
+/* Access cell: a single permission/state pill */
+.prod-team-access {
+    display: flex;
+}
+
+.prod-team-pill {
+    font-family: var(--font-body);
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    padding: 2px 9px;
+    border-radius: 9999px;
+    color: rgba(214, 216, 202, 0.6);
+    border: 1px solid rgba(214, 216, 202, 0.14);
+    white-space: nowrap;
+}
+
+.prod-team-pill[data-access="owner"] {
+    color: #7ee8a0;
+    border-color: rgba(126, 232, 160, 0.3);
+}
+
+.prod-team-pill[data-access="admin"] {
+    color: rgba(100, 200, 240, 0.85);
+    border-color: rgba(100, 200, 240, 0.25);
+}
+
+.prod-team-pill[data-access="pending"] {
+    color: var(--color-warning, #d4a574);
+    border-color: rgba(212, 165, 116, 0.3);
+}
+
+/* Actions cell: right-aligned, consistent width */
+.prod-team-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.prod-team-actions form {
+    margin: 0;
+}
+
+/* Stack to labeled cards on narrow viewports */
+@media (max-width: 640px) {
+    .prod-team-head {
+        display: none;
+    }
+
+    .prod-team-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        padding: 0.9rem 1rem;
+        border-color: rgba(214, 216, 202, 0.1);
+        background: rgba(214, 216, 202, 0.025);
+    }
+
+    .prod-team-actions {
+        justify-content: flex-start;
+    }
+}
+
 .prod-member-item {
     display: flex;
     align-items: flex-start;

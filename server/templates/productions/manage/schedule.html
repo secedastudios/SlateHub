@@ -1,0 +1,23 @@
+{% extends "productions/manage/manage_layout.html" %}
+
+{% block manage_content %}
+<header class="manage-tab-header">
+    <h2 id="manage-content-heading">Schedule</h2>
+    <p>Shoot days, scene placement, and per-person call times.</p>
+</header>
+
+<section class="manage-stub" aria-label="Schedule tab placeholder">
+    <p class="manage-stub-headline">Scheduling lands in <strong>Phase 2</strong>.</p>
+    <p>This tab will show:</p>
+    <ul>
+        <li>Month / week / day calendar of shoot days</li>
+        <li>Drag-and-drop scene assignment from an "unscheduled" pool</li>
+        <li>Crew availability and double-booking detection</li>
+        <li>Auto-suggest day plan via aristotle's bin-packer</li>
+        <li>Subscribable iCal feed</li>
+    </ul>
+    <p>
+        Backed by the <code>schedule_day</code>, <code>schedule_scene</code>, and <code>call_time</code> tables (migration 014).
+    </p>
+</section>
+{% endblock %}

@@ -1,6 +1,9 @@
-//! Media model for handling uploaded files and profile images
+//! Media model for handling uploaded files and profile images.
 //!
-//! This module manages media uploads, storage in S3-compatible object storage, and database records.
+//! Owns the `media` table: one row of metadata per object stored in the
+//! S3-compatible bucket (the bytes themselves live in object storage, keyed
+//! by `object_key`). Called by `routes/media.rs` upload/delete handlers and
+//! by profile/resume management code.
 
 use crate::db::DB;
 use crate::error::{Error, Result};
@@ -48,6 +51,8 @@ pub struct MediaDimensions {
 /// Input for creating a new media record
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateMediaInput {
+    /// Type of media (e.g., "profile_image", "reel", "resume"); free-form,
+    /// no schema ASSERT.
     pub media_type: String,
     pub filename: String,
     pub mime_type: String,

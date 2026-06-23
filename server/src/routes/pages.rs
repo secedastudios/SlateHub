@@ -1,3 +1,8 @@
+//! Public site pages and crawler plumbing: home, about, terms, privacy,
+//! and impressum, plus `/healthcheck`, `robots.txt`, `llms.txt`,
+//! `sitemap.xml`, the favicon redirect, and the Datastar SSE feed that
+//! rotates verified-profile tiles in the homepage hero ticker.
+
 use askama::Template;
 use axum::http::{HeaderValue, header};
 use axum::{
@@ -9,8 +14,10 @@ use axum::{
 use tracing::{debug, error};
 
 use crate::{
+    datastar,
     db::DB,
     error::Error,
+    html::escape_attr,
     middleware::UserExtractor,
     templates::{
         AboutTemplate, Activity, BaseContext, ImpressumTemplate, IndexTemplate, PrivacyTemplate,
@@ -18,6 +25,8 @@ use crate::{
     },
 };
 
+/// Routes for the public pages, SEO/crawler endpoints, healthcheck, and the
+/// homepage profile-ticker SSE feed.
 pub fn router() -> Router {
     Router::new()
         .route("/", get(index))
@@ -264,7 +273,7 @@ async fn profiles_ticker_sse(
     };
 
     if rows.is_empty() {
-        return sse_response("event: datastar-patch-elements\ndata: selector #hero-ticker\ndata: mode inner\ndata: elements \n\n".to_string());
+        return datastar::response("event: datastar-patch-elements\ndata: selector #hero-ticker\ndata: mode inner\ndata: elements \n\n".to_string());
     }
 
     let mut body = String::new();
@@ -273,7 +282,7 @@ async fn profiles_ticker_sse(
         // Replace a single tile at the given slot index
         if let Some(row) = rows.first() {
             let tile = render_ticker_tile(row, slot);
-            body.push_str(&sse_patch_elements(
+            body.push_str(&datastar::patch_elements(
                 &format!("#hero-ticker [data-slot=\"{}\"]", slot),
                 "outer",
                 &tile,
@@ -285,17 +294,10 @@ async fn profiles_ticker_sse(
         for (i, row) in rows.iter().enumerate() {
             tiles.push_str(&render_ticker_tile(row, i));
         }
-        body.push_str(&sse_patch_elements("#hero-ticker", "inner", &tiles));
+        body.push_str(&datastar::patch_elements("#hero-ticker", "inner", &tiles));
     }
 
-    sse_response(body)
-}
-
-fn escape_attr(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
+    datastar::response(body)
 }
 
 const VERIFIED_BADGE_SVG: &str = "<svg data-role=\"verified-badge\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"#1d9bf0\" aria-label=\"Verified\"><path d=\"M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z\"/></svg>";
@@ -321,32 +323,6 @@ fn render_ticker_tile(row: &serde_json::Value, slot: usize) -> String {
         VERIFIED_BADGE_SVG,
         escape_attr(headline),
     )
-}
-
-fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!(
-        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
-        selector, mode
-    );
-    if !elements.is_empty() {
-        s += &format!("data: elements {}\n", elements.replace('\n', " "));
-    }
-    s += "\n";
-    s
-}
-
-fn sse_response(body: String) -> Response {
-    (
-        [
-            (
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("text/event-stream"),
-            ),
-            (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
-        ],
-        body,
-    )
-        .into_response()
 }
 
 async fn robots_txt() -> Response {

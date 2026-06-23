@@ -1,9 +1,23 @@
+//! Fire-and-forget activity logging into the `activity_event` table.
+//!
+//! Called from the request-logging middleware
+//! (`crate::middleware::activity`) for successful page views. Writes go
+//! through a `tokio::spawn`ed task against the global [`crate::db::DB`]
+//! connection so request latency is never affected; failures are logged at
+//! `warn` and otherwise dropped. No init or env vars. Retention is handled
+//! by a daily `ActivityModel::cleanup(90)` sweep spawned in `main.rs`.
+
 use surrealdb::types::RecordId;
 use tracing::{trace, warn};
 
 use crate::db::DB;
 
 /// Fire-and-forget activity event. Spawns a background task so it never blocks requests.
+///
+/// `person_id` accepts either a bare key or a `person:key` string (the
+/// prefix is stripped and rebuilt as a proper `RecordId` bind param);
+/// `None` records an anonymous event. `event_type` is a short tag such as
+/// `page_view`; `path` is the request path being recorded.
 pub fn log_activity(person_id: Option<&str>, event_type: &str, path: &str) {
     let person_id = person_id.map(|s| s.to_string());
     let event_type = event_type.to_string();

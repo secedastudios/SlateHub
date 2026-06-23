@@ -1,3 +1,16 @@
+//! Authentication middleware and extractors.
+//!
+//! [`auth_middleware`] sits inside the error-response layer and outside the
+//! activity layer in the stack built by [`crate::routes::app`]. For every
+//! request it looks for a JWT — first in the `Authorization: Bearer` header
+//! (used by API clients such as the Chrome extension), then in the
+//! `auth_token` cookie set at login. When the token decodes and its `sub`
+//! claim resolves to an existing person, the middleware inserts
+//! `Arc<CurrentUser>` (an alias for [`SessionUser`]) into the request
+//! extensions. A missing or invalid token never fails the request here; the
+//! request simply continues anonymously, and enforcement is left to the
+//! [`AuthenticatedUser`] extractor and individual handlers.
+
 use axum::{
     extract::{FromRequestParts, Request},
     http::{StatusCode, request::Parts},
@@ -16,10 +29,24 @@ use crate::{
 };
 use surrealdb::types::RecordId;
 
-// Re-export SessionUser as CurrentUser for compatibility
+/// The user type stored in request extensions, aliased from [`SessionUser`]
+/// so existing handler code can keep referring to `CurrentUser`.
 pub type CurrentUser = SessionUser;
 
-/// Middleware to extract and verify JWT token from cookies
+/// Extract and verify the request's JWT, populating the current user.
+///
+/// The token is read from the `Authorization: Bearer` header first (API
+/// clients such as the Chrome extension), falling back to the `auth_token`
+/// cookie. When the token decodes and its `sub` claim resolves to an
+/// existing person, an `Arc<CurrentUser>` is inserted into the request
+/// extensions for downstream middleware and handlers.
+///
+/// # Errors
+///
+/// This function always returns `Ok`. A missing token, a failed decode, or
+/// an unknown user is logged and the request continues without the user
+/// extension — rejecting unauthenticated requests is the job of
+/// [`AuthenticatedUser`] and the handlers themselves.
 pub async fn auth_middleware(
     jar: CookieJar,
     mut request: Request,
@@ -156,8 +183,10 @@ async fn get_user_from_id(user_id: &str) -> Result<CurrentUser, Error> {
     }
 }
 
-/// Extension trait to easily get the current user from a request
+/// Extension trait to easily get the current user from a request.
 pub trait UserExtractor {
+    /// Return the authenticated user from the request extensions, if
+    /// [`auth_middleware`] resolved one for this request.
     fn get_user(&self) -> Option<Arc<CurrentUser>>;
 }
 
@@ -167,7 +196,17 @@ impl UserExtractor for Request {
     }
 }
 
-/// Extractor for authenticated users that can be used with Form and other body-consuming extractors
+/// Extractor for handlers that require an authenticated user.
+///
+/// Reads the `Arc<CurrentUser>` placed in the request extensions by
+/// [`auth_middleware`]. Because it implements `FromRequestParts`, it can be
+/// combined with `Form` and other body-consuming extractors (list it before
+/// the body extractor in the handler signature).
+///
+/// # Errors
+///
+/// Extraction rejects with [`Error::Unauthorized`] when no user is present,
+/// which the error-response middleware renders as a 401 page or JSON body.
 pub struct AuthenticatedUser(pub Arc<CurrentUser>);
 
 impl<S> FromRequestParts<S> for AuthenticatedUser

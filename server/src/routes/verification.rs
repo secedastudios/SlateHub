@@ -1,3 +1,9 @@
+//! Identity-verification routes under `/get-verified`: the landing page,
+//! free manual-review requests, and the paid Stripe flow (Checkout →
+//! Identity session → done page), including resuming a paid-but-unfinished
+//! Identity session without charging twice. Paid flow availability is gated
+//! by the `identity_verification` feature flag plus Stripe configuration.
+
 use askama::Template;
 use axum::{
     Router,
@@ -21,6 +27,8 @@ use crate::{
     templates::{BaseContext, GetVerifiedDoneTemplate, GetVerifiedTemplate, User},
 };
 
+/// Routes under `/get-verified` for the verification landing page and the
+/// manual-request, checkout, resume, return, and done steps.
 pub fn router() -> Router {
     Router::new()
         .route("/get-verified", get(get_verified_page))
@@ -108,18 +116,13 @@ async fn get_verified_page(request: Request) -> Result<Response, Error> {
     let price = pick_price(accept_language);
     let paid_flow_enabled = flag_allowed && StripeService::from_env().is_some();
 
-    let template = GetVerifiedTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(GetVerifiedTemplate, base, {
         has_pending_request: pending,
         already_verified,
         paid_flow_enabled,
         price_label: price.label.to_string(),
         last_payment_status: last_status,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render get-verified template: {}", e);
@@ -429,14 +432,9 @@ async fn done_page(AuthenticatedUser(user): AuthenticatedUser) -> Result<Respons
         .with_page("get-verified")
         .with_user(User::from_session_user(&user).await);
 
-    let template = GetVerifiedDoneTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(GetVerifiedDoneTemplate, base, {
         state: state.to_string(),
-    };
+    });
 
     let html = template.render().map_err(|e| {
         warn!("Failed to render get-verified done template: {}", e);

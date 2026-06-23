@@ -10,6 +10,15 @@
 //! Tax handles VAT calculation on the Stripe side (must be enabled in the
 //! dashboard) — we pass `automatic_tax: { enabled: true }` and the price as
 //! VAT-inclusive (the price the customer sees).
+//!
+//! # Configuration
+//!
+//! [`StripeService::from_env`] reads `STRIPE_SECRET_KEY` and
+//! `STRIPE_WEBHOOK_SECRET`; when either is missing the constructor returns
+//! `None` and every caller no-ops (paid verification is simply disabled).
+//! There is no global singleton — the service is rebuilt from env per call
+//! site. `main.rs` calls [`StripeService::log_status`] once at boot and
+//! spawns a daily [`refund_stale_payments`] sweep.
 
 use std::time::Duration;
 
@@ -71,16 +80,33 @@ pub const PRICE_TABLE: &[Price] = &[
     },
 ];
 
+/// One entry of [`PRICE_TABLE`]: a fixed price point in a single currency.
 #[derive(Debug, Clone, Copy)]
 pub struct Price {
+    /// Lowercase ISO 4217 code as Stripe expects it (e.g. `"usd"`).
     pub currency: &'static str,
+    /// Amount in the currency's minor unit (cents, pence, yen…), VAT-inclusive.
     pub amount_minor: i64,
+    /// Human-readable display string shown in the UI (e.g. `"€10.00"`).
     pub label: &'static str,
 }
 
 /// Pick a Price for the user based on an Accept-Language header. Conservative
 /// mapping — when in doubt, USD. Real i18n is a bigger fish; this gets us
 /// 90% there for the launch.
+///
+/// Selection order (first match on the lowercased header wins):
+/// 1. Country-tagged forms: `en-gb`→GBP, `en-ca`/`fr-ca`→CAD, `en-au`→AUD,
+///    `de-ch`/`fr-ch`/`it-ch`→CHF.
+/// 2. Japanese (`ja*`) → JPY.
+/// 3. Bare eurozone languages (de, fr, it, es, nl, pt, el, fi, sv, da, pl,
+///    cs) → EUR.
+/// 4. Everything else (including a missing header) → USD.
+///
+/// # Panics
+///
+/// Panics if [`PRICE_TABLE`] no longer contains a USD entry (compile-time
+/// data; the `expect` documents the invariant).
 pub fn pick_price(accept_language: Option<&str>) -> &'static Price {
     let default = PRICE_TABLE
         .iter()
@@ -127,6 +153,10 @@ fn find(currency: &str) -> Option<&'static Price> {
 // Service
 // ---------------------------------------------------------------------------
 
+/// Thin client over the Stripe REST API (Checkout Sessions, Identity
+/// VerificationSessions, Refunds) plus webhook signature verification.
+/// Cheap to construct; built from env at each call site rather than held
+/// as a singleton.
 #[derive(Clone)]
 pub struct StripeService {
     secret_key: String,
@@ -166,6 +196,16 @@ impl StripeService {
 
     /// Create a one-time Checkout Session for the identity-verification fee.
     /// Returns the session id and the URL to redirect the customer to.
+    ///
+    /// The person's id is stamped into both `client_reference_id` and
+    /// `metadata[person_id]` so the webhook handler can correlate the payment
+    /// back to a `person` row, and `receipt_email` is forced so Stripe emails
+    /// a receipt even in test mode.
+    ///
+    /// # Errors
+    ///
+    /// `Error::ExternalService` on transport failure, a non-2xx Stripe
+    /// response, or a response body that doesn't deserialize.
     pub async fn create_checkout_session(
         &self,
         person_id: &str,
@@ -225,6 +265,11 @@ impl StripeService {
 
     /// Retrieve a Checkout Session — used in the return handler to confirm
     /// payment status before creating an Identity session.
+    ///
+    /// # Errors
+    ///
+    /// `Error::ExternalService` on transport failure, a non-2xx Stripe
+    /// response (including unknown session ids), or a parse failure.
     pub async fn retrieve_checkout_session(&self, session_id: &str) -> Result<CheckoutSession> {
         self.get(&format!("/v1/checkout/sessions/{}", session_id))
             .await
@@ -232,8 +277,15 @@ impl StripeService {
 
     // ---- Identity ------------------------------------------------------
 
-    /// Create a Stripe Identity VerificationSession. Returns the session
-    /// id and the hosted-flow URL to redirect the customer to.
+    /// Create a Stripe Identity VerificationSession (document + matching
+    /// selfie, live capture required; driving licence / passport / id card).
+    /// Returns the session id and the hosted-flow URL to redirect the
+    /// customer to.
+    ///
+    /// # Errors
+    ///
+    /// `Error::ExternalService` on transport failure, a non-2xx Stripe
+    /// response, or a parse failure.
     pub async fn create_identity_session(
         &self,
         person_id: &str,
@@ -271,6 +323,11 @@ impl StripeService {
     /// can redirect the user back into Stripe's hosted flow exactly where
     /// they left off — same QR code, same scan-to-phone link, same partial
     /// uploads.
+    ///
+    /// # Errors
+    ///
+    /// `Error::ExternalService` on transport failure, a non-2xx Stripe
+    /// response, or a parse failure.
     pub async fn retrieve_identity_session(&self, session_id: &str) -> Result<IdentitySession> {
         self.get(&format!(
             "/v1/identity/verification_sessions/{}",
@@ -282,6 +339,11 @@ impl StripeService {
     // ---- Refunds -------------------------------------------------------
 
     /// Issue a full refund for a payment intent.
+    ///
+    /// # Errors
+    ///
+    /// `Error::ExternalService` on transport failure or a non-2xx Stripe
+    /// response (e.g. already-refunded or unknown payment intent).
     pub async fn refund(&self, payment_intent_id: &str, reason: RefundReason) -> Result<Refund> {
         let form: Vec<(&str, &str)> = vec![
             ("payment_intent", payment_intent_id),
@@ -296,12 +358,32 @@ impl StripeService {
 
     // ---- Webhook signature --------------------------------------------
 
-    /// Verify a Stripe webhook signature. Stripe sends a header like
-    /// `t=<timestamp>,v1=<signature>,v1=<signature2>` (multiple v1's during
-    /// secret rotation). We accept the request if any `v1` matches the HMAC.
+    /// Verify a Stripe webhook signature (the `Stripe-Signature` header).
     ///
-    /// Rejects signatures whose timestamp is more than 5 minutes old to
-    /// guard against replay.
+    /// # Contract
+    ///
+    /// The header is a comma-separated list like
+    /// `t=<unix-timestamp>,v1=<hex-sig>[,v1=<hex-sig2>…]` — Stripe sends
+    /// multiple `v1` entries during webhook-secret rotation, and we accept
+    /// the request if *any* of them matches. The signed payload is the byte
+    /// string `"{t}.{raw_body}"`, MACed with HMAC-SHA256 under
+    /// `STRIPE_WEBHOOK_SECRET`; comparison is constant-time (`subtle`).
+    ///
+    /// `body` must be the **raw, unmodified request bytes** — any
+    /// re-serialization of the JSON breaks the MAC. Verify *before* parsing
+    /// the body as a [`WebhookEvent`].
+    ///
+    /// Replay protection: the `t` timestamp must be within ±300 seconds of
+    /// server time. Unknown `k=v` pairs in the header are ignored, per
+    /// Stripe's compatibility guidance.
+    ///
+    /// # Errors
+    ///
+    /// * `Error::BadRequest` — missing/unparseable timestamp, timestamp out
+    ///   of tolerance, no `v1` entries, or no `v1` matching the computed MAC
+    ///   (all of which the route should answer with 400).
+    /// * `Error::Internal` — HMAC key setup failure (effectively unreachable
+    ///   for a non-empty secret).
     pub fn verify_webhook(&self, body: &[u8], signature_header: &str) -> Result<()> {
         let mut timestamp: Option<i64> = None;
         let mut sigs: Vec<&str> = Vec::new();
@@ -402,12 +484,16 @@ impl StripeService {
 // or add — those won't break us.
 // ---------------------------------------------------------------------------
 
+/// Response of `POST /v1/checkout/sessions`: the new session's id and the
+/// hosted-checkout URL to redirect the customer to.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckoutSessionCreated {
     pub id: String,
     pub url: String,
 }
 
+/// A retrieved Checkout Session (the fields we read in the return handler
+/// and webhook processing).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckoutSession {
     pub id: String,
@@ -420,6 +506,8 @@ pub struct CheckoutSession {
     pub metadata: Option<std::collections::HashMap<String, String>>,
 }
 
+/// Response of `POST /v1/identity/verification_sessions`: id, hosted-flow
+/// URL, and initial status.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentitySessionCreated {
     pub id: String,
@@ -438,12 +526,16 @@ pub struct IdentitySession {
     pub last_error: Option<IdentityLastError>,
 }
 
+/// Stripe's explanation for an Identity session stuck in `requires_input`
+/// (e.g. blurry document, selfie mismatch).
 #[derive(Debug, Clone, Deserialize)]
 pub struct IdentityLastError {
     pub code: Option<String>,
     pub reason: Option<String>,
 }
 
+/// Response of `POST /v1/refunds` — the fields we persist on
+/// `verification_payment` rows.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Refund {
     pub id: String,
@@ -452,10 +544,15 @@ pub struct Refund {
     pub currency: String,
 }
 
+/// Refund reason codes accepted by Stripe's `/v1/refunds` endpoint.
 #[derive(Debug, Clone, Copy)]
 pub enum RefundReason {
+    /// `requested_by_customer` — also used for our automatic stale-payment
+    /// refunds.
     RequestedByCustomer,
+    /// `duplicate` payment.
     Duplicate,
+    /// `fraudulent` payment.
     Fraudulent,
 }
 
@@ -469,7 +566,9 @@ impl RefundReason {
     }
 }
 
-// Webhook event envelope. We only look at `type` + the embedded object.
+/// Webhook event envelope. We only look at `type` + the embedded object;
+/// parse it from the raw body **after** [`StripeService::verify_webhook`]
+/// has accepted the signature.
 #[derive(Debug, Clone, Deserialize)]
 pub struct WebhookEvent {
     pub id: String,
@@ -478,6 +577,8 @@ pub struct WebhookEvent {
     pub data: WebhookEventData,
 }
 
+/// `data` member of a [`WebhookEvent`]: the affected Stripe object, kept as
+/// raw JSON so each handler deserializes only the shape it needs.
 #[derive(Debug, Clone, Deserialize)]
 pub struct WebhookEventData {
     pub object: serde_json::Value,

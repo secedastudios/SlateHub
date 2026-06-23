@@ -1,3 +1,17 @@
+//! Error-to-response conversion middleware.
+//!
+//! [`error_response_middleware`] sits between the request-ID/header layers
+//! and the auth middleware in the stack built by [`crate::routes::app`]. It
+//! inserts nothing into the request extensions; on the way in it reads the
+//! [`RequestId`](super::RequestId) (via [`RequestIdExt`]) for log
+//! correlation. After the inner service responds, every 4xx/5xx response is
+//! logged at an appropriate level, and responses carrying the
+//! `X-Error-Message` header (set by [`crate::error::Error`]'s `IntoResponse`
+//! impl) are rewritten as styled HTML error pages when the client accepts
+//! `text/html`. [`create_error_response`] and the
+//! [`ErrorWithContext`]/[`ResultExt`] traits expose the same rendering to
+//! handlers that need to build error responses directly.
+
 use axum::{
     Json,
     extract::Request,
@@ -20,7 +34,13 @@ fn accepts_html(headers: &HeaderMap) -> bool {
         .unwrap_or(false)
 }
 
-/// Create an error response based on the client's Accept header
+/// Render an [`Error`] as a complete response, honoring the Accept header.
+///
+/// Maps the error variant to a status code and safe public message (logging
+/// the internal detail for database, template, internal, and
+/// external-service errors), then renders either a styled HTML error page
+/// (when the client accepts `text/html`) or a JSON body containing the
+/// message, status, request ID, and timestamp.
 pub fn create_error_response(
     error: &Error,
     headers: &HeaderMap,
@@ -191,7 +211,16 @@ fn render_json_error(
     (status, Json(body)).into_response()
 }
 
-/// Middleware to handle errors and render appropriate responses
+/// Log error responses and upgrade them to full HTML error pages.
+///
+/// The request passes through untouched (the headers, path, method, query,
+/// and request ID are captured first for logging). When the inner service
+/// returns a 4xx/5xx response, it is logged — warnings for client errors,
+/// an error event for server errors — and, if the client accepts `text/html`
+/// and the response carries the `X-Error-Message` header that
+/// [`crate::error::Error`] sets, the response is replaced with the styled
+/// HTML page from [`create_error_response`]. All other responses, including
+/// JSON API errors, are returned unchanged.
 pub async fn error_response_middleware(req: Request, next: Next) -> Response {
     let headers = req.headers().clone();
     let path = req.uri().path().to_string();
@@ -336,8 +365,10 @@ pub async fn error_response_middleware(req: Request, next: Next) -> Response {
     response
 }
 
-/// Helper trait for converting errors to responses with context
+/// Helper trait for converting errors to responses with request context.
 pub trait ErrorWithContext {
+    /// Render this error via [`create_error_response`], using the request's
+    /// Accept header to choose between HTML and JSON output.
     fn with_context(
         self,
         headers: &HeaderMap,
@@ -357,8 +388,10 @@ impl ErrorWithContext for Error {
     }
 }
 
-/// Extension trait for Result types to convert errors with context
+/// Extension trait for `Result` types to convert errors with context.
 pub trait ResultExt<T> {
+    /// Map the error side of this result into a rendered [`Response`],
+    /// pulling the Accept header, path, and request ID from the request.
     #[allow(clippy::result_large_err)]
     fn with_error_context(self, req: &Request) -> Result<T, Response>;
 }

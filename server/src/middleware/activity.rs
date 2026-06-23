@@ -1,10 +1,26 @@
+//! Page-view activity tracking middleware.
+//!
+//! [`activity_middleware`] is the innermost middleware in the stack built by
+//! [`crate::routes::app`]: on the request path it runs after the auth
+//! middleware, so the `Arc<CurrentUser>` extension is already populated. It
+//! inserts nothing into the request itself; once the handler responds, it
+//! records a `page_view` activity event through
+//! `crate::services::activity::log_activity` for successful GET requests to
+//! user-facing pages, skipping static assets, API routes, and crawler
+//! endpoints.
+
 use axum::{extract::Request, middleware::Next, response::Response};
 
 use super::auth::CurrentUser;
 use std::sync::Arc;
 
-/// Middleware that logs page view activity events for successful GET requests.
-/// Must run after auth middleware so user identity is available.
+/// Log a `page_view` activity event for each successful GET request.
+///
+/// Reads the optional `Arc<CurrentUser>` extension inserted by
+/// [`super::auth::auth_middleware`], so it must be layered inside the auth
+/// middleware; anonymous views are recorded without a user ID. Only GET
+/// requests that complete with a 2xx status and target a trackable path
+/// (not static assets, `/api/`, or crawler endpoints) are recorded.
 pub async fn activity_middleware(request: Request, next: Next) -> Response {
     let method = request.method().clone();
     let path = request.uri().path().to_string();
@@ -25,6 +41,7 @@ pub async fn activity_middleware(request: Request, next: Next) -> Response {
     response
 }
 
+/// Decide whether a path represents a user-facing page worth tracking.
 fn should_track(path: &str) -> bool {
     !path.starts_with("/static/")
         && !path.starts_with("/api/")

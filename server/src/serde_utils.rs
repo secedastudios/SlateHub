@@ -1,7 +1,11 @@
-//! Custom serde deserializers for handling form data
+//! Custom serde deserializers for handling HTML form quirks.
 //!
-//! This module provides deserializers that handle HTML form quirks,
-//! such as empty strings being sent for empty numeric fields.
+//! Browsers submit empty strings — not absent fields — for cleared inputs, so
+//! plain `Option<i32>`/`Option<String>` fields either fail to parse or end up
+//! as `Some("")`. Route form structs (e.g. in `routes::locations`) opt into
+//! these helpers with `#[serde(deserialize_with = "...")]` to map blank
+//! submissions to `None` (or an empty list) and to split comma-separated
+//! values into vectors.
 
 use serde::{Deserialize, Deserializer};
 
@@ -9,6 +13,9 @@ use serde::{Deserialize, Deserializer};
 ///
 /// HTML forms send empty strings for empty number inputs instead of omitting them.
 /// This deserializer treats empty strings as None.
+///
+/// # Errors
+/// Fails when the trimmed value is non-empty but does not parse as an `i32`.
 ///
 /// # Example
 /// ```ignore
@@ -34,7 +41,12 @@ where
     }
 }
 
-/// Deserialize an optional u32 from a string that might be empty
+/// Deserialize an optional u32 from a string that might be empty.
+///
+/// Missing and blank values become `None`.
+///
+/// # Errors
+/// Fails when the trimmed value is non-empty but does not parse as a `u32`.
 pub fn deserialize_optional_u32<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
 where
     D: Deserializer<'de>,
@@ -51,7 +63,12 @@ where
     }
 }
 
-/// Deserialize an optional i64 from a string that might be empty
+/// Deserialize an optional i64 from a string that might be empty.
+///
+/// Missing and blank values become `None`.
+///
+/// # Errors
+/// Fails when the trimmed value is non-empty but does not parse as an `i64`.
 pub fn deserialize_optional_i64<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
 where
     D: Deserializer<'de>,
@@ -68,7 +85,12 @@ where
     }
 }
 
-/// Deserialize an optional f64 from a string that might be empty
+/// Deserialize an optional f64 from a string that might be empty.
+///
+/// Missing and blank values become `None`.
+///
+/// # Errors
+/// Fails when the trimmed value is non-empty but does not parse as an `f64`.
 pub fn deserialize_optional_f64<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
 where
     D: Deserializer<'de>,
@@ -125,7 +147,11 @@ where
     }
 }
 
-/// Deserialize an optional vector of strings from a comma-separated string
+/// Deserialize an optional vector of strings from a comma-separated string.
+///
+/// Returns `None` when the field is missing, blank, or yields no non-empty
+/// items after splitting on commas; otherwise returns `Some` with the trimmed
+/// items.
 pub fn deserialize_optional_string_list<'de, D>(
     deserializer: D,
 ) -> Result<Option<Vec<String>>, D::Error>

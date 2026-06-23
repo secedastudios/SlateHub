@@ -1,3 +1,18 @@
+//! The crate-wide error type and its HTTP mapping.
+//!
+//! Every fallible path in models, services, and routes returns
+//! [`enum@Error`] via the crate's [`Result`] alias. Because `Error`
+//! implements `IntoResponse`, handlers can simply `?` their way through and
+//! axum renders the failure: the variant picks the status code, the body is
+//! JSON, and `X-Error-Message`/`X-Error-Custom-Message` headers carry the
+//! human text so [`crate::middleware`]'s error-response layer can re-render
+//! it as an HTML error page when the client prefers HTML.
+//!
+//! Server-side variants (`Database`, `Template`, `Internal`,
+//! `ExternalService`) log on conversion/response and deliberately return a
+//! generic message — internals never leak to clients. Client-side variants
+//! (`BadRequest`, `Conflict`, `Validation`) surface their message verbatim.
+
 use crate::log_colored_error;
 use crate::log_db_error;
 use axum::Json;
@@ -6,35 +21,47 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use thiserror::Error;
 
+/// Application-wide error; maps 1:1 onto an HTTP status (see module docs).
 #[derive(Error, Debug)]
 pub enum Error {
+    /// SurrealDB failure → 500. Message is logged, never sent to clients.
     #[error("database error: {0}")]
     Database(String),
 
+    /// Askama rendering failure → 500. Logged, not sent to clients.
     #[error("template error: {0}")]
     Template(String),
 
+    /// Missing resource → 404. Also used to *hide* gated features
+    /// (management mode returns NotFound, not Forbidden, to non-members).
     #[error("not found")]
     NotFound,
 
+    /// Unclassified server bug → 500. Logged, not sent to clients.
     #[error("internal server error: {0}")]
     Internal(String),
 
+    /// Malformed client input → 400. Message is shown to the client.
     #[error("bad request: {0}")]
     BadRequest(String),
 
+    /// No (valid) session → 401.
     #[error("unauthorized")]
     Unauthorized,
 
+    /// Authenticated but not allowed → 403.
     #[error("forbidden")]
     Forbidden,
 
+    /// State conflict (duplicate slug, double-submit …) → 409. Shown.
     #[error("conflict: {0}")]
     Conflict(String),
 
+    /// Semantic form/input failure → 422. Shown to the client.
     #[error("validation error: {0}")]
     Validation(String),
 
+    /// Upstream (S3, Stripe, Listmonk, LLM …) failure → 502. Logged.
     #[error("external service error: {0}")]
     ExternalService(String),
 }
@@ -140,10 +167,11 @@ impl From<std::io::Error> for Error {
     }
 }
 
-// Helper type for Results
+/// Crate-wide result alias; the `E` is always [`enum@Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
-// Convenience constructors
+// Convenience constructors so call sites read `Error::bad_request("…")`
+// instead of `Error::BadRequest("…".to_string())`.
 impl Error {
     pub fn database<S: Into<String>>(msg: S) -> Self {
         Self::Database(msg.into())

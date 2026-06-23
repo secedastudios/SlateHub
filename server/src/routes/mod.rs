@@ -1,3 +1,10 @@
+//! Route registry: assembles every feature router plus static files, the
+//! MCP service, and the middleware stack (request-id, errors, auth,
+//! activity, tracing, CORS, security headers) into the app `Router`.
+//! Specific routers mount before generic ones — org_settings and analytics
+//! ahead of the profile routers — and `public_profiles` merges last so its
+//! root-level `/{username}` catch-all can't conflict with any literal path.
+
 use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderValue, Method, Request, Response, header};
 use axum::{Router, middleware, routing::get_service};
@@ -30,12 +37,15 @@ mod org_settings;
 mod organizations;
 mod pages;
 mod productions;
+pub mod productions_manage;
 mod profile;
 mod public_profiles;
 mod search;
 mod verification;
 mod webhooks;
 
+/// Build the complete application router: every feature router, the static
+/// file service, the MCP service, and the shared middleware/header layers.
 pub fn app() -> Router {
     // Static file service
     let static_service = ServeDir::new("static")
@@ -61,6 +71,8 @@ pub fn app() -> Router {
         .merge(developers::router())
         // Mount productions routes
         .merge(productions::router())
+        // Mount the production-management workspace (gated by feature flag + membership)
+        .merge(productions_manage::router())
         // Mount jobs routes
         .merge(jobs::router())
         // Mount likes routes

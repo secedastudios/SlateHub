@@ -1,13 +1,25 @@
+//! In-app notifications (the bell menu).
+//!
+//! Owns the `notification` table. Rows are created by whatever flow needs to
+//! notify someone — invitations (`services/invitation.rs`), membership and
+//! production routes, messages, job applications, webhooks — and read/managed
+//! by `routes/notifications.rs` plus the unread-count badge in
+//! `templates.rs`.
+
 use crate::{db::DB, error::Error};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue};
 use tracing::debug;
 
+/// One notification row for one person.
 #[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct Notification {
     pub id: RecordId,
     pub person_id: RecordId,
+    /// One of "invitation" | "invitation_accepted" | "member_joined" |
+    /// "general" | "message" | "job_application" | "application_update" |
+    /// "join_request" (schema ASSERT on `notification.notification_type`).
     pub notification_type: String,
     pub title: String,
     pub message: String,
@@ -22,6 +34,7 @@ struct CountResult {
     count: u32,
 }
 
+/// Query/mutation surface for the `notification` table.
 pub struct NotificationModel;
 
 impl Default for NotificationModel {
@@ -31,10 +44,15 @@ impl Default for NotificationModel {
 }
 
 impl NotificationModel {
+    /// Construct the (stateless) model handle.
     pub fn new() -> Self {
         Self
     }
 
+    /// Create an unread notification for a person. `notification_type` must
+    /// satisfy the schema ASSERT (see [`Notification::notification_type`]);
+    /// `related_id` is a free-form correlation key used later by
+    /// [`Self::delete_by_related`].
     pub async fn create(
         &self,
         person_id: &str,
@@ -71,6 +89,8 @@ impl NotificationModel {
         Ok(())
     }
 
+    /// Count a person's unread notifications (`GROUP ALL` aggregate so the
+    /// count comes back as a single row).
     pub async fn get_unread_count(&self, person_id: &str) -> Result<u32, Error> {
         let person_id =
             RecordId::parse_simple(person_id).map_err(|e| Error::BadRequest(e.to_string()))?;
@@ -86,6 +106,7 @@ impl NotificationModel {
         Ok(result.map(|r| r.count).unwrap_or(0))
     }
 
+    /// Fetch a person's most recent notifications, newest first.
     pub async fn get_recent(
         &self,
         person_id: &str,
@@ -106,6 +127,8 @@ impl NotificationModel {
         Ok(notifications)
     }
 
+    /// Mark one notification read; the `WHERE person_id = $person_id` guard
+    /// makes it a no-op unless the caller owns it.
     pub async fn mark_read(&self, id: &str, person_id: &str) -> Result<(), Error> {
         debug!("Marking notification as read: {}", id);
 
@@ -121,6 +144,7 @@ impl NotificationModel {
         Ok(())
     }
 
+    /// Mark every unread notification for a person as read.
     pub async fn mark_all_read(&self, person_id: &str) -> Result<(), Error> {
         debug!(
             "Marking all notifications as read for person: {}",
@@ -139,6 +163,8 @@ impl NotificationModel {
         Ok(())
     }
 
+    /// Delete one notification; the `WHERE person_id = $person_id` guard
+    /// makes it a no-op unless the caller owns it.
     pub async fn delete(&self, id: &str, person_id: &str) -> Result<(), Error> {
         debug!("Deleting notification: {}", id);
 
@@ -175,6 +201,8 @@ impl NotificationModel {
         Ok(())
     }
 
+    /// Delete every notification belonging to a person (used by account
+    /// cleanup and the "clear all" action).
     pub async fn delete_all(&self, person_id: &str) -> Result<(), Error> {
         debug!("Deleting all notifications for person: {}", person_id);
 

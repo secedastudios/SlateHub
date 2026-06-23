@@ -1,0 +1,179 @@
+{% extends "productions/manage/manage_layout.html" %}
+
+{% block manage_content %}
+<header class="manage-tab-header">
+    <h2 id="manage-content-heading">Script</h2>
+    <p>Versioned uploads, visibility controls, and download links for cast &amp; crew.</p>
+</header>
+
+{% if can_edit %}
+<section class="script-upload" aria-labelledby="script-upload-heading">
+    <h3 id="script-upload-heading">
+        {% if script_groups.is_empty() %}Upload your script{% else %}Upload a new version{% endif %}
+    </h3>
+    <form action="/productions/{{ production.slug }}/scripts/upload"
+          method="post"
+          enctype="multipart/form-data"
+          class="script-upload-form">
+        {# The file input stretches invisibly across the whole zone, so both
+           click-to-browse and native drag-and-drop land on it — no JS needed
+           for the mechanics; manage-workspace.js only updates the label. #}
+        <label class="script-dropzone" for="script-upload-file">
+            <input type="file" id="script-upload-file" name="file" required
+                   accept=".pdf,.fountain,.fdx,.fadein,.fdr" />
+            <svg class="script-dropzone-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span class="script-dropzone-title" data-role="dropzone-label">
+                Drag &amp; drop your script, <u>or click to browse</u>
+            </span>
+            <span class="script-dropzone-formats">
+                PDF · Final Draft (.fdx) · Fade In (.fadein/.fdr) · Fountain
+            </span>
+            <span class="script-dropzone-hint">
+                {% if script_groups.is_empty() %}
+                Title, scenes, and cast are extracted from the file.
+                {% else %}
+                Saved automatically as the next version.
+                {% endif %}
+            </span>
+        </label>
+        <div class="script-upload-row">
+            <div class="script-upload-field">
+                <label for="script-upload-visibility">Visibility</label>
+                <select id="script-upload-visibility" name="visibility">
+                    <option value="members" selected>Members only</option>
+                    <option value="public">Public</option>
+                </select>
+            </div>
+            <div class="script-upload-field script-upload-field-wide">
+                <label for="script-upload-notes">Notes (optional)</label>
+                <input type="text" id="script-upload-notes" name="notes"
+                       placeholder="What changed in this revision?" />
+            </div>
+            <div class="script-upload-actions">
+                <button type="submit" class="prod-btn-primary">Upload</button>
+            </div>
+        </div>
+    </form>
+</section>
+{% endif %}
+
+<section class="script-list" aria-labelledby="script-list-heading">
+    <h3 id="script-list-heading">Scripts</h3>
+
+    {% if script_groups.is_empty() %}
+    <div class="script-empty">
+        <p>No scripts uploaded yet.</p>
+        {% if can_edit %}
+        <p>Use the form above to upload the first version.</p>
+        {% else %}
+        <p>Ask an owner or admin to upload one.</p>
+        {% endif %}
+    </div>
+    {% else %}
+    {% for group in script_groups %}
+    <article class="script-card" aria-labelledby="script-{{ group.latest.id }}-title">
+        <header class="script-card-header">
+            <h4 id="script-{{ group.latest.id }}-title">{{ group.title }}</h4>
+            <span class="script-version-badge">v{{ group.latest.version }} · latest</span>
+            <span class="script-visibility-badge" data-visibility="{{ group.latest.visibility }}">
+                {% if group.latest.visibility == "public" %}Public{% else %}Members only{% endif %}
+            </span>
+        </header>
+
+        <dl class="script-meta">
+            <div>
+                <dt>Uploaded</dt>
+                <dd>{{ group.latest.created_at|time_ago }}</dd>
+            </div>
+            {% if group.latest.uploader_username.is_some() %}
+            <div>
+                <dt>By</dt>
+                <dd>
+                    <a href="/{{ group.latest.uploader_username.as_ref().unwrap() }}">
+                        {% if group.latest.uploader_name.is_some() %}
+                        {{ group.latest.uploader_name.as_ref().unwrap() }}
+                        {% else %}
+                        @{{ group.latest.uploader_username.as_ref().unwrap() }}
+                        {% endif %}
+                    </a>
+                </dd>
+            </div>
+            {% endif %}
+            <div>
+                <dt>Size</dt>
+                <dd>{{ group.latest.file_size|human_bytes }}</dd>
+            </div>
+        </dl>
+
+        {% if group.latest.notes.is_some() %}
+        <p class="script-notes">{{ group.latest.notes.as_ref().unwrap() }}</p>
+        {% endif %}
+
+        <div class="script-actions">
+            <a href="{{ group.latest.file_url }}" target="_blank" rel="noopener"
+               class="script-link">View</a>
+            <a href="{{ group.latest.file_url }}" download class="script-link">Download</a>
+
+            {% if can_edit %}
+            <form action="/productions/{{ production.slug }}/scripts/{{ group.latest.id }}/visibility"
+                  method="post" class="script-inline-form">
+                {% if group.latest.visibility == "public" %}
+                <input type="hidden" name="visibility" value="members" />
+                <button type="submit" class="script-link">Make members-only</button>
+                {% else %}
+                <input type="hidden" name="visibility" value="public" />
+                <button type="submit" class="script-link">Make public</button>
+                {% endif %}
+            </form>
+
+            <form action="/productions/{{ production.slug }}/scripts/{{ group.latest.id }}/delete"
+                  method="post" class="script-inline-form"
+                  onsubmit="return confirm('Delete version {{ group.latest.version }} of &quot;{{ group.title }}&quot;? This removes the PDF permanently.');">
+                <button type="submit" class="script-link script-link-danger">Delete</button>
+            </form>
+            {% endif %}
+        </div>
+
+        {% if !group.older.is_empty() %}
+        <details class="script-older">
+            <summary>{{ group.older.len() }} earlier version{% if group.older.len() != 1 %}s{% endif %}</summary>
+            <ol class="script-older-list" reversed>
+                {% for v in group.older %}
+                <li>
+                    <div class="script-older-row">
+                        <span class="script-older-version">v{{ v.version }}</span>
+                        <span class="script-older-time">{{ v.created_at|time_ago }}</span>
+                        <span class="script-older-size">{{ v.file_size|human_bytes }}</span>
+                        {% if v.uploader_username.is_some() %}
+                        <span class="script-older-by">
+                            by <a href="/{{ v.uploader_username.as_ref().unwrap() }}">@{{ v.uploader_username.as_ref().unwrap() }}</a>
+                        </span>
+                        {% endif %}
+                        <span class="script-older-visibility" data-visibility="{{ v.visibility }}">
+                            {% if v.visibility == "public" %}Public{% else %}Members{% endif %}
+                        </span>
+                        <span class="script-older-actions">
+                            <a href="{{ v.file_url }}" target="_blank" rel="noopener" class="script-link">View</a>
+                            <a href="{{ v.file_url }}" download class="script-link">Download</a>
+                            {% if can_edit %}
+                            <form action="/productions/{{ production.slug }}/scripts/{{ v.id }}/delete"
+                                  method="post" class="script-inline-form"
+                                  onsubmit="return confirm('Delete version {{ v.version }}? This removes the PDF permanently.');">
+                                <button type="submit" class="script-link script-link-danger">Delete</button>
+                            </form>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if v.notes.is_some() %}
+                    <p class="script-older-notes">{{ v.notes.as_ref().unwrap() }}</p>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+        </details>
+        {% endif %}
+    </article>
+    {% endfor %}
+    {% endif %}
+</section>
+{% endblock %}

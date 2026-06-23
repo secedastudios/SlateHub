@@ -1,3 +1,10 @@
+//! TMDB (The Movie Database) API client for credit imports.
+//!
+//! Person search + combined credits over the TMDB v3 REST API, used by the
+//! profile "import credits" flow in `routes::api`. Reads `TMDB_API_KEY`
+//! once into a process-wide `LazyLock`; absence surfaces as
+//! [`TmdbError::MissingApiKey`] rather than a panic.
+
 use reqwest;
 use serde::{Deserialize, Serialize};
 use std::env;

@@ -23,13 +23,23 @@ use serde_json::{Value, json};
 use surrealdb::types::SurrealValue;
 use tracing::{debug, info};
 
-/// Cached representation of a signing key as loaded from the database.
+/// Cached representation of a signing key as loaded from the database
+/// (`oidc_signing_key` table), with the private key already base64-decoded.
 pub struct SigningKeyEntry {
+    /// Key id published in JWKS and stamped into each JWT header.
     pub kid: String,
+    /// Public half as a ready-to-publish JWK object
+    /// (`kty: OKP, crv: Ed25519, alg: EdDSA`).
     pub public_jwk: Value,
+    /// Raw PKCS#8 DER bytes of the ed25519 private key (stored base64url
+    /// in the DB; see the v3 `TYPE bytes` gotcha for why).
     pub private_pkcs8: Vec<u8>,
+    /// When the key became valid.
     pub not_before: DateTime<Utc>,
+    /// End of the JWKS publication window after rotation; `None` while the
+    /// key has no scheduled retirement.
     pub not_after: Option<DateTime<Utc>>,
+    /// Whether this is the key currently used for signing (at most one).
     pub active: bool,
 }
 
@@ -73,6 +83,12 @@ fn verifying_key_to_jwk(kid: &str, verifying: &ed25519_dalek::VerifyingKey) -> V
 }
 
 /// Ensure at least one active signing key exists; generate one if not.
+/// Called from `main.rs` during boot.
+///
+/// # Errors
+///
+/// Fails on a DB error or (effectively unreachable) PKCS#8 encoding failure
+/// of the freshly generated key.
 pub async fn ensure_signing_key() -> Result<()> {
     debug!("Checking for existing active OIDC signing key");
 
@@ -193,7 +209,14 @@ pub async fn jwks_document() -> Result<Value> {
     Ok(json!({ "keys": jwks }))
 }
 
-/// Sign an id_token JWT with the active key.
+/// Sign an id_token JWT with the active key (EdDSA header carrying the
+/// key's `kid`). Also used for SSF Security Event Tokens — any
+/// serializable claims struct works.
+///
+/// # Errors
+///
+/// Fails if no key can be loaded/generated, if the stored PKCS#8 blob
+/// doesn't decode back into an ed25519 key, or if JWT encoding fails.
 pub async fn sign_id_token<C: Serialize>(claims: &C) -> Result<String> {
     let key = load_active_key().await?;
     let mut header = Header::new(Algorithm::EdDSA);

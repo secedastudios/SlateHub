@@ -1,4 +1,13 @@
+//! Public production catalog and per-production CRUD pages.
+//!
+//! Serves `/productions` (browse with infinite-scroll SSE), `/my-productions`,
+//! production create/edit/delete, member and invite management, and script
+//! upload/visibility/delete (script actions redirect into the management
+//! workspace). Mutating routes are gated on `ProductionModel::can_edit`.
+
+use crate::datastar;
 use crate::error::Error;
+use crate::html::escape_html;
 use crate::middleware::{AuthenticatedUser, UserExtractor};
 use crate::models::involvement::InvolvementModel;
 use crate::models::production::{
@@ -19,7 +28,6 @@ use axum::Form;
 use axum::{
     Json, Router,
     extract::{Path, Query, Request, multipart::Multipart},
-    http::header,
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
 };
@@ -46,13 +54,14 @@ fn merge_production_roles(selected: &[String], custom: &Option<String>) -> Vec<S
     roles
 }
 
-mod filters {
-    pub fn abs_url(path: &str) -> askama::Result<String> {
-        Ok(format!("{}{}", crate::config::app_url(), path))
-    }
-}
+// Askama resolves `{{ x|filter }}` against a `filters` module in scope at
+// the derive site; the in-file Template structs below use the shared one.
+use crate::templates::filters;
 
-/// Production routes
+/// Mounts the production pages: `/productions` (list) and `/my-productions`,
+/// `/productions/new`, `/productions/{slug}` view/edit/delete, the member,
+/// invite, and script management POST endpoints, and the
+/// `/api/productions/more-sse` infinite-scroll feed.
 pub fn router() -> Router {
     Router::new()
         .route("/productions", get(list_productions))
@@ -120,14 +129,7 @@ async fn my_productions(request: Request) -> Result<Html<String>, Error> {
         .await
         .unwrap_or_default();
 
-    let template = MyProductionsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
-        productions,
-    };
+    let template = crate::with_base!(MyProductionsTemplate, base, { productions });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render my productions template: {}", e);
@@ -209,17 +211,12 @@ async fn list_productions(
         })
         .collect();
 
-    let template = ProductionsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(ProductionsTemplate, base, {
         productions,
         filter: filter_text,
         sort_by,
         has_more,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render productions template: {}", e);
@@ -242,6 +239,7 @@ async fn view_production(
 
     // Add user to context if authenticated
     let mut can_edit = false;
+    let mut can_manage = false;
     if let Some(user) = request.get_user() {
         base = base.with_user(User::from_session_user(&user).await);
 
@@ -249,6 +247,10 @@ async fn view_production(
         can_edit = ProductionModel::can_edit(&production.id, &user.id)
             .await
             .unwrap_or(false);
+
+        // Check if the user has management-workspace access (member_of with
+        // any role + the production_management feature flag allows them).
+        can_manage = super::productions_manage::is_member_of(&production.id, &user).await;
     }
 
     // Get production members
@@ -374,12 +376,7 @@ async fn view_production(
         .cloned()
         .collect();
 
-    let template = ProductionTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(ProductionTemplate, base, {
         production_roles,
         org_production_roles,
         production: crate::templates::ProductionDetail {
@@ -398,6 +395,7 @@ async fn view_production(
             person_members,
             org_members,
             can_edit,
+            can_manage,
             poster_url: production.poster_url,
             poster_photo: production.poster_photo,
             header_photo: production.header_photo,
@@ -438,7 +436,7 @@ async fn view_production(
                 vec![]
             },
         },
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render production template: {}", e);
@@ -494,12 +492,7 @@ async fn new_production_form(
         .await
         .unwrap_or_default();
 
-    let template = ProductionCreateTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(ProductionCreateTemplate, base, {
         production_types,
         production_statuses,
         budget_levels,
@@ -508,7 +501,7 @@ async fn new_production_form(
         production_roles,
         org_production_roles,
         errors: None,
-    };
+    });
 
     let html = template.render().map_err(|e| {
         error!("Failed to render production create template: {}", e);
@@ -723,12 +716,7 @@ async fn edit_production_form(
         .await
         .unwrap_or_default();
 
-    let template = ProductionEditTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(ProductionEditTemplate, base, {
         production: crate::templates::ProductionEditData {
             id: production.id.key_string(),
             slug: production.slug,
@@ -785,7 +773,7 @@ async fn edit_production_form(
         person_members: Vec::new(),
         org_members: Vec::new(),
         errors: None,
-    };
+    });
     // Can't use closures in block initializers easily, so set after
     let template = {
         let pm: Vec<_> = template
@@ -1289,9 +1277,30 @@ async fn invite_to_production(
 
 /// Maximum script file size (50MB)
 const MAX_SCRIPT_SIZE: usize = 50 * 1024 * 1024;
-const ALLOWED_SCRIPT_TYPES: &[&str] = &["application/pdf"];
 
-/// Upload a script to a production
+/// Screenplay formats the aristotle parser understands (see
+/// `aristotle::parser::parse_screenplay`'s extension dispatch). Browsers
+/// report unreliable MIME types for screenwriting formats, so uploads are
+/// validated by extension, not Content-Type.
+const SUPPORTED_SCRIPT_EXTENSIONS: &[&str] = &["pdf", "fountain", "fdx", "fadein", "fdr"];
+
+/// Stored Content-Type per extension — what the media proxy serves on
+/// view/download. Only PDF renders inline in browsers; the rest download.
+fn script_mime_for_extension(ext: &str) -> &'static str {
+    match ext {
+        "pdf" => "application/pdf",
+        "fountain" => "text/plain",
+        "fdx" => "application/xml",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Upload a new script version to a production.
+///
+/// No title is taken from the form: the first upload starts the document
+/// under the production's own title, and every later upload continues that
+/// document's version chain (see [`ScriptModel::resolve_upload_title`]) —
+/// "if a script exists, it's a new version".
 #[axum::debug_handler]
 async fn upload_script(
     Path(slug): Path<String>,
@@ -1310,7 +1319,6 @@ async fn upload_script(
     }
 
     let mut file_data: Option<(String, bytes::Bytes)> = None;
-    let mut title = String::new();
     let mut visibility = "members".to_string();
     let mut notes: Option<String> = None;
 
@@ -1322,15 +1330,7 @@ async fn upload_script(
         let name = field.name().unwrap_or("").to_string();
         match name.as_str() {
             "file" => {
-                let content_type = field
-                    .content_type()
-                    .unwrap_or("application/octet-stream")
-                    .to_string();
-                if !ALLOWED_SCRIPT_TYPES.contains(&content_type.as_str()) {
-                    return Err(Error::bad_request(
-                        "Invalid file type. Only PDF files are allowed.",
-                    ));
-                }
+                let filename = field.file_name().unwrap_or_default().to_string();
                 let data = field
                     .bytes()
                     .await
@@ -1338,10 +1338,7 @@ async fn upload_script(
                 if data.len() > MAX_SCRIPT_SIZE {
                     return Err(Error::bad_request("File too large. Maximum size is 50MB."));
                 }
-                file_data = Some((content_type, data));
-            }
-            "title" => {
-                title = field.text().await.unwrap_or_default();
+                file_data = Some((filename, data));
             }
             "visibility" => {
                 visibility = field.text().await.unwrap_or_else(|_| "members".to_string());
@@ -1356,33 +1353,32 @@ async fn upload_script(
         }
     }
 
-    if title.is_empty() {
-        return Err(Error::bad_request("Script title is required"));
-    }
+    let (filename, data) = file_data.ok_or_else(|| Error::bad_request("No file provided"))?;
 
-    let (content_type, data) = file_data.ok_or_else(|| Error::bad_request("No file provided"))?;
+    let extension = std::path::Path::new(&filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .unwrap_or_default();
+    if !SUPPORTED_SCRIPT_EXTENSIONS.contains(&extension.as_str()) {
+        return Err(Error::bad_request(
+            "Unsupported script format. Use PDF, Final Draft (.fdx), \
+             Fade In (.fadein/.fdr), or Fountain (.fountain).",
+        ));
+    }
+    let content_type = script_mime_for_extension(&extension);
+
+    let title = ScriptModel::resolve_upload_title(&production.id, &production.title).await?;
 
     let prod_key = production.id.key_string();
     let file_id = ulid::Ulid::new().to_string();
-    let title_slug: String = title
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-");
-    let file_key = format!(
-        "productions/{}/scripts/{}_{}.pdf",
-        prod_key, title_slug, file_id
-    );
+    let file_key = format!("productions/{}/scripts/{}.{}", prod_key, file_id, extension);
 
     let file_size = data.len() as i64;
 
     let s3_service = crate::services::s3::s3()?;
     s3_service
-        .upload_file(&file_key, data, &content_type)
+        .upload_file(&file_key, data, content_type)
         .await?;
 
     let file_url = format!("/api/media/{}", file_key);
@@ -1393,19 +1389,19 @@ async fn upload_script(
         &file_url,
         &file_key,
         file_size,
-        &content_type,
+        content_type,
         &visibility,
-        &user.id,
+        &user.record_id()?,
         notes.as_deref(),
     )
     .await?;
 
     info!(
-        "Script '{}' uploaded for production {}",
-        title, production.slug
+        "Script '{}' ({}) uploaded for production {}",
+        title, extension, production.slug
     );
 
-    Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
+    Ok(Redirect::to(&format!("/productions/{}/manage/script", slug)).into_response())
 }
 
 /// Toggle script visibility
@@ -1430,7 +1426,7 @@ async fn toggle_script_visibility(
         script_id, data.visibility
     );
 
-    Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
+    Ok(Redirect::to(&format!("/productions/{}/manage/script", slug)).into_response())
 }
 
 /// Delete a script version
@@ -1458,7 +1454,7 @@ async fn delete_script(
 
     info!("Script {} deleted from production {}", script_id, slug);
 
-    Ok(Redirect::to(&format!("/productions/{}", slug)).into_response())
+    Ok(Redirect::to(&format!("/productions/{}/manage/script", slug)).into_response())
 }
 
 // ── Infinite-scroll SSE ────────────────────────────────────────────
@@ -1468,33 +1464,6 @@ struct MoreQuery {
     offset: usize,
     filter: Option<String>,
     sort: Option<String>,
-}
-
-fn sse_patch_elements(selector: &str, mode: &str, elements: &str) -> String {
-    let mut s = format!(
-        "event: datastar-patch-elements\ndata: selector {}\ndata: mode {}\n",
-        selector, mode
-    );
-    if !elements.is_empty() {
-        s += &format!("data: elements {}\n", elements.replace('\n', " "));
-    }
-    s += "\n";
-    s
-}
-
-fn sse_response(body: String) -> Response {
-    (
-        [
-            (header::CONTENT_TYPE, "text/event-stream"),
-            (header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
-}
-
-fn escape_html(s: &str) -> String {
-    ammonia::clean_text(s)
 }
 
 fn render_production_card(p: &crate::templates::Production) -> String {
@@ -1586,7 +1555,7 @@ async fn productions_more_sse(Query(params): Query<MoreQuery>) -> Response {
         .collect();
 
     if prods.is_empty() {
-        return sse_response(sse_patch_elements("#prod-sentinel", "remove", ""));
+        return datastar::response(datastar::patch_elements("#prod-sentinel", "remove", ""));
     }
 
     let mut replacement = String::new();
@@ -1609,5 +1578,9 @@ async fn productions_more_sse(Query(params): Query<MoreQuery>) -> Response {
         ));
     }
 
-    sse_response(sse_patch_elements("#prod-sentinel", "outer", &replacement))
+    datastar::response(datastar::patch_elements(
+        "#prod-sentinel",
+        "outer",
+        &replacement,
+    ))
 }

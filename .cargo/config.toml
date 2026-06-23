@@ -19,7 +19,8 @@
 
 # Build settings
 [build]
-# Number of parallel jobs, defaults to # of CPUs
+# Number of parallel jobs, defaults to # of CPUs (16 cores / 128 GB here —
+# no reason to cap).
 # jobs = 8
 
 # Incremental compilation is on by default for dev builds
@@ -88,6 +89,10 @@ bench = "bench"
 [env]
 # Environment variables for all cargo commands
 RUST_BACKTRACE = "1"
+# Integration tests share one DB connection + real tables; parallel tests
+# race each other's connect/auth and table cleanup. This makes a bare
+# `cargo test` behave like the documented `-- --test-threads=1`.
+RUST_TEST_THREADS = "1"
 
 # Registries configuration
 [registries]
@@ -104,9 +109,12 @@ RUST_BACKTRACE = "1"
 retry = 2
 
 [profile.dev]
-# Development profile optimizations
-opt-level = 0           # No optimizations for faster builds
-debug = true           # Full debug info
+# Development profile — tuned to keep rustc memory pressure low on macOS,
+# where jetsam will SIGKILL rustc during the slatehub crate's codegen if
+# it grows too large. Full backtraces are retained via line-tables-only.
+opt-level = 0                  # No optimizations for faster builds
+debug = "line-tables-only"     # Smaller debug info → ~50% lower rustc RAM
+codegen-units = 256            # Smaller per-unit work → smaller peak memory
 debug-assertions = true
 overflow-checks = true
 incremental = true
@@ -114,8 +122,10 @@ incremental = true
 split-debuginfo = "unpacked"
 
 [profile.dev.package."*"]
-# Optimize dependencies even in debug mode for better performance
-opt-level = 2
+# Dependencies at opt-level=0 in dev → fastest compile time. The runtime
+# slowdown vs opt-level=2 is real but rarely noticeable in local dev.
+# Bump back to 2 if dev startup or hot paths feel sluggish.
+opt-level = 0
 
 [profile.release]
 # Release profile optimizations

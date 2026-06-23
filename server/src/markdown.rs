@@ -1,9 +1,17 @@
+//! Markdown rendering with XSS sanitization.
+//!
+//! Converts user-authored markdown (e.g. organization descriptions in
+//! `routes::organizations`) to HTML with pulldown-cmark, then strips unsafe
+//! tags and attributes with ammonia's default allow-list so the output can be
+//! interpolated into Askama templates via the `|safe` filter.
+
 use ammonia::Builder;
 use pulldown_cmark::{Options, Parser, html};
 
 /// Render markdown to sanitized HTML.
 ///
-/// Uses pulldown-cmark for parsing and ammonia for XSS sanitization.
+/// Uses pulldown-cmark for parsing (with the strikethrough and tables
+/// extensions enabled) and ammonia for XSS sanitization.
 /// Safe to use with Askama's `|safe` filter.
 pub fn render(input: &str) -> String {
     let mut options = Options::empty();

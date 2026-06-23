@@ -25,12 +25,12 @@ use crate::{
     templates::{BaseContext, User},
 };
 
-mod filters {
-    pub fn abs_url(path: &str) -> askama::Result<String> {
-        Ok(format!("{}{}", crate::config::app_url(), path))
-    }
-}
+// Shared Askama filters (abs_url, …) for the in-file Template derives.
+use crate::templates::filters;
 
+/// Mounts `/orgs/{slug}/settings` (page) plus the OIDC management POSTs:
+/// enable/disable, rotate-secret, redirect/post-logout URI lists, allowed
+/// scopes, SSF config, and session revocation (all + single).
 pub fn router() -> Router {
     Router::new()
         .route("/orgs/{slug}/settings", get(settings_page))
@@ -196,12 +196,7 @@ async fn settings_page(
         })
         .collect();
 
-    let template = OrganizationSettingsTemplate {
-        app_name: base.app_name,
-        year: base.year,
-        version: base.version,
-        active_page: base.active_page,
-        user: base.user,
+    let template = crate::with_base!(OrganizationSettingsTemplate, base, {
         organization,
         oidc,
         new_secret: qs.get("new_secret").cloned(),
@@ -209,7 +204,7 @@ async fn settings_page(
         sessions,
         scope_checkboxes,
         ssf_checkboxes,
-    };
+    });
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render organization settings template: {}", e);

@@ -1,15 +1,30 @@
+//! Per-profile view analytics (the "who's looking at me" page).
+//!
+//! Owns the `profile_view` event table (one row per view, written by
+//! `record_view`) and reads the `likes` relation for the likes-received
+//! count. Called by `routes/analytics.rs` for the analytics page and by
+//! `routes/public_profiles.rs` to record views. Count queries use
+//! `GROUP ALL` (or a `GROUP BY` subquery for distinct viewers) so the
+//! aggregate comes back as a single row.
+
 use crate::{db::DB, error::Error};
 use serde::{Deserialize, Serialize};
 use surrealdb::types::RecordId;
 
+/// Query/mutation surface for `profile_view` analytics.
 pub struct AnalyticsModel;
 
+/// Views attributed to one normalized referrer source (see
+/// `normalize_referrer`): "direct", "google", "instagram", …, or a bare
+/// domain / "other".
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReferrerCount {
     pub source: String,
     pub count: u64,
 }
 
+/// A count for a trailing window paired with the equivalent preceding
+/// window, so templates can show a trend arrow.
 #[derive(Debug, Clone)]
 pub struct PeriodStat {
     pub current: u64,
@@ -17,19 +32,24 @@ pub struct PeriodStat {
 }
 
 impl PeriodStat {
+    /// Signed delta `current - previous`.
     pub fn trend(&self) -> i64 {
         self.current as i64 - self.previous as i64
     }
 
+    /// True when the current window beats the previous one.
     pub fn is_up(&self) -> bool {
         self.current > self.previous
     }
 
+    /// True when the current window trails the previous one.
     pub fn is_down(&self) -> bool {
         self.current < self.previous
     }
 }
 
+/// Everything the profile-analytics page needs, assembled by
+/// [`AnalyticsModel::get_profile_analytics`].
 #[derive(Debug, Clone)]
 pub struct ProfileAnalytics {
     pub total_views: u64,
@@ -41,6 +61,9 @@ pub struct ProfileAnalytics {
     pub referrer_breakdown: Vec<ReferrerCount>,
 }
 
+/// Collapse a raw `Referer` header into a stable source bucket: known
+/// platforms by substring, `None`/empty to "direct", anything else to its
+/// bare domain (or "other").
 fn normalize_referrer(referrer: Option<&str>) -> String {
     match referrer {
         None | Some("") => "direct".to_string(),
@@ -148,7 +171,9 @@ impl AnalyticsModel {
             .unwrap_or(0))
     }
 
-    /// Get view count for a period, plus the equivalent previous period for comparison
+    /// Get view count for a period, plus the equivalent previous period for
+    /// comparison. Sends both `GROUP ALL` counts as one multi-statement
+    /// query and reads them back with `take(0)` / `take(1)`.
     pub async fn get_views_for_period(
         profile_id: &RecordId,
         days: u32,
@@ -200,7 +225,9 @@ impl AnalyticsModel {
             .collect())
     }
 
-    /// Get all analytics data for a profile
+    /// Get all analytics data for a profile, running every sub-query
+    /// concurrently via `tokio::join!`; individual failures degrade to 0 /
+    /// empty rather than failing the page.
     pub async fn get_profile_analytics(profile_id: &RecordId) -> Result<ProfileAnalytics, Error> {
         let (
             total_views,

@@ -1,3 +1,10 @@
+//! Org/production invitations: existing users and unknown emails.
+//!
+//! For an existing user it creates the membership edge (status `invited`)
+//! plus an in-app notification; for an unknown email it stores a
+//! [`crate::models::pending_invitation`] row and sends the invite email.
+//! Called from `routes::organizations` and `routes::productions`.
+
 use crate::{
     error::Error,
     models::{

@@ -2,16 +2,28 @@
 //!
 //! Each platform has an ID (stored in DB), display name, optional base URL
 //! for handle→URL expansion, placeholder text, and an inline SVG icon.
+//! `routes::profile` and `routes::public_profiles` resolve stored links
+//! against this registry when rendering, and [`expand_url`] normalizes user
+//! input (handle or full URL) when a link is saved.
 
+/// Static descriptor for one supported social or industry platform.
 pub struct SocialPlatform {
+    /// Stable identifier stored in the database on profile links.
     pub id: &'static str,
+    /// Human-readable display name.
     pub name: &'static str,
     /// URL template with `{}` as handle placeholder. `None` = full URL required.
     pub base_url: Option<&'static str>,
+    /// Hint text shown in the profile-link edit form.
     pub placeholder: &'static str,
+    /// Inline SVG markup rendered as the platform icon.
     pub icon_svg: &'static str,
 }
 
+/// Registry of all supported platforms, in display order.
+///
+/// The final entry must remain the `"other"` fallback — [`find_platform`]
+/// returns it for unknown IDs.
 pub const SOCIAL_PLATFORMS: &[SocialPlatform] = &[
     // ── General Social ──
     SocialPlatform {
@@ -126,6 +138,11 @@ pub fn find_platform(id: &str) -> &'static SocialPlatform {
 
 /// Expand a handle to a full URL using the platform's base_url template.
 /// If the value already looks like a URL, returns it as-is.
+///
+/// Only `http`/`https` URLs pass through verbatim; blank input and
+/// `javascript:`, `data:`, or `vbscript:` schemes yield an empty string, so
+/// nothing dangerous reaches the templates. A leading `@` is stripped from
+/// handles before substitution.
 pub fn expand_url(platform_id: &str, value: &str) -> String {
     let value = value.trim();
     if value.is_empty() {

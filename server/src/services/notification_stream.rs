@@ -1,17 +1,40 @@
-//! Live notification streaming via SurrealDB LIVE SELECT + tokio broadcast
+//! Live notification streaming via SurrealDB LIVE SELECT + tokio broadcast.
+//!
+//! Bridges database writes to connected browsers: a background task holds a
+//! `LIVE SELECT` on the `notification` table and republishes every change as
+//! a [`NotificationEvent`] on a process-wide `tokio::sync::broadcast`
+//! channel (capacity 256). SSE handlers call [`subscribe`] and forward
+//! events whose `person_id` matches their session.
+//!
+//! `main.rs` awaits [`init`] once at boot; the spawned task waits 2 s for
+//! the DB to settle, then reconnects the LIVE query forever with a 5 s
+//! backoff whenever the stream ends or errors. No env vars — it rides the
+//! global [`crate::db::DB`] connection.
 
 use std::sync::OnceLock;
 use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 
+/// One change on the `notification` table, reduced to what SSE listeners
+/// need for routing and rendering.
 #[derive(Debug, Clone)]
 pub struct NotificationEvent {
+    /// Recipient as a `person:key` string — listeners filter on this.
     pub person_id: String,
+    /// Lowercased LIVE action: `create`, `update`, or `delete`.
     pub action: String,
 }
 
 static SENDER: OnceLock<broadcast::Sender<NotificationEvent>> = OnceLock::new();
 
+/// Open a new receiver on the broadcast channel. Each SSE connection gets
+/// its own receiver; slow consumers that fall more than 256 events behind
+/// see `RecvError::Lagged` and miss the overwritten events.
+///
+/// # Panics
+///
+/// Panics if called before [`init`] — subscription is only valid after the
+/// boot sequence has set up the channel.
 pub fn subscribe() -> broadcast::Receiver<NotificationEvent> {
     SENDER
         .get()
@@ -19,6 +42,13 @@ pub fn subscribe() -> broadcast::Receiver<NotificationEvent> {
         .subscribe()
 }
 
+/// Create the broadcast channel and spawn the permanent LIVE-query task
+/// (2 s initial delay, then reconnect-with-5 s-backoff forever). Called
+/// once from `main.rs` right before the router is built.
+///
+/// # Panics
+///
+/// Panics if called twice — the channel can only be installed once.
 pub async fn init() {
     let (tx, _) = broadcast::channel::<NotificationEvent>(256);
     SENDER

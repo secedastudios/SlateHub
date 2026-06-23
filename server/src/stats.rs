@@ -1,5 +1,12 @@
-//! System stats tracking with 24h peak values
+//! Process/system stats for the admin dashboard, with rolling 24h peaks.
+//!
+//! [`init`] (called from `main`) spawns a sampler that records this
+//! process's memory and CPU every 30s into lock-free atomics; the admin
+//! stats endpoint reads them back when building its JSON payload. Peaks
+//! reset after 24h so the dashboard reflects the recent operating
+//! envelope, not all-time highs.
 
+use crate::text::format_bytes;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::Mutex;
@@ -122,18 +129,6 @@ pub fn disk_space_low() -> bool {
         .find(|d| d.mount_point() == std::path::Path::new("/"))
         .map(|d| d.available_space() < DISK_WARNING_BYTES)
         .unwrap_or(false)
-}
-
-fn format_bytes(bytes: u64) -> String {
-    if bytes >= 1_073_741_824 {
-        format!("{:.1} GB", bytes as f64 / 1_073_741_824.0)
-    } else if bytes >= 1_048_576 {
-        format!("{:.1} MB", bytes as f64 / 1_048_576.0)
-    } else if bytes >= 1_024 {
-        format!("{:.0} KB", bytes as f64 / 1_024.0)
-    } else {
-        format!("{} B", bytes)
-    }
 }
 
 fn format_uptime(secs: u64) -> String {

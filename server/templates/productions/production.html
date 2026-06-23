@@ -76,6 +76,7 @@
 {% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/static/css/pages/productions.css?v={{ version }}" />
+    <link rel="stylesheet" href="/static/css/pages/production-manage.css?v={{ version }}" />
     <link rel="stylesheet" href="/static/css/components/invite-search.css?v={{ version }}" />
 {% endblock %}
 {% block content %}
@@ -110,6 +111,12 @@
                         <p id="prod-hero-desc">{{ production.description.as_ref().unwrap() }}</p>
                     {% endif %}
                     <div id="prod-hero-actions">
+                        {% if production.can_manage %}
+                            <nav class="prod-view-toggle" aria-label="View mode">
+                                <a href="/productions/{{ production.slug }}" aria-current="page">Overview</a>
+                                <a href="/productions/{{ production.slug }}/manage">Manage</a>
+                            </nav>
+                        {% endif %}
                         {% if production.can_edit %}
                             <a href="/productions/{{ production.slug }}/edit" class="prod-btn-primary">Edit Production</a>
                         {% endif %}
@@ -249,13 +256,21 @@
                             </form>
                         </div>
                     {% endif %}
-                    {% if !production.person_members.is_empty() %}
-                        <ul class="prod-members-list">
+                    {% if !production.person_members.is_empty() || !production.pending_email_invites.is_empty() %}
+                        <div class="prod-team">
+                            <div class="prod-team-head" aria-hidden="true">
+                                <span>Member</span>
+                                <span>Production Roles</span>
+                                <span>Access</span>
+                                <span class="prod-team-col-actions"></span>
+                            </div>
+                            <ul class="prod-team-list">
                             {% for member in production.person_members %}
-                                <li class="prod-member-item{% if member.invitation_status == "pending" %} prod-member-pending{% endif %}">
-                                    <div class="prod-member-avatar">
+                                <li class="prod-team-row{% if member.invitation_status == "pending" %} is-pending{% endif %}">
+                                    <div class="prod-team-member">
+                                        <span class="prod-team-avatar">
                                         {% if member.username.is_some() %}
-                                        <a href="/{{ member.username.as_ref().unwrap() }}">
+                                            <a href="/{{ member.username.as_ref().unwrap() }}">
                                         {% endif %}
                                             {% match member.avatar %}
                                                 {% when Some with (url) %}
@@ -264,127 +279,102 @@
                                                 <img src="/api/avatar?id={{ member.name }}" alt="{{ member.name }}" />
                                             {% endmatch %}
                                         {% if member.username.is_some() %}
-                                        </a>
-                                        {% endif %}
-                                    </div>
-                                    <div class="prod-member-info">
-                                        {% if member.username.is_some() %}
-                                            <a href="/{{ member.username.as_ref().unwrap() }}">
-                                                <strong>{{ member.name }}</strong>
                                             </a>
+                                        {% endif %}
+                                        </span>
+                                        <span class="prod-team-name">
+                                        {% if member.username.is_some() %}
+                                            <a href="/{{ member.username.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
                                         {% else %}
                                             <strong>{{ member.name }}</strong>
                                         {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="prod-team-roles">
                                         {% if let Some(roles) = member.production_roles %}
                                             {% for r in roles %}
                                                 <span class="prod-role-badge">{{ r }}</span>
                                             {% endfor %}
+                                        {% else %}
+                                            <span class="prod-empty-cell">—</span>
                                         {% endif %}
-                                        {% if member.role == "owner" || member.role == "admin" %}
-                                            <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
-                                        {% endif %}
+                                    </div>
+                                    <div class="prod-team-access">
                                         {% if member.invitation_status == "pending" %}
-                                            <span class="prod-role-badge" data-role="pending">invited</span>
+                                            <span class="prod-team-pill" data-access="pending">Invited</span>
+                                        {% else %}
+                                            <span class="prod-team-pill" data-access="{{ member.role }}">{{ member.role }}</span>
                                         {% endif %}
                                     </div>
-                                    {% if production.can_edit && member.role != "owner" %}
-                                        <form action="/productions/{{ production.slug }}/members/remove" method="post"
-                              onsubmit="return confirm('Remove {{ member.name }} from this production?');">
-                                            <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
-                                            <button type="submit" class="prod-btn-danger">Remove</button>
-                                        </form>
-                                    {% endif %}
+                                    <div class="prod-team-actions">
+                                        {% if production.can_edit && member.role != "owner" %}
+                                            <form action="/productions/{{ production.slug }}/members/remove" method="post"
+                                                  onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                                                <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                                                <button type="submit" class="prod-btn-danger">Remove</button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
                                 </li>
                             {% endfor %}
                             {% for invite in production.pending_email_invites %}
-                                <li class="prod-member-item prod-member-pending">
-                                    <div class="prod-member-avatar">
+                                <li class="prod-team-row is-pending">
+                                    <div class="prod-team-member">
+                                        <span class="prod-team-avatar">
                                         {% if !invite.email.is_empty() %}
-                                        <img src="/api/avatar?id={{ invite.email }}" alt="{{ invite.email }}" />
+                                            <img src="/api/avatar?id={{ invite.email }}" alt="{{ invite.email }}" />
                                         {% else %}
-                                        <img src="/api/avatar?id=invite-link" alt="Invite link" />
+                                            <img src="/api/avatar?id=invite-link" alt="Invite link" />
                                         {% endif %}
+                                        </span>
+                                        <span class="prod-team-name">
+                                        {% if !invite.email.is_empty() %}
+                                            <strong>{{ invite.email }}</strong>
+                                        {% else %}
+                                            <strong>Invite Link</strong>
+                                        {% endif %}
+                                        </span>
                                     </div>
-                                    <div class="prod-member-info">
-                                        {% if !invite.email.is_empty() %}
-                                        <strong>{{ invite.email }}</strong>
-                                        <span class="prod-role-badge" data-role="pending">invited via email</span>
-                                        {% else %}
-                                        <strong>Invite Link</strong>
-                                        <span class="prod-role-badge" data-role="pending">link</span>
-                                        {% endif %}
+                                    <div class="prod-team-roles">
                                         {% if let Some(roles) = invite.production_roles %}
                                             {% for r in roles %}
                                                 <span class="prod-role-badge">{{ r }}</span>
                                             {% endfor %}
+                                        {% else %}
+                                            <span class="prod-empty-cell">—</span>
                                         {% endif %}
                                     </div>
-                                    {% if production.can_edit %}
-                                    <div class="prod-member-actions">
-                                        {% if invite.token.is_some() %}
-                                        <button type="button" class="prod-btn-outline prod-btn-icon" title="Copy invite link"
-                                                onclick="navigator.clipboard.writeText(window.location.origin + '/i/{{ invite.token.as_ref().unwrap() }}').then(function(){this.textContent='Copied!';var b=this;setTimeout(function(){b.innerHTML='&#128279;'},1500)}.bind(this))">&#128279;</button>
+                                    <div class="prod-team-access">
+                                        {% if !invite.email.is_empty() %}
+                                            <span class="prod-team-pill" data-access="pending">Email</span>
+                                        {% else %}
+                                            <span class="prod-team-pill" data-access="pending">Link</span>
                                         {% endif %}
-                                        <form action="/productions/{{ production.slug }}/revoke-invite" method="post"
-                                              onsubmit="return confirm('Revoke this invitation?');">
-                                            <input type="hidden" name="invite_id" value="{{ invite.id }}" />
-                                            <button type="submit" class="prod-btn-danger">Revoke</button>
-                                        </form>
                                     </div>
-                                    {% endif %}
+                                    <div class="prod-team-actions">
+                                        {% if production.can_edit %}
+                                            {% if invite.token.is_some() %}
+                                            <button type="button" class="prod-btn-outline prod-btn-icon" title="Copy invite link"
+                                                    onclick="navigator.clipboard.writeText(window.location.origin + '/i/{{ invite.token.as_ref().unwrap() }}').then(function(){this.textContent='Copied!';var b=this;setTimeout(function(){b.innerHTML='&#128279;'},1500)}.bind(this))">&#128279;</button>
+                                            {% endif %}
+                                            <form action="/productions/{{ production.slug }}/revoke-invite" method="post"
+                                                  onsubmit="return confirm('Revoke this invitation?');">
+                                                <input type="hidden" name="invite_id" value="{{ invite.id }}" />
+                                                <button type="submit" class="prod-btn-danger">Revoke</button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
                                 </li>
                             {% endfor %}
-                        </ul>
+                            </ul>
+                        </div>
                     {% else %}
-                        {% if !production.pending_email_invites.is_empty() %}
-                        <ul class="prod-members-list">
-                            {% for invite in production.pending_email_invites %}
-                                <li class="prod-member-item prod-member-pending">
-                                    <div class="prod-member-avatar">
-                                        {% if !invite.email.is_empty() %}
-                                        <img src="/api/avatar?id={{ invite.email }}" alt="{{ invite.email }}" />
-                                        {% else %}
-                                        <img src="/api/avatar?id=invite-link" alt="Invite link" />
-                                        {% endif %}
-                                    </div>
-                                    <div class="prod-member-info">
-                                        {% if !invite.email.is_empty() %}
-                                        <strong>{{ invite.email }}</strong>
-                                        <span class="prod-role-badge" data-role="pending">invited via email</span>
-                                        {% else %}
-                                        <strong>Invite Link</strong>
-                                        <span class="prod-role-badge" data-role="pending">link</span>
-                                        {% endif %}
-                                        {% if let Some(roles) = invite.production_roles %}
-                                            {% for r in roles %}
-                                                <span class="prod-role-badge">{{ r }}</span>
-                                            {% endfor %}
-                                        {% endif %}
-                                    </div>
-                                    {% if production.can_edit %}
-                                    <div class="prod-member-actions">
-                                        {% if invite.token.is_some() %}
-                                        <button type="button" class="prod-btn-outline prod-btn-icon" title="Copy invite link"
-                                                onclick="navigator.clipboard.writeText(window.location.origin + '/i/{{ invite.token.as_ref().unwrap() }}').then(function(){this.textContent='Copied!';var b=this;setTimeout(function(){b.innerHTML='&#128279;'},1500)}.bind(this))">&#128279;</button>
-                                        {% endif %}
-                                        <form action="/productions/{{ production.slug }}/revoke-invite" method="post"
-                                              onsubmit="return confirm('Revoke this invitation?');">
-                                            <input type="hidden" name="invite_id" value="{{ invite.id }}" />
-                                            <button type="submit" class="prod-btn-danger">Revoke</button>
-                                        </form>
-                                    </div>
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                        {% else %}
                         <div class="prod-empty" style="padding:2rem 0">
                             <p>No cast or crew members yet.</p>
                             {% if production.can_edit %}
                                 <button type="button" class="prod-btn-outline" onclick="showAddMemberForm()">Invite First Member</button>
                             {% endif %}
                         </div>
-                        {% endif %}
                     {% endif %}
                 </section>
                 <section>
@@ -458,41 +448,55 @@
                         </div>
                     {% endif %}
                     {% if !production.org_members.is_empty() %}
-                        <ul class="prod-members-list">
+                        <div class="prod-team">
+                            <div class="prod-team-head" aria-hidden="true">
+                                <span>Organization</span>
+                                <span>Production Roles</span>
+                                <span>Access</span>
+                                <span class="prod-team-col-actions"></span>
+                            </div>
+                            <ul class="prod-team-list">
                             {% for member in production.org_members %}
-                                <li class="prod-member-item">
-                                    <div class="prod-member-info">
+                                <li class="prod-team-row">
+                                    <div class="prod-team-member">
+                                        <span class="prod-team-name">
                                         {% if member.slug.is_some() %}
-                                            <a href="/orgs/{{ member.slug.as_ref().unwrap() }}">
-                                                <strong>{{ member.name }}</strong>
-                                            </a>
+                                            <a href="/orgs/{{ member.slug.as_ref().unwrap() }}"><strong>{{ member.name }}</strong></a>
                                         {% else %}
                                             <strong>{{ member.name }}</strong>
                                         {% endif %}
                                         {% if member.is_verified %}
-                                            <svg data-role="verified-badge" data-verified="org" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization">
+                                            <svg data-role="verified-badge" data-verified="org" width="15" height="15" viewBox="0 0 24 24" fill="#FFD700" aria-label="Verified Organization">
                                                 <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
                                             </svg>
                                         {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="prod-team-roles">
                                         {% if let Some(roles) = member.production_roles %}
                                             {% for r in roles %}
                                                 <span class="prod-role-badge">{{ r }}</span>
                                             {% endfor %}
-                                        {% endif %}
-                                        {% if member.role == "owner" || member.role == "admin" %}
-                                            <span class="prod-role-badge" data-role="{{ member.role }}">{{ member.role }}</span>
+                                        {% else %}
+                                            <span class="prod-empty-cell">—</span>
                                         {% endif %}
                                     </div>
-                                    {% if production.can_edit && member.role != "owner" %}
-                                        <form action="/productions/{{ production.slug }}/members/remove" method="post"
-                              onsubmit="return confirm('Remove {{ member.name }} from this production?');">
-                                            <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
-                                            <button type="submit" class="prod-btn-danger">Remove</button>
-                                        </form>
-                                    {% endif %}
+                                    <div class="prod-team-access">
+                                        <span class="prod-team-pill" data-access="{{ member.role }}">{{ member.role }}</span>
+                                    </div>
+                                    <div class="prod-team-actions">
+                                        {% if production.can_edit && member.role != "owner" %}
+                                            <form action="/productions/{{ production.slug }}/members/remove" method="post"
+                                                  onsubmit="return confirm('Remove {{ member.name }} from this production?');">
+                                                <input type="hidden" name="member_id" value="{{ member.member_type }}:{{ member.id }}" />
+                                                <button type="submit" class="prod-btn-danger">Remove</button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
                                 </li>
                             {% endfor %}
-                        </ul>
+                            </ul>
+                        </div>
                     {% else %}
                         <div class="prod-empty" style="padding:2rem 0">
                             <p>No organizations added yet.</p>

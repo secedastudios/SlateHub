@@ -1,3 +1,10 @@
+//! Media upload/delete/proxy APIs (mounted under `/api/media`): profile
+//! avatars and photo galleries, organization logos (incl. SVG passthrough),
+//! location photos, and production header/poster/gallery images. Uploads are
+//! validated (type, 10MB cap, per-entity counts), CPU-heavy resizing runs on
+//! the blocking pool, files land in S3, and the catch-all `/{*path}` route
+//! streams them back out so S3 is never exposed directly.
+
 use axum::{
     Router,
     body::Body,
@@ -19,6 +26,8 @@ use crate::{
     record_id_ext::RecordIdExt, services::s3::s3, verification_limits,
 };
 
+/// Routes for media upload/delete per entity type plus the catch-all
+/// S3 proxy (`/{*path}`), which must stay last in this router.
 pub fn router() -> Router {
     Router::new()
         .route("/upload/profile-image", post(upload_profile_image))
@@ -174,7 +183,7 @@ async fn upload_profile_image(
 
     // Process the image
     let (processed_image, thumbnail) =
-        process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
+        process_profile_image(data.clone(), params.crop_x, params.crop_y, params.crop_zoom).await?;
 
     // Generate unique keys for S3
     // Remove "person:" prefix from ID to avoid colon in S3 paths
@@ -341,7 +350,7 @@ async fn upload_profile_photo(
     }
 
     // Process the image (resize, maintain aspect ratio)
-    let (processed, thumbnail) = process_photo(&data)?;
+    let (processed, thumbnail) = process_photo(data.clone()).await?;
 
     // Upload to S3
     let image_id = Ulid::new().to_string();
@@ -421,8 +430,18 @@ async fn delete_profile_photo(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
-/// Process a photo: resize maintaining aspect ratio, create thumbnail
-fn process_photo(image_data: &[u8]) -> Result<(Bytes, Bytes), Error> {
+/// Resize a photo (max width, aspect preserved) and build its thumbnail.
+///
+/// Decode + Lanczos3 resize + JPEG encode are CPU-bound (hundreds of ms on
+/// large uploads), so the work runs on tokio's blocking pool to keep the
+/// async runtime responsive. Returns `(full, thumbnail)` JPEG bytes.
+async fn process_photo(image_data: Bytes) -> Result<(Bytes, Bytes), Error> {
+    tokio::task::spawn_blocking(move || process_photo_blocking(&image_data))
+        .await
+        .map_err(|e| Error::Internal(format!("image task join error: {e}")))?
+}
+
+fn process_photo_blocking(image_data: &[u8]) -> Result<(Bytes, Bytes), Error> {
     let img = image::load_from_memory(image_data)
         .map_err(|e| Error::bad_request(format!("Invalid image file: {}", e)))?;
 
@@ -463,8 +482,23 @@ fn process_photo(image_data: &[u8]) -> Result<(Bytes, Bytes), Error> {
     ))
 }
 
-/// Process and crop the profile image
-fn process_profile_image(
+/// Crop (circular or center-square), resize, and JPEG-encode a profile image.
+///
+/// CPU-bound; runs on the blocking pool — see [`process_photo`].
+async fn process_profile_image(
+    image_data: Bytes,
+    crop_x: Option<f32>,
+    crop_y: Option<f32>,
+    crop_zoom: Option<f32>,
+) -> Result<(Bytes, Bytes), Error> {
+    tokio::task::spawn_blocking(move || {
+        process_profile_image_blocking(&image_data, crop_x, crop_y, crop_zoom)
+    })
+    .await
+    .map_err(|e| Error::Internal(format!("image task join error: {e}")))?
+}
+
+fn process_profile_image_blocking(
     image_data: &[u8],
     crop_x: Option<f32>,
     crop_y: Option<f32>,
@@ -682,7 +716,7 @@ async fn upload_organization_logo(
         (data.clone(), thumbnail)
     } else {
         // For raster images, process normally
-        process_logo_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?
+        process_logo_image(data.clone(), params.crop_x, params.crop_y, params.crop_zoom).await?
     };
 
     // Generate unique keys for S3
@@ -731,8 +765,23 @@ async fn upload_organization_logo(
     }))
 }
 
-/// Process and crop the logo image
-fn process_logo_image(
+/// Crop, resize, and JPEG-encode an organization logo + thumbnail.
+///
+/// CPU-bound; runs on the blocking pool — see [`process_photo`].
+async fn process_logo_image(
+    image_data: Bytes,
+    crop_x: Option<f32>,
+    crop_y: Option<f32>,
+    crop_zoom: Option<f32>,
+) -> Result<(Bytes, Bytes), Error> {
+    tokio::task::spawn_blocking(move || {
+        process_logo_image_blocking(&image_data, crop_x, crop_y, crop_zoom)
+    })
+    .await
+    .map_err(|e| Error::Internal(format!("image task join error: {e}")))?
+}
+
+fn process_logo_image_blocking(
     image_data: &[u8],
     crop_x: Option<f32>,
     crop_y: Option<f32>,
@@ -937,7 +986,7 @@ async fn upload_organization_logo_with_slug(
         (data.clone(), thumbnail)
     } else {
         // For raster images, process normally
-        process_logo_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?
+        process_logo_image(data.clone(), params.crop_x, params.crop_y, params.crop_zoom).await?
     };
 
     // Generate unique keys for S3
@@ -1041,7 +1090,7 @@ async fn upload_location_profile_photo(
         image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
 
     let (processed, _thumbnail) =
-        process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
+        process_profile_image(data.clone(), params.crop_x, params.crop_y, params.crop_zoom).await?;
 
     let image_id = Ulid::new().to_string();
     let main_key = format!("locations/{}/{}.jpg", location_id, image_id);
@@ -1163,7 +1212,7 @@ async fn upload_location_photo(
     let (_content_type, data) =
         image_data.ok_or_else(|| Error::bad_request("No image file provided"))?;
 
-    let (processed, thumbnail) = process_photo(&data)?;
+    let (processed, thumbnail) = process_photo(data.clone()).await?;
 
     let image_id = Ulid::new().to_string();
     let main_key = format!("locations/{}/photos/{}.jpg", location_id, image_id);
@@ -1331,7 +1380,7 @@ async fn upload_production_header_photo(
 
     let (_content_type, data) = extract_image_from_multipart(&mut multipart).await?;
     let (processed, _thumbnail) =
-        process_profile_image(&data, params.crop_x, params.crop_y, params.crop_zoom)?;
+        process_profile_image(data.clone(), params.crop_x, params.crop_y, params.crop_zoom).await?;
 
     let image_id = Ulid::new().to_string();
     let main_key = format!("productions/{}/{}.jpg", production_id, image_id);
@@ -1473,7 +1522,7 @@ async fn upload_production_photo(
     }
 
     let (_content_type, data) = extract_image_from_multipart(&mut multipart).await?;
-    let (processed, thumbnail) = process_photo(&data)?;
+    let (processed, thumbnail) = process_photo(data.clone()).await?;
 
     let image_id = Ulid::new().to_string();
     let main_key = format!("productions/{}/photos/{}.jpg", production_id, image_id);

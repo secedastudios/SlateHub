@@ -1,8 +1,19 @@
+//! The process-wide SurrealDB connection.
+//!
+//! One WebSocket client, shared everywhere: `main` connects/authenticates
+//! [`DB`] at boot (and the test harness points it at the test container),
+//! after which models and services issue queries through `DB.query(...)`
+//! directly. The SDK multiplexes concurrent queries over the single
+//! connection, so no pool is needed.
+
 use crate::log_db_error;
 use std::sync::LazyLock;
 use surrealdb::{Surreal, engine::remote::ws::Client};
 use tracing::{debug, info, instrument};
 
+/// Global SurrealDB handle. Unconnected until `main` (or a test's
+/// `setup_test_db`) calls `DB.connect(...)` + `signin` + `use_ns/use_db`;
+/// queries issued before that return a connection error rather than panic.
 pub static DB: LazyLock<Surreal<Client>> = LazyLock::new(|| {
     debug!("Initializing database client");
     Surreal::init()
