@@ -32,8 +32,19 @@
         <div class="lp-hero-inner">
             <p class="lp-eyebrow">A home for filmmakers</p>
             <h1 class="lp-display">When you're not on set, there's <span class="lp-accent">SlateHub.</span></h1>
+            {% match user %}
+            {% when None %}
             <p class="lp-hero-sub">The whole film industry in one profile. <strong>Free for life</strong> — because actors and crew should never pay to be visible.</p>
             {% include "partials/landing/email_capture.html" %}
+            {% when Some with (u) %}
+            {% if u.avatar_url.is_some() %}
+            <p class="lp-hero-sub">Welcome back. Time to find the cast and crew for your next project.</p>
+            <div class="lp-capture"><a class="lp-cta" href="/people">Find collaborators →</a></div>
+            {% else %}
+            <p class="lp-hero-sub">You're in, but your profile has no photo yet, so people can't really find you. Add one and fill in a few details.</p>
+            <div class="lp-capture"><a class="lp-cta" href="/profile/edit">Finish my profile →</a></div>
+            {% endif %}
+            {% endmatch %}
             {% include "partials/landing/social_proof.html" %}
         </div>
     </header>
@@ -127,8 +138,19 @@
         <span class="lp-grain" aria-hidden="true"></span>
         <div class="lp-final-inner">
             <h2 class="lp-display">The industry, <span class="lp-accent">reunited.</span></h2>
+            {% match user %}
+            {% when None %}
             <p>Claim your profile in under a minute. No subscription, no card, no catch — just your work and the people who need to find you.</p>
             <a class="lp-cta" href="/signup?campaign={{ campaign_id }}">Create my free profile →</a>
+            {% when Some with (u) %}
+            {% if u.avatar_url.is_some() %}
+            <p>Your profile's ready. Now find the people for your next project.</p>
+            <a class="lp-cta" href="/people">Find collaborators →</a>
+            {% else %}
+            <p>Add a photo and a few details, and people can start finding you.</p>
+            <a class="lp-cta" href="/profile/edit">Finish my profile →</a>
+            {% endif %}
+            {% endmatch %}
             <p class="lp-final-note">Free forever · Open source · No ads</p>
         </div>
     </section>

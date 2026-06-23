@@ -170,8 +170,9 @@ pub struct VerifiedProfile {
     pub avatar: String,
 }
 
-/// Up to `limit` random identity-verified profiles (with an avatar + headline)
-/// for the landing carousel + hero avatars. Best-effort: empty on error.
+/// Up to `limit` identity-verified profiles that have an avatar, shuffled
+/// per call (`ORDER BY rand()`) so the landing carousel + hero avatars vary on
+/// every page load. Best-effort: empty on error.
 pub async fn verified_profiles(limit: usize) -> Vec<VerifiedProfile> {
     #[derive(Deserialize, SurrealValue)]
     struct Row {
@@ -183,7 +184,7 @@ pub async fn verified_profiles(limit: usize) -> Vec<VerifiedProfile> {
     let q = format!(
         "SELECT username, profile.name AS name, profile.headline AS headline, profile.avatar AS avatar \
          FROM person WHERE profile.avatar IS NOT NONE \
-         AND verification_status = 'identity' ORDER BY username LIMIT {};",
+         AND verification_status = 'identity' ORDER BY rand() LIMIT {};",
         limit
     );
     let rows: Vec<Row> = DB

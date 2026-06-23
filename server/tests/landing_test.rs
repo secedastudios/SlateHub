@@ -261,16 +261,36 @@ fn test_event_persists_person_and_role() {
 // includes) and assert the mockup content + funnel wiring are present.
 // ---------------------------------------------------------------------------
 
+fn sample_user(has_avatar: bool) -> slatehub::templates::User {
+    slatehub::templates::User {
+        id: "person:abc".into(),
+        name: "Jane Doe".into(),
+        email: "jane@example.test".into(),
+        avatar: "/api/avatar?id=person:abc".into(),
+        avatar_url: if has_avatar {
+            Some("/api/media/jane.jpg".into())
+        } else {
+            None
+        },
+        initials: "JD".into(),
+        notification_count: 0,
+        is_identity_verified: has_avatar,
+        is_admin: false,
+        can_manage_productions: false,
+    }
+}
+
 fn sample_template(
     pixel_id: Option<String>,
     profiles: Vec<slatehub::services::landing::VerifiedProfile>,
+    user: Option<slatehub::templates::User>,
 ) -> slatehub::templates::NotOnSetLandingTemplate {
     slatehub::templates::NotOnSetLandingTemplate {
         app_name: "SlateHub".into(),
         year: 2026,
         version: "test".into(),
         active_page: "landing".into(),
-        user: None,
+        user,
         campaign_id: "not-on-set".into(),
         video_id: "otrrrEH8wUw".into(),
         pixel_id,
@@ -302,7 +322,7 @@ fn test_landing_page_renders_mockup_content_and_funnel_wiring() {
             avatar: "/api/media/m.jpg".into(),
         },
     ];
-    let html = sample_template(Some("1356698509457684".into()), profiles)
+    let html = sample_template(Some("1356698509457684".into()), profiles, None)
         .render()
         .expect("landing page renders");
 
@@ -333,7 +353,7 @@ fn test_landing_page_renders_mockup_content_and_funnel_wiring() {
 #[test]
 fn test_landing_pixel_omitted_when_unconfigured() {
     use askama::Template;
-    let html = sample_template(None, vec![])
+    let html = sample_template(None, vec![], None)
         .render()
         .expect("renders without a pixel");
     assert!(
@@ -342,4 +362,34 @@ fn test_landing_pixel_omitted_when_unconfigured() {
     );
     // Page still renders its structure without any verified profiles.
     assert!(html.contains("When you're not on set"));
+}
+
+#[test]
+fn test_logged_in_without_avatar_shows_finish_profile_cta() {
+    use askama::Template;
+    let html = sample_template(None, vec![], Some(sample_user(false)))
+        .render()
+        .expect("renders for a logged-in user without an avatar");
+    // Quirky "finish your profile + add a photo" CTA → profile edit.
+    assert!(html.contains("Finish my profile"));
+    assert!(html.contains(r#"class="lp-cta" href="/profile/edit""#));
+    assert!(html.contains("Add a photo"));
+    // No anonymous signup form / CTA for a logged-in user.
+    assert!(!html.contains(r#"name="role" value="actor""#));
+    assert!(!html.contains("Create my free profile"));
+    assert!(!html.contains("Find collaborators"));
+}
+
+#[test]
+fn test_logged_in_with_avatar_shows_find_collaborators_cta() {
+    use askama::Template;
+    let html = sample_template(None, vec![], Some(sample_user(true)))
+        .render()
+        .expect("renders for a logged-in user with an avatar");
+    // Established user → "find collaborators" CTA → people directory.
+    assert!(html.contains("Find collaborators"));
+    assert!(html.contains(r#"class="lp-cta" href="/people""#));
+    // Not the new-user or anonymous CTAs.
+    assert!(!html.contains("Finish my profile"));
+    assert!(!html.contains("Create my free profile"));
 }
