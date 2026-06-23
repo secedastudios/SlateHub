@@ -218,6 +218,32 @@ struct AdminMailingListTemplate {
 
 /// Routes for the `/admin` dashboard, entity-management pages, and
 /// maintenance actions; every handler enforces the admin check itself.
+#[derive(Template)]
+#[template(path = "admin/landing_pages.html")]
+struct AdminLandingPagesTemplate {
+    app_name: String,
+    year: i32,
+    version: String,
+    active_page: String,
+    user: Option<User>,
+    details: Vec<CampaignDetail>,
+}
+
+/// One campaign's funnel + role + daily breakdown for the admin report.
+struct CampaignDetail {
+    funnel: crate::models::landing::CampaignFunnel,
+    roles: Vec<crate::models::landing::RoleStat>,
+    daily: Vec<DayBar>,
+}
+
+/// A single day's bar in the views mini-chart, with a pre-scaled pixel height.
+struct DayBar {
+    day: String,
+    views: u64,
+    conversions: u64,
+    height: u64,
+}
+
 pub fn router() -> Router {
     Router::new()
         .route("/admin", get(dashboard))
@@ -246,6 +272,7 @@ pub fn router() -> Router {
         .route("/admin/locations/{id}/delete", post(delete_location))
         .route("/admin/feature-flags", get(feature_flags_page))
         .route("/admin/feature-flags/{key}", post(set_feature_flag))
+        .route("/admin/landing-pages", get(landing_pages))
         .route("/admin/mailing-list", get(mailing_list_page))
         .route(
             "/admin/mailing-list/subscribe",
@@ -314,6 +341,47 @@ async fn dashboard(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<St
 
     Ok(Html(template.render().map_err(|e| {
         error!("Failed to render admin dashboard: {}", e);
+        Error::template(e.to_string())
+    })?))
+}
+
+// -- Landing pages --
+
+async fn landing_pages(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<String>, Error> {
+    let template_user = require_admin(&user).await?;
+    use crate::models::landing::LandingModel;
+
+    let funnels = LandingModel::campaign_funnels().await;
+    let mut details = Vec::with_capacity(funnels.len());
+    for funnel in funnels {
+        let (roles, daily_raw) = tokio::join!(
+            LandingModel::role_breakdown(&funnel.slug),
+            LandingModel::daily(&funnel.slug, 30),
+        );
+        // Scale bar heights to the busiest day so the chart always fills.
+        let max_views = daily_raw.iter().map(|d| d.views).max().unwrap_or(0).max(1);
+        let daily = daily_raw
+            .into_iter()
+            .map(|d| DayBar {
+                height: d.views * 70 / max_views,
+                day: d.day,
+                views: d.views,
+                conversions: d.conversions,
+            })
+            .collect();
+        details.push(CampaignDetail {
+            funnel,
+            roles,
+            daily,
+        });
+    }
+
+    let base = BaseContext::new()
+        .with_page("admin")
+        .with_user(template_user);
+    let template = crate::with_base!(AdminLandingPagesTemplate, base, { details });
+    Ok(Html(template.render().map_err(|e| {
+        error!("Failed to render admin landing pages: {}", e);
         Error::template(e.to_string())
     })?))
 }

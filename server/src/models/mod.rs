@@ -13,6 +13,7 @@ pub mod consent_grant;
 pub mod equipment;
 pub mod involvement;
 pub mod job;
+pub mod landing;
 pub mod likes;
 pub mod location;
 pub mod media;

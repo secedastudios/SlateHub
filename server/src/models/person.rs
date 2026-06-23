@@ -1393,6 +1393,10 @@ pub struct CreateUser {
     /// Proof-of-Work solution
     #[serde(default)]
     pub pow_solution: Option<String>,
+    /// Landing-page campaign id carried through from `/a/{campaign}` → `/signup`
+    /// as a hidden field. Attribution only — never affects account creation.
+    #[serde(default)]
+    pub campaign: Option<String>,
 }
 
 /// Represents the data required for a user to log in.

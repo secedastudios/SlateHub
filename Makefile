@@ -264,7 +264,10 @@ db-seed: wait-db
 			role = 'owner', \
 			invitation_status = 'accepted'; \
 	"
+	@echo "Seeding verified people (real profiles from production)..."
+	@docker exec -i slatehub-surrealdb /surreal sql --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main --pretty < db/seed-verified-people.surql
 	@echo "✅ Seeded users: kevin (pass123), chris (pass123, admin, verified)"
+	@echo "✅ Seeded 7 verified people w/ avatars: tom, renjith, simonschreiner, maks, moritz, cineastmjp, leo"
 	@echo "✅ Seeded org: Seceda (owned by chris)"
 	@echo "✅ Seeded production: Berlin Nights (owned by chris)"
 

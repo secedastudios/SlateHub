@@ -27,6 +27,7 @@ mod auth;
 mod developers;
 mod equipment;
 mod jobs;
+mod landing;
 mod likes;
 mod locations;
 mod media;
@@ -113,6 +114,9 @@ pub fn app() -> Router {
                 header::HeaderValue::from_static("public, max-age=31536000, immutable"),
             )),
         )
+        // Mount ad landing pages (/a/{campaign}) ahead of the public-profile
+        // catch-all (distinct 2-segment path, but kept before it for safety)
+        .merge(landing::router())
         // Mount public profiles last to handle /<username> routes
         // This must be last to avoid conflicts with other routes
         .merge(public_profiles::router())

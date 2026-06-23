@@ -1,0 +1,20 @@
+{# Hero email capture. The role chips are real radio inputs (no JS, single
+   select) associated with the form via form="lp-signup". Submits as a plain
+   GET to /signup carrying email + role + campaign — the campaign rides the URL
+   so account creation can be attributed. Requires: campaign_id. #}
+<div class="lp-capture">
+    <fieldset class="lp-roles">
+        <legend class="lp-capture-label">I'm a…</legend>
+        <label class="lp-role"><input type="radio" name="role" value="actor" form="lp-signup" /><span>Actor</span></label>
+        <label class="lp-role"><input type="radio" name="role" value="crew" form="lp-signup" /><span>Crew</span></label>
+        <label class="lp-role"><input type="radio" name="role" value="director" form="lp-signup" /><span>Director</span></label>
+        <label class="lp-role"><input type="radio" name="role" value="creator" form="lp-signup" /><span>Creator</span></label>
+    </fieldset>
+    <form id="lp-signup" class="lp-capture-form" action="/signup" method="get">
+        <input type="hidden" name="campaign" value="{{ campaign_id }}" />
+        <label class="lp-visually-hidden" for="lp-email">Email address</label>
+        <input id="lp-email" type="email" name="email" required placeholder="you@email.com" autocomplete="email" />
+        <button type="submit" class="lp-cta">Create my free profile →</button>
+    </form>
+    <p class="lp-capture-note">Free forever · No card · No ads</p>
+</div>

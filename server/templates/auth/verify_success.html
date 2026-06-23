@@ -1,0 +1,35 @@
+{% extends "_layout.html" %}
+
+{# Post-verification conversion interstitial. Fires the Meta Pixel
+   CompleteRegistration (the email-verified conversion) for campaign-attributed
+   signups, then continues to the destination. Reached only on that path. #}
+
+{% block title %}You're verified — {{ app_name }}{% endblock %}
+{% block page_name %}verify-success{% endblock %}
+{% block head %}
+<meta name="robots" content="noindex, nofollow" />
+<link rel="stylesheet" href="/static/css/pages/auth.css?v={{ version }}" />
+{% include "partials/landing/pixel.html" %}
+<meta http-equiv="refresh" content="3;url={{ redirect }}" />
+{% endblock %}
+
+{% block content %}
+<section class="auth-card" aria-live="polite">
+    <header class="auth-header">
+        <h1>You're verified 🎉</h1>
+        <p>Your free profile is ready — taking you there now…</p>
+    </header>
+    <p><a id="lp-continue" href="{{ redirect }}">Continue now →</a></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Fire the Meta Pixel conversion (email verified), then continue.
+    try { fbq('track', 'CompleteRegistration'); } catch (e) {}
+    (function () {
+        var a = document.getElementById('lp-continue');
+        if (a) setTimeout(function () { window.location.replace(a.href); }, 700);
+    })();
+</script>
+{% endblock %}

@@ -266,6 +266,29 @@ DEFINE INDEX idx_activity_event_type_time ON activity_event FIELDS event_type, c
 DEFINE INDEX idx_activity_event_person    ON activity_event FIELDS person_id, created_at;
 
 -- ------------------------------
+-- TABLE: landing_event (per-campaign funnel for /a/{campaign} ad landing pages)
+-- ------------------------------
+-- Funnel: view -> cta_click -> signup_started -> signup_completed.
+-- `signup_completed` is the conversion, emitted at EMAIL VERIFICATION via
+-- `person.signup_campaign`. See db/migrations/013_landing_analytics.surql.
+
+DEFINE TABLE landing_event TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD campaign   ON landing_event TYPE string PERMISSIONS FULL;
+DEFINE FIELD event_type ON landing_event TYPE string
+    ASSERT $value IN ['view', 'cta_click', 'signup_started', 'signup_completed'] PERMISSIONS FULL;
+DEFINE FIELD person     ON landing_event TYPE option<record<person>> PERMISSIONS FULL;
+DEFINE FIELD role       ON landing_event TYPE option<string> PERMISSIONS FULL;     -- analytics only, never applied to the account
+DEFINE FIELD visitor_id ON landing_event TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD referrer   ON landing_event TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD path       ON landing_event TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD created_at ON landing_event TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_landing_event_campaign_type_time ON landing_event FIELDS campaign, event_type, created_at;
+DEFINE INDEX idx_landing_event_time               ON landing_event FIELDS created_at;
+DEFINE INDEX idx_landing_event_person             ON landing_event FIELDS person;
+
+-- ------------------------------
 -- TABLE: verification_codes
 -- ------------------------------
 
@@ -401,6 +424,7 @@ DEFINE FIELD username ON person TYPE string VALUE string::lowercase($value) PERM
 DEFINE FIELD name ON person TYPE option<string> PERMISSIONS FULL;  -- Optional display name
 DEFINE FIELD is_admin ON person TYPE bool DEFAULT false PERMISSIONS FULL;  -- System administrator flag
 DEFINE FIELD signup_ip ON person TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD signup_campaign ON person TYPE option<string> PERMISSIONS FULL;  -- /a/{campaign} landing page a user signed up through (conversion attribution)
 DEFINE FIELD created_at ON person TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON person TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD embedding ON person TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)
@@ -410,6 +434,7 @@ DEFINE INDEX person_username_unique ON person FIELDS username UNIQUE;
 DEFINE INDEX person_email_unique ON person FIELDS email UNIQUE;
 DEFINE INDEX idx_person_location ON person FIELDS profile.location;  -- For search
 DEFINE INDEX idx_person_skills ON person FIELDS profile.skills;
+DEFINE INDEX idx_person_signup_campaign ON person FIELDS signup_campaign;  -- landing-page conversion attribution
 
 -- ------------------------------
 -- TABLE: production

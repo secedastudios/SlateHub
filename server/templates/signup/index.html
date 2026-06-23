@@ -3,6 +3,7 @@
 {% block page_name %}signup{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/pages/auth.css?v={{ version }}" />
+{% include "partials/landing/pixel.html" %}
 {% endblock %}
 {% block content %}
 <div class="auth-card">
@@ -22,6 +23,7 @@
         {% if redirect.is_some() %}
         <input type="hidden" name="redirect" value="{{ redirect.as_ref().unwrap() }}" />
         {% endif %}
+        {% match campaign %}{% when Some with (c) %}<input type="hidden" name="campaign" value="{{ c }}" />{% when None %}{% endmatch %}
         <input type="hidden" name="form_token" value="{{ form_token }}" />
         <input type="hidden" name="pow_challenge" value="{{ pow_challenge }}" />
         <input type="hidden" name="pow_solution" id="pow-solution" value="" />
@@ -231,4 +233,8 @@
     }
 })();
 </script>
+{# Campaign-attributed visitor reached the form — fire the pixel Lead event. #}
+{% match campaign %}{% when Some with (_) %}
+<script>try { fbq('track', 'Lead'); } catch (e) {}</script>
+{% when None %}{% endmatch %}
 {% endblock %}

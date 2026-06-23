@@ -1,0 +1,8 @@
+{# Hero social proof: a handful of real verified avatars + the inflated-with-a-
+   plus total-user count. Requires: profiles, community_label. #}
+<div class="lp-social">
+    <div class="lp-avatars" aria-hidden="true">
+        {% for p in profiles %}{% if loop.index0 < 4 %}<img src="{{ p.avatar }}" alt="" loading="lazy" width="42" height="42" />{% endif %}{% endfor %}
+    </div>
+    <p class="lp-social-text">Join <strong>{{ community_label }}</strong> filmmakers already here</p>
+</div>

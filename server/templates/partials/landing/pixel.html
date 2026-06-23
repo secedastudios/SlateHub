@@ -1,0 +1,25 @@
+{# Global Meta (Facebook) Pixel — shared across the conversion funnel
+   (landing pages, /signup, /verify-email). Renders only when a pixel id is
+   configured (META_PIXEL_ID); omitted entirely in local/dev/tests.
+   Page-specific conversion events (Lead, CompleteRegistration) are fired from
+   each page's own {% block scripts %} after this snippet has initialised fbq.
+   The <noscript> 1x1 keeps Meta's standard inline style by design. #}
+{% match pixel_id %}
+{% when Some with (pid) %}
+<!-- Meta Pixel Code -->
+<script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '{{ pid }}');
+  fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id={{ pid }}&amp;ev=PageView&amp;noscript=1" /></noscript>
+<!-- End Meta Pixel Code -->
+{% when None %}
+{% endmatch %}

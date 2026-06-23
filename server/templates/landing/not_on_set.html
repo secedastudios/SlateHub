@@ -1,0 +1,154 @@
+{% extends "_layout.html" %}
+
+{# Ad landing page "When you're not on set" (/a/not-on-set). Uses the site
+   header/footer (auto-included by _layout) and a landing-scoped stylesheet
+   reproducing the mockup. People + counts are live; editorial art is
+   campaign-specific. Noindex: this is a paid-traffic page, kept out of
+   organic search to avoid thin/duplicate indexing. #}
+
+{% block title %}{{ og_title }} | {{ app_name }}{% endblock %}
+{% block description %}{{ og_description }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ path|abs_url }}" />{% endblock %}
+{% block og_url %}<meta property="og:url" content="{{ path|abs_url }}" />{% endblock %}
+{% block og_title %}{{ og_title }}{% endblock %}
+{% block og_description %}{{ og_description }}{% endblock %}
+{% block og_image %}<meta property="og:image" content="{{ og_image|abs_url }}" />{% endblock %}
+{% block page_name %}landing-not-on-set{% endblock %}
+
+{% block head %}
+<meta name="robots" content="noindex, nofollow" />
+<link rel="stylesheet" href="/static/css/pages/landing.css?v={{ version }}" />
+{% include "partials/landing/pixel.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="lp" id="lp-not-on-set">
+    <!-- HERO -->
+    <header class="lp-hero">
+        <div class="lp-hero-media" aria-hidden="true">
+            <img src="/static/images/landing/not-on-set/hero-bg.jpg" alt="" fetchpriority="high" />
+        </div>
+        <span class="lp-grain" aria-hidden="true"></span>
+        <div class="lp-hero-inner">
+            <p class="lp-eyebrow">A home for filmmakers</p>
+            <h1 class="lp-display">When you're not on set, there's <span class="lp-accent">SlateHub.</span></h1>
+            <p class="lp-hero-sub">The whole film industry in one profile. <strong>Free for life</strong> — because actors and crew should never pay to be visible.</p>
+            {% include "partials/landing/email_capture.html" %}
+            {% include "partials/landing/social_proof.html" %}
+        </div>
+    </header>
+
+    <!-- MANIFESTO -->
+    <section class="lp-section lp-manifesto">
+        <div class="lp-wrap">
+            <p class="lp-eyebrow">Our one promise</p>
+            <h2 class="lp-display">Actors and crew should never <span class="lp-accent">pay to be visible.</span></h2>
+            <p class="lp-manifesto-lead">Filmmaking directories should be free. Forever. Not a launch promo — the model.</p>
+        </div>
+    </section>
+
+    <!-- FOUNDERS VIDEO -->
+    <section class="lp-section lp-video" id="our-story">
+        <div class="lp-wrap">
+            <p class="lp-eyebrow">From the founders</p>
+            <h2 class="lp-display">Why we'll be <span class="lp-accent">free forever.</span></h2>
+            <p class="lp-video-lead">Two filmmakers, one shared frustration with the tools we were handed. Here's the whole story — and the promise behind it — in two minutes.</p>
+            <div class="lp-video-frame" data-lp-video data-embed="https://www.youtube-nocookie.com/embed/{{ video_id }}?autoplay=1&amp;rel=0&amp;modestbranding=1&amp;playsinline=1">
+                <button type="button" class="lp-video-poster" data-lp-play aria-label="Play the founders video">
+                    <img src="/static/images/landing/not-on-set/founders.jpg" alt="SlateHub founders" />
+                    <span class="lp-play" aria-hidden="true"></span>
+                    <span class="lp-video-badge">▶ Watch · 2 min</span>
+                </button>
+            </div>
+            <p class="lp-video-fallback"><a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" rel="noopener">Video not loading? Watch on YouTube →</a></p>
+            <div class="lp-founders">
+                <div class="lp-founder"><span class="lp-founder-mono">C</span><span class="lp-founder-name"><b>Chris</b><span>Co-founder</span></span></div>
+                <div class="lp-founder"><span class="lp-founder-mono">T</span><span class="lp-founder-name"><b>Tom Gottschalk</b><span>Co-founder</span></span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BENEFITS -->
+    <section class="lp-section lp-benefits">
+        <div class="lp-wrap">
+            <p class="lp-eyebrow">What you get</p>
+            <h2 class="lp-display">Everything you need. <span class="lp-accent">None of the gatekeeping.</span></h2>
+            <div class="lp-benefit-grid">
+                <article class="lp-benefit">
+                    <div class="lp-benefit-media"><img src="/static/images/landing/not-on-set/benefit-find-crew.jpg" alt="" loading="lazy" /></div>
+                    <div class="lp-benefit-body">
+                        <h3>Find crew for your film</h3>
+                        <p>Describe who you need — "a bilingual DP in Berlin who shoots handheld" — and search understands. No keyword games, no pay-to-rank.</p>
+                    </div>
+                </article>
+                <article class="lp-benefit">
+                    <div class="lp-benefit-media"><img src="/static/images/landing/not-on-set/person-mariia.jpg" alt="" loading="lazy" /></div>
+                    <div class="lp-benefit-body">
+                        <h3>Your portfolio in one place</h3>
+                        <p>Film, TV, YouTube, branded work — every credit and reel in one profile that actually gets seen. Stop splitting your career across five platforms.</p>
+                    </div>
+                </article>
+                <article class="lp-benefit" data-soon>
+                    <div class="lp-benefit-media">
+                        <img src="/static/images/landing/not-on-set/benefit-production-tools.jpg" alt="" loading="lazy" />
+                        <span class="lp-pill lp-benefit-soon">Coming soon</span>
+                    </div>
+                    <div class="lp-benefit-body">
+                        <h3>Production tools</h3>
+                        <p>Scheduling, call sheets and script breakdown — for when your production is funded and ready. Quietly in the works. The directory stays free, forever.</p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- COMMUNITY / VERIFIED CAROUSEL -->
+    <section class="lp-community" id="community">
+        <div class="lp-community-head">
+            <div>
+                <p class="lp-eyebrow">Already here</p>
+                <h2 class="lp-display">Real people. Verified.</h2>
+            </div>
+            <p class="lp-community-count">Verified profiles — and growing</p>
+        </div>
+        {% include "partials/landing/verified_carousel.html" %}
+    </section>
+
+    <!-- COMING-SOON TEASE -->
+    <section class="lp-tease">
+        <div class="lp-tease-inner">
+            <span class="lp-pill">Coming soon</span>
+            <span class="lp-tease-text">Production tools — scheduling, call sheets and script breakdowns — are on the way for funded projects. <strong>Your profile and visibility stay free, forever.</strong></span>
+        </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="lp-final">
+        <span class="lp-grain" aria-hidden="true"></span>
+        <div class="lp-final-inner">
+            <h2 class="lp-display">The industry, <span class="lp-accent">reunited.</span></h2>
+            <p>Claim your profile in under a minute. No subscription, no card, no catch — just your work and the people who need to find you.</p>
+            <a class="lp-cta" href="/signup?campaign={{ campaign_id }}">Create my free profile →</a>
+            <p class="lp-final-note">Free forever · Open source · No ads</p>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Defer the YouTube embed until the poster is clicked (no autoload).
+    document.querySelectorAll('[data-lp-play]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var frame = btn.closest('[data-lp-video]');
+            if (!frame) return;
+            var iframe = document.createElement('iframe');
+            iframe.src = frame.getAttribute('data-embed');
+            iframe.title = 'SlateHub founders video';
+            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+            iframe.setAttribute('allowfullscreen', '');
+            frame.replaceChildren(iframe);
+        });
+    });
+</script>
+{% endblock %}

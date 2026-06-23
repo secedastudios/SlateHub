@@ -140,11 +140,12 @@ use crate::{
     response,
     services::{
         email::EmailService,
+        landing::{self, Event},
         verification::{CodeType, VerificationService},
     },
     templates::{
         BaseContext, EmailVerificationTemplate, ForgotPasswordTemplate, LoginTemplate,
-        ResetPasswordTemplate, SignupTemplate, User,
+        ResetPasswordTemplate, SignupTemplate, User, VerifyConversionTemplate,
     },
 };
 
@@ -173,10 +174,15 @@ pub fn router() -> Router {
 struct SignupQuery {
     email: Option<String>,
     redirect: Option<String>,
+    /// Landing campaign id carried from `/a/{campaign}` (attribution).
+    campaign: Option<String>,
+    /// Selected role chip — analytics only, never applied to the account.
+    role: Option<String>,
 }
 
 async fn signup_form(
     Query(query): Query<SignupQuery>,
+    jar: CookieJar,
     request: Request,
 ) -> Result<Html<String>, Error> {
     debug!("Rendering signup page");
@@ -188,11 +194,31 @@ async fn signup_form(
         base = base.with_user(User::from_session_user(&user).await);
     }
 
+    // Resolve the landing campaign: query param first, then the lp_campaign
+    // cookie set on the landing page. Record `signup_started` so the funnel
+    // captures campaign visitors who reached the form.
+    let campaign = query
+        .campaign
+        .filter(|c| !c.is_empty())
+        .or_else(|| jar.get("lp_campaign").map(|c| c.value().to_string()));
+    if let Some(camp) = &campaign {
+        landing::record_event(Event {
+            campaign: camp.clone(),
+            event_type: landing::event::SIGNUP_STARTED.to_string(),
+            role: query.role.filter(|r| !r.is_empty()),
+            visitor_id: jar.get("lp_vid").map(|c| c.value().to_string()),
+            path: Some("/signup".to_string()),
+            ..Default::default()
+        });
+    }
+
     let mut template = SignupTemplate::new(base);
     template.prefill_email = query.email;
     template.redirect = query.redirect;
     template.pow_challenge = generate_pow_challenge();
     template.form_token = generate_form_token();
+    template.campaign = campaign;
+    template.pixel_id = crate::config::meta_pixel_id();
 
     let html = template.render().map_err(|e| {
         error!("Failed to render signup template: {}", e);
@@ -203,7 +229,11 @@ async fn signup_form(
 }
 
 #[axum::debug_handler]
-async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Response, Error> {
+async fn signup(
+    headers: HeaderMap,
+    jar: CookieJar,
+    Form(form): Form<CreateUser>,
+) -> Result<Response, Error> {
     debug!("Processing signup for email: {}", form.email);
 
     // Rate limit: max 3 signups per IP per hour
@@ -260,6 +290,14 @@ async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Resp
     // Try to create the user
     let email = form.email.clone();
     let redirect = form.redirect.clone();
+    // Campaign attribution: hidden form field first, then the lp_campaign
+    // cookie set on the landing page. Persisted on the person below so the
+    // conversion (email verification) can be attributed in a later session.
+    let campaign = form
+        .campaign
+        .clone()
+        .filter(|c| !c.is_empty())
+        .or_else(|| jar.get("lp_campaign").map(|c| c.value().to_string()));
     match Person::signup(form.username, form.email, form.password, Some(ip.clone())).await {
         Ok((token, person_id)) => {
             info!(ip = %ip, person_id = %person_id, "User created successfully");
@@ -268,6 +306,12 @@ async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Resp
                 "signup",
                 &format!("/signup [ip:{}]", ip),
             );
+
+            // Persist landing-page attribution (read at email verification to
+            // record the conversion).
+            if let Some(camp) = &campaign {
+                landing::set_signup_campaign(&person_id, camp).await;
+            }
 
             // Create authentication cookie with the JWT token
             let cookie = Cookie::build(("auth_token", token))
@@ -297,6 +341,8 @@ async fn signup(headers: HeaderMap, Form(form): Form<CreateUser>) -> Result<Resp
 
             let mut template = SignupTemplate::new(base);
             template.error = Some(e.to_string());
+            template.campaign = campaign;
+            template.pixel_id = crate::config::meta_pixel_id();
 
             let html = template.render().map_err(|e| {
                 error!("Failed to render signup template with error: {}", e);
@@ -421,6 +467,7 @@ async fn verify_email_form(
     let mut template = EmailVerificationTemplate::new(base);
     template.email = params.get("email").cloned();
     template.redirect = params.get("redirect").cloned();
+    template.pixel_id = crate::config::meta_pixel_id();
 
     let html = template.render().map_err(|e| {
         error!("Failed to render email verification template: {}", e);
@@ -493,10 +540,23 @@ async fn verify_email(
                     }
                 };
 
-            // Create authentication token for the verified user
-            let token = crate::auth::create_jwt(&person_id, &person.username, &person.email)?;
+            // Landing-page conversion: "email verified" IS the conversion. If
+            // this person signed up through a campaign, record it (awaited, so
+            // it's durable) and route the response through the pixel interstitial.
+            let campaign = landing::get_signup_campaign(&person.id).await;
+            if let Some(camp) = &campaign {
+                landing::record_event_now(Event {
+                    campaign: camp.clone(),
+                    event_type: landing::event::SIGNUP_COMPLETED.to_string(),
+                    person_id: Some(person_id.clone()),
+                    path: Some("/verify-email".to_string()),
+                    ..Default::default()
+                })
+                .await;
+            }
 
-            // Create authentication cookie
+            // Create authentication token + cookie for the verified user
+            let token = crate::auth::create_jwt(&person_id, &person.username, &person.email)?;
             let cookie = Cookie::build(("auth_token", token))
                 .path("/")
                 .same_site(SameSite::Lax)
@@ -504,8 +564,23 @@ async fn verify_email(
                 .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
                 .build();
 
-            // Redirect to invitation target or profile
-            Ok((jar.add(cookie), response::redirect(&redirect_url)).into_response())
+            // Campaign-attributed signups land on a brief interstitial that
+            // fires the Meta Pixel CompleteRegistration before continuing;
+            // everyone else gets a direct redirect (no UX change).
+            if campaign.is_some() {
+                let base = BaseContext::new().with_page("verify-success");
+                let template = crate::with_base!(VerifyConversionTemplate, base, {
+                    pixel_id: crate::config::meta_pixel_id(),
+                    redirect: redirect_url,
+                });
+                let html = template.render().map_err(|e| {
+                    error!("Failed to render verify-success template: {}", e);
+                    Error::template(e.to_string())
+                })?;
+                Ok((jar.add(cookie), Html(html)).into_response())
+            } else {
+                Ok((jar.add(cookie), response::redirect(&redirect_url)).into_response())
+            }
         }
         Err(e) => {
             error!("Email verification failed for {}: {}", form.email, e);

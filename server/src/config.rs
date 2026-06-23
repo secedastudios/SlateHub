@@ -115,6 +115,21 @@ pub fn app_url() -> String {
         .to_string()
 }
 
+/// The Meta (Facebook) Pixel id used across the public conversion funnel
+/// (the `/a/{campaign}` landing pages, `/signup`, and `/verify-email`).
+///
+/// Global by design — one pixel for all landing pages. Read from
+/// `META_PIXEL_ID`, defaulting to the production pixel. An explicitly empty
+/// value disables the pixel (`None`), which is what local dev / tests use to
+/// avoid emitting the snippet.
+pub fn meta_pixel_id() -> Option<String> {
+    match env::var("META_PIXEL_ID") {
+        Ok(v) if v.trim().is_empty() => None,
+        Ok(v) => Some(v),
+        Err(_) => Some("1356698509457684".to_string()),
+    }
+}
+
 /// Search scoring weights — configurable via env vars.
 ///
 /// Consumed by the model search queries (people, jobs, organizations,

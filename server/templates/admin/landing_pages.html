@@ -1,0 +1,107 @@
+{% extends "_layout.html" %}
+{% block title %}Landing Pages - {{ app_name }}{% endblock %}
+{% block page_name %}admin{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/pages/admin.css" />
+{% endblock %}
+{% block content %}
+<div class="admin-page">
+    <div class="admin-header">
+        <h1>Landing Pages</h1>
+    </div>
+
+    <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-item">Dashboard</a>
+        <a href="/admin/feedback" class="admin-nav-item">Feedback</a>
+        <a href="/admin/people" class="admin-nav-item">People</a>
+        <a href="/admin/productions" class="admin-nav-item">Productions</a>
+        <a href="/admin/organizations" class="admin-nav-item">Organizations</a>
+        <a href="/admin/locations" class="admin-nav-item">Locations</a>
+        <a href="/admin/mailing-list" class="admin-nav-item">Mailing List</a>
+        <a href="/admin/feature-flags" class="admin-nav-item">Feature Flags</a>
+        <a href="/admin/landing-pages" class="admin-nav-item active">Landing Pages</a>
+    </nav>
+
+    <p style="color:var(--text-secondary,#aaa);font-size:0.9rem;margin-bottom:1.5rem;">
+        Per-campaign funnel for the <code>/a/{campaign}</code> ad landing pages. Conversion = email verified.
+    </p>
+
+    <!-- Overview -->
+    <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+        <thead>
+            <tr style="text-align:left;border-bottom:1px solid var(--color-border,#333);color:var(--text-secondary,#aaa);">
+                <th style="padding:0.5rem 0.75rem 0.5rem 0;">Campaign</th>
+                <th style="padding:0.5rem 0.75rem;">Views</th>
+                <th style="padding:0.5rem 0.75rem;">Signups started</th>
+                <th style="padding:0.5rem 0.75rem;">Conversions</th>
+                <th style="padding:0.5rem 0.75rem;">Start rate</th>
+                <th style="padding:0.5rem 0.75rem;">Conv. rate</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in details %}
+            <tr style="border-bottom:1px solid var(--color-border-light,#222);">
+                <td style="padding:0.5rem 0.75rem 0.5rem 0;">
+                    <a href="/a/{{ d.funnel.slug }}" target="_blank" rel="noopener">{{ d.funnel.slug }}</a>
+                    {% if !d.funnel.registered %}<span class="admin-badge">retired</span>{% endif %}
+                </td>
+                <td style="padding:0.5rem 0.75rem;font-family:monospace;">{{ d.funnel.views }}</td>
+                <td style="padding:0.5rem 0.75rem;font-family:monospace;">{{ d.funnel.signups_started }}</td>
+                <td style="padding:0.5rem 0.75rem;font-family:monospace;">{{ d.funnel.conversions }}</td>
+                <td style="padding:0.5rem 0.75rem;font-family:monospace;">{{ d.funnel.start_rate }}%</td>
+                <td style="padding:0.5rem 0.75rem;font-family:monospace;color:var(--color-accent,#eb5437);">{{ d.funnel.conversion_rate }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Per-campaign detail -->
+    {% for d in details %}
+    <div class="admin-section" style="margin-top:2rem;">
+        <h2 style="font-size:1.1rem;margin-bottom:1rem;">
+            {{ d.funnel.title }}
+            <span style="color:var(--text-muted,#888);font-size:0.8rem;font-family:monospace;">{{ d.funnel.slug }}</span>
+        </h2>
+        <div class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ d.funnel.views }}</div>
+                <div class="admin-stat-label">Views</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ d.funnel.signups_started }}</div>
+                <div class="admin-stat-label">Signups started</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ d.funnel.conversions }}</div>
+                <div class="admin-stat-label">Conversions (verified)</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ d.funnel.conversion_rate }}%</div>
+                <div class="admin-stat-label">Conversion rate</div>
+            </div>
+        </div>
+
+        {% if !d.roles.is_empty() %}
+        <h3 style="font-size:0.9rem;color:var(--text-secondary,#aaa);margin:1.5rem 0 0.5rem;">Role selected (at signup start)</h3>
+        <table style="font-size:0.85rem;border-collapse:collapse;">
+            {% for r in d.roles %}
+            <tr>
+                <td style="padding:0.2rem 1.5rem 0.2rem 0;color:var(--text-secondary,#aaa);text-transform:capitalize;">{{ r.role }}</td>
+                <td style="padding:0.2rem 0;font-family:monospace;">{{ r.count }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+
+        {% if !d.daily.is_empty() %}
+        <h3 style="font-size:0.9rem;color:var(--text-secondary,#aaa);margin:1.5rem 0 0.5rem;">Daily views (30d)</h3>
+        <div style="display:flex;align-items:flex-end;gap:2px;height:70px;">
+            {% for bar in d.daily %}
+            <div style="flex:1;min-width:4px;background:var(--color-accent,#eb5437);border-radius:2px 2px 0 0;height:{{ bar.height }}px;" title="{{ bar.day }}: {{ bar.views }} views, {{ bar.conversions }} conversions"></div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

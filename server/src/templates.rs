@@ -301,6 +301,35 @@ pub struct Activity {
     pub time: String,
 }
 
+/// Ad landing page "When you're not on set" — served at `/a/not-on-set`.
+/// Rebuilt from the design mockup on SlateHub's own (landing-scoped) design
+/// tokens; people + counts are live data, editorial art is campaign-specific.
+#[derive(Template)]
+#[template(path = "landing/not_on_set.html")]
+pub struct NotOnSetLandingTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    /// Analytics campaign id — hidden in the email form + consumed by the pixel.
+    pub campaign_id: String,
+    /// YouTube id for the founders video.
+    pub video_id: String,
+    /// Global Meta Pixel id, or `None` to omit the snippet (local/dev/tests).
+    pub pixel_id: Option<String>,
+    /// `<title>` / OpenGraph fields from the campaign registry.
+    pub og_title: String,
+    pub og_description: String,
+    pub og_image: String,
+    /// Relative page path (e.g. "/a/not-on-set") for canonical + og:url.
+    pub path: String,
+    /// Live verified profiles — carousel cards + hero social-proof avatars.
+    pub profiles: Vec<crate::services::landing::VerifiedProfile>,
+    /// Total-user social-proof figure, pre-formatted e.g. `"5,892+"`.
+    pub community_label: String,
+}
+
 /// Login page template
 #[derive(Template)]
 #[template(path = "login/index.html")]
@@ -345,6 +374,10 @@ pub struct SignupTemplate {
     pub redirect: Option<String>,
     pub pow_challenge: String,
     pub form_token: String,
+    /// Landing campaign id (hidden in the form for POST attribution).
+    pub campaign: Option<String>,
+    /// Global Meta Pixel id (PageView + Lead on campaign-attributed signups).
+    pub pixel_id: Option<String>,
 }
 
 /// Email verification page template
@@ -360,6 +393,23 @@ pub struct EmailVerificationTemplate {
     pub success: Option<String>,
     pub email: Option<String>,
     pub redirect: Option<String>,
+    /// Global Meta Pixel id (PageView on the verify page).
+    pub pixel_id: Option<String>,
+}
+
+/// Post-verification conversion interstitial — fires the Meta Pixel
+/// `CompleteRegistration` (the email-verified conversion) for campaign-
+/// attributed signups, then redirects. Everyone else gets a direct redirect.
+#[derive(Template)]
+#[template(path = "auth/verify_success.html")]
+pub struct VerifyConversionTemplate {
+    pub app_name: String,
+    pub year: i32,
+    pub version: String,
+    pub active_page: String,
+    pub user: Option<User>,
+    pub pixel_id: Option<String>,
+    pub redirect: String,
 }
 
 /// Forgot password page template
@@ -1449,6 +1499,8 @@ impl SignupTemplate {
             redirect: None,
             pow_challenge: String::new(),
             form_token: String::new(),
+            campaign: None,
+            pixel_id: None,
         }
     }
 }
@@ -1465,6 +1517,7 @@ impl EmailVerificationTemplate {
             success: None,
             email: None,
             redirect: None,
+            pixel_id: None,
         }
     }
 }

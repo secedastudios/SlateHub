@@ -23,6 +23,7 @@
 //! | [`feature_flag`] | Code-registered, DB-configured feature flags with four visibility states |
 //! | [`geodata`] | Static city → region/country lookup used to enrich embedding text |
 //! | [`invitation`] | Org/production invites for existing users (membership + notification) and unknown emails (pending row + email) |
+//! | [`landing`] | `/a/{campaign}` ad landing-page registry + fire-and-forget `landing_event` funnel writes + signup attribution |
 //! | [`listmonk`] | Best-effort newsletter subscription fan-out to a self-hosted Listmonk instance |
 //! | [`notification_stream`] | SurrealDB `LIVE SELECT` on `notification` bridged to a tokio broadcast channel for SSE |
 //! | [`oidc_events`] | Outbound SSF/CAEP/RISC Security Event Tokens with a retrying background delivery worker |
@@ -43,6 +44,7 @@ pub mod embedding;
 pub mod feature_flag;
 pub mod geodata;
 pub mod invitation;
+pub mod landing;
 pub mod listmonk;
 pub mod notification_stream;
 pub mod oidc_events;
