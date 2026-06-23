@@ -23,6 +23,7 @@ use tracing::{debug, error, info, warn};
 static USERNAME_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z0-9._]+$").unwrap());
 
 const RESERVED_USERNAMES: &[&str] = &[
+    "a", // reserved for the /a/{campaign} ad landing-page namespace
     "about",
     "account",
     "admin",

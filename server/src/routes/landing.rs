@@ -56,6 +56,7 @@ async fn landing(
     // Real identity-verified profiles that have a photo — no placeholder
     // fallback; the section shows only real verified people.
     let profiles = landing::verified_profiles(8).await;
+    let founders = landing::founders().await;
     let community_label = format!("{}+", group_thousands(landing::total_user_count().await));
 
     // Funnel: record the page view (fire-and-forget, keyed by visitor id).
@@ -78,6 +79,7 @@ async fn landing(
                 og_image: campaign.og_image.to_string(),
                 path: format!("/a/{}", slug),
                 profiles: profiles,
+                founders: founders,
                 community_label: community_label,
             });
             tpl.render().map_err(|e| {

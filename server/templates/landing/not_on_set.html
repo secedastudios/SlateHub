@@ -72,10 +72,14 @@
                 </button>
             </div>
             <p class="lp-video-fallback"><a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" rel="noopener">Video not loading? Watch on YouTube →</a></p>
-            <div class="lp-founders">
-                <div class="lp-founder"><span class="lp-founder-mono">C</span><span class="lp-founder-name"><b>Chris</b><span>Co-founder</span></span></div>
-                <div class="lp-founder"><span class="lp-founder-mono">T</span><span class="lp-founder-name"><b>Tom Gottschalk</b><span>Co-founder</span></span></div>
-            </div>
+            <address class="lp-founders">
+                {% for f in founders %}
+                <a class="lp-founder-card" href="/{{ f.username }}" rel="author">
+                    <img class="lp-founder-avatar" src="{{ f.avatar }}" alt="{{ f.name }}" loading="lazy" width="46" height="46" />
+                    <span class="lp-founder-meta"><b>{{ f.name }}</b><span>{{ f.title }}</span></span>
+                </a>
+                {% endfor %}
+            </address>
         </div>
     </section>
 

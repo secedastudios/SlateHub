@@ -299,6 +299,20 @@ fn sample_template(
         og_image: "/static/images/landing/not-on-set/hero-bg.jpg".into(),
         path: "/a/not-on-set".into(),
         profiles,
+        founders: vec![
+            slatehub::services::landing::FounderCard {
+                username: "chris".into(),
+                name: "Chris Bruce".into(),
+                title: "Co-founder".into(),
+                avatar: "/chris.jpg".into(),
+            },
+            slatehub::services::landing::FounderCard {
+                username: "tom".into(),
+                name: "Tom Gottschalk".into(),
+                title: "Co-founder".into(),
+                avatar: "/tom.jpg".into(),
+            },
+        ],
         community_label: "5,892+".into(),
     }
 }
@@ -348,6 +362,9 @@ fn test_landing_page_renders_mockup_content_and_funnel_wiring() {
     // Founders video: real id, English watch link.
     assert!(html.contains("otrrrEH8wUw"));
     assert!(html.contains("Watch on YouTube"));
+    // Founders are linked person cards pointing at their profiles.
+    assert!(html.contains(r#"class="lp-founder-card" href="/chris""#));
+    assert!(html.contains(r#"class="lp-founder-card" href="/tom""#));
 }
 
 #[test]

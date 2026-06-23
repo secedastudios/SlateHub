@@ -215,12 +215,13 @@ db-seed: wait-db
 			username = 'chris', \
 			email = 'chris@example.com', \
 			password = crypto::argon2::generate('pass123'), \
-			name = 'Chris Pacino', \
+			name = 'Chris Bruce', \
 			verification_status = 'identity', \
 			is_admin = true, \
 			profile = { \
-				name: 'Chris Pacino', \
-				headline: 'Actor', \
+				name: 'Chris Bruce', \
+				headline: 'Writer, Director, Producer', \
+				avatar: 'https://slatehub.com/api/media/profiles/ajf23cc8fxayeaehxtsu/01KKWK5BP899ZTPE9BXQQHV17Z.jpg', \
 				location: 'Berlin', \
 				is_public: true, \
 				ethnicity: [], \

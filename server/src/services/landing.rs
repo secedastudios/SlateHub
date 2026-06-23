@@ -220,3 +220,78 @@ pub async fn total_user_count() -> u64 {
         .unwrap_or(0)
 }
 
+// ---------------------------------------------------------------------------
+// Founder cards ("from the founders" section)
+// ---------------------------------------------------------------------------
+
+/// A founder card, enriched from the founder's live `person` profile when
+/// present, falling back to baked-in defaults so the section always renders
+/// (e.g. on an unseeded DB or a missing field).
+#[derive(Debug, Clone)]
+pub struct FounderCard {
+    pub username: String,
+    pub name: String,
+    pub title: String,
+    pub avatar: String,
+}
+
+/// The SlateHub founders (chris, tom), with name/title/avatar read from their
+/// profiles. Defaults cover an unseeded DB or a profile missing a field.
+pub async fn founders() -> Vec<FounderCard> {
+    // (username, fallback name, fallback title, fallback avatar)
+    const FOUNDERS: &[(&str, &str, &str, &str)] = &[
+        (
+            "chris",
+            "Chris Bruce",
+            "Co-founder",
+            "https://slatehub.com/api/media/profiles/ajf23cc8fxayeaehxtsu/01KKWK5BP899ZTPE9BXQQHV17Z.jpg",
+        ),
+        (
+            "tom",
+            "Tom Gottschalk",
+            "Co-founder",
+            "https://slatehub.com/api/media/profiles/dj03mga50rm3lw6c8r14/01KMGCJ4ZBKJEZMTQZFJG8JA0P.jpg",
+        ),
+    ];
+
+    #[derive(Deserialize, SurrealValue)]
+    struct Row {
+        username: String,
+        name: Option<String>,
+        headline: Option<String>,
+        avatar: Option<String>,
+    }
+    let rows: Vec<Row> = DB
+        .query(
+            "SELECT username, profile.name AS name, profile.headline AS headline, \
+             profile.avatar AS avatar FROM person WHERE username IN ['chris', 'tom']",
+        )
+        .await
+        .ok()
+        .and_then(|mut r| r.take(0).ok())
+        .unwrap_or_default();
+    let by_user: std::collections::HashMap<String, Row> =
+        rows.into_iter().map(|r| (r.username.clone(), r)).collect();
+
+    // Non-empty DB value, else the baked-in fallback.
+    fn pick(value: Option<&String>, fallback: &str) -> String {
+        value
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .unwrap_or_else(|| fallback.to_string())
+    }
+
+    FOUNDERS
+        .iter()
+        .map(|(username, name, title, avatar)| {
+            let row = by_user.get(*username);
+            FounderCard {
+                username: username.to_string(),
+                name: pick(row.and_then(|r| r.name.as_ref()), name),
+                title: pick(row.and_then(|r| r.headline.as_ref()), title),
+                avatar: pick(row.and_then(|r| r.avatar.as_ref()), avatar),
+            }
+        })
+        .collect()
+}
+

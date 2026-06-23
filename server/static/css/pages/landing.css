@@ -203,7 +203,6 @@
 
 .lp-section {
     padding: clamp(72px, 11vh, 140px) var(--lp-gutter);
-    border-top: 1px solid var(--lp-line);
 }
 .lp-wrap {
     max-width: var(--lp-maxw);
@@ -526,48 +525,59 @@
     border-bottom: 1px solid rgba(154, 149, 138, 0.35);
     padding-bottom: 1px;
 }
+/* Founders: linked person cards, right-aligned within a centered cell. */
 .lp-founders {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 36px;
-    flex-wrap: wrap;
-    margin-top: 30px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    width: fit-content;
+    max-width: 100%;
+    margin: 30px auto 0;
+    font-style: normal; /* reset <address> italics */
 }
-.lp-founder {
+.lp-founder-card {
     display: flex;
     align-items: center;
     gap: 12px;
+    color: inherit;
+    transition: opacity 0.2s ease;
 }
-.lp-founder-mono {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: 1.5px solid var(--lp-red);
-    color: var(--lp-red);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--lp-display);
-    font-size: 18px;
-    flex: 0 0 auto;
+.lp-founder-card:hover {
+    opacity: 0.85;
 }
-.lp-founder-name {
+.lp-founder-card:focus-visible {
+    outline: 2px solid var(--lp-red);
+    outline-offset: 3px;
+}
+.lp-founder-meta {
     text-align: left;
     white-space: nowrap;
+    line-height: 1.2;
 }
-.lp-founder-name b {
+.lp-founder-meta b {
     display: block;
     color: var(--lp-cream);
     font-weight: 600;
     font-size: 15px;
-    line-height: 1.2;
+    transition: color 0.2s ease;
 }
-.lp-founder-name span {
+.lp-founder-card:hover .lp-founder-meta b {
+    color: var(--lp-red);
+}
+.lp-founder-meta span {
     font-family: var(--lp-mono);
     color: var(--lp-dim);
     font-size: 11px;
     letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.lp-founder-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 auto;
 }
 
 /* ---- Benefits ---- */
@@ -648,7 +658,6 @@
 /* ---- Community / verified carousel ---- */
 .lp-community {
     padding: clamp(40px, 6vh, 72px) 0 clamp(72px, 10vh, 110px);
-    border-top: 1px solid var(--lp-line);
 }
 .lp-community-head {
     max-width: var(--lp-maxw);

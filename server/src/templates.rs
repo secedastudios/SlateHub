@@ -326,6 +326,8 @@ pub struct NotOnSetLandingTemplate {
     pub path: String,
     /// Live verified profiles — carousel cards + hero social-proof avatars.
     pub profiles: Vec<crate::services::landing::VerifiedProfile>,
+    /// Founder cards (chris, tom) — name/title/avatar from their profiles.
+    pub founders: Vec<crate::services::landing::FounderCard>,
     /// Total-user social-proof figure, pre-formatted e.g. `"5,892+"`.
     pub community_label: String,
 }
