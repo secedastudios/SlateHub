@@ -99,6 +99,14 @@
     overflow-x: hidden;
 }
 
+/* Landing pages run wall-to-wall: opt out of the global #main-content gutter
+   (top/bottom/side padding), the same way the homepage does. Prefix selector
+   covers every /a/ page (data-page="landing-<slug>"). */
+[data-page^="landing-"] #main-content {
+    max-width: 100%;
+    padding: 0;
+}
+
 .lp ::selection {
     background: var(--lp-red);
     color: #fff;
