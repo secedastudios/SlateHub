@@ -50,6 +50,7 @@ pub mod notification_stream;
 pub mod oidc_events;
 pub mod oidc_keys;
 pub mod oidc_tokens;
+pub mod profile_completeness;
 pub mod s3;
 pub mod search;
 pub mod search_log;

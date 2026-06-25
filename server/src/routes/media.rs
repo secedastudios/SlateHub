@@ -230,6 +230,10 @@ async fn upload_profile_image(
         user.username
     );
 
+    // Activation signal: this member now has a profile photo (the single
+    // biggest discoverability driver). Fire-and-forget into activity_event.
+    crate::services::activity::log_activity(Some(&person_id), "avatar_added", "/profile/edit");
+
     Ok(Json(UploadResponse {
         media_id: image_id, // Use the generated UUID as the ID
         url: main_url,

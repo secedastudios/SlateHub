@@ -1,0 +1,33 @@
+{# Owner-only profile-completeness meter. Requires `completeness:
+   Option<ProfileCompleteness>` on the template (the profile view and the edit
+   form both provide it). Shown while incomplete; once complete it nudges
+   identity verification. Checklist items are plain labels (no links) so the
+   meter is safe on the edit form (a link would reload and lose form input). #}
+{% match completeness %}
+{% when Some with (c) %}
+{% if !c.complete %}
+<aside id="profile-completeness" data-role="completeness" aria-label="Profile completeness">
+    <div data-role="completeness-text">
+        <strong>Your profile is {{ c.percent }}% complete.</strong>
+        Finish it so casting and crew can find you in search.
+    </div>
+    <progress data-role="completeness-bar" value="{{ c.percent }}" max="100">{{ c.percent }}%</progress>
+    <ul data-role="completeness-list">
+        {% for item in c.items %}
+        <li data-done="{% if item.done %}true{% else %}false{% endif %}">{% if item.done %}<span aria-hidden="true">✓</span> {% endif %}{{ item.label }}</li>
+        {% endfor %}
+    </ul>
+</aside>
+{% else %}
+{% if !c.identity_verified %}
+<aside id="profile-completeness" data-role="completeness" data-state="complete" aria-label="Profile complete">
+    <div data-role="completeness-text">
+        <strong>Your profile's complete.</strong>
+        You're discoverable in search now. Get verified to stand out even more.
+    </div>
+    <a href="/get-verified" role="button" data-type="primary">Get verified</a>
+</aside>
+{% endif %}
+{% endif %}
+{% when None %}
+{% endmatch %}

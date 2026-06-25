@@ -8,7 +8,7 @@ use axum::{
     Router,
     extract::{Path, Query, Request},
     http::{HeaderMap, header},
-    response::{Html, Response},
+    response::{Html, IntoResponse, Redirect, Response},
     routing::get,
 };
 use serde::Deserialize;
@@ -148,7 +148,7 @@ async fn user_profile(
     Path(username): Path<String>,
     headers: HeaderMap,
     request: Request,
-) -> Result<Html<String>, Error> {
+) -> Result<Response, Error> {
     debug!("Attempting to view public profile: {}", username);
 
     // Check if this is a reserved route
@@ -330,10 +330,38 @@ async fn user_profile(
         phone: profile.and_then(|p| p.phone.clone()),
     };
 
+    // Owner-only profile-completeness meter (nudges profile activation).
+    let completeness = if is_own_profile {
+        use crate::services::profile_completeness::{Signals, compute};
+        Some(compute(&Signals {
+            has_avatar: profile_data.avatar.is_some(),
+            has_headline: profile_data.headline.is_some(),
+            has_skills: !profile_data.skills.is_empty(),
+            has_credit_or_reel: !profile_data.involvements.is_empty()
+                || !profile_data.reels.is_empty(),
+            has_bio: profile_data.bio.is_some(),
+            has_location: profile_data.location.is_some(),
+            identity_verified: profile_data.verification_status == "identity",
+        }))
+    } else {
+        None
+    };
+
+    // The owner's own *unset* profile: skip the bare profile view and drop
+    // them straight into the edit form (which carries the completeness meter),
+    // so a brand-new user lands on the setup form instead of a dead-end empty
+    // page with the "Set Up Your Profile" button below the fold. `is_unset()`
+    // is the same check the template gates its empty state on, so we redirect
+    // exactly when that bare page would otherwise render for the owner.
+    if is_own_profile && profile_data.is_unset() {
+        return Ok(Redirect::to("/profile/edit").into_response());
+    }
+
     // Create and render template using the same ProfileTemplate
     let template = crate::with_base!(ProfileTemplate, base, {
         profile: profile_data,
         is_liked,
+        completeness,
     });
 
     let html = template.render().map_err(|e| {
@@ -341,7 +369,7 @@ async fn user_profile(
         Error::template(e.to_string())
     })?;
 
-    Ok(Html(html))
+    Ok(Html(html).into_response())
 }
 
 #[derive(Deserialize)]

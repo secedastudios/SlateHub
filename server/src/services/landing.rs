@@ -294,4 +294,3 @@ pub async fn founders() -> Vec<FounderCard> {
         })
         .collect()
 }
-

@@ -97,7 +97,12 @@ impl LandingModel {
             counts.insert((r.campaign, r.event_type), r.count);
         }
 
-        let get = |slug: &str, ty: &str| counts.get(&(slug.to_string(), ty.to_string())).copied().unwrap_or(0);
+        let get = |slug: &str, ty: &str| {
+            counts
+                .get(&(slug.to_string(), ty.to_string()))
+                .copied()
+                .unwrap_or(0)
+        };
 
         let build = |slug: &str, title: String, registered: bool| {
             let views = get(slug, event::VIEW);
@@ -193,6 +198,9 @@ impl LandingModel {
                 _ => {}
             }
         }
-        order.into_iter().filter_map(|d| by_day.remove(&d)).collect()
+        order
+            .into_iter()
+            .filter_map(|d| by_day.remove(&d))
+            .collect()
     }
 }

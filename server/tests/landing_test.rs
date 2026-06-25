@@ -175,7 +175,13 @@ fn test_verified_profiles_filter_and_count() {
     clean();
     common::run(async {
         // Included: identity-verified with a photo.
-        mk_person("v_inc", "identity", Some("/api/media/a.jpg"), Some("Cinematographer")).await;
+        mk_person(
+            "v_inc",
+            "identity",
+            Some("/api/media/a.jpg"),
+            Some("Cinematographer"),
+        )
+        .await;
         // Included: identity-verified with a photo but no headline — only
         // photo + verified are required; headline falls back at render time.
         mk_person("v_nohl", "identity", Some("/api/media/d.jpg"), None).await;
@@ -184,14 +190,26 @@ fn test_verified_profiles_filter_and_count() {
         // Excluded: email-verified (not identity).
         mk_person("v_email", "email", Some("/api/media/b.jpg"), Some("Actor")).await;
         // Excluded: unverified.
-        mk_person("v_unv", "unverified", Some("/api/media/c.jpg"), Some("Gaffer")).await;
+        mk_person(
+            "v_unv",
+            "unverified",
+            Some("/api/media/c.jpg"),
+            Some("Gaffer"),
+        )
+        .await;
 
         let profiles = landing::verified_profiles(10).await;
         let names: Vec<&str> = profiles.iter().map(|p| p.username.as_str()).collect();
         assert!(names.contains(&"v_inc"), "identity + photo included");
-        assert!(names.contains(&"v_nohl"), "identity + photo (no headline) included");
+        assert!(
+            names.contains(&"v_nohl"),
+            "identity + photo (no headline) included"
+        );
         assert!(!names.contains(&"v_noavatar"), "missing photo excluded");
-        assert!(!names.contains(&"v_email"), "email-only verification excluded");
+        assert!(
+            !names.contains(&"v_email"),
+            "email-only verification excluded"
+        );
         assert!(!names.contains(&"v_unv"), "unverified excluded");
 
         let inc = profiles.iter().find(|p| p.username == "v_inc").unwrap();

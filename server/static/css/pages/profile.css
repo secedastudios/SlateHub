@@ -358,47 +358,60 @@
     background: rgba(229, 62, 62, 0.08);
 }
 
-/* Owner Actions — below avatar */
+/* Owner Actions — toolbar anchored to the top-right of the hero */
 #profile-owner-actions {
     display: flex;
-    gap: var(--space-xs);
-    padding: 0;
-    margin: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+    margin: 0 0 var(--space-xl);
 }
 
 #profile-owner-actions a {
-    flex: 1;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: var(--space-sm) var(--space-md);
-    border: 1px solid rgba(214, 216, 202, 0.15);
-    border-radius: 0;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-lg);
+    min-height: 40px;
+    border: 1px solid var(--color-text-primary);
+    border-radius: var(--radius-md);
     background: transparent;
-    color: var(--color-text-muted, #9ca39e);
+    color: var(--color-text-primary);
     font-family: var(--font-body);
-    font-size: 0.625rem;
-    font-weight: var(--font-weight-medium);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     text-decoration: none;
     white-space: nowrap;
     transition: all var(--transition-fast);
 }
 
-#profile-owner-actions a:hover {
-    border-color: rgba(214, 216, 202, 0.4);
-    color: var(--color-text-primary, #d6d8ca);
-}
-
 #profile-owner-actions a svg {
     flex-shrink: 0;
-    opacity: 0.6;
+    opacity: 0.9;
+}
+
+#profile-owner-actions a:hover {
+    background: var(--color-text-primary);
+    color: var(--color-bg-primary);
 }
 
 #profile-owner-actions a:hover svg {
     opacity: 1;
+}
+
+/* Primary action — Edit Profile gets the accent fill so it reads first */
+#profile-owner-actions a[data-variant="primary"] {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-text-light);
+}
+
+#profile-owner-actions a[data-variant="primary"]:hover {
+    border-color: var(--color-accent-hover);
+    background: var(--color-accent-hover);
+    color: var(--color-text-light);
 }
 
 /* ----------------------------------------
@@ -1371,8 +1384,7 @@
     }
 
     #profile-owner-actions {
-        flex-basis: 100%;
-        order: 3;
+        margin-bottom: var(--space-lg);
     }
 
     #profile-avatar-initials {

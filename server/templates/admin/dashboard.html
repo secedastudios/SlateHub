@@ -55,6 +55,27 @@
     </div>
 
     <div class="admin-section" style="margin-top: 2rem;">
+        <h2 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary, #eee);">Profile Activation</h2>
+        <p style="color:var(--text-secondary,#aaa);font-size:0.85rem;margin-bottom:1rem;">"Activated" = has a photo <strong>and</strong> a headline — the bar to be discoverable in the carousel + search. This is the number to move.</p>
+        <div class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.activation.activated_pct }}%</div>
+                <div class="admin-stat-label">Activated</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary,#aaa);">{{ stats.activation.activated }} of {{ stats.activation.total }} members</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.activation.photo_pct }}%</div>
+                <div class="admin-stat-label">Have a photo</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary,#aaa);">{{ stats.activation.with_photo }} members</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-number">{{ stats.activation.with_headline }}</div>
+                <div class="admin-stat-label">Have a headline</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-section" style="margin-top: 2rem;">
         <h2 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary, #eee);">Engagement</h2>
         <div class="admin-stats-grid">
             <div class="admin-stat-card">

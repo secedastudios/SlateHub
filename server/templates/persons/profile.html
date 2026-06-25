@@ -113,7 +113,27 @@
     data-username="{{ profile.username }}"
     data-profile-type="{% if profile.is_own_profile %}own{% else %}public{% endif %}"
 >
+            {% include "partials/profile_completeness.html" %}
             <header id="profile-hero" data-role="profile-hero">
+                {% if profile.is_own_profile %}
+                    <nav id="profile-owner-actions" aria-label="Profile management">
+                        <a href="/profile/edit" data-variant="primary">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                            Edit Profile
+                        </a>
+                        <a href="/profile/analytics">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="18" y1="20" x2="18" y2="10"/>
+                                <line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                            </svg>
+                            Analytics
+                        </a>
+                    </nav>
+                {% endif %}
                 <div id="profile-hero-content">
                     <div id="profile-media-column">
                         <div id="profile-avatar-container" data-role="avatar-container">
@@ -128,25 +148,6 @@
                                 <div id="profile-avatar-initials" data-role="avatar-initials">{{ profile.initials }}</div>
                             {% endif %}
                         </div>
-                        {% if profile.is_own_profile %}
-                            <nav id="profile-owner-actions" aria-label="Profile management">
-                                <a href="/profile/edit">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                    </svg>
-                                    Edit Profile
-                                </a>
-                                <a href="/profile/analytics">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <line x1="18" y1="20" x2="18" y2="10"/>
-                                        <line x1="12" y1="20" x2="12" y2="4"/>
-                                        <line x1="6" y1="20" x2="6" y2="14"/>
-                                    </svg>
-                                    Analytics
-                                </a>
-                            </nav>
-                        {% endif %}
                     </div>
                     <div id="profile-info" data-role="profile-info">
                         <div id="profile-info-top">
@@ -458,14 +459,7 @@
                     </p>
                 </div>
             </dialog>
-            {%
-                if profile.bio.is_none() && profile.headline.is_none() &&
-                profile.skills.is_empty() && profile.involvements.is_empty() &&
-                profile.education.is_empty() && profile.location.is_none() &&
-                profile.languages.is_empty() && profile.availability.is_none() &&
-                profile.website.is_none() && profile.reels.is_empty() &&
-                profile.photos.is_empty()
-            %}
+            {% if profile.is_unset() %}
                 <section id="section-empty-profile" data-role="empty-state" data-state="empty">
                     <div id="empty-profile-content">
                         <h2 id="heading-empty-profile">Profile Not Set Up</h2>

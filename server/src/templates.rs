@@ -454,6 +454,8 @@ pub struct ProfileTemplate {
     pub user: Option<User>,
     pub profile: ProfileData,
     pub is_liked: bool,
+    /// Owner-only completeness meter (`None` for other viewers).
+    pub completeness: Option<crate::services::profile_completeness::ProfileCompleteness>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -494,6 +496,33 @@ pub struct ProfileData {
     pub nationality: Option<String>,
     pub messaging_preference: String,
     pub phone: Option<String>,
+}
+
+impl ProfileData {
+    /// True when the profile carries no user-supplied content beyond the bare
+    /// account. The avatar, name, username, and identity status are
+    /// intentionally ignored — they can be present on an otherwise-blank
+    /// profile (e.g. a photo was uploaded but nothing else filled in).
+    ///
+    /// This is the single source of truth for the "Profile Not Set Up" empty
+    /// state. `persons/profile.html` gates its empty-state section on it, and
+    /// the profile route redirects the owner straight to the edit form when it
+    /// holds, so the owner never lands on the bare page. Keep both call sites
+    /// pointed here rather than re-inlining the field checks — otherwise the
+    /// redirect and the rendered page can silently drift apart.
+    pub fn is_unset(&self) -> bool {
+        self.headline.is_none()
+            && self.bio.is_none()
+            && self.location.is_none()
+            && self.website.is_none()
+            && self.availability.is_none()
+            && self.skills.is_empty()
+            && self.languages.is_empty()
+            && self.involvements.is_empty()
+            && self.education.is_empty()
+            && self.reels.is_empty()
+            && self.photos.is_empty()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -572,6 +601,8 @@ pub struct ProfileEditTemplate {
     pub reel_count: usize,
     pub reel_limit: Option<usize>,
     pub is_identity_verified: bool,
+    /// Owner-only completeness meter (always `Some` on the edit form).
+    pub completeness: Option<crate::services::profile_completeness::ProfileCompleteness>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

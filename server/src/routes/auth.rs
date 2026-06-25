@@ -528,7 +528,7 @@ async fn verify_email(
                     Ok(None) => form
                         .redirect
                         .clone()
-                        .unwrap_or_else(|| "/profile".to_string()),
+                        .unwrap_or_else(|| "/profile/edit".to_string()),
                     Err(e) => {
                         error!(
                             "Failed to process pending invitations for {}: {}",
@@ -536,7 +536,7 @@ async fn verify_email(
                         );
                         form.redirect
                             .clone()
-                            .unwrap_or_else(|| "/profile".to_string())
+                            .unwrap_or_else(|| "/profile/edit".to_string())
                     }
                 };
 

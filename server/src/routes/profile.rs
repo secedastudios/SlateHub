@@ -237,6 +237,21 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
     let limits = verification_limits::limits_for_status(&profile_user.verification_status);
     let is_verified = verification_limits::is_identity_verified(&profile_user.verification_status);
 
+    // Owner-only completeness meter (this is always the owner's edit form).
+    let completeness = {
+        use crate::services::profile_completeness::{Signals, compute};
+        Some(compute(&Signals {
+            has_avatar: profile_data.avatar.is_some(),
+            has_headline: profile_data.headline.is_some(),
+            has_skills: !profile_data.skills.is_empty(),
+            has_credit_or_reel: !profile_data.involvements.is_empty()
+                || !profile_data.reels.is_empty(),
+            has_bio: profile_data.bio.is_some(),
+            has_location: profile_data.location.is_some(),
+            identity_verified: profile_data.verification_status == "identity",
+        }))
+    };
+
     // Create and render template
     let template = crate::with_base!(ProfileEditTemplate, base, {
         photo_count: profile_data.photos.len(),
@@ -248,6 +263,7 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         platforms: platform_options(),
         error: None,
         success: None,
+        completeness,
     });
 
     let html = template.render().map_err(|e| {
@@ -486,6 +502,14 @@ async fn update_profile(
         .await?
         .ok_or(Error::NotFound)?;
     let limits = verification_limits::limits_for_status(&person.verification_status);
+
+    // Headline is an activation signal — capture whether this save newly sets it.
+    let had_headline = person
+        .profile
+        .as_ref()
+        .and_then(|p| p.headline.as_ref())
+        .is_some_and(|h| !h.trim().is_empty());
+    let new_headline = form.get("headline").is_some_and(|h| !h.trim().is_empty());
     if let Some(max) = limits.max_reels
         && reels.len() > max
     {
@@ -547,6 +571,13 @@ async fn update_profile(
                 "Successfully updated profile for user: {}",
                 current_user.username
             );
+            if new_headline && !had_headline {
+                crate::services::activity::log_activity(
+                    Some(&current_user.id),
+                    "headline_added",
+                    "/profile/edit",
+                );
+            }
             Ok(Redirect::to(&format!("/{}", current_user.username)).into_response())
         }
         Ok(None) => {

@@ -3753,6 +3753,75 @@ dd {
     scrollbar-color: var(--color-border) var(--color-bg-secondary);
 }
 
+/* ============================================
+   Owner-only profile completeness meter
+   (profile view + edit form; #profile-completeness)
+   ============================================ */
+#profile-completeness {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin: 0 0 1.5rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--color-accent, #eb5437);
+    border-radius: var(--radius-lg, 8px);
+    background: rgba(235, 84, 55, 0.08);
+}
+#profile-completeness [data-role="completeness-text"] {
+    flex: 1 1 260px;
+    font-size: 0.875rem;
+    color: var(--color-text-primary, #d6d8ca);
+}
+#profile-completeness [data-role="completeness-text"] strong {
+    display: block;
+    font-size: 1rem;
+    color: var(--color-text-primary, #d6d8ca);
+}
+#profile-completeness progress {
+    flex: 1 1 100%;
+    width: 100%;
+    height: 8px;
+    border: 0;
+    border-radius: 9999px;
+    overflow: hidden;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(214, 216, 202, 0.15);
+}
+#profile-completeness progress::-webkit-progress-bar {
+    background: rgba(214, 216, 202, 0.15);
+}
+#profile-completeness progress::-webkit-progress-value {
+    background: var(--color-accent, #eb5437);
+}
+#profile-completeness progress::-moz-progress-bar {
+    background: var(--color-accent, #eb5437);
+}
+#profile-completeness [data-role="completeness-list"] {
+    flex: 1 1 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.85rem;
+}
+#profile-completeness [data-role="completeness-list"] li[data-done="true"] {
+    color: var(--color-text-muted, #9ca39e);
+}
+#profile-completeness [data-role="completeness-list"] li[data-done="true"] span {
+    color: var(--color-success, #4a7c59);
+}
+#profile-completeness [data-role="completeness-list"] li[data-done="false"] {
+    color: var(--color-accent, #eb5437);
+    font-weight: 600;
+}
+#profile-completeness[data-state="complete"] [data-role="completeness-text"] strong {
+    color: var(--color-success, #4a7c59);
+}
+
 /* ========================================
    END OF STYLESHEET
    ======================================== */

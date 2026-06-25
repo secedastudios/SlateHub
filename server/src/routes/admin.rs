@@ -71,6 +71,60 @@ struct AdminStats {
     top_pages: Vec<crate::models::activity::PageStat>,
     daily_activity: Vec<crate::models::activity::DayStat>,
     event_counts: Vec<(String, u64)>,
+    activation: ActivationStats,
+}
+
+/// Profile-activation funnel (state-based): how many members have a photo, a
+/// headline, and both ("activated" = discoverable in the carousel + search).
+struct ActivationStats {
+    total: u64,
+    with_photo: u64,
+    with_headline: u64,
+    activated: u64,
+    activated_pct: String,
+    photo_pct: String,
+}
+
+async fn activation_stats() -> ActivationStats {
+    fn extract(row: Option<serde_json::Value>) -> u64 {
+        row.and_then(|v| v.get("count").and_then(|c| c.as_u64()))
+            .unwrap_or(0)
+    }
+    let (total, with_photo, with_headline, activated) = match DB
+        .query(
+            "SELECT count() AS count FROM person GROUP ALL;
+             SELECT count() AS count FROM person WHERE profile.avatar IS NOT NONE GROUP ALL;
+             SELECT count() AS count FROM person WHERE profile.headline IS NOT NONE GROUP ALL;
+             SELECT count() AS count FROM person WHERE profile.avatar IS NOT NONE AND profile.headline IS NOT NONE GROUP ALL",
+        )
+        .await
+    {
+        Ok(mut r) => (
+            extract(r.take(0).unwrap_or(None)),
+            extract(r.take(1).unwrap_or(None)),
+            extract(r.take(2).unwrap_or(None)),
+            extract(r.take(3).unwrap_or(None)),
+        ),
+        Err(e) => {
+            error!("Failed to query activation stats: {}", e);
+            (0, 0, 0, 0)
+        }
+    };
+    let pct = |n: u64| {
+        if total == 0 {
+            "0.0".to_string()
+        } else {
+            format!("{:.1}", (n as f64 / total as f64) * 100.0)
+        }
+    };
+    ActivationStats {
+        activated_pct: pct(activated),
+        photo_pct: pct(with_photo),
+        total,
+        with_photo,
+        with_headline,
+        activated,
+    }
 }
 
 #[derive(Template)]
@@ -305,6 +359,7 @@ async fn dashboard(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<St
         top_pages,
         daily_activity,
         event_counts,
+        activation,
     ) = tokio::join!(
         count_table("person"),
         count_table("production"),
@@ -315,6 +370,7 @@ async fn dashboard(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<St
         ActivityModel::top_pages(10),
         ActivityModel::daily_activity(30),
         ActivityModel::event_counts(),
+        activation_stats(),
     );
 
     let stats = AdminStats {
@@ -327,6 +383,7 @@ async fn dashboard(AuthenticatedUser(user): AuthenticatedUser) -> Result<Html<St
         top_pages,
         daily_activity,
         event_counts,
+        activation,
     };
 
     let base = BaseContext::new()
