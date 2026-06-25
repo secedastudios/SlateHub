@@ -2,7 +2,7 @@
 //! between the route handlers and the models.
 //!
 //! Services own the things that aren't a single table's CRUD: third-party
-//! APIs (Stripe, Mailjet, TMDB, Listmonk, S3), in-process engines (fastembed,
+//! APIs (Stripe, Postmark/Mailjet, TMDB, Listmonk, S3), in-process engines (fastembed,
 //! the aristotle screenplay pipeline), background workers (SSF delivery,
 //! notification fan-out, stale-payment refunds), and multi-model workflows
 //! (invitations, OIDC token issuance). Route handlers call services; services
@@ -18,7 +18,7 @@
 //! |---|---|
 //! | [`activity`] | Fire-and-forget `activity_event` rows for page views (spawned, never blocks) |
 //! | [`aristotle_runner`] | Concurrency-capped wrapper running the in-crate aristotle script-breakdown pipeline |
-//! | [`email`] | Transactional email (verification, password reset, invitations, feedback) via the Mailjet API |
+//! | [`email`] | Transactional email (verification, password reset, invitations, feedback) via Postmark or Mailjet |
 //! | [`embedding`] | In-process fastembed (BGE-Large-EN-v1.5) vectors + embedding-text builders for semantic search |
 //! | [`feature_flag`] | Code-registered, DB-configured feature flags with four visibility states |
 //! | [`geodata`] | Static city → region/country lookup used to enrich embedding text |

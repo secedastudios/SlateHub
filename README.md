@@ -34,7 +34,7 @@
 | Templates | [Askama](https://github.com/djc/askama) (server-side HTML) |
 | Storage | [RustFS](https://rustfs.com) (S3-compatible object storage) |
 | Search | Vector embeddings (BGE-Large-EN-v1.5, 1024 dimensions) with HNSW indexes |
-| Email | [Mailjet](https://www.mailjet.com/) |
+| Email | [Postmark](https://postmarkapp.com/) or [Mailjet](https://www.mailjet.com/) |
 
 ## Getting Started
 
@@ -88,10 +88,13 @@ cp .env.example .env
 | `S3_SECRET_KEY` | S3 secret key | `password` |
 | `S3_BUCKET` | S3 bucket name | `slatehub` |
 | `S3_REGION` | S3 region | `us-east-1` |
-| `MAILJET_API_KEY` | Mailjet API key for sending emails | Required for email features |
-| `MAILJET_API_SECRET` | Mailjet API secret | Required for email features |
-| `MAILJET_FROM_EMAIL` | Default sender email address | `noreply@slatehub.com` |
-| `MAILJET_FROM_NAME` | Default sender name | `SlateHub` |
+| `EMAIL_PROVIDER` | Force the email provider (`postmark` or `mailjet`); auto-detected if unset | Optional (prefers Postmark) |
+| `POSTMARK_SERVER_TOKEN` | Postmark server API token | Required for email via Postmark |
+| `POSTMARK_MESSAGE_STREAM` | Postmark message stream | `outbound` |
+| `MAILJET_API_KEY` | Mailjet API key (fallback provider) | Required for email via Mailjet |
+| `MAILJET_API_SECRET` | Mailjet API secret | Required for email via Mailjet |
+| `EMAIL_FROM_ADDRESS` | Default sender email address (falls back to `MAILJET_FROM_EMAIL`) | `noreply@slatehub.com` |
+| `EMAIL_FROM_NAME` | Default sender name (falls back to `MAILJET_FROM_NAME`) | `SlateHub` |
 
 ## Semantic Search
 
