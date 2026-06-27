@@ -7,7 +7,7 @@
 use askama::Template;
 use axum::{
     Form, Router,
-    extract::{Query, Request},
+    extract::{ConnectInfo, Query, Request},
     http::HeaderMap,
     response::{Html, IntoResponse, Response},
     routing::{get, post},
@@ -17,6 +17,7 @@ use serde::Deserialize;
 
 use std::collections::HashMap;
 use std::env;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::{LazyLock, Mutex, Once};
 use std::time::Instant;
 
@@ -97,11 +98,23 @@ fn validate_form_token(token: &str) -> bool {
     }
 }
 
-/// Simple IP-based rate limiter for signup: max 3 signups per IP per hour.
+/// Simple in-memory per-IP rate limiter for signup — a coarse backstop behind
+/// the per-request honeypot / form-token / proof-of-work layers.
 static SIGNUP_RATE_LIMIT: LazyLock<Mutex<HashMap<String, Vec<Instant>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-const SIGNUP_MAX_PER_HOUR: usize = 3;
+/// Max signups per resolved client IP per hour. Configurable via
+/// `SIGNUP_MAX_PER_HOUR` (default 20) so it can be raised in production without
+/// a redeploy — important because ad traffic shares mobile-carrier (CGNAT) IPs
+/// and in-app browsers funnel many real users through a few addresses. The
+/// previous hard-coded `3` was blocking legitimate signups during campaigns.
+static SIGNUP_MAX_PER_HOUR: LazyLock<usize> = LazyLock::new(|| {
+    env::var("SIGNUP_MAX_PER_HOUR")
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(20)
+});
 const SIGNUP_WINDOW_SECS: u64 = 3600;
 
 fn check_signup_rate_limit(ip: &str) -> bool {
@@ -109,7 +122,7 @@ fn check_signup_rate_limit(ip: &str) -> bool {
     let now = Instant::now();
     let attempts = map.entry(ip.to_string()).or_default();
     attempts.retain(|t| now.duration_since(*t).as_secs() < SIGNUP_WINDOW_SECS);
-    if attempts.len() >= SIGNUP_MAX_PER_HOUR {
+    if attempts.len() >= *SIGNUP_MAX_PER_HOUR {
         false
     } else {
         attempts.push(now);
@@ -117,19 +130,31 @@ fn check_signup_rate_limit(ip: &str) -> bool {
     }
 }
 
-fn client_ip(headers: &HeaderMap) -> String {
-    headers
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
+/// Client-IP precedence, pure for testing: left-most `X-Forwarded-For` entry,
+/// then `X-Real-IP`, then the socket peer address. The socket fallback means
+/// an unidentified client is keyed by its real connection address rather than
+/// collapsed with everyone else into one shared bucket (which a `"unknown"`
+/// literal would do, blocking all signups once the bucket fills).
+pub fn resolve_client_ip(
+    forwarded_for: Option<&str>,
+    real_ip: Option<&str>,
+    peer: IpAddr,
+) -> String {
+    forwarded_for
         .and_then(|s| s.split(',').next())
-        .map(|s| s.trim().to_string())
-        .or_else(|| {
-            headers
-                .get("x-real-ip")
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string())
-        })
-        .unwrap_or_else(|| "unknown".to_string())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .or_else(|| real_ip.map(str::trim).filter(|s| !s.is_empty()))
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| peer.to_string())
+}
+
+fn client_ip(headers: &HeaderMap, peer: SocketAddr) -> String {
+    resolve_client_ip(
+        headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()),
+        headers.get("x-real-ip").and_then(|v| v.to_str().ok()),
+        peer.ip(),
+    )
 }
 
 use crate::{
@@ -232,14 +257,20 @@ async fn signup_form(
 async fn signup(
     headers: HeaderMap,
     jar: CookieJar,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     Form(form): Form<CreateUser>,
 ) -> Result<Response, Error> {
     debug!("Processing signup for email: {}", form.email);
 
-    // Rate limit: max 3 signups per IP per hour
-    let ip = client_ip(&headers);
+    // Resolved client IP + campaign, attached to every block/rejection log so
+    // failures can be tallied by reason (rate_limit / honeypot / form_token /
+    // pow) and by campaign.
+    let ip = client_ip(&headers, peer);
+    let campaign = form.campaign.as_deref().unwrap_or("-");
+
+    // Coarse per-IP rate limit (configurable via SIGNUP_MAX_PER_HOUR).
     if !check_signup_rate_limit(&ip) {
-        warn!("Signup rate limit exceeded for IP: {}", ip);
+        warn!(reason = "rate_limit", ip = %ip, campaign, "signup blocked");
         return Err(Error::Validation(
             "Too many signup attempts. Please try again later.".to_string(),
         ));
@@ -247,7 +278,7 @@ async fn signup(
 
     // Layer 1: Honeypot — reject if the hidden "website" field is filled
     if form.website.as_ref().is_some_and(|w| !w.is_empty()) {
-        warn!(ip = %ip, "Honeypot triggered on signup");
+        warn!(reason = "honeypot", ip = %ip, campaign, "signup blocked");
         return Err(Error::Validation(
             "Signup failed. Please try again.".to_string(),
         ));
@@ -256,13 +287,13 @@ async fn signup(
     // Layer 2: Time check — reject if form was submitted too fast (< 3 seconds)
     if let Some(ref token) = form.form_token {
         if !validate_form_token(token) {
-            warn!(ip = %ip, "Form token invalid or submitted too fast");
+            warn!(reason = "form_token", ip = %ip, campaign, "signup blocked: token invalid or too fast");
             return Err(Error::Validation(
                 "Signup failed. Please try again.".to_string(),
             ));
         }
     } else {
-        warn!(ip = %ip, "Missing form token on signup");
+        warn!(reason = "form_token_missing", ip = %ip, campaign, "signup blocked");
         return Err(Error::Validation(
             "Signup failed. Please try again.".to_string(),
         ));
@@ -273,14 +304,14 @@ async fn signup(
     match &form.pow_solution {
         Some(solution) if !solution.is_empty() => {
             if let Err(e) = Pow::validate(solution) {
-                warn!(ip = %ip, error = %e, "Invalid PoW solution on signup");
+                warn!(reason = "pow_invalid", ip = %ip, campaign, error = %e, "signup blocked");
                 return Err(Error::Validation(
                     "Verification failed. Please reload and try again.".to_string(),
                 ));
             }
         }
         _ => {
-            warn!(ip = %ip, "Missing PoW solution on signup");
+            warn!(reason = "pow_missing", ip = %ip, campaign, "signup blocked");
             return Err(Error::Validation(
                 "Verification failed. Please reload and try again.".to_string(),
             ));
@@ -467,6 +498,10 @@ async fn verify_email_form(
     let mut template = EmailVerificationTemplate::new(base);
     template.email = params.get("email").cloned();
     template.redirect = params.get("redirect").cloned();
+    if params.contains_key("resent") {
+        template.success =
+            Some("A new verification code has been sent. Please check your email.".to_string());
+    }
     template.pixel_id = crate::config::meta_pixel_id();
 
     let html = template.render().map_err(|e| {
@@ -825,6 +860,10 @@ async fn reset_password(Form(form): Form<ResetPasswordForm>) -> Result<Response,
 #[derive(Debug, Deserialize)]
 struct ResendVerificationForm {
     email: String,
+    /// Post-verification redirect target, carried through from the verify
+    /// form's hidden field so resending doesn't drop it.
+    #[serde(default)]
+    redirect: Option<String>,
 }
 
 #[axum::debug_handler]
@@ -869,8 +908,18 @@ async fn resend_verification(Form(form): Form<ResendVerificationForm>) -> Result
         }
     }
 
-    // Always redirect to verify-email page to prevent email enumeration
-    Ok(response::redirect("/verify-email").into_response())
+    // Always redirect back to the verify page — carrying the email so the form
+    // stays prefilled and a `resent` flag so the page shows a confirmation. The
+    // response is identical whether or not the address existed, to avoid email
+    // enumeration.
+    let mut redirect_to = format!(
+        "/verify-email?email={}&resent=1",
+        urlencoding::encode(&form.email)
+    );
+    if let Some(r) = form.redirect.as_ref().filter(|r| !r.is_empty()) {
+        redirect_to.push_str(&format!("&redirect={}", urlencoding::encode(r)));
+    }
+    Ok(response::redirect(&redirect_to).into_response())
 }
 
 /// Handle short invite links: /i/{token}

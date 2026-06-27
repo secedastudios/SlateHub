@@ -45,6 +45,11 @@ mod search;
 mod verification;
 mod webhooks;
 
+/// Pure client-IP precedence helper, re-exported for unit testing (see
+/// `tests/signup_ratelimit_test.rs`). Resolving this correctly is what keeps
+/// the per-IP signup limit from collapsing all visitors into one bucket.
+pub use auth::resolve_client_ip;
+
 /// Build the complete application router: every feature router, the static
 /// file service, the MCP service, and the shared middleware/header layers.
 pub fn app() -> Router {

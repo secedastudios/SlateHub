@@ -236,8 +236,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("SlateHub server is ready to accept connections");
 
-    // Run the server
-    match axum::serve(listener, app).await {
+    // Run the server. `into_make_service_with_connect_info` exposes the socket
+    // peer address to handlers (via `ConnectInfo<SocketAddr>`) so signup IP
+    // resolution has a real fallback when proxy headers are absent.
+    match axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    {
         Ok(_) => {
             info!("Server shutdown gracefully");
             Ok(())

@@ -25,7 +25,7 @@
         {% when None %}
     {% endmatch %}
 
-    <form method="post" action="/verify-email">
+    <form method="post" action="/verify-email" id="verify-form">
         {% if redirect.is_some() %}
         <input type="hidden" name="redirect" value="{{ redirect.as_ref().unwrap() }}" />
         {% endif %}
@@ -69,7 +69,7 @@
     </form>
 
     <nav class="auth-footer" aria-label="Verification navigation">
-        <p>Didn't receive the code? <a href="/resend-verification">Resend verification email</a></p>
+        <p>Didn't receive the code? <button type="submit" form="verify-form" formaction="/resend-verification" formnovalidate class="auth-linkbtn">Resend verification email</button></p>
         <p><a href="/login">Back to login</a></p>
     </nav>
 </div>
