@@ -20,7 +20,7 @@ use axum::{
     response::{Html, IntoResponse, Response},
 };
 use serde_json::json;
-use tracing::{error, warn};
+use tracing::{debug, error, info};
 
 use crate::{error::Error, middleware::RequestIdExt};
 use crate::{log_colored_error, log_db_error};
@@ -241,10 +241,14 @@ pub async fn error_response_middleware(req: Request, next: Next) -> Response {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("Unknown error");
 
-        // Log the error with appropriate detail level
+        // Log at a level that matches who's at fault. 5xx is ours — loud
+        // (error). 4xx is the client's: 404/401/403 and other stray 4xx are
+        // mostly scanner/bot noise and routine auth misses, so they go to
+        // debug; 400/422 (bad input / validation) stay at info so spikes are
+        // still visible without trawling debug logs.
         match status {
             StatusCode::NOT_FOUND => {
-                warn!(
+                debug!(
                     path = %path,
                     method = %method,
                     request_id = ?request_id,
@@ -252,7 +256,7 @@ pub async fn error_response_middleware(req: Request, next: Next) -> Response {
                 );
             }
             StatusCode::UNAUTHORIZED => {
-                warn!(
+                debug!(
                     path = %path,
                     method = %method,
                     request_id = ?request_id,
@@ -260,7 +264,7 @@ pub async fn error_response_middleware(req: Request, next: Next) -> Response {
                 );
             }
             StatusCode::FORBIDDEN => {
-                warn!(
+                debug!(
                     path = %path,
                     method = %method,
                     request_id = ?request_id,
@@ -268,7 +272,7 @@ pub async fn error_response_middleware(req: Request, next: Next) -> Response {
                 );
             }
             StatusCode::UNPROCESSABLE_ENTITY => {
-                warn!(
+                info!(
                     path = %path,
                     method = %method,
                     error = %error_detail,
@@ -277,7 +281,7 @@ pub async fn error_response_middleware(req: Request, next: Next) -> Response {
                 );
             }
             StatusCode::BAD_REQUEST => {
-                warn!(
+                info!(
                     path = %path,
                     method = %method,
                     error = %error_detail,
@@ -298,7 +302,7 @@ pub async fn error_response_middleware(req: Request, next: Next) -> Response {
                 );
             }
             _ => {
-                warn!(
+                debug!(
                     status = %status.as_u16(),
                     path = %path,
                     method = %method,
