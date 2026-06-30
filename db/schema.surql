@@ -425,6 +425,8 @@ DEFINE FIELD name ON person TYPE option<string> PERMISSIONS FULL;  -- Optional d
 DEFINE FIELD is_admin ON person TYPE bool DEFAULT false PERMISSIONS FULL;  -- System administrator flag
 DEFINE FIELD signup_ip ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD signup_campaign ON person TYPE option<string> PERMISSIONS FULL;  -- /a/{campaign} landing page a user signed up through (conversion attribution)
+DEFINE FIELD profile_reminders_sent ON person TYPE int DEFAULT 0 PERMISSIONS FULL;  -- profile-completion reminders sent (services::profile_reminders)
+DEFINE FIELD last_profile_reminder_at ON person TYPE option<datetime> PERMISSIONS FULL;  -- when the last profile reminder went out
 DEFINE FIELD created_at ON person TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
 DEFINE FIELD updated_at ON person TYPE datetime VALUE time::now() PERMISSIONS FULL;
 DEFINE FIELD embedding ON person TYPE option<array<float>> PERMISSIONS FULL;  -- Vector embedding for semantic search (1024 dimensions)

@@ -125,7 +125,9 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         Some(user) => user,
         None => {
             info!("Unauthenticated user trying to edit profile, redirecting to login");
-            return Ok(Redirect::to("/login").into_response());
+            // Carry the destination so login bounces them back to the editor
+            // (the profile-reminder emails link straight here).
+            return Ok(Redirect::to("/login?redirect=%2Fprofile%2Fedit").into_response());
         }
     };
 

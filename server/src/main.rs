@@ -210,6 +210,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Start daily profile-completion reminder sweep: nudge verified-but-empty
+    // accounts to finish their profile, and (when enabled) remove the ones that
+    // never do, so the directory stays a real listing of talent and crew.
+    tokio::spawn(async {
+        use slatehub::services::profile_reminders::{self, ReminderConfig};
+        let cfg = ReminderConfig::from_env();
+        profile_reminders::run(&cfg).await;
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(86400)).await;
+            info!("Running profile-completion reminder sweep");
+            profile_reminders::run(&cfg).await;
+        }
+    });
+
     // Start live notification stream
     info!("Starting notification live stream");
     slatehub::services::notification_stream::init().await;

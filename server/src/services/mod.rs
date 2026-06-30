@@ -51,6 +51,7 @@ pub mod oidc_events;
 pub mod oidc_keys;
 pub mod oidc_tokens;
 pub mod profile_completeness;
+pub mod profile_reminders;
 pub mod s3;
 pub mod search;
 pub mod search_log;

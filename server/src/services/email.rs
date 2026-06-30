@@ -219,6 +219,92 @@ fn escape_html(s: &str) -> String {
         .replace('"', "&quot;")
 }
 
+/// Build a profile-completion reminder email: `(subject, text, html)`.
+///
+/// `reminder_number` (1, 2, or 3) drives the tone — playful, then pointed, then
+/// the serious final notice. `edit_url` links to the profile editor (it bounces
+/// through login if the recipient is logged out); `grace_days` is how long after
+/// the final reminder the account is removed (only reminder 3 mentions it).
+/// Pure, so the copy is unit-testable.
+pub fn profile_reminder_bodies(
+    first_name: Option<&str>,
+    reminder_number: u8,
+    edit_url: &str,
+    grace_days: u32,
+) -> (String, String, String) {
+    let first = first_name
+        .and_then(|n| n.split_whitespace().next())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let text_greeting = match first {
+        Some(n) => format!("Hey {n},"),
+        None => "Hey,".to_string(),
+    };
+    let html_greeting = match first {
+        Some(n) => format!("Hey {},", escape_html(n)),
+        None => "Hey,".to_string(),
+    };
+
+    // (subject, plain message, HTML message paragraphs, CTA label) per reminder.
+    let (subject, message_text, message_html, cta_label): (String, String, String, &str) =
+        match reminder_number {
+            1 => (
+                "Your SlateHub profile is gloriously empty".to_string(),
+                "You signed up, verified your email, and then left your profile completely blank. No photo, no credits, nothing for anyone to find. Go on, give us something to work with.".to_string(),
+                "<p style=\"margin:0 0 22px;\">You signed up, verified your email, and then left your profile completely blank. No photo, no credits, nothing for anyone to find. Go on, give us something to work with.</p>".to_string(),
+                "Finish my profile",
+            ),
+            2 => (
+                "Your SlateHub profile is still blank".to_string(),
+                "Second nudge. An empty profile means you don't show up when a producer or casting director searches SlateHub for someone like you. That's the whole reason to be here.".to_string(),
+                "<p style=\"margin:0 0 22px;\">Second nudge. An empty profile means you don't show up when a producer or casting director searches SlateHub for someone like you. That's the whole reason to be here.</p>".to_string(),
+                "Finish my profile",
+            ),
+            _ => (
+                "Final notice: we'll remove your SlateHub account soon".to_string(),
+                format!(
+                    "Last reminder. SlateHub only works if the directory is real, so we don't keep empty profiles on it, and yours is still blank.\n\nIf we don't hear back, we'll remove the account in {grace_days} days. You're welcome back any time."
+                ),
+                format!(
+                    "<p style=\"margin:0 0 18px;\">Last reminder. SlateHub only works if the directory is real, so we don't keep empty profiles on it, and yours is still blank.</p><p style=\"margin:0 0 22px;\">If we don't hear back, we'll remove the account in {grace_days} days. You're welcome back any time.</p>"
+                ),
+                "Keep my spot",
+            ),
+        };
+
+    let text_body = format!(
+        "{text_greeting}\n\n{message_text}\n\n{cta_label}: {edit_url}\n\nChris & Tom\nSlateHub"
+    );
+
+    let html_body = format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="color-scheme" content="light"></head>
+<body style="margin:0; padding:0; background-color:#171717;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#171717;">
+        <tr><td align="center" style="padding:28px 16px;">
+            <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%; max-width:600px;">
+                <tr><td style="padding:30px 38px 22px; background-color:#171717;">
+                    <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:22px; font-weight:700; letter-spacing:0.10em; text-transform:uppercase; color:#d6d8ca;">SlateHub</div>
+                </td></tr>
+                <tr><td style="padding:34px 38px 30px; background-color:#ffffff; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:16px; line-height:1.65; color:#2a2a2a;">
+                    <p style="margin:0 0 18px;">{html_greeting}</p>
+                    {message_html}
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;"><tr><td style="border-radius:6px; background-color:#eb5437;">
+                        <a href="{edit_url}" style="display:inline-block; padding:13px 30px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:15px; font-weight:700; letter-spacing:0.03em; color:#ffffff; text-decoration:none;">{cta_label}</a>
+                    </td></tr></table>
+                    <p style="margin:0; color:#6b6b6b; font-size:14px;">Chris &amp; Tom, SlateHub</p>
+                </td></tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>"#
+    );
+
+    (subject, text_body, html_body)
+}
+
 /// A founder's mini-card in the welcome email, built from their live profile at
 /// send time so the photo, name, and title stay current. `avatar_url` and
 /// `profile_url` must be absolute — email clients can't resolve relative paths.
@@ -771,6 +857,34 @@ impl EmailService {
             cc: cc.as_deref(),
             reply_to: Some(&reply_to),
         })
+        .await
+    }
+
+    /// Send a profile-completion reminder (1, 2, or 3) from the default sender.
+    /// `edit_url` should point at the profile editor; `grace_days` is the
+    /// removal window mentioned in the final reminder. Copy is built by
+    /// [`profile_reminder_bodies`].
+    ///
+    /// # Errors
+    ///
+    /// Same failure modes as the other senders (see [`Self::send_email`]).
+    pub async fn send_profile_reminder(
+        &self,
+        to_email: &str,
+        to_name: Option<&str>,
+        reminder_number: u8,
+        edit_url: &str,
+        grace_days: u32,
+    ) -> Result<()> {
+        let (subject, text_body, html_body) =
+            profile_reminder_bodies(to_name, reminder_number, edit_url, grace_days);
+        self.send_email(
+            to_email,
+            to_name,
+            &subject,
+            Some(&text_body),
+            Some(&html_body),
+        )
         .await
     }
 
