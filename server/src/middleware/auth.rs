@@ -13,7 +13,7 @@
 
 use axum::{
     extract::{FromRequestParts, Request},
-    http::{StatusCode, request::Parts},
+    http::{HeaderValue, StatusCode, header, request::Parts},
     middleware::Next,
     response::Response,
 };
@@ -64,6 +64,10 @@ pub async fn auth_middleware(
         );
     }
 
+    // Set when a valid token resolves to a deleted account: we clear the dead
+    // cookie on the way out so the browser stops re-sending it every request.
+    let mut clear_stale_session = false;
+
     // Check Authorization header first (for API clients like Chrome extension),
     // then fall back to auth_token cookie
     let token_from_header = request
@@ -90,7 +94,7 @@ pub async fn auth_middleware(
 
                 // Get user info from database using the ID from JWT
                 match get_user_from_id(user_id).await {
-                    Ok(user) => {
+                    Ok(Some(user)) => {
                         debug!(
                             "Auth middleware: Successfully authenticated user: '{}' with id: '{}' and email: '{}'",
                             user.username, user.id, user.email
@@ -99,15 +103,24 @@ pub async fn auth_middleware(
                         request.extensions_mut().insert(Arc::new(user));
                         debug!("Auth middleware: User inserted into request extensions");
                     }
+                    Ok(None) => {
+                        // Valid token, but the account no longer exists (e.g.
+                        // deleted by the unverified-account cleanup). Expected,
+                        // not an error: continue anonymous and clear the dead
+                        // cookie so it stops recurring on every request.
+                        debug!(
+                            "Auth middleware: token references a missing account '{}'; clearing stale session",
+                            user_id
+                        );
+                        clear_stale_session = true;
+                    }
                     Err(e) => {
+                        // A real lookup failure (DB error / malformed sub) —
+                        // continue anonymous but keep the cookie (may be transient).
                         warn!(
-                            "Auth middleware: Could not fetch user info for ID '{}': {}",
+                            "Auth middleware: could not load user for ID '{}': {}",
                             user_id, e
                         );
-                        debug!(
-                            "Auth middleware: User might not exist, continuing without authentication"
-                        );
-                        // Continue without user in extensions
                     }
                 }
             }
@@ -127,14 +140,32 @@ pub async fn auth_middleware(
 
     debug!("Auth middleware: Passing request to next handler");
     // Continue to the next middleware/handler
-    Ok(next.run(request).await)
+    let mut response = next.run(request).await;
+    if clear_stale_session && let Ok(value) = HeaderValue::from_str(&stale_session_clear_cookie()) {
+        response.headers_mut().append(header::SET_COOKIE, value);
+    }
+    Ok(response)
+}
+
+/// `Set-Cookie` value that expires the `auth_token` cookie (matching the
+/// attributes login set it with). Used to cleanly log out a browser still
+/// holding a session for a deleted account, instead of letting it re-send the
+/// dead token on every request.
+fn stale_session_clear_cookie() -> String {
+    let secure = std::env::var("COOKIE_SECURE")
+        .map(|v| v != "false")
+        .unwrap_or(true);
+    format!(
+        "auth_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax{}",
+        if secure { "; Secure" } else { "" }
+    )
 }
 
 /// Extract user information from the JWT-sub claim using the Person model.
 /// `user_id` is the raw JWT `sub` value — either `"person:abc"` (current
 /// format) or a bare key (legacy/fallback). We parse it into a `RecordId`
 /// once here so the rest of the codebase never has to.
-async fn get_user_from_id(user_id: &str) -> Result<CurrentUser, Error> {
+async fn get_user_from_id(user_id: &str) -> Result<Option<CurrentUser>, Error> {
     let span = info_span!(
         "fetch_user",
         user_id = %user_id,
@@ -162,15 +193,11 @@ async fn get_user_from_id(user_id: &str) -> Result<CurrentUser, Error> {
                 session_user = ?session_user,
                 "Converted to SessionUser"
             );
-            Ok(session_user)
+            Ok(Some(session_user))
         }
-        Ok(None) => {
-            error!(
-                record_id = %rid.to_raw_string(),
-                "Person not found in database"
-            );
-            Err(Error::Internal("User not found".to_string()))
-        }
+        // Valid record id, but no such person. Expected for a stale session
+        // (deleted account); the caller treats this as "log out", not an error.
+        Ok(None) => Ok(None),
         Err(e) => {
             error!(
                 "get_user_from_id: Failed to query user data for ID '{}': {}",

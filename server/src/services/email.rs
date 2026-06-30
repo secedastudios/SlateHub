@@ -39,6 +39,7 @@
 
 use reqwest;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
 use thiserror::Error;
 use tracing::{debug, error, info};
@@ -135,6 +136,12 @@ struct Message {
     from: EmailAddress,
     #[serde(rename = "To")]
     to: Vec<EmailAddress>,
+    #[serde(rename = "Cc", skip_serializing_if = "Option::is_none")]
+    cc: Option<Vec<EmailAddress>>,
+    // Mailjet's structured `ReplyTo` is a single address; a custom header
+    // carries a comma-separated multi-address Reply-To instead.
+    #[serde(rename = "Headers", skip_serializing_if = "Option::is_none")]
+    headers: Option<HashMap<String, String>>,
     #[serde(rename = "Subject")]
     subject: String,
     #[serde(rename = "TextPart", skip_serializing_if = "Option::is_none")]
@@ -161,6 +168,10 @@ struct PostmarkMessage {
     from: String,
     #[serde(rename = "To")]
     to: String,
+    #[serde(rename = "Cc", skip_serializing_if = "Option::is_none")]
+    cc: Option<String>,
+    #[serde(rename = "ReplyTo", skip_serializing_if = "Option::is_none")]
+    reply_to: Option<String>,
     #[serde(rename = "Subject")]
     subject: String,
     #[serde(rename = "TextBody", skip_serializing_if = "Option::is_none")]
@@ -179,6 +190,15 @@ struct OutgoingEmail<'a> {
     subject: &'a str,
     text_body: Option<&'a str>,
     html_body: Option<&'a str>,
+    /// Override the configured sender identity (used by the founder welcome
+    /// email so it comes "from Chris & Tom"). `None` uses the service default.
+    from_email: Option<&'a str>,
+    from_name: Option<&'a str>,
+    /// Optional single CC recipient.
+    cc: Option<&'a str>,
+    /// Optional `Reply-To` (comma-separated for multiple addresses) so replies
+    /// reach addresses other than the `From` — e.g. both founders.
+    reply_to: Option<&'a str>,
 }
 
 /// Render an address the way Postmark expects: `Name <email>` when a non-empty
@@ -188,6 +208,208 @@ pub fn format_address(email: &str, name: Option<&str>) -> String {
         Some(n) if !n.trim().is_empty() => format!("{n} <{email}>"),
         _ => email.to_string(),
     }
+}
+
+/// Minimal HTML text escape for interpolating user-supplied values (a person's
+/// name) into an HTML email body.
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+/// A founder's mini-card in the welcome email, built from their live profile at
+/// send time so the photo, name, and title stay current. `avatar_url` and
+/// `profile_url` must be absolute — email clients can't resolve relative paths.
+pub struct FounderTag {
+    pub name: String,
+    pub title: String,
+    pub avatar_url: String,
+    pub profile_url: String,
+}
+
+/// The founders' story video, rendered as a clickable poster — email clients
+/// don't play inline video, so it links out to watch.
+pub struct WelcomeVideo<'a> {
+    pub thumbnail_url: &'a str,
+    pub watch_url: &'a str,
+}
+
+/// Everything the welcome email needs beyond the recipient. Bundled so the pure
+/// body builder stays a single, testable call.
+pub struct WelcomeEmail<'a> {
+    /// Recipient's name if known (the greeting uses the first token).
+    pub recipient_name: Option<&'a str>,
+    /// Link recipients share to invite others (the site root).
+    pub invite_url: &'a str,
+    /// The recipient's own public profile page.
+    pub profile_url: &'a str,
+    /// Founder mini-cards (Chris & Tom), from their live profiles.
+    pub founders: &'a [FounderTag],
+    /// Optional founders' story video.
+    pub video: Option<WelcomeVideo<'a>>,
+    /// Instagram follow link and the handle to display.
+    pub instagram_url: &'a str,
+    pub instagram_handle: &'a str,
+}
+
+/// Build the founder welcome email: `(subject, text_body, html_body)`.
+///
+/// Sent once, the moment a new member verifies their email. The voice is Chris
+/// & Tom's, the message is "you joined a free, open community built by
+/// filmmakers," and the single call to action is to invite other filmmakers.
+/// The founder cards, story video, and links are passed in (resolved at send
+/// time from the live profiles) so this stays pure and unit-testable.
+pub fn welcome_email_bodies(ctx: &WelcomeEmail<'_>) -> (String, String, String) {
+    let first = ctx
+        .recipient_name
+        .and_then(|n| n.split_whitespace().next())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+
+    let subject = match first {
+        Some(n) => format!("Welcome to SlateHub, {n}"),
+        None => "Welcome to SlateHub".to_string(),
+    };
+
+    let text_greeting = match first {
+        Some(n) => format!("Hey {n},"),
+        None => "Hey,".to_string(),
+    };
+
+    // Dynamic trailing block for the text version: video, sign-off, founder
+    // directory, Instagram.
+    let mut text_tail = String::new();
+    if let Some(v) = &ctx.video {
+        text_tail.push_str(&format!(
+            "If you want the two-minute version of why we built this, here it is.\n\
+             Watch our story (2 min): {}\n\n",
+            v.watch_url
+        ));
+    }
+    text_tail.push_str("Thanks for being one of the early ones.\n\nChris and Tom\nSlateHub\n\n");
+    for f in ctx.founders {
+        text_tail.push_str(&format!("{}, {}: {}\n", f.name, f.title, f.profile_url));
+    }
+    text_tail.push_str(&format!(
+        "Follow along on Instagram: {} ({})",
+        ctx.instagram_handle, ctx.instagram_url
+    ));
+
+    let text_body = format!(
+        "{greeting}\n\n\
+         Chris here, and Tom's on this email too. You just verified your email, so you're officially part of SlateHub. Welcome.\n\n\
+         We built this because we're filmmakers, and we got tired of watching good crew and cast get stuck behind paywalls and pay-to-play directories. So we made the opposite. SlateHub is free to join and free to use, and it always will be. No subscription. No fee to be seen.\n\n\
+         What we're really trying to build is the largest free directory of filmmakers and creators anywhere: crew, cast, editors, composers, and creators of every kind, in one place anyone can search. The whole platform is open source, so you can look under the hood and see exactly what we do with your work and your data. We don't sell it.\n\n\
+         Your profile is your home base. It works like a Linktree made for film: reels, credits, links, and contact on one page you can share anywhere. Yours lives at {profile_url}. We also build every profile to be found, optimized for search so producers, casting directors, and collaborators can turn up your work on Google, not just inside an app.\n\n\
+         A quick note, because the word 'verified' comes up twice on SlateHub. What you just did is email verification: it confirms a real person with a real inbox, and it's free. Separate from that, and completely optional, is identity verification. That's a one-time payment that just covers our costs. It unlocks a few extra features and helps keep out the bots and spam that wreck most free sites. Your profile works fully without it.\n\n\
+         We're always adding features and improvements, and the best ideas come from people actually using SlateHub. If there's something important you need us to build, tell us. Just reply to this email, it reaches us directly.\n\n\
+         Now the ask. SlateHub grows the way film always has, through the people in it. If you know others who make things, invite them here: {invite_url}. Every filmmaker who joins makes this more useful for the rest of us.\n\n\
+         {tail}",
+        greeting = text_greeting,
+        profile_url = ctx.profile_url,
+        invite_url = ctx.invite_url,
+        tail = text_tail,
+    );
+
+    let html_greeting = match first {
+        Some(n) => format!("Hey {},", escape_html(n)),
+        None => "Hey,".to_string(),
+    };
+
+    // Story video as a clickable poster (no inline playback in email).
+    let video_html = match &ctx.video {
+        Some(v) => format!(
+            r#"<p style="margin:0 0 12px;">If you want the two-minute version of why we built this, here it is.</p>
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 26px;"><tr><td>
+                                <a href="{watch}" style="text-decoration:none;"><img src="{thumb}" width="524" alt="Watch the SlateHub founders story" style="display:block; width:100%; max-width:524px; height:auto; border-radius:8px; border:0;"><span style="display:inline-block; margin-top:10px; color:#eb5437; font-weight:700; font-size:14px;">Watch our story (2 min)</span></a>
+                            </td></tr></table>"#,
+            watch = v.watch_url,
+            thumb = v.thumbnail_url,
+        ),
+        None => String::new(),
+    };
+
+    // Founder mini-cards (avatar + name + title, linked to their profiles).
+    let founders_html: String = ctx
+        .founders
+        .iter()
+        .map(|f| {
+            format!(
+                r#"<tr>
+                                <td style="padding:8px 12px 8px 0; vertical-align:middle;"><a href="{profile}"><img src="{avatar}" width="46" height="46" alt="{name}" style="display:block; width:46px; height:46px; border-radius:50%; object-fit:cover; border:0;"></a></td>
+                                <td style="vertical-align:middle; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;"><a href="{profile}" style="color:#2a2a2a; text-decoration:none; font-weight:600; font-size:15px;">{name}</a><br><span style="color:#6b6b6b; font-size:13px;">{title}</span></td>
+                            </tr>"#,
+                profile = f.profile_url,
+                avatar = f.avatar_url,
+                name = escape_html(&f.name),
+                title = escape_html(&f.title),
+            )
+        })
+        .collect();
+
+    let html_body = format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+</head>
+<body style="margin:0; padding:0; background-color:#171717;">
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0;">You're in. A note from Chris and Tom about the free, open community we're building for filmmakers.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#171717;">
+        <tr>
+            <td align="center" style="padding:28px 16px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%; max-width:600px;">
+                    <tr>
+                        <td style="padding:34px 38px 26px; background-color:#171717;">
+                            <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:24px; font-weight:700; letter-spacing:0.10em; text-transform:uppercase; color:#d6d8ca;">SlateHub</div>
+                            <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:13px; letter-spacing:0.02em; color:#9ca39e; margin-top:7px;">By filmmakers, for filmmakers.</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:36px 38px 12px; background-color:#ffffff; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:16px; line-height:1.65; color:#2a2a2a;">
+                            <p style="margin:0 0 18px;">{greeting}</p>
+                            <p style="margin:0 0 18px;">Chris here, and Tom's on this email too. You just verified your email, so you're officially part of SlateHub. Welcome.</p>
+                            <p style="margin:0 0 18px;">We built this because we're filmmakers, and we got tired of watching good crew and cast get stuck behind paywalls and pay-to-play directories. So we made the opposite. SlateHub is free to join and free to use, and it always will be. No subscription. No fee to be seen.</p>
+                            <p style="margin:0 0 18px;">What we're really trying to build is the largest free directory of filmmakers and creators anywhere: crew, cast, editors, composers, and creators of every kind, in one place anyone can search. The whole platform is open source, so you can look under the hood and see exactly what we do with your work and your data. We don't sell it.</p>
+                            <p style="margin:0 0 18px;">Your profile is your home base. It works like a Linktree made for film: reels, credits, links, and contact on one page you can share anywhere. Yours lives at <a href="{profile_url}" style="color:#eb5437; text-decoration:none; font-weight:600;">{profile_url}</a>. We also build every profile to be found, optimized for search so producers, casting directors, and collaborators can turn up your work on Google, not just inside an app.</p>
+                            <p style="margin:0 0 18px;">A quick note, because the word 'verified' comes up twice on SlateHub. What you just did is email verification: it confirms a real person with a real inbox, and it's free. Separate from that, and completely optional, is identity verification. That's a one-time payment that just covers our costs. It unlocks a few extra features and helps keep out the bots and spam that wreck most free sites. Your profile works fully without it.</p>
+                            <p style="margin:0 0 18px;">We're always adding features and improvements, and the best ideas come from people actually using SlateHub. If there's something important you need us to build, tell us. Just reply to this email, it reaches us directly.</p>
+                            <p style="margin:0 0 22px;">Now the ask. SlateHub grows the way film always has, through the people in it. If you know others who make things, invite them to <a href="{invite_url}" style="color:#eb5437; text-decoration:none; font-weight:600;">SlateHub</a>. Every filmmaker who joins makes this more useful for the rest of us.</p>
+                            {video_html}
+                            <p style="margin:0 0 4px;">Thanks for being one of the early ones.</p>
+                            <p style="margin:18px 0 12px;"><span style="font-weight:600; color:#2a2a2a;">Chris and Tom</span><br><span style="color:#6b6b6b; font-size:14px;">SlateHub</span></p>
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0;">
+                                {founders_html}
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:18px 38px 30px; background-color:#ffffff; border-top:1px solid #ece9e2; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:12px; line-height:1.6; color:#9a9a9a;">
+                            <p style="margin:0 0 5px;">Follow along on Instagram: <a href="{instagram_url}" style="color:#eb5437; text-decoration:none; font-weight:600;">{instagram_handle}</a></p>
+                            <p style="margin:0 0 5px;">You're getting this because you just joined SlateHub at <a href="{invite_url}" style="color:#eb5437; text-decoration:none;">slatehub.com</a>.</p>
+                            <p style="margin:0;">Free forever. Open source. Built by filmmakers.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"#,
+        greeting = html_greeting,
+        profile_url = ctx.profile_url,
+        invite_url = ctx.invite_url,
+        video_html = video_html,
+        founders_html = founders_html,
+        instagram_url = ctx.instagram_url,
+        instagram_handle = ctx.instagram_handle,
+    );
+
+    (subject, text_body, html_body)
 }
 
 /// Decide which provider to use from already-read environment inputs. Pure
@@ -309,19 +531,27 @@ impl EmailService {
         text_body: Option<&str>,
         html_body: Option<&str>,
     ) -> Result<()> {
-        let email = OutgoingEmail {
+        self.dispatch(OutgoingEmail {
             to_email,
             to_name,
             subject,
             text_body,
             html_body,
-        };
+            from_email: None,
+            from_name: None,
+            cc: None,
+            reply_to: None,
+        })
+        .await
+    }
 
+    /// Send a fully-built message through the configured provider.
+    async fn dispatch(&self, email: OutgoingEmail<'_>) -> Result<()> {
         debug!(
             "Sending email to {} via {} with subject: {}",
-            to_email,
+            email.to_email,
             self.provider.name(),
-            subject
+            email.subject
         );
 
         match &self.provider {
@@ -349,13 +579,22 @@ impl EmailService {
         let payload = MailjetMessage {
             messages: vec![Message {
                 from: EmailAddress {
-                    email: self.from_email.clone(),
-                    name: Some(self.from_name.clone()),
+                    email: email.from_email.unwrap_or(&self.from_email).to_string(),
+                    name: Some(email.from_name.unwrap_or(&self.from_name).to_string()),
                 },
                 to: vec![EmailAddress {
                     email: email.to_email.to_string(),
                     name: email.to_name.map(|n| n.to_string()),
                 }],
+                cc: email.cc.map(|c| {
+                    vec![EmailAddress {
+                        email: c.to_string(),
+                        name: None,
+                    }]
+                }),
+                headers: email
+                    .reply_to
+                    .map(|r| HashMap::from([("Reply-To".to_string(), r.to_string())])),
                 subject: email.subject.to_string(),
                 text_part: email.text_body.map(|t| t.to_string()),
                 html_part: email.html_body.map(|h| h.to_string()),
@@ -381,8 +620,13 @@ impl EmailService {
         email: &OutgoingEmail<'_>,
     ) -> Result<()> {
         let payload = PostmarkMessage {
-            from: format_address(&self.from_email, Some(&self.from_name)),
+            from: format_address(
+                email.from_email.unwrap_or(&self.from_email),
+                Some(email.from_name.unwrap_or(&self.from_name)),
+            ),
             to: format_address(email.to_email, email.to_name),
+            cc: email.cc.map(|c| c.to_string()),
+            reply_to: email.reply_to.map(|r| r.to_string()),
             subject: email.subject.to_string(),
             text_body: email.text_body.map(|t| t.to_string()),
             html_body: email.html_body.map(|h| h.to_string()),
@@ -424,6 +668,110 @@ impl EmailService {
                 "{provider} API error: {status} - {error_text}"
             )))
         }
+    }
+
+    /// Send the founder welcome email, once, right after a member verifies
+    /// their email. Comes "from Chris & Tom": the sender identity is overridden
+    /// to `WELCOME_FROM_EMAIL` / `WELCOME_FROM_NAME` (defaults
+    /// `chris@slatehub.com` / `Chris & Tom @SLATEHUB`), CC's
+    /// `WELCOME_CC_EMAIL` (default `tom@slatehub.com`), and sets a `Reply-To`
+    /// of `WELCOME_REPLY_TO` (default both founders) so replies reach Chris and
+    /// Tom even on a plain "Reply". Copy is built by [`welcome_email_bodies`].
+    ///
+    /// `invite_url` is the link recipients share to invite others; `profile_url`
+    /// is the member's own public page.
+    ///
+    /// # Errors
+    ///
+    /// Same failure modes as the other senders (see [`Self::send_email`]).
+    pub async fn send_welcome_email(
+        &self,
+        to_email: &str,
+        to_name: Option<&str>,
+        invite_url: &str,
+        profile_url: &str,
+    ) -> Result<()> {
+        // Resolve the founder cards from their live profiles (so the photo /
+        // name / title are always current) and absolutize their URLs for email.
+        let base = invite_url.trim_end_matches('/');
+        let founders: Vec<FounderTag> = crate::services::landing::founders()
+            .await
+            .iter()
+            .map(|f| {
+                let avatar_url = if f.avatar.starts_with("http") {
+                    f.avatar.clone()
+                } else {
+                    format!("{}{}", base, f.avatar)
+                };
+                FounderTag {
+                    name: f.name.clone(),
+                    title: f.title.clone(),
+                    avatar_url,
+                    profile_url: format!("{}/{}", base, f.username),
+                }
+            })
+            .collect();
+
+        // The founders' story video from the not-on-set landing page, as a
+        // YouTube thumbnail that links out (email can't play video inline).
+        let video_urls = crate::services::landing::find_campaign("not-on-set").map(|c| {
+            (
+                format!("https://img.youtube.com/vi/{}/hqdefault.jpg", c.video_id),
+                format!("https://www.youtube.com/watch?v={}", c.video_id),
+            )
+        });
+        let video = video_urls
+            .as_ref()
+            .map(|(thumbnail_url, watch_url)| WelcomeVideo {
+                thumbnail_url,
+                watch_url,
+            });
+
+        let (subject, text_body, html_body) = welcome_email_bodies(&WelcomeEmail {
+            recipient_name: to_name,
+            invite_url,
+            profile_url,
+            founders: &founders,
+            video,
+            instagram_url: "https://www.instagram.com/slatehubofficial",
+            instagram_handle: "@slatehubofficial",
+        });
+
+        let from_email = env::var("WELCOME_FROM_EMAIL")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "chris@slatehub.com".to_string());
+        let from_name = env::var("WELCOME_FROM_NAME")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "Chris & Tom @SLATEHUB".to_string());
+        let cc = env::var("WELCOME_CC_EMAIL")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .or_else(|| Some("tom@slatehub.com".to_string()));
+        // Reply-To both founders so any reply (even a plain "Reply", not just
+        // "Reply All") reaches Chris and Tom, not just the From address.
+        let reply_to = env::var("WELCOME_REPLY_TO")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "chris@slatehub.com, tom@slatehub.com".to_string());
+
+        self.dispatch(OutgoingEmail {
+            to_email,
+            to_name,
+            subject: &subject,
+            text_body: Some(&text_body),
+            html_body: Some(&html_body),
+            from_email: Some(&from_email),
+            from_name: Some(&from_name),
+            cc: cc.as_deref(),
+            reply_to: Some(&reply_to),
+        })
+        .await
     }
 
     /// Send the email-verification message: a confirm link

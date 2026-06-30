@@ -205,6 +205,19 @@ struct SignupQuery {
     role: Option<String>,
 }
 
+/// A [`SignupTemplate`] with freshly-minted anti-bot tokens (PoW challenge +
+/// form token) and the pixel id already set. EVERY render of the signup form —
+/// the GET page and the post-error re-render alike — must start from here.
+/// Re-rendering with a stale or empty `form_token` / `pow_challenge` blocks the
+/// user's resubmit with a 422, which is exactly the bug this prevents.
+fn fresh_signup_template(base: BaseContext) -> SignupTemplate {
+    let mut template = SignupTemplate::new(base);
+    template.pow_challenge = generate_pow_challenge();
+    template.form_token = generate_form_token();
+    template.pixel_id = crate::config::meta_pixel_id();
+    template
+}
+
 async fn signup_form(
     Query(query): Query<SignupQuery>,
     jar: CookieJar,
@@ -237,13 +250,10 @@ async fn signup_form(
         });
     }
 
-    let mut template = SignupTemplate::new(base);
+    let mut template = fresh_signup_template(base);
     template.prefill_email = query.email;
     template.redirect = query.redirect;
-    template.pow_challenge = generate_pow_challenge();
-    template.form_token = generate_form_token();
     template.campaign = campaign;
-    template.pixel_id = crate::config::meta_pixel_id();
 
     let html = template.render().map_err(|e| {
         error!("Failed to render signup template: {}", e);
@@ -367,13 +377,16 @@ async fn signup(
         Err(e) => {
             error!("Signup failed: {}", e);
 
-            // Re-render the signup form with error
+            // Re-render with the error AND fresh anti-bot tokens — without them
+            // the resubmit fails the form-token / PoW check (a 422). Keep the
+            // entered email and redirect so the user doesn't retype everything.
             let base = BaseContext::new().with_page("signup");
 
-            let mut template = SignupTemplate::new(base);
+            let mut template = fresh_signup_template(base);
             template.error = Some(e.to_string());
+            template.prefill_email = Some(email);
+            template.redirect = redirect;
             template.campaign = campaign;
-            template.pixel_id = crate::config::meta_pixel_id();
 
             let html = template.render().map_err(|e| {
                 error!("Failed to render signup template with error: {}", e);
@@ -543,6 +556,33 @@ async fn verify_email(
                 .map_err(|e| Error::Internal(format!("Failed to mark email as verified: {}", e)))?;
 
             info!("Email verified for user: {}", form.email);
+
+            // Welcome email from the founders. Fire-and-forget — a mail failure
+            // must never block the freshly-verified user's redirect. verify_code
+            // is single-use, so this fires once per account.
+            if let Ok(email_service) = EmailService::from_env() {
+                let to_email = person.email.clone();
+                let to_name = person.name.clone();
+                let app = crate::config::app_url();
+                let invite_url = app.clone();
+                let profile_url = format!("{}/{}", app, person.username);
+                tokio::spawn(async move {
+                    match email_service
+                        .send_welcome_email(
+                            &to_email,
+                            to_name.as_deref(),
+                            &invite_url,
+                            &profile_url,
+                        )
+                        .await
+                    {
+                        Ok(()) => info!(email = %to_email, "welcome email sent"),
+                        Err(e) => error!(email = %to_email, error = %e, "welcome email failed"),
+                    }
+                });
+            } else {
+                warn!("welcome email skipped: no email provider configured");
+            }
 
             // Process any pending invitations for this email
             let person_id = person.id.to_raw_string();
@@ -868,14 +908,24 @@ struct ResendVerificationForm {
 
 #[axum::debug_handler]
 async fn resend_verification(Form(form): Form<ResendVerificationForm>) -> Result<Response, Error> {
-    debug!("Processing resend verification request for: {}", form.email);
+    info!(email = %form.email, "resend verification requested");
 
-    // Find the person by email
-    if let Some(person) = Person::find_by_email(&form.email).await? {
-        if person.verification_status != "unverified" {
-            debug!("User {} already verified, skipping resend", form.email);
-        } else {
-            // Generate new verification code
+    // The user-facing response is intentionally identical in every branch
+    // below (anti-enumeration); these logs are the only way to see what
+    // actually happened, so they're at info/warn rather than debug.
+    match Person::find_by_email(&form.email).await? {
+        None => {
+            info!(email = %form.email, "resend: no matching account — nothing sent");
+        }
+        Some(person) if person.verification_status != "unverified" => {
+            info!(
+                email = %form.email,
+                status = %person.verification_status,
+                "resend: account is not unverified — nothing sent"
+            );
+        }
+        Some(person) => {
+            // Generate a fresh verification code, then dispatch the email.
             let verification_code = VerificationService::create_verification_code(
                 &person.id,
                 CodeType::EmailVerification,
@@ -883,27 +933,29 @@ async fn resend_verification(Form(form): Form<ResendVerificationForm>) -> Result
             .await
             .map_err(|e| Error::Internal(format!("Failed to create verification code: {}", e)))?;
 
-            // Send verification email
-            if let Ok(email_service) = EmailService::from_env() {
-                let email_clone = form.email.clone();
-                let person_name = person.name.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = email_service
-                        .send_verification_email(
-                            &email_clone,
-                            person_name.as_deref(),
-                            &verification_code,
-                        )
-                        .await
-                    {
-                        error!(
-                            "Failed to resend verification email to {}: {}",
-                            email_clone, e
-                        );
-                    } else {
-                        info!("Verification email resent to {}", email_clone);
-                    }
-                });
+            match EmailService::from_env() {
+                Ok(email_service) => {
+                    let email_clone = form.email.clone();
+                    let person_name = person.name.clone();
+                    info!(email = %email_clone, "resend: dispatching verification email");
+                    tokio::spawn(async move {
+                        if let Err(e) = email_service
+                            .send_verification_email(
+                                &email_clone,
+                                person_name.as_deref(),
+                                &verification_code,
+                            )
+                            .await
+                        {
+                            error!(email = %email_clone, error = %e, "resend: send failed");
+                        } else {
+                            info!(email = %email_clone, "resend: verification email sent");
+                        }
+                    });
+                }
+                Err(e) => {
+                    warn!(error = %e, "resend: no email provider configured — nothing sent");
+                }
             }
         }
     }
