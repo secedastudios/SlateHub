@@ -67,6 +67,9 @@ pub async fn auth_middleware(
     // Set when a valid token resolves to a deleted account: we clear the dead
     // cookie on the way out so the browser stops re-sending it every request.
     let mut clear_stale_session = false;
+    // Set when a remembered session is due its sliding refresh: a fresh 30-day
+    // token to install via Set-Cookie on the way out.
+    let mut refreshed_session: Option<String> = None;
 
     // Check Authorization header first (for API clients like Chrome extension),
     // then fall back to auth_token cookie
@@ -76,6 +79,7 @@ pub async fn auth_middleware(
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
         .map(|s| s.to_string());
+    let token_is_from_cookie = token_from_header.is_none();
 
     if let Some(token) = token_from_header
         .as_deref()
@@ -99,6 +103,38 @@ pub async fn auth_middleware(
                             "Auth middleware: Successfully authenticated user: '{}' with id: '{}' and email: '{}'",
                             user.username, user.id, user.email
                         );
+
+                        // Sliding session: an active "remember me" login gets a
+                        // fresh 30-day token about once a day, so it only ever
+                        // expires after 30 days of *inactivity*. Cookie sessions
+                        // only — Bearer-header API clients manage their own
+                        // tokens and shouldn't receive Set-Cookie.
+                        if token_is_from_cookie {
+                            let now = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .map(|d| d.as_secs())
+                                .unwrap_or(0);
+                            if auth::should_refresh_session(&claims, now) {
+                                match auth::create_session_jwt(
+                                    &claims.sub,
+                                    &user.username,
+                                    &user.email,
+                                    true,
+                                ) {
+                                    Ok(fresh) => {
+                                        debug!(
+                                            "Auth middleware: sliding refresh for '{}'",
+                                            user.username
+                                        );
+                                        refreshed_session = Some(fresh);
+                                    }
+                                    Err(e) => {
+                                        warn!("Auth middleware: session refresh failed: {}", e);
+                                    }
+                                }
+                            }
+                        }
+
                         // Insert user into request extensions so handlers can access it
                         request.extensions_mut().insert(Arc::new(user));
                         debug!("Auth middleware: User inserted into request extensions");
@@ -144,7 +180,31 @@ pub async fn auth_middleware(
     if clear_stale_session && let Ok(value) = HeaderValue::from_str(&stale_session_clear_cookie()) {
         response.headers_mut().append(header::SET_COOKIE, value);
     }
+    if let Some(token) = refreshed_session
+        && let Ok(value) = HeaderValue::from_str(&remembered_session_cookie(token))
+    {
+        response.headers_mut().append(header::SET_COOKIE, value);
+    }
     Ok(response)
+}
+
+/// `Set-Cookie` value installing a refreshed "remember me" token: same
+/// attributes as the login cookie, with `Max-Age` matching the 30-day JWT so
+/// cookie and token expire together.
+fn remembered_session_cookie(token: String) -> String {
+    let secure = std::env::var("COOKIE_SECURE")
+        .map(|v| v != "false")
+        .unwrap_or(true);
+    let cookie = cookie::Cookie::build(("auth_token", token))
+        .path("/")
+        .same_site(cookie::SameSite::Lax)
+        .http_only(true)
+        .secure(secure)
+        .max_age(cookie::time::Duration::seconds(
+            auth::session_duration(true) as i64,
+        ))
+        .build();
+    cookie.to_string()
 }
 
 /// `Set-Cookie` value that expires the `auth_token` cookie (matching the

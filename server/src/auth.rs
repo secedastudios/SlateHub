@@ -28,6 +28,11 @@ pub struct Claims {
     pub iat: u64,
     /// Expiration (Unix timestamp)
     pub exp: u64,
+    /// True for "remember me" sessions — these slide: the auth middleware
+    /// re-issues the token on activity (see [`should_refresh_session`]).
+    /// Defaults to false so tokens minted before this claim existed decode.
+    #[serde(default)]
+    pub remember: bool,
 }
 
 /// Configuration for password hashing (matches SurrealDB's settings)
@@ -127,10 +132,81 @@ impl JwtConfig {
             .parse()
             .unwrap_or(43200)
     }
+
+    /// "Remember me" token validity duration in seconds (30 days by default)
+    pub fn remember_duration() -> u64 {
+        std::env::var("JWT_REMEMBER_DURATION")
+            .unwrap_or_else(|_| "2592000".to_string())
+            .parse()
+            .unwrap_or(2_592_000)
+    }
 }
 
-/// Create a JWT token for a user
+/// Session length in seconds for a login: the standard 12-hour token, or the
+/// 30-day "remember me" token when the login form's checkbox was ticked. The
+/// same value sizes both the JWT `exp` claim and the cookie `Max-Age`, so the
+/// two never disagree.
+pub fn session_duration(remember: bool) -> u64 {
+    if remember {
+        JwtConfig::remember_duration()
+    } else {
+        JwtConfig::token_duration()
+    }
+}
+
+/// How old (in seconds) a remembered token must be before the auth middleware
+/// re-issues it. Throttles the sliding refresh to roughly once a day instead
+/// of minting a token on every request.
+pub const SESSION_REFRESH_AFTER_SECS: u64 = 86_400;
+
+/// Whether the auth middleware should re-issue this session's token now:
+/// only "remember me" sessions slide, and only once the token is at least
+/// [`SESSION_REFRESH_AFTER_SECS`] old. Pure so the policy is unit-testable.
+pub fn should_refresh_session(claims: &Claims, now: u64) -> bool {
+    claims.remember && now.saturating_sub(claims.iat) >= SESSION_REFRESH_AFTER_SECS
+}
+
+/// Create a JWT token for a user with the standard 12-hour validity
 pub fn create_jwt(user_id: &str, username: &str, email: &str) -> Result<String> {
+    build_jwt(user_id, username, email, JwtConfig::token_duration(), false)
+}
+
+/// Create a login-session JWT: 12 hours, or 30 days with the `remember` claim
+/// set when the user ticked "remember me" (remembered tokens are re-issued on
+/// activity by the auth middleware).
+pub fn create_session_jwt(
+    user_id: &str,
+    username: &str,
+    email: &str,
+    remember: bool,
+) -> Result<String> {
+    build_jwt(
+        user_id,
+        username,
+        email,
+        session_duration(remember),
+        remember,
+    )
+}
+
+/// Create a JWT token for a user that expires `duration_secs` from now
+/// (non-remembered; the session does not slide).
+pub fn create_jwt_with_duration(
+    user_id: &str,
+    username: &str,
+    email: &str,
+    duration_secs: u64,
+) -> Result<String> {
+    build_jwt(user_id, username, email, duration_secs, false)
+}
+
+fn build_jwt(
+    user_id: &str,
+    username: &str,
+    email: &str,
+    duration_secs: u64,
+    remember: bool,
+) -> Result<String> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| Error::Internal(format!("System time error: {}", e)))?
@@ -141,7 +217,8 @@ pub fn create_jwt(user_id: &str, username: &str, email: &str) -> Result<String> 
         username: username.to_string(),
         email: email.to_string(),
         iat: now,
-        exp: now + JwtConfig::token_duration(),
+        exp: now + duration_secs,
+        remember,
     };
 
     let header = Header::new(JwtAlgorithm::HS256);

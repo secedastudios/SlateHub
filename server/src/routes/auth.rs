@@ -425,19 +425,31 @@ async fn login_form(
 async fn login(Form(form): Form<LoginUser>) -> Result<Response, Error> {
     debug!("Processing login for: {}", form.email);
 
+    // "Remember me": 30-day session instead of the standard 12 hours.
+    let remember = form.remember.is_some();
+
     // Try to authenticate the user (signin accepts username or email as identifier)
-    match Person::signin(form.email.clone(), form.password).await {
+    match Person::signin(form.email.clone(), form.password, remember).await {
         Ok((token, person_id)) => {
-            info!("User logged in successfully");
+            info!(remember, "User logged in successfully");
             crate::services::activity::log_activity(Some(&person_id), "login", "/login");
 
-            // Create authentication cookie with the JWT token
-            let cookie = Cookie::build(("auth_token", token))
+            // Create authentication cookie with the JWT token. A remembered
+            // login gets a persistent cookie whose Max-Age matches the JWT
+            // expiry; otherwise it stays a browser-session cookie.
+            let mut builder = Cookie::build(("auth_token", token))
                 .path("/")
                 .same_site(SameSite::Lax)
                 .http_only(true)
-                .secure(env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false")
-                .build();
+                .secure(
+                    env::var("COOKIE_SECURE").unwrap_or_else(|_| "true".to_string()) != "false",
+                );
+            if remember {
+                builder = builder.max_age(cookie::time::Duration::seconds(
+                    crate::auth::session_duration(true) as i64,
+                ));
+            }
+            let cookie = builder.build();
 
             // Redirect to profile or the originally requested page
             let redirect_to = form.redirect_to.unwrap_or_else(|| "/profile".to_string());

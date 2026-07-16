@@ -11,6 +11,9 @@
 .admin-table-compact .admin-actions-cell { display: flex; gap: 0.25rem; flex-wrap: nowrap; }
 .admin-table-compact .admin-select { font-size: 0.72rem; padding: 0.15rem 0.25rem; }
 .admin-table-compact .admin-btn-sm, .admin-table-compact .admin-btn-danger-sm { font-size: 0.7rem; padding: 0.2rem 0.4rem; white-space: nowrap; }
+.admin-table-compact .admin-cell-code { white-space: nowrap; }
+.admin-table-compact .admin-cell-code code { font-size: 0.8rem; letter-spacing: 0.08em; user-select: all; }
+.admin-table-compact .admin-cell-code form { display: inline; }
 </style>
 {% endblock %}
 {% block content %}
@@ -46,6 +49,7 @@
                     <th>User</th>
                     <th>Email</th>
                     <th>Status</th>
+                    <th>Code</th>
                     <th>IP</th>
                     <th>Joined</th>
                     <th>Actions</th>
@@ -65,6 +69,20 @@
                                 <option value="identity"{% if person.verification_status == "identity" %} selected{% endif %}>identity</option>
                             </select>
                         </form>
+                    </td>
+                    <td class="admin-cell-code">
+                        {% match person.verification_code %}
+                            {% when Some with (code) %}
+                            <code>{{ code }}</code>
+                            <button type="button" class="admin-btn-sm" data-code="{{ code }}" onclick="var b=this;navigator.clipboard.writeText(b.dataset.code).then(function(){b.textContent='✓';setTimeout(function(){b.textContent='Copy';},1200);});" title="Copy code to clipboard">Copy</button>
+                            {% when None %}
+                            <span>-</span>
+                        {% endmatch %}
+                        {% if person.verification_status == "unverified" %}
+                        <form method="post" action="/admin/people/{{ person.id }}/resend-verification" class="admin-inline-form">
+                            <button type="submit" class="admin-btn-sm" title="Issue a fresh code and email it to {{ person.email }}">Resend</button>
+                        </form>
+                        {% endif %}
                     </td>
                     <td class="admin-cell-ip">{{ person.signup_ip.as_deref().unwrap_or("-") }}</td>
                     <td class="admin-cell-nowrap">{{ person.created_at }}</td>

@@ -1022,7 +1022,11 @@ impl Person {
     /// # Returns
     /// A `Result` containing the JWT token string if successful.
     /// Returns `(jwt_token, person_id)` on success.
-    pub async fn signin(identifier: String, password: String) -> Result<(String, String)> {
+    pub async fn signin(
+        identifier: String,
+        password: String,
+        remember: bool,
+    ) -> Result<(String, String)> {
         // Find the user by username or email, including the password field
         // Note: password field must be explicitly requested in SurrealDB
         let sql = "SELECT *, password OMIT embedding, embedding_text FROM person WHERE username = string::lowercase($identifier) OR email = string::lowercase($identifier)";
@@ -1063,12 +1067,13 @@ impl Person {
             person_with_password.username
         );
 
-        // Generate JWT token
+        // Generate JWT token (12 hours, or a sliding 30 days for "remember me")
         let person_id = person_with_password.id.to_raw_string();
-        let token = auth::create_jwt(
+        let token = auth::create_session_jwt(
             &person_id,
             &person_with_password.username,
             &person_with_password.email,
+            remember,
         )?;
 
         Ok((token, person_id))
@@ -1407,4 +1412,8 @@ pub struct LoginUser {
     pub email: String,
     pub password: String,
     pub redirect_to: Option<String>,
+    /// "Remember me" checkbox — present (`"on"`) when ticked, absent otherwise.
+    /// Ticked = 30-day session instead of the standard 12 hours.
+    #[serde(default)]
+    pub remember: Option<String>,
 }

@@ -164,6 +164,9 @@ struct PersonRow {
     email: String,
     is_admin: bool,
     verification_status: String,
+    /// Active (unused, unexpired) email-verification code, shown so an admin
+    /// can read it out to a user or copy it during support.
+    verification_code: Option<String>,
     signup_ip: Option<String>,
     created_at: String,
 }
@@ -311,6 +314,10 @@ pub fn router() -> Router {
             post(admin_reset_password),
         )
         .route("/admin/people/{id}/verification", post(update_verification))
+        .route(
+            "/admin/people/{id}/resend-verification",
+            post(admin_resend_verification),
+        )
         .route("/admin/productions", get(list_productions))
         .route("/admin/productions/{id}/delete", post(delete_production))
         .route("/admin/organizations", get(list_organizations))
@@ -563,19 +570,45 @@ async fn list_people(
             .unwrap_or_default()
     };
 
+    // Active email-verification codes (unused, unexpired), keyed by person
+    // key, so the list can show the code an unverified user is waiting on.
+    #[derive(Debug, Deserialize, surrealdb::types::SurrealValue)]
+    struct CodeRow {
+        person_id: surrealdb::types::RecordId,
+        code: String,
+    }
+    let codes: Vec<CodeRow> = DB
+        .query(
+            "SELECT person_id, code FROM verification_codes \
+             WHERE code_type = 'email_verification' AND used = false \
+               AND expires_at > time::now()",
+        )
+        .await
+        .ok()
+        .and_then(|mut r| r.take(0).ok())
+        .unwrap_or_default();
+    let code_by_person: std::collections::HashMap<String, String> = codes
+        .into_iter()
+        .map(|c| (c.person_id.key_string(), c.code))
+        .collect();
+
     let people: Vec<PersonRow> = people
         .into_iter()
-        .map(|p| PersonRow {
-            id: p.id.key_string(),
-            username: p.username,
-            email: p.email,
-            is_admin: p.is_admin.unwrap_or(false),
-            verification_status: p.verification_status,
-            signup_ip: p.signup_ip,
-            created_at: p
-                .created_at
-                .map(|d| d.format("%b %d, %Y").to_string())
-                .unwrap_or_default(),
+        .map(|p| {
+            let key = p.id.key_string();
+            PersonRow {
+                verification_code: code_by_person.get(&key).cloned(),
+                id: key,
+                username: p.username,
+                email: p.email,
+                is_admin: p.is_admin.unwrap_or(false),
+                verification_status: p.verification_status,
+                signup_ip: p.signup_ip,
+                created_at: p
+                    .created_at
+                    .map(|d| d.format("%b %d, %Y").to_string())
+                    .unwrap_or_default(),
+            }
         })
         .collect();
 
@@ -721,6 +754,63 @@ async fn update_verification(
         Err(e) => {
             error!("Verification update statement error: {}", e);
             return Err(Error::Database(e.to_string()));
+        }
+    }
+
+    Ok(Redirect::to("/admin/people"))
+}
+
+/// Admin support action: issue a fresh email-verification code for an
+/// unverified account and email it to them. Replaces any outstanding code
+/// (create_verification_code deletes unused ones), so the people list's Code
+/// column shows the new code after the redirect — ready to copy or read out.
+async fn admin_resend_verification(
+    AuthenticatedUser(user): AuthenticatedUser,
+    Path(id): Path<String>,
+) -> Result<Redirect, Error> {
+    require_admin(&user).await?;
+
+    let rid = surrealdb::types::RecordId::new("person", id.as_str());
+    let person = crate::models::person::Person::find_by_record_id(&rid)
+        .await?
+        .ok_or(Error::NotFound)?;
+
+    if person.verification_status != "unverified" {
+        info!(
+            "Admin {} requested verification resend for {}, but account is '{}' — nothing sent",
+            user.username, person.username, person.verification_status
+        );
+        return Ok(Redirect::to("/admin/people"));
+    }
+
+    let code = crate::services::verification::VerificationService::create_verification_code(
+        &person.id,
+        crate::services::verification::CodeType::EmailVerification,
+    )
+    .await
+    .map_err(|e| Error::Internal(format!("Failed to create verification code: {}", e)))?;
+
+    match crate::services::email::EmailService::from_env() {
+        Ok(svc) => {
+            let to_email = person.email.clone();
+            let to_name = person.name.clone();
+            info!(
+                "Admin {} resending verification code to {}",
+                user.username, to_email
+            );
+            tokio::spawn(async move {
+                if let Err(e) = svc
+                    .send_verification_email(&to_email, to_name.as_deref(), &code)
+                    .await
+                {
+                    error!(email = %to_email, error = %e, "admin resend: send failed");
+                } else {
+                    info!(email = %to_email, "admin resend: verification email sent");
+                }
+            });
+        }
+        Err(e) => {
+            warn!(error = %e, "admin resend: no email provider configured — code created but not emailed");
         }
     }
 
