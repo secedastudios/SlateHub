@@ -224,3 +224,58 @@
     padding: 3rem 1rem;
     color: var(--text-muted, #888);
 }
+
+/* ----------------------------------------------------------------------
+   Dark-theme overrides for global element rules.
+
+   main.css styles bare elements (input[type=…], select, textarea, code,
+   pre, table, thead, tbody tr:hover) with LIGHT bone surfaces for the
+   public pages, and those rules out-rank this file's single-class rules
+   on specificity — e.g. input[type="text"] (0,1,1) beats
+   .admin-search-input (0,1,0). That's what left light patches (search
+   bar, verification-code chip, table header, row hover) on the dark
+   admin UI. Everything here is scoped under .admin-page with two-class
+   specificity so it wins without !important.
+   ---------------------------------------------------------------------- */
+.admin-page input[type="text"],
+.admin-page input[type="search"],
+.admin-page input[type="email"],
+.admin-page input[type="number"],
+.admin-page input[type="password"],
+.admin-page textarea,
+.admin-page select {
+    background-color: var(--surface-color, #1a1a1a);
+    color: var(--text-primary, #eee);
+    border-color: var(--border-color, #333);
+}
+
+/* The global select arrow is drawn with a dark stroke for light surfaces;
+   redraw it light so it stays visible on the dark control. */
+.admin-page select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg width='14' height='8' viewBox='0 0 14 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M1 1L7 7L13 1' stroke='%23aaaaaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
+}
+
+.admin-page input::placeholder,
+.admin-page textarea::placeholder {
+    color: var(--text-muted, #888);
+}
+
+.admin-page code,
+.admin-page pre {
+    background-color: var(--surface-color, #1a1a1a);
+    color: var(--text-primary, #eee);
+    border: 1px solid var(--border-color, #333);
+}
+
+.admin-page table {
+    background: transparent;
+    box-shadow: none;
+}
+
+.admin-page thead {
+    background-color: transparent;
+}
+
+.admin-page tbody tr:hover {
+    background-color: rgba(214, 216, 202, 0.06);
+}
