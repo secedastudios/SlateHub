@@ -249,11 +249,11 @@
     border-color: var(--border-color, #333);
 }
 
-/* The global select arrow is drawn with a dark stroke for light surfaces;
-   redraw it light so it stays visible on the dark control. */
-.admin-page select {
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg width='14' height='8' viewBox='0 0 14 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M1 1L7 7L13 1' stroke='%23aaaaaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
-}
+/* No arrow override for selects: .admin-select's `background` SHORTHAND
+   already resets the global chevron image to none (its intended, arrowless
+   look). Re-adding a background-image here at higher specificity tiles the
+   chevron across the control, because the shorthand also reset
+   background-repeat to `repeat` — that was the "squiggly lines" bug. */
 
 .admin-page input::placeholder,
 .admin-page textarea::placeholder {
