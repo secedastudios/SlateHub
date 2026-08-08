@@ -40,6 +40,44 @@ use surrealdb::types::RecordId;
 
 const PAGE_SIZE: usize = 20;
 
+/// Browse ordering for `/people` when no search filter is active.
+///
+/// Tiers, best first: identity-verified, then has a profile photo, then has
+/// real profile text (headline or bio) rather than just a name. Booleans sort
+/// `false < true`, so `DESC` puts each "yes" bucket ahead of its "no" bucket,
+/// and `created_at DESC` keeps newest-first within every bucket — the previous
+/// behaviour, now applied inside tiers instead of across the whole list.
+///
+/// Profiles with no name, headline or bio are excluded by the WHERE clause;
+/// they would render as an empty card. That matches what the handler already
+/// filtered out in Rust further down, so no one who is visible today
+/// disappears.
+///
+/// Two things to be careful of when editing:
+///
+/// - This constant is shared by `people()` (first page) and the infinite-scroll
+///   SSE feed. They MUST issue the identical query — if the two orderings ever
+///   diverge, paging duplicates some people and silently skips others. It used
+///   to be duplicated inline in both places, which is why it now lives here.
+/// - SurrealDB rejects `ORDER BY` on a field that is not in the projection
+///   ("Missing order idiom"). `created_at` is only available because of
+///   `SELECT *` — if that is ever narrowed to just the card fields, add
+///   `created_at` back explicitly.
+const PEOPLE_BROWSE_QUERY: &str = r#"
+    SELECT *,
+        (verification_status = 'identity') AS _vord,
+        (profile.avatar IS NOT NONE) AS _pord,
+        (profile.headline IS NOT NONE OR profile.bio IS NOT NONE) AS _tord
+    OMIT embedding, embedding_text FROM person
+    WHERE verification_status != 'unverified'
+      AND (profile.name IS NOT NONE
+       OR profile.headline IS NOT NONE
+       OR profile.bio IS NOT NONE)
+    ORDER BY _vord DESC, _pord DESC, _tord DESC, created_at DESC
+    LIMIT $limit
+    START $offset
+"#;
+
 /// Routes for the `/people` directory, its infinite-scroll SSE feed, and
 /// the catch-all `/{username}` public profile page (registered last).
 pub fn router() -> Router {
@@ -439,18 +477,8 @@ async fn people(
         log_search(filter_text, "web", "people", Some(results.len()));
         (vec![], Some(results))
     } else {
-        let query = r#"
-            SELECT *, verification_status = 'identity' AS _vord OMIT embedding, embedding_text FROM person
-            WHERE verification_status != 'unverified'
-              AND (profile.name IS NOT NULL
-               OR profile.headline IS NOT NULL
-               OR profile.bio IS NOT NULL)
-            ORDER BY _vord DESC, created_at DESC
-            LIMIT $limit
-            START $offset
-        "#;
         let persons = match DB
-            .query(query)
+            .query(PEOPLE_BROWSE_QUERY)
             .bind(("limit", PAGE_SIZE as i64 + 1))
             .bind(("offset", 0i64))
             .await
@@ -488,6 +516,9 @@ async fn people(
             .into_iter()
             .take(PAGE_SIZE)
             .filter_map(|person| {
+                // Belt and braces: PEOPLE_BROWSE_QUERY's WHERE clause already
+                // excludes these rows. Kept because this arm still has to cope
+                // with `profile` being absent entirely.
                 if let Some(profile) = person.profile {
                     if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some()
                     {
@@ -631,18 +662,8 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
 
         (vec![], Some(results))
     } else {
-        let query = r#"
-            SELECT *, verification_status = 'identity' AS _vord OMIT embedding, embedding_text FROM person
-            WHERE verification_status != 'unverified'
-              AND (profile.name IS NOT NULL
-               OR profile.headline IS NOT NULL
-               OR profile.bio IS NOT NULL)
-            ORDER BY _vord DESC, created_at DESC
-            LIMIT $limit
-            START $offset
-        "#;
         let persons: Vec<Person> = match DB
-            .query(query)
+            .query(PEOPLE_BROWSE_QUERY)
             .bind(("limit", PAGE_SIZE as i64 + 1))
             .bind(("offset", offset as i64))
             .await
@@ -670,6 +691,9 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
             .into_iter()
             .take(PAGE_SIZE)
             .filter_map(|person| {
+                // Belt and braces: PEOPLE_BROWSE_QUERY's WHERE clause already
+                // excludes these rows. Kept because this arm still has to cope
+                // with `profile` being absent entirely.
                 if let Some(profile) = person.profile {
                     if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some()
                     {
