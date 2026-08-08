@@ -20,6 +20,14 @@
 }
 </script>
 {% endblock %}
+{% block head %}
+<!-- Scroll reveal for [data-reveal] elements (Why SlateHub, What's Next).
+     Loaded here, synchronously, for two reasons: it arms the CSS before the
+     body paints so nothing flashes in and back out, and it keeps the arming
+     and the revealing in a single file — if the script fails to load, nothing
+     is ever hidden. Do not switch this to defer or move it to the foot. -->
+<script src="/static/js/scroll-reveal.js?v={{ version }}"></script>
+{% endblock %}
 {% block content %}
 <section id="home-main" data-component="homepage">
 
@@ -37,7 +45,7 @@
             {% endif %}
         </div>
         <div id="hero-media" data-role="hero-media">
-            <img src="/static/images/hero-search.jpg" alt="Filmmaker operating cinema camera on set" id="hero-image" loading="eager" />
+            <img src="/static/images/Collab1.jpg" alt="Director and crew reviewing a shot on a monitor during a location shoot" id="hero-image" loading="eager" />
             <div id="hero-search-overlay" data-component="hero-search">
                 <p id="hero-search-heading" data-role="search-heading">Describe who you need. We'll find them.</p>
                 <form id="form-hero-search" data-component="search-form" action="/search" method="GET">
@@ -56,39 +64,39 @@
 
     <!-- ============ WHY SLATEHUB ============ -->
     <section id="section-why" data-section="why-slatehub">
-        <div id="why-intro" data-role="section-intro">
+        <div id="why-intro" data-role="section-intro" data-reveal>
             <span id="why-tag" data-role="section-tag">Why SlateHub?</span>
             <h2 id="heading-why">Built Different. On Purpose.</h2>
         </div>
         <div id="why-features" data-role="features-grid">
-            <article id="feature-free" data-component="feature-card">
+            <article id="feature-free" data-component="feature-card" data-reveal>
                 <img src="/static/images/free-forever.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
                 <h3 id="heading-feature-free">No Subscriptions. No Ads. No Catch.</h3>
                 <p>Other platforms charge you $25/month just to be visible. We think your talent shouldn't have a price tag. SlateHub is free&mdash;and stays that way.</p>
             </article>
-            <article id="feature-one-profile" data-component="feature-card">
+            <article id="feature-one-profile" data-component="feature-card" data-reveal>
                 <img src="/static/images/global-inclusive.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
                 <h3 id="heading-feature-one-profile">One Profile. Every Screen.</h3>
                 <p>Film credits, YouTube collabs, branded campaigns, podcast appearances&mdash;stop splitting your career across five platforms. Build it all in one place.</p>
             </article>
-            <article id="feature-found" data-component="feature-card">
+            <article id="feature-found" data-component="feature-card" data-reveal>
                 <img src="/static/images/smart-matches.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
                 <h3 id="heading-feature-found">Get Found by the Right People</h3>
                 <p>Describe yourself once. Our search understands context&mdash;so when someone needs a &ldquo;bilingual DP in Atlanta,&rdquo; you show up. No keyword games.</p>
             </article>
-            <article id="feature-verified" data-component="feature-card">
+            <article id="feature-verified" data-component="feature-card" data-reveal>
                 <img src="/static/images/trusted-community.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
                 <h3 id="heading-feature-verified">Verified Credits. Real People.</h3>
                 <p>Verified profiles mean no fake casting calls, no spam, no ghost accounts. When you connect here, you know who you're talking to.</p>
             </article>
-            <article id="feature-open" data-component="feature-card">
+            <article id="feature-open" data-component="feature-card" data-reveal>
                 <img src="/static/images/ai-powered.png" alt="" width="40" height="40" aria-hidden="true" data-role="feature-icon" />
                 <h3 id="heading-feature-open">Open Source. No Hidden Rankings.</h3>
                 <p>Nobody pays to rank higher. Nobody's visibility is for sale. See exactly how the platform works&mdash;it's open source, built in the open.</p>
             </article>
         </div>
         {% if user.is_none() %}
-        <nav id="why-actions" data-role="section-actions" aria-label="Join SlateHub">
+        <nav id="why-actions" data-role="section-actions" aria-label="Join SlateHub" data-reveal>
             <a href="/signup" id="link-why-signup" role="button" data-type="primary">Get Started&mdash;It's Free</a>
         </nav>
         {% endif %}
@@ -134,26 +142,26 @@
 
     <!-- ============ ORGANIZATIONS ============ -->
     <section id="section-orgs" data-section="organizations">
-        <div id="orgs-intro" data-role="section-intro">
+        <div id="orgs-intro" data-role="section-intro" data-reveal>
             <span id="orgs-tag" data-role="section-tag">Organizations</span>
             <h2 id="heading-orgs">A Home for Your Whole Community&mdash;Not Just Individuals</h2>
             <p id="orgs-intro-text" data-role="intro-description">Film schools, local film communities, production companies, collectives&mdash;SlateHub gives organizations the tools to rally their people in one place.</p>
         </div>
         <div id="orgs-grid" data-role="features-grid">
-            <article id="org-schools" data-component="feature-card">
+            <article id="org-schools" data-component="feature-card" data-reveal>
                 <h3>Film Schools &amp; Programs</h3>
                 <p>Give your students a professional profile from day one. Showcase your alumni network and connect graduates with real productions.</p>
             </article>
-            <article id="org-communities" data-component="feature-card">
+            <article id="org-communities" data-component="feature-card" data-reveal>
                 <h3>Film Communities &amp; Collectives</h3>
                 <p>Unite your local scene. Manage members, share opportunities, and make your community discoverable to productions shooting nearby.</p>
             </article>
-            <article id="org-companies" data-component="feature-card">
+            <article id="org-companies" data-component="feature-card" data-reveal>
                 <h3>Production Companies &amp; Studios</h3>
                 <p>Build your company profile, list your team, and post jobs&mdash;all from one hub your whole roster can link back to.</p>
             </article>
         </div>
-        <nav id="orgs-actions" data-role="section-actions" aria-label="Browse organizations">
+        <nav id="orgs-actions" data-role="section-actions" aria-label="Browse organizations" data-reveal>
             <a href="/orgs" id="link-orgs-create" role="button" data-type="primary">Browse Organizations</a>
         </nav>
     </section>
@@ -168,21 +176,51 @@
                 <p>We look to support the operational costs by offering paid production management tools&mdash;scheduling, budgeting, call sheets, and collaboration features built for productions with real budgets. The people who can afford to pay are the ones running funded projects, not the actors and crew trying to get hired.</p>
                 <p>Your profile and visibility will never be held behind a paywall. We are committed to community supported tools and <a href="https://github.com/secedastudios/slatehub" target="_blank" rel="noopener noreferrer">open&#8209;source&nbsp;code</a>.</p>
             </div>
+            <!-- youtube-nocookie so a homepage visit does not drop YouTube
+                 tracking cookies on people who never press play; lazy so the
+                 player costs nothing until it is scrolled near. Sits after the
+                 copy in the DOM so it stacks below it on mobile. -->
+            <figure id="business-model-video" data-role="section-media">
+                <iframe
+                    src="https://www.youtube-nocookie.com/embed/otrrrEH8wUw?rel=0&amp;modestbranding=1&amp;playsinline=1"
+                    title="Why SlateHub is free"
+                    loading="lazy"
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowfullscreen
+                ></iframe>
+            </figure>
         </div>
     </section>
 
     <!-- ============ ROADMAP ============ -->
     <section id="section-roadmap" data-section="whats-next">
-        <div id="roadmap-intro" data-role="section-intro">
+        <div id="roadmap-intro" data-role="section-intro" data-reveal>
             <span id="roadmap-tag" data-role="section-tag">What's Next?</span>
             <h2 id="heading-roadmap">From Directory to Production Powerhouse</h2>
         </div>
-        <div id="roadmap-grid" data-role="phases-grid">
+        <div id="roadmap-grid" data-role="phases-grid" data-reveal>
             <article id="phase-01" data-component="phase-card">
+                <!-- Clapperboard: what this phase already delivers. The green
+                     dot on the label already conveys "live", so the icon
+                     describes the capability instead of repeating the status. -->
+                <svg xmlns="http://www.w3.org/2000/svg" data-role="phase-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="2.5" y="4" width="19" height="4.5" rx="1"/>
+                    <path d="M2.5 8.5h19v10a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z"/>
+                    <path d="M7.5 4 5 8.5M13 4l-2.5 4.5M18.5 4 16 8.5"/>
+                </svg>
                 <h3 data-role="phase-label">Now Live</h3>
                 <p>A completely free talent directory, job board, and production hub&mdash;with search that actually understands what you're looking for.</p>
             </article>
             <article id="phase-02" data-component="phase-card">
+                <!-- Call sheet: mirrors the copy below it — scheduling, call
+                     sheets, budgeting. -->
+                <svg xmlns="http://www.w3.org/2000/svg" data-role="phase-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4.5" width="18" height="16" rx="2"/>
+                    <path d="M3 9.5h18"/>
+                    <path d="M8 2.5v4M16 2.5v4"/>
+                    <path d="M7 13.5h6M7 17h4"/>
+                </svg>
                 <h3 data-role="phase-label">Coming Soon</h3>
                 <p>Full production management&mdash;scheduling, call sheets, budgeting, and collaboration tools&mdash;so you can run your entire production from one place.</p>
             </article>

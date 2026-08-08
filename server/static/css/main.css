@@ -345,6 +345,20 @@ article {
     margin-left: var(--space-lg);
     position: relative;
     overflow: hidden;
+    transition:
+        opacity var(--transition-base),
+        color var(--transition-base),
+        letter-spacing var(--transition-base);
+}
+
+/* The slogan wakes up when the brand lockup is hovered — triggered from
+   #nav-brand rather than the span itself, so it responds to the logo too and
+   reads as one piece of branding instead of a stray hoverable label. */
+#nav-brand:hover #brand-slogan,
+#nav-brand:focus-within #brand-slogan {
+    opacity: 1;
+    color: var(--color-accent);
+    letter-spacing: 0.04em;
 }
 
 /* Nav Brand — Logo and Slogan */
@@ -1542,22 +1556,97 @@ dd {
     margin-bottom: 0;
 }
 
+/* Horizontal inset for every section BELOW the hero. The 2rem base gutter plus
+   7.5% of the viewport per side makes that content read ~15% narrower, while the
+   sections stay full-bleed so their background colours and artwork still reach
+   both edges. Tune this single value to change how wide the page feels.
+   The hero is deliberately excluded — it keeps its flush right column, and its
+   own left inset comes from #hero-content below. Percentage rather than vw so a
+   visible scrollbar can't push the page into horizontal overflow. */
+#home-main {
+    --home-section-inset: calc(var(--space-xl) + 7.5%);
+}
+
 /* Hero — Two-column split layout */
 #section-hero {
     display: grid;
-    grid-template-columns: 1fr 1.2fr;
+    /* minmax(0, …) rather than a bare 1fr: a plain fr track refuses to shrink
+       below its content's min-content width, so an over-wide item in the left
+       column would push the whole grid past the viewport and scroll the page
+       sideways. This lets the tracks actually shrink. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
     min-height: calc(100dvh - 65px);
     margin-bottom: 0;
     overflow: hidden;
 }
 
-/* Hero Content — Left column */
+/* Hero Content — Left column.
+   The left inset is sized to line the headline up with the sections below,
+   so the page has one consistent left edge instead of the hero starting
+   tight against the browser frame.
+   It uses vw, not the % that --home-section-inset uses: this element's
+   containing block is its own grid column (~45% of the page), so a
+   percentage here would resolve against that and land far short of the
+   content below. Dial the 7.5vw to taste — it is the only value that moves
+   this block, and the right column is untouched by it. */
 #hero-content {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: var(--space-4xl) 0 var(--space-4xl) var(--space-xl);
+    /* Left inset tapers off on narrower screens. The 5.5vw cap sits a little
+       left of the sections below (which use 7.5%) — deliberate: aligning them
+       exactly pushed the hero copy further right than it wanted to sit.
+       Below ~1240px it winds down to zero at 900px, because this column is
+       only ~45% of the viewport and a fixed inset squeezed the CTA row until
+       it overflowed. The two halves of the clamp cross over smoothly, so
+       there is no jump while resizing. */
+    padding: var(--space-4xl) 0 var(--space-4xl)
+        calc(var(--space-xl) + clamp(0px, (100vw - 900px) * 0.2, 5.5vw));
     gap: var(--space-xl);
+    /* Warm lift that builds toward the right edge, so this column resolves
+       into the photograph instead of butting up against it. Held off until
+       40% so the copy on the left stays on flat dark. Painted on the element
+       itself, which means it sits *under* the ::before texture below — the
+       two layers read as one graded surface.
+       color-mix keeps this derived from the accent token rather than a
+       hardcoded value (the older rgba() gradients elsewhere in this file
+       predate the token rule). */
+    background-image: linear-gradient(
+        to right,
+        transparent 40%,
+        color-mix(in srgb, var(--color-accent) 10%, transparent) 100%
+    );
+}
+
+/* Same textured backdrop as #section-who, behind the hero copy only — the
+   right column keeps its photograph. Held at a lower opacity than the 0.4 used
+   in #section-who: this column carries small uppercase body copy rather than
+   big display headings, and the texture eats into its contrast much faster. */
+#hero-content::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("/static/images/who-bg.png");
+    background-size: cover;
+    background-position: center;
+    opacity: 0.18;
+    /* Fade the texture in from the left so the copy sits on the plain
+       SlateHub dark and the grain only builds as it approaches the photo.
+       Lowering opacity alone dulled the whole panel; masking keeps the right
+       edge lively while leaving the left clean.
+       The mask reads alpha only — #000 here means "fully opaque", it is not a
+       visible colour, so it is not a hardcoded-colour violation. */
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 75%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 75%);
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Lift the copy and buttons above the backdrop. */
+#hero-content > * {
+    position: relative;
+    z-index: 1;
 }
 
 /* "Meet SlateHub" pill tag */
@@ -1573,6 +1662,40 @@ dd {
     font-weight: var(--font-weight-medium);
     text-transform: uppercase;
     letter-spacing: 0.08em;
+}
+
+/* Hover: accent fill sweeps in from the left and the text flips to light.
+   `isolation` creates a stacking context so the z-index:-1 sweep sits behind
+   the text but still inside the pill, and `overflow: hidden` keeps it inside
+   the rounded corners. Scoped to #hero-tag so the identical
+   [data-role="section-tag"] pills further down the page stay static. */
+#hero-tag {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    transition:
+        color var(--transition-base),
+        border-color var(--transition-base);
+}
+
+#hero-tag::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--transition-base);
+}
+
+#hero-tag:hover {
+    color: var(--color-text-light);
+    border-color: var(--color-accent);
+}
+
+#hero-tag:hover::before {
+    transform: scaleX(1);
 }
 
 /* Hero heading — condensed bold */
@@ -1604,6 +1727,10 @@ dd {
 /* Hero actions row */
 #section-hero #hero-actions {
     display: flex;
+    /* Both buttons are white-space: nowrap, and together they need ~470px.
+       The hero's left column drops below that around 1100px, so without
+       wrapping the second button ran off the edge. */
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-lg);
     margin-top: var(--space-md);
@@ -1617,8 +1744,15 @@ dd {
     background-color: var(--color-accent);
     color: var(--color-text-light);
     border: 1px solid var(--color-accent);
+    /* Display face, matching the section headings (e.g. #heading-who).
+       Weight 700 is not a style choice: OnsiteCondensedTRIAL-Bold is the only
+       file declared for this family, so any lighter weight gets synthesised by
+       the browser and looks smeared. Tracking stays positive — the headings use
+       -0.01em, but that is for large type; condensed uppercase at button size
+       needs the extra room. */
+    font-family: "Onsite Condensed TRIAL", sans-serif;
     font-size: var(--text-sm);
-    font-weight: var(--font-weight-medium);
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     text-decoration: none;
@@ -1628,12 +1762,14 @@ dd {
     white-space: nowrap;
     transition:
         background-color var(--transition-fast),
-        border-color var(--transition-fast);
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
 }
 
 #section-hero #link-hero-signup:hover {
     background-color: var(--color-accent-hover);
     border-color: var(--color-accent-hover);
+    transform: scale(1.03);
 }
 
 #section-hero #link-hero-browse {
@@ -1642,17 +1778,23 @@ dd {
     background-color: transparent;
     color: var(--color-text-primary);
     border: 1px solid var(--color-text-muted);
+    /* Matches #link-hero-signup — see the note there on weight 700. */
+    font-family: "Onsite Condensed TRIAL", sans-serif;
     font-size: var(--text-sm);
-    font-weight: var(--font-weight-medium);
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     text-decoration: none;
-    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
 }
 
 #section-hero #link-hero-browse:hover {
     background-color: rgba(214, 216, 202, 0.1);
     border-color: var(--color-text-primary);
+    transform: scale(1.03);
 }
 
 /* Note text beside CTA */
@@ -1676,6 +1818,15 @@ dd {
     height: 100%;
     object-fit: cover;
     display: block;
+    /* Every face in this frame sits in the upper third (roughly 17-36% down).
+       The photo is square while this column is usually taller than it is wide,
+       so `cover` normally crops the sides and keeps full height — but on a
+       short, wide window it crops vertically instead, and a centred crop would
+       start eating into the faces. Biasing to 35% keeps the heads in frame and
+       sacrifices ceiling instead. Horizontal stays centred: that holds the two
+       foreground subjects, at the cost of clipping the background crew member
+       on the far left in narrow columns. */
+    object-position: 50% 35%;
 }
 
 /* Search overlay on hero image */
@@ -1883,7 +2034,7 @@ dd {
 #section-why {
     background-color: var(--color-bg-secondary);
     color: var(--color-text-secondary);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
 }
 
 /* Intro — tag + heading */
@@ -1950,6 +2101,27 @@ dd {
 /* First card has no left padding */
 [data-component="feature-card"]:first-child {
     padding-left: 0;
+}
+
+/* Mid-width: five columns read too tight once the section is inset, so drop to
+   three. Mirrors the 2-column divider reset in the <=768px block further down.
+   Deliberately a RANGE query — an open-ended max-width would also match mobile,
+   where the 2-column layout needs card 4 to keep its left border. */
+@media (min-width: 769px) and (max-width: 1100px) {
+    #why-features {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Left column (1st, 4th) gets no divider */
+    [data-component="feature-card"]:nth-child(3n + 1) {
+        border-left: none;
+        padding-left: 0;
+    }
+
+    /* Second row gets a horizontal divider instead */
+    [data-component="feature-card"]:nth-child(n + 4) {
+        border-top: 1px solid var(--color-border-dark);
+    }
 }
 
 /* Feature icons */
@@ -2034,7 +2206,7 @@ dd {
     position: relative;
     background-color: var(--color-bg-dark);
     color: var(--color-text-light);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
     overflow: hidden;
 }
 
@@ -2192,7 +2364,7 @@ dd {
 #section-orgs {
     background-color: var(--color-bg-secondary);
     color: var(--color-text-secondary);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
 }
 
 #section-orgs #orgs-intro {
@@ -2304,11 +2476,44 @@ dd {
 #section-business-model {
     background-color: var(--color-bg-dark);
     color: var(--color-text-light);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
 }
 
+/* Copy on the left, video on the right. The 720px cap moved from this wrapper
+   onto the text itself, so the copy keeps its original measure while the grid
+   is free to use the full section width. minmax(0, 1fr) rather than 1fr so the
+   columns can actually shrink — 1fr floors at min-content and would push the
+   video into overflow at narrow widths. */
 #business-model-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-3xl);
+    align-items: center;
+}
+
+#business-model-inner > #business-model-text {
     max-width: 720px;
+}
+
+/* 16:9 box so the iframe never causes layout shift as it loads. */
+#business-model-video {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    margin: 0;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background-color: var(--color-bg-dark);
+    box-shadow: var(--shadow-xl);
+}
+
+#business-model-video iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: 0;
 }
 
 #section-business-model [data-role="section-tag"] {
@@ -2367,7 +2572,7 @@ dd {
 #section-roadmap {
     background-color: var(--color-bg-tertiary);
     color: var(--color-text-secondary);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
 }
 
 /* Intro — tag + heading */
@@ -2427,6 +2632,18 @@ dd {
 }
 
 /* Phase labels — bold italic uppercase */
+/* Phase icons — inline SVG on the same 40px rhythm as the feature-card icons.
+   Accent-coloured to give this section a brand note; it is otherwise entirely
+   black-on-pale-pink. Switch to var(--color-text-secondary) for black line art
+   if the orange competes with the green "Now Live" label. */
+[data-role="phase-icon"] {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    margin-bottom: var(--space-sm);
+    color: var(--color-accent);
+}
+
 [data-role="phase-label"] {
     font-family: var(--font-body);
     font-size: var(--text-xs);
@@ -2504,11 +2721,13 @@ dd {
     white-space: nowrap;
     transition:
         background-color var(--transition-fast),
-        opacity var(--transition-fast);
+        opacity var(--transition-fast),
+        transform var(--transition-fast);
 }
 
 #link-roadmap-signup:hover {
     opacity: 0.85;
+    transform: scale(1.03);
 }
 
 /* Roadmap section note color override */
@@ -2523,7 +2742,7 @@ dd {
 #section-testimonials {
     background-color: var(--color-bg-dark);
     color: var(--color-text-light);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
     position: relative;
     overflow: hidden;
 }
@@ -2777,7 +2996,7 @@ dd {
 
 #section-final-cta {
     background-color: var(--color-bg-dark);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2858,6 +3077,30 @@ dd {
     border-color: var(--color-accent-hover);
 }
 
+/* Remaining homepage CTA pills — same subtle lift as the hero and roadmap
+   buttons, so no CTA sits inert next to one that responds. Echoes the -2px
+   lift [data-component="feature-card"] already uses.
+   `transition` is a single property, so the colour transitions are restated
+   here rather than dropped. This block must stay AFTER every button rule
+   above: each selector matches its original at equal specificity, so source
+   order is what makes it win. */
+#link-why-signup,
+#link-who-signup,
+#section-orgs [data-role="section-actions"] a,
+#link-community-join {
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+#link-why-signup:hover,
+#link-who-signup:hover,
+#section-orgs [data-role="section-actions"] a:hover,
+#link-community-join:hover {
+    transform: scale(1.03);
+}
+
 /* Hero responsive */
 @media (max-width: 768px) {
     #section-hero {
@@ -2884,9 +3127,14 @@ dd {
         align-items: flex-start;
     }
 
+    /* Pushed down from the old 35%, which was framed for the previous hero
+       photo. In the current shot every face sits in the upper third, and at
+       35% this panel landed straight across them. 60% keeps it clear of the
+       faces above and the profile ticker below. Re-check this value if the
+       hero image is ever swapped again. */
     [data-component="hero-search"] {
         width: 90%;
-        top: 35%;
+        top: 60%;
     }
 
     #hero-ticker {
@@ -2981,13 +3229,51 @@ dd {
         padding: var(--space-3xl) var(--space-lg);
     }
 
-    /* What's Next — responsive */
+    /* Single column: copy first, player below it (DOM order). */
+    #business-model-inner {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+
+    /* Player at 80% on mobile — full-bleed width dominated the stacked
+       layout. aspect-ratio keeps it 16:9, so the height scales with it.
+       Centred rather than left-aligned: at 80% the leftover 20% all sat on
+       one side and read as a misalignment. margin-inline overrides the
+       `margin: 0` on the base rule. */
+    #business-model-video {
+        width: 80%;
+        margin-inline: auto;
+    }
+
+    /* What's Next — responsive.
+       Mobile only: once the 3-column grid collapses to one, the section reads
+       far better centred — icons, labels, copy and CTA all sharing one centre
+       axis — with roomier side gutters than the default 1rem. Desktop keeps
+       its left-aligned, divider-separated columns. */
     #section-roadmap {
-        padding: var(--space-3xl) var(--space-lg);
+        padding: var(--space-3xl) var(--space-2xl);
+        text-align: center;
     }
 
     #heading-roadmap {
         max-width: none;
+    }
+
+    /* These are flex containers, so text-align does not move them —
+       the icons and buttons need explicit cross-axis centring. */
+    [data-component="phase-card"],
+    [data-role="phase-cta"] {
+        align-items: center;
+    }
+
+    /* The label is a flex row of status dot + text; centre the pair together
+       so the dot stays tucked against the word rather than drifting left. */
+    [data-role="phase-label"] {
+        justify-content: center;
+    }
+
+    #roadmap-actions {
+        justify-content: center;
     }
 
     #roadmap-grid {
@@ -3721,6 +4007,66 @@ dd {
 /* Page transitions */
 #main-content {
     animation: fadeIn 0.3s ease-out;
+}
+
+/* ----------------------------------------
+   SCROLL REVEAL
+   ---------------------------------------- */
+
+/* Elements marked [data-reveal] fade and rise into place the first time they
+   scroll into view. Driven by static/js/scroll-reveal.js, which only toggles
+   attributes — all motion is here.
+   Uses transition (not animation) so it can't collide with the fadeIn
+   animation #main-content already runs on every page load.
+
+   The hidden state is deliberately gated behind [data-reveal-ready] on <html>,
+   which scroll-reveal.js sets. No JS means no gate, which means no hidden
+   state — content just renders. Keep the arming and the revealing in that one
+   file: if anything else sets this attribute, a broken revealer would leave
+   these sections permanently invisible. */
+[data-reveal-ready] [data-reveal] {
+    opacity: 0;
+    transform: translateY(16px);
+}
+
+[data-reveal-ready] [data-reveal][data-revealed="true"] {
+    opacity: 1;
+    transform: none;
+    transition:
+        opacity var(--transition-slow),
+        transform var(--transition-slow);
+}
+
+/* Gentle cascade across a grid of cards instead of one flat block fade.
+   Delays are on the transition, so they only apply on the way in.
+   Keyed off [data-role="features-grid"] so any card grid that opts into
+   the reveal gets the stagger — currently Why SlateHub and Organizations. */
+[data-reveal-ready] [data-role="features-grid"] [data-component="feature-card"]:nth-child(2) {
+    transition-delay: 60ms;
+}
+
+[data-reveal-ready] [data-role="features-grid"] [data-component="feature-card"]:nth-child(3) {
+    transition-delay: 120ms;
+}
+
+[data-reveal-ready] [data-role="features-grid"] [data-component="feature-card"]:nth-child(4) {
+    transition-delay: 180ms;
+}
+
+[data-reveal-ready] [data-role="features-grid"] [data-component="feature-card"]:nth-child(5) {
+    transition-delay: 240ms;
+}
+
+/* The global reduced-motion rule only shortens durations — it does not undo an
+   opacity:0 start state, so the final state has to be forced explicitly here or
+   reduced-motion users would see nothing at all. */
+@media (prefers-reduced-motion: reduce) {
+    [data-reveal-ready] [data-reveal],
+    [data-reveal-ready] [data-reveal][data-revealed="true"] {
+        opacity: 1;
+        transform: none;
+        transition-delay: 0ms;
+    }
 }
 
 /* ========================================
