@@ -47,6 +47,9 @@ COPY src ./src
 COPY templates ./templates
 COPY static ./static
 
+# Schema migrations are embedded into the binary at compile time (include_str!)
+COPY migrations ./migrations
+
 # Build the actual application
 RUN touch src/main.rs src/bin/rebuild_embeddings.rs src/bin/oidc_rotate_key.rs && \
     cargo build --release

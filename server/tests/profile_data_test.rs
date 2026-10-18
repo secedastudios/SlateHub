@@ -8,14 +8,14 @@
 use slatehub::templates::{Education, InvolvementDisplay, PhotoDisplay, ProfileData, ReelDisplay};
 
 /// A profile with no user-supplied content — every Option `None`, every Vec
-/// empty. Only the bare account scaffolding (id/name/username/email/initials)
+/// empty. Only the bare account scaffolding (id/name/username/initials)
 /// is populated. `is_unset()` must report `true` for this.
 fn blank() -> ProfileData {
     ProfileData {
         id: "person:test".to_string(),
         name: "Test User".to_string(),
         username: "testuser".to_string(),
-        email: "test@example.com".to_string(),
+        public_email: None,
         avatar: None,
         initials: "TU".to_string(),
         headline: None,

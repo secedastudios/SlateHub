@@ -106,11 +106,30 @@ To rebuild all embeddings from scratch (e.g. after a schema change or model upgr
 make rebuild-embeddings
 ```
 
+## Schema Migrations
+
+`db/schema.surql` is the full schema for a fresh install (`make db-init`
+drops and re-imports it — development only). Incremental changes live in
+`server/migrations/NNN_name.surql`, are compiled into the binary, and are
+applied automatically by the server at boot, each exactly once, tracked in the
+`schema_migration` table. Migrations must be idempotent and must never remove
+data — the runner refuses `REMOVE TABLE/FIELD/DATABASE/NAMESPACE`, `DELETE` and
+`UNSET` unless the file carries an explicit authorization line. See
+[`server/migrations/README.md`](server/migrations/README.md).
+
+On its first contact with a database the server also checks that the schema is
+at the squash baseline; an empty database or a restored pre-baseline backup is
+refused with a message naming what is missing (see
+[Backup and Recovery](docs/PRODUCTION_DEPLOYMENT.md#backup-and-recovery)).
+
 ## Testing
 
 ```bash
 # Run all tests with automatic setup/teardown
 make test
+
+# Same, with the throwaway test DB on another host port (if 8100 is taken)
+TEST_DB_PORT=8110 make test
 
 # Run only unit tests
 make test-unit

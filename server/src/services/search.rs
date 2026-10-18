@@ -107,6 +107,9 @@ pub struct SearchParams<'a> {
 // People
 // ---------------------------------------------------------------------------
 
+/// Hybrid people search. Results are ordered photo-first — profiles without
+/// an avatar always sort after those with one (the site-wide rule for any
+/// list of people) — then by descending relevance score.
 pub async fn search_people(
     params: &SearchParams<'_>,
     parsed: &ParsedQuery,
@@ -199,8 +202,14 @@ pub async fn search_people(
         )
     };
 
+    // Outer SELECT: profiles with a photo always rank above those without,
+    // then by score. The scored query is nested so `score > 0` is applied in
+    // the DB — otherwise a photo'd zero-score row (gated in on a skills or
+    // languages match alone) would sort first, consume a LIMIT slot, and be
+    // dropped below, leaving short pages and drifting offsets.
     let sql = format!(
-        "SELECT
+        "SELECT * FROM (
+        SELECT
             <string> id AS id,
             name,
             username,
@@ -209,6 +218,7 @@ pub async fn search_people(
             profile.location AS location,
             profile.skills AS skills,
             profile.avatar AS avatar_url,
+            string::len(profile.avatar ?? '') > 0 AS has_photo,
             embedding_text,
             verification_status ?? 'none' AS verification_status,
             <float> (
@@ -226,7 +236,9 @@ pub async fn search_people(
         WHERE verification_status != 'unverified'
             AND {text_vector_gate}
             {hard_filter}
-        ORDER BY score DESC
+        )
+        WHERE score > 0
+        ORDER BY has_photo DESC, score DESC
         LIMIT $limit
         START $offset",
         w_name = w.name_match,

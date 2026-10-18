@@ -683,7 +683,7 @@ fn debug_pdf_extracted_text() {
     let pdf = fountain_to_pdf_bytes("test.fountain", SHORT_FIXTURE);
     let text = pdf_extract::extract_text_from_mem(&pdf).expect("extract text");
     eprintln!("=== first 1000 chars ===");
-    eprintln!("{}", &text.chars().take(1000).collect::<String>());
+    eprintln!("{}", text.chars().take(1000).collect::<String>());
     eprintln!("=== first 40 lines (each shown as >line<) ===");
     for (i, line) in text.lines().enumerate().take(40) {
         eprintln!("{i:>3}: >{line}<");

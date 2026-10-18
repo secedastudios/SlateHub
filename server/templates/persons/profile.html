@@ -66,6 +66,7 @@
     {% if profile.headline.is_some() %},"jobTitle": "{{ profile.headline.as_ref().unwrap() }}"{% endif %}
     {% if profile.bio.is_some() %},"description": "{{ profile.bio.as_ref().unwrap() }}"{% endif %}
     {% if profile.location.is_some() %},"workLocation": {"@type": "Place", "name": "{{ profile.location.as_ref().unwrap() }}"}{% endif %}
+    {% if profile.public_email.is_some() %},"email": "{{ profile.public_email.as_ref().unwrap() }}"{% endif %}
     {% if !profile.skills.is_empty() %},"knowsAbout": [{% for skill in profile.skills %}"{{ skill }}"{% if !loop.last %},{% endif %}{% endfor %}]{% endif %}
   }
 }
@@ -180,6 +181,18 @@
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <circle cx="12" cy="12" r="10"/>
                                             <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                                        </svg>
+                                    </a>
+                                {% endif %}
+                                {% if profile.public_email.is_some() %}
+                                    <a
+                            href="mailto:{{ profile.public_email.as_ref().unwrap() }}"
+                            data-role="social-link"
+                            title="Email"
+                        >
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <rect x="2" y="4" width="20" height="16" rx="2"/>
+                                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                                         </svg>
                                     </a>
                                 {% endif %}
@@ -483,7 +496,7 @@
                     <section id="section-about" data-section="about" aria-labelledby="heading-about">
                         <h2 id="heading-about">Details</h2>
                         {%
-                            if profile.location.is_some() || profile.availability.is_some() || !profile.languages.is_empty() || profile.website.is_some() || profile.gender.is_some() || profile.nationality.is_some() || (profile.height_mm.is_some() && profile.height_mm.unwrap() > 0) || (profile.weight_kg.is_some() && profile.weight_kg.unwrap() > 0) || profile.body_type.is_some() || profile.hair_color.is_some() || profile.eye_color.is_some() || !profile.ethnicity.is_empty() || profile.acting_age_range_min.is_some() || !profile.acting_ethnicities.is_empty() || profile.is_own_profile
+                            if profile.location.is_some() || profile.availability.is_some() || !profile.languages.is_empty() || profile.website.is_some() || profile.public_email.is_some() || profile.gender.is_some() || profile.nationality.is_some() || (profile.height_mm.is_some() && profile.height_mm.unwrap() > 0) || (profile.weight_kg.is_some() && profile.weight_kg.unwrap() > 0) || profile.body_type.is_some() || profile.hair_color.is_some() || profile.eye_color.is_some() || !profile.ethnicity.is_empty() || profile.acting_age_range_min.is_some() || !profile.acting_ethnicities.is_empty() || profile.is_own_profile
                         %}
                             <dl id="profile-details-list" data-role="details-list">
                                 {% if profile.location.is_some() %}
@@ -516,10 +529,12 @@
                                         </dd>
                                     </div>
                                 {% endif %}
-                                {% if profile.is_own_profile || profile.is_public %}
+                                {% if profile.public_email.is_some() %}
                                     <div data-role="detail-row">
                                         <dt>Email</dt>
-                                        <dd {% if profile.is_own_profile && !profile.is_public %}data-private="true"{% endif %}>{{ profile.email }}</dd>
+                                        <dd>
+                                            <a href="mailto:{{ profile.public_email.as_ref().unwrap() }}">{{ profile.public_email.as_ref().unwrap() }}</a>
+                                        </dd>
                                     </div>
                                 {% endif %}
                                 {% if profile.phone.is_some() && (profile.is_own_profile || profile.is_public) %}

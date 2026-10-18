@@ -1,4 +1,4 @@
-.PHONY: all help start stop services services-stop server server-stop dev dev-stop unstick logs logs-services logs-server build clean purge shell check-env db-init db-seed dirs wait-db rebuild-embeddings oidc-verify
+.PHONY: all help start stop services services-stop server server-stop dev dev-stop unstick logs logs-services logs-server build clean purge shell check-env db-init db-seed dirs wait-db rebuild-embeddings oidc-verify db-migrate db-backup db-restore
 
 # Default target
 all: help
@@ -12,6 +12,11 @@ endif
 # Default DB credentials
 DB_USER ?= root
 DB_PASS ?= root
+
+# Host port for the throwaway test SurrealDB (docker-compose.test.yml). Override
+# when 8100 is taken on your machine: `TEST_DB_PORT=8110 make test`.
+TEST_DB_PORT ?= 8100
+export TEST_DB_PORT
 
 # Get the current user ID to avoid permission issues with bind mounts
 export UID = $(shell id -u)
@@ -46,6 +51,9 @@ help:
 	@echo "  make db-init           - Initialize database schema"
 	@echo "  make db-seed           - Seed database with test users"
 	@echo "  make db-drop           - Drop database (delete all data)"
+	@echo "  make db-migrate        - Apply one server/migrations/*.surql by hand (the server applies pending ones at boot)"
+	@echo "  make db-backup         - Export the database to backups/slatehub_<timestamp>.surql"
+	@echo "  make db-restore FILE=  - REPLACE the database with a backup (drops it first; asks for confirmation)"
 	@echo ""
 	@echo "Search:"
 	@echo "  make rebuild-embeddings - Rebuild all vector embeddings for semantic search"
@@ -277,13 +285,17 @@ db-seed-jobs: wait-db
 	@docker exec -i slatehub-surrealdb /surreal sql --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main --pretty < db/seed-jobs.surql
 	@echo "✅ Seeded 100 job postings (posted by chris and Seceda)"
 
+# Manual escape hatch. The server applies every pending server/migrations/*.surql
+# itself at boot (server/src/db/migrations.rs); use this only against a database
+# the server is not running on. Migrations are idempotent, so the server later
+# re-running a hand-applied file is harmless.
 db-migrate: wait-db
 	@if [ -z "$(MIGRATION)" ]; then \
-		echo "Usage: make db-migrate MIGRATION=001_production_roles_to_array"; \
+		echo "Usage: make db-migrate MIGRATION=015_profile_public_email"; \
 		echo "Available migrations:"; \
-		ls db/migrations/*.surql 2>/dev/null | sed 's|db/migrations/||;s|\.surql||' | sed 's/^/  /'; \
-	elif [ ! -f "db/migrations/$(MIGRATION).surql" ]; then \
-		echo "❌ Migration not found: db/migrations/$(MIGRATION).surql"; \
+		ls server/migrations/*.surql 2>/dev/null | sed 's|server/migrations/||;s|\.surql||' | sed 's/^/  /'; \
+	elif [ ! -f "server/migrations/$(MIGRATION).surql" ]; then \
+		echo "❌ Migration not found: server/migrations/$(MIGRATION).surql"; \
 		exit 1; \
 	else \
 		echo "Running migration: $(MIGRATION)..."; \
@@ -292,7 +304,7 @@ db-migrate: wait-db
 			-H "surreal-ns: slatehub" \
 			-H "surreal-db: main" \
 			-u "$(DB_USER):$(DB_PASS)" \
-			--data-binary @db/migrations/$(MIGRATION).surql); \
+			--data-binary @server/migrations/$(MIGRATION).surql); \
 		echo "$$RESULT" | python3 -m json.tool 2>/dev/null || echo "$$RESULT"; \
 		echo "✅ Migration $(MIGRATION) complete."; \
 	fi
@@ -303,6 +315,39 @@ db-drop:
 	@echo "Dropping database..."
 	@docker exec -i slatehub-surrealdb /surreal sql --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main --pretty <<< "REMOVE DATABASE main;"
 	@echo "✅ Database dropped."
+
+# ============================================================================
+# Backup / Restore
+# ============================================================================
+# `surreal export` prints its own log line to stdout, so the CLI log must be
+# silenced (--log none) or the trailing timestamp breaks a later import.
+# A restore must go into an EMPTY database (exports carry their own DEFINEs),
+# so db-restore drops `main` first — stop the server before running it. On the
+# next boot the server applies any migrations newer than the backup.
+BACKUP_DIR ?= backups
+
+db-backup: wait-db
+	@mkdir -p $(BACKUP_DIR)
+	@f=$(BACKUP_DIR)/slatehub_$$(date +%Y%m%d_%H%M%S).surql; \
+	if docker exec slatehub-surrealdb /surreal export --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main --log none /dev/stdout > $$f \
+	   && [ -s $$f ] && ! tail -1 $$f | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'; then \
+		echo "✅ Backup written: $$f ($$(wc -c < $$f | tr -d ' ') bytes)"; \
+	else \
+		echo "❌ Backup failed (see output above)"; rm -f $$f; exit 1; \
+	fi
+
+db-restore: wait-db
+	@if [ -z "$(FILE)" ] || [ ! -f "$(FILE)" ]; then \
+		echo "Usage: make db-restore FILE=$(BACKUP_DIR)/slatehub_YYYYmmdd_HHMMSS.surql"; exit 1; \
+	fi
+	@echo "⚠️  WARNING: This REPLACES the entire 'main' database with $(FILE)!"
+	@echo "   Stop the server first (make server-stop) — it must not be running during a restore."
+	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
+	@echo "Dropping database..."
+	@docker exec -i slatehub-surrealdb /surreal sql --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main <<< "REMOVE DATABASE main;" > /dev/null
+	@echo "Importing $(FILE)..."
+	@docker exec -i slatehub-surrealdb /surreal import --endpoint http://localhost:8000 --username "$(DB_USER)" --password "$(DB_PASS)" --namespace slatehub --database main /dev/stdin < $(FILE)
+	@echo "✅ Restored from $(FILE). Start the server to apply any newer migrations."
 
 # ============================================================================
 # Utilities
@@ -369,7 +414,7 @@ test-db-init: test-wait-db
 
 test: test-services test-db-init
 	@echo "Running tests..."
-	@cd server && cargo test --lib --tests -- --test-threads=1; \
+	@cd server && TEST_DB_ADDR=localhost:$(TEST_DB_PORT) cargo test --lib --tests -- --test-threads=1; \
 	EXIT_CODE=$$?; \
 	cd .. && $(MAKE) test-services-stop; \
 	exit $$EXIT_CODE

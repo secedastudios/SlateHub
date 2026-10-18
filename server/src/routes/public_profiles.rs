@@ -16,7 +16,6 @@ use tracing::{debug, error, info};
 
 use crate::{
     config, datastar,
-    db::DB,
     error::Error,
     html::escape_html,
     middleware::UserExtractor,
@@ -125,6 +124,31 @@ fn to_social_link_displays(links: &[crate::models::person::SocialLink]) -> Vec<S
         .collect()
 }
 
+/// Convert a directory `Person` into a `PersonCard`; `None` when the profile
+/// has nothing to show (no name, headline, or bio).
+fn person_card_from_person(person: Person) -> Option<PersonCard> {
+    let profile = person.profile?;
+    if profile.name.is_none() && profile.headline.is_none() && profile.bio.is_none() {
+        return None;
+    }
+    Some(PersonCard {
+        id: person.id.to_raw_string(),
+        name: profile
+            .name
+            .clone()
+            .unwrap_or_else(|| person.username.clone()),
+        username: person.username,
+        headline: profile.headline,
+        bio: profile.bio,
+        location: profile.location,
+        skills: profile.skills,
+        avatar: profile
+            .avatar
+            .unwrap_or_else(|| "/static/images/default-avatar.svg".to_string()),
+        is_identity_verified: person.verification_status == "identity",
+    })
+}
+
 /// Convert a `PersonSearchResult` (from the canonical search service) into a `PersonCard`.
 fn person_card_from_search_result(r: PersonSearchResult) -> PersonCard {
     PersonCard {
@@ -229,7 +253,7 @@ async fn user_profile(
         id: profile_user.id.to_raw_string(),
         name: profile_user.get_display_name(),
         username: profile_user.username.clone(),
-        email: profile_user.email.clone(),
+        public_email: profile.and_then(|p| p.public_email.clone()),
         avatar: profile_user.get_avatar_url(),
         initials: profile_user.get_initials(),
         headline: profile.and_then(|p| p.headline.clone()),
@@ -439,34 +463,12 @@ async fn people(
         log_search(filter_text, "web", "people", Some(results.len()));
         (vec![], Some(results))
     } else {
-        let query = r#"
-            SELECT *, verification_status = 'identity' AS _vord OMIT embedding, embedding_text FROM person
-            WHERE verification_status != 'unverified'
-              AND (profile.name IS NOT NULL
-               OR profile.headline IS NOT NULL
-               OR profile.bio IS NOT NULL)
-            ORDER BY _vord DESC, created_at DESC
-            LIMIT $limit
-            START $offset
-        "#;
-        let persons = match DB
-            .query(query)
-            .bind(("limit", PAGE_SIZE as i64 + 1))
-            .bind(("offset", 0i64))
+        let persons = Person::directory_page(PAGE_SIZE + 1, 0)
             .await
-        {
-            Ok(mut result) => match result.take::<Vec<Person>>(0) {
-                Ok(persons) => persons,
-                Err(e) => {
-                    error!("Failed to fetch persons from database: {}", e);
-                    vec![]
-                }
-            },
-            Err(e) => {
-                error!("Failed to query persons from database: {}", e);
+            .unwrap_or_else(|e| {
+                error!("Failed to fetch people directory: {}", e);
                 vec![]
-            }
-        };
+            });
         (persons, None::<Vec<PersonSearchResult>>)
     };
 
@@ -487,34 +489,7 @@ async fn people(
         persons
             .into_iter()
             .take(PAGE_SIZE)
-            .filter_map(|person| {
-                if let Some(profile) = person.profile {
-                    if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some()
-                    {
-                        Some(PersonCard {
-                            id: person.id.to_raw_string(),
-                            name: profile
-                                .name
-                                .clone()
-                                .unwrap_or_else(|| person.username.clone()),
-                            username: person.username.clone(),
-                            headline: profile.headline.clone(),
-                            bio: profile.bio.clone(),
-                            location: profile.location.clone(),
-                            skills: profile.skills,
-                            avatar: profile
-                                .avatar
-                                .clone()
-                                .unwrap_or_else(|| "/static/images/default-avatar.svg".to_string()),
-                            is_identity_verified: person.verification_status == "identity",
-                        })
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
+            .filter_map(person_card_from_person)
             .collect()
     };
 
@@ -631,25 +606,12 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
 
         (vec![], Some(results))
     } else {
-        let query = r#"
-            SELECT *, verification_status = 'identity' AS _vord OMIT embedding, embedding_text FROM person
-            WHERE verification_status != 'unverified'
-              AND (profile.name IS NOT NULL
-               OR profile.headline IS NOT NULL
-               OR profile.bio IS NOT NULL)
-            ORDER BY _vord DESC, created_at DESC
-            LIMIT $limit
-            START $offset
-        "#;
-        let persons: Vec<Person> = match DB
-            .query(query)
-            .bind(("limit", PAGE_SIZE as i64 + 1))
-            .bind(("offset", offset as i64))
+        let persons = Person::directory_page(PAGE_SIZE + 1, offset)
             .await
-        {
-            Ok(mut result) => result.take::<Vec<Person>>(0).unwrap_or_default(),
-            Err(_) => vec![],
-        };
+            .unwrap_or_else(|e| {
+                error!("Failed to fetch people directory (SSE): {}", e);
+                vec![]
+            });
         (persons, None::<Vec<PersonSearchResult>>)
     };
 
@@ -669,34 +631,7 @@ async fn people_more_sse(Query(params): Query<PeopleMoreQuery>) -> Response {
         persons
             .into_iter()
             .take(PAGE_SIZE)
-            .filter_map(|person| {
-                if let Some(profile) = person.profile {
-                    if profile.name.is_some() || profile.headline.is_some() || profile.bio.is_some()
-                    {
-                        Some(PersonCard {
-                            id: person.id.to_raw_string(),
-                            name: profile
-                                .name
-                                .clone()
-                                .unwrap_or_else(|| person.username.clone()),
-                            username: person.username.clone(),
-                            headline: profile.headline.clone(),
-                            bio: profile.bio.clone(),
-                            location: profile.location.clone(),
-                            skills: profile.skills,
-                            avatar: profile
-                                .avatar
-                                .clone()
-                                .unwrap_or_else(|| "/static/images/default-avatar.svg".to_string()),
-                            is_identity_verified: person.verification_status == "identity",
-                        })
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
+            .filter_map(person_card_from_person)
             .collect()
     };
 

@@ -132,6 +132,20 @@
                     />
                 </div>
 
+                <div id="field-public-email" data-field="public_email">
+                    <label for="input-public-email">Email <span data-role="visibility-note">(displayed publicly)</span></label>
+                    <input
+                        type="email"
+                        id="input-public-email"
+                        name="public_email"
+                        value="{% if profile.public_email.is_some() %}{{ profile.public_email.as_ref().unwrap() }}{% endif %}"
+                        placeholder="you@example.com"
+                        autocomplete="off"
+                        aria-describedby="help-public-email"
+                    />
+                    <small id="help-public-email" data-role="help-text">Optional. Anyone viewing your profile can see this address. Your sign-in email is never shown — leave this blank to keep email off your profile.</small>
+                </div>
+
                 <div id="field-availability" data-field="availability">
                     <label for="select-availability">Availability</label>
                     <select id="select-availability" name="availability">

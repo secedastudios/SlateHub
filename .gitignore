@@ -50,3 +50,6 @@ history.txt
 
 # Auto-managed venv for scripts/verify-oidc.sh (holds pynacl)
 scripts/.venv-oidc-verify/
+
+# Database exports from `make db-backup`
+backups/

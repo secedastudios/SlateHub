@@ -45,7 +45,10 @@ pub fn runtime() -> &'static Runtime {
 async fn try_connect() -> Result<(), surrealdb::Error> {
     // A second setup_test_db() within the same binary hits the already-live
     // connection; that's fine — fall through and re-auth on it (idempotent).
-    if let Err(e) = DB.connect::<Ws>("localhost:8100").await
+    // Host:port of the test SurrealDB. Override with TEST_DB_ADDR (and start
+    // the container with TEST_DB_PORT) when 8100 is taken on this machine.
+    let addr = std::env::var("TEST_DB_ADDR").unwrap_or_else(|_| "localhost:8100".to_string());
+    if let Err(e) = DB.connect::<Ws>(addr.as_str()).await
         && !e.to_string().contains("Already connected")
     {
         return Err(e);

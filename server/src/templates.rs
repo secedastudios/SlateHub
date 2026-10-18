@@ -463,7 +463,9 @@ pub struct ProfileData {
     pub id: String,
     pub name: String,
     pub username: String,
-    pub email: String,
+    /// Opt-in contact email for the public profile. The sign-in email is
+    /// deliberately absent from this struct so no template can render it.
+    pub public_email: Option<String>,
     pub avatar: Option<String>,
     pub initials: String,
     pub headline: Option<String>,

@@ -1,7 +1,8 @@
-//! Unit tests for `slatehub::text` — slug generation and byte formatting.
+//! Unit tests for `slatehub::text` — slug generation, byte formatting, and the
+//! email shape check behind the public-email form field.
 //! Pure functions; no test DB required.
 
-use slatehub::text::{format_bytes, format_bytes_i64, slugify};
+use slatehub::text::{format_bytes, format_bytes_i64, looks_like_email, slugify};
 
 #[test]
 fn slugify_collapses_punctuation_runs() {
@@ -26,4 +27,27 @@ fn bytes_scale_with_expected_precision() {
 #[test]
 fn negative_sizes_clamp_to_zero() {
     assert_eq!(format_bytes_i64(-5), "0 B");
+}
+
+#[test]
+fn looks_like_email_accepts_ordinary_addresses() {
+    assert!(looks_like_email("pat@example.com"));
+    assert!(looks_like_email("  pat.o-neil+tag@sub.example.co.uk "));
+}
+
+#[test]
+fn looks_like_email_rejects_obvious_typos() {
+    for s in [
+        "",
+        "pat",
+        "pat@",
+        "@example.com",
+        "pat@example",
+        "pat@@example.com",
+        "pat @example.com",
+        "pat@.example.com",
+        "pat@example.com.",
+    ] {
+        assert!(!looks_like_email(s), "{s:?} should be rejected");
+    }
 }

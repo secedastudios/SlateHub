@@ -11,6 +11,10 @@ use std::sync::LazyLock;
 use surrealdb::{Surreal, engine::remote::ws::Client};
 use tracing::{debug, info, instrument};
 
+/// Boot-time schema migrations (`server/migrations/*.surql`, applied once
+/// each and tracked in `schema_migration`). See `server/migrations/README.md`.
+pub mod migrations;
+
 /// Global SurrealDB handle. Unconnected until `main` (or a test's
 /// `setup_test_db`) calls `DB.connect(...)` + `signin` + `use_ns/use_db`;
 /// queries issued before that return a connection error rather than panic.

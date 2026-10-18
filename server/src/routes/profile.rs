@@ -158,7 +158,7 @@ async fn edit_profile_form(request: Request) -> Result<Response, Error> {
         id: profile_user.id.to_raw_string(),
         name: profile_user.get_display_name(),
         username: profile_user.username.clone(),
-        email: profile_user.email.clone(),
+        public_email: profile.and_then(|p| p.public_email.clone()),
         avatar: profile_user.get_avatar_url(),
         initials: profile_user.get_initials(),
         headline: profile.and_then(|p| p.headline.clone()),
@@ -539,6 +539,17 @@ async fn update_profile(
         .get("acting_age_range_max")
         .and_then(|v| v.parse().ok());
 
+    // The public contact email is optional, but when given it must at least
+    // look like an address — otherwise the DB ASSERT would surface as a 500.
+    let public_email = form.get("public_email").map(|e| e.trim().to_string());
+    if let Some(e) = public_email.as_deref().filter(|e| !e.is_empty())
+        && !crate::text::looks_like_email(e)
+    {
+        return Err(Error::bad_request(
+            "Public email must be a valid email address, or leave it blank.",
+        ));
+    }
+
     // Update the profile in the database
     match Person::update_profile(
         &current_user.id,
@@ -547,6 +558,7 @@ async fn update_profile(
         form.get("bio").cloned(),
         form.get("location").cloned(),
         form.get("website").cloned(),
+        public_email,
         form.get("skills").cloned(),
         form.get("languages").cloned(),
         form.get("availability").cloned(),

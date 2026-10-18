@@ -285,8 +285,13 @@ sudo systemctl restart slatehub
 
 ### Database Management
 
+> **Warning:** `make db-init` **drops the whole database** and re-imports
+> `db/schema.surql`. It is for fresh installs and local development only —
+> never run it against production. Schema changes reach production through
+> migrations, which the server applies itself (next section).
+
 ```bash
-# Initialize/reset database
+# Initialize/reset database (DESTRUCTIVE — fresh installs only)
 make db-init
 
 # Clean database (remove all data)
@@ -297,6 +302,42 @@ make db-reset
 
 # View database logs
 docker logs -f slatehub-surrealdb
+```
+
+### Schema Migrations
+
+The server applies schema changes itself. Every `server/migrations/*.surql`
+file is compiled into the binary and, on boot, each file the database has not
+seen yet is run once (in file-name order, inside a transaction) and recorded in
+the `schema_migration` table. A normal deploy is therefore just:
+
+```bash
+git pull
+make build && make server     # or: cargo build --release + restart the service
+```
+
+Watch the boot log for `applying schema migration` / `Schema migrations
+applied`. If a migration fails, the server logs the error and **exits instead
+of serving traffic** — fix the migration (or the data it tripped over) and
+restart; nothing from the failed file is left half-applied.
+
+Rules, enforced by the runner at boot and by `make test`:
+
+- **Migrations never remove data.** A file containing
+  `REMOVE TABLE/FIELD/DATABASE/NAMESPACE`, `DELETE` or `UNSET` is refused unless
+  it carries an explicit `-- destructive: authorized by <name>, <date> — <why>`
+  line, and such a line is only ever added with Chris's sign-off. See
+  `server/migrations/README.md`.
+- Migrations are idempotent and are mirrored into `db/schema.surql`.
+- Applied files are never edited (the ledger stores a checksum; a changed file
+  logs a drift warning and is skipped) — write a new file instead.
+
+To see what production has applied:
+
+```bash
+docker exec -i slatehub-surrealdb /surreal sql --endpoint http://localhost:8000 \
+    --username root --password "$DB_PASS" --namespace slatehub --database main --pretty \
+    <<< "SELECT name, applied_at FROM schema_migration ORDER BY applied_at;"
 ```
 
 ## Monitoring and Logs
@@ -477,27 +518,88 @@ sudo systemctl restart slatehub
 
 ### Database Backup
 
-```bash
-# Export database
-docker exec slatehub-surrealdb \
-    /surreal export \
-    --conn http://localhost:8000 \
-    --user root \
-    --pass your_password \
-    --ns slatehub \
-    --db main \
-    > backup_$(date +%Y%m%d).surql
+A SurrealDB export is one `.surql` file holding the schema (every `DEFINE …`,
+including the `schema_migration` ledger) and all data:
 
-# Restore database
-docker exec -i slatehub-surrealdb \
-    /surreal import \
-    --conn http://localhost:8000 \
-    --user root \
-    --pass your_password \
-    --ns slatehub \
-    --db main \
-    < backup_20240101.surql
+```bash
+make db-backup            # writes backups/slatehub_<timestamp>.surql, or by hand:
+
+docker exec slatehub-surrealdb /surreal export \
+    --endpoint http://localhost:8000 --username root --password "$DB_PASS" \
+    --namespace slatehub --database main --log none /dev/stdout > backup_$(date +%Y%m%d).surql
 ```
+
+`--log none` is not optional: the CLI prints its own `… exported successfully`
+log line to **stdout**, and with that line in the file a later import stops at
+the bare timestamp (`Parse error: … unexpected character 'T' after number
+token`). Always check that a fresh backup ends with a SurrealQL statement, not
+a log line.
+
+Back up `db/files/` (object storage) at the same time — the two must match.
+
+### Database Restore
+
+An export carries its own `DEFINE` statements, so it must be imported into an
+**empty** database — importing over the live one stops at the first
+"already exists". The flow is stop → drop → import → start:
+
+`make db-restore FILE=backups/slatehub_<timestamp>.surql` runs the drop + import
+with a confirmation prompt; by hand:
+
+```bash
+make server-stop                       # or: sudo systemctl stop slatehub
+
+# DESTRUCTIVE: replaces the live database with the backup
+docker exec -i slatehub-surrealdb /surreal sql \
+    --endpoint http://localhost:8000 --username root --password "$DB_PASS" \
+    --namespace slatehub --database main <<< "REMOVE DATABASE main;"
+
+docker exec -i slatehub-surrealdb /surreal import \
+    --endpoint http://localhost:8000 --username root --password "$DB_PASS" \
+    --namespace slatehub --database main /dev/stdin < backup_20261018.surql
+
+make server                            # boot applies any migrations newer than the backup
+```
+
+### Restoring an older backup
+
+- **Backups taken at or after the 2026-10-18 baseline** (schema at migration
+  014 or later — i.e. everything exported from production since migration 014
+  went live) restore as above. On boot the runner reads the ledger that came
+  with the backup — or, for a pre-runner export, finds none and treats the
+  database as the baseline — and applies every newer migration. Both paths
+  were verified on SurrealDB 3.1.4 (2026-10-18): a 014 export restored into an
+  empty database with all 69 tables and every row count identical to the
+  source, and the next boot applied 015 and recorded it; an export taken
+  after this version restored with its ledger and the server reported
+  `Schema is up to date`. (An export made *without* `--log none` still
+  restored every row, but the import reported a parse error on the trailing
+  log line — do not rely on that.)
+- **Backups older than the baseline** (schema before 014) are refused at boot
+  with `the schema is older than the 014 migration baseline … missing: …`,
+  because the squashed migrations are no longer embedded in the binary. Apply
+  the historical files from git — oldest missing first, up to 014 — then start:
+
+  ```bash
+  git ls-tree --name-only 0fd72b8 db/migrations/              # the squashed 001–014
+  git show 0fd72b8:db/migrations/014_profile_reminder_tracking.surql \
+      | curl -sf -X POST http://localhost:8000/sql -u "root:$DB_PASS" \
+             -H 'surreal-ns: slatehub' -H 'surreal-db: main' --data-binary @-
+  ```
+
+  The boot error names the first missing definitions, which shows where in
+  the sequence the backup stopped. Those files were not all written to be
+  re-runnable, so apply only the ones newer than the backup's schema.
+- **An empty database** (new machine, nothing restored) is refused as well —
+  run `make db-init`.
+- **Rolling the application back** is safe: migrations only add definitions,
+  so an older binary runs against a newer database. Only restoring an older
+  backup moves the schema backwards.
+- **Pin the database image.** `docker-compose.yml` runs
+  `surrealdb/surrealdb:latest`; a major-version jump on the next pull can
+  require a datastore upgrade step and can make exports from the previous
+  version non-importable. Check what production runs
+  (`docker exec slatehub-surrealdb /surreal version`) and pin that tag.
 
 ### MinIO Backup
 

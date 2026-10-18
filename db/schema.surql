@@ -419,6 +419,7 @@ DEFINE FIELD profile.awards ON person TYPE array<object> FLEXIBLE PERMISSIONS FU
 DEFINE FIELD profile.resume ON person TYPE option<record<media>> PERMISSIONS FULL;  -- PDF resume upload
 DEFINE FIELD profile.website ON person TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD profile.phone ON person TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD profile.public_email ON person TYPE option<string> ASSERT $value = NONE OR string::is_email($value) PERMISSIONS FULL;  -- opt-in contact email shown on the public profile; never the sign-in `email` (migration 015)
 DEFINE FIELD messaging_preference ON person TYPE string DEFAULT 'anyone' ASSERT $value IN ['nobody', 'verified', 'anyone'] PERMISSIONS FULL;
 DEFINE FIELD username ON person TYPE string VALUE string::lowercase($value) PERMISSIONS FULL;
 DEFINE FIELD name ON person TYPE option<string> PERMISSIONS FULL;  -- Optional display name
@@ -1348,3 +1349,21 @@ DEFINE FIELD created_at ON ssf_stream TYPE datetime VALUE $value OR time::now() 
 DEFINE FIELD updated_at ON ssf_stream TYPE datetime VALUE time::now() PERMISSIONS FULL;
 
 DEFINE INDEX idx_ssf_stream_client ON ssf_stream FIELDS client UNIQUE;
+
+-- ------------------------------
+-- TABLE: schema_migration (ledger of applied server/migrations/*.surql files)
+-- ------------------------------
+-- Written by the server at boot (server/src/db/migrations.rs): one row per
+-- applied migration, keyed by file name, so a restart only runs what is new.
+-- Fresh installs get the table from here; databases that predate it get it
+-- from the runner (DEFINE … IF NOT EXISTS) on the first boot after this
+-- schema landed. Migrations 001–014 were squashed into this file on
+-- 2026-10-18; numbering continues from 015 in server/migrations/.
+
+DEFINE TABLE schema_migration TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+
+DEFINE FIELD name ON schema_migration TYPE string PERMISSIONS FULL;        -- migration file stem, e.g. "015_profile_public_email"
+DEFINE FIELD checksum ON schema_migration TYPE string PERMISSIONS FULL;    -- sha256 of the file as embedded in the binary (drift detection)
+DEFINE FIELD applied_at ON schema_migration TYPE datetime VALUE $value OR time::now() PERMISSIONS FULL;
+
+DEFINE INDEX idx_schema_migration_name ON schema_migration FIELDS name UNIQUE;

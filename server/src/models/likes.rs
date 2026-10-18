@@ -159,9 +159,13 @@ impl LikesModel {
     /// don't work in the traversal FROM position).
     pub async fn get_liked_people(person_id: &RecordId) -> Result<Vec<LikedPerson>, Error> {
         Self::validate_person_id(person_id)?;
-        // Build query with record ID directly — bind params don't work in graph traversal FROM position
+        // Record id formatted in directly — bind params don't work in the graph
+        // traversal FROM position. Liked profiles with a photo come first (the
+        // site-wide rule for any list of people), then alphabetically by username.
         let query = format!(
-            "SELECT <string> id AS id, username, name, profile.avatar AS avatar, profile.headline AS headline FROM {}->likes->person",
+            "SELECT <string> id AS id, username, name, profile.avatar AS avatar, profile.headline AS headline, \
+             string::len(profile.avatar ?? '') > 0 AS _has_photo \
+             FROM {}->likes->person ORDER BY _has_photo DESC, username ASC",
             person_id.display()
         );
 

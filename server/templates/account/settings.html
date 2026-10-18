@@ -98,14 +98,14 @@
         <!-- Contact Visibility -->
         <section id="section-contact" data-section="contact">
             <h2>Contact Information</h2>
-            <p data-role="current-value">Choose whether to display your email and phone number on your public profile.</p>
+            <p data-role="current-value">Choose whether to display your phone number on your public profile.</p>
             <form method="post" action="/account/contact-visibility" data-component="form">
                 <div class="auth-field">
-                    <label for="checkbox-show-contact" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
-                        <input type="checkbox" id="checkbox-show-contact" name="show_contact_info" {% if show_contact_info %}checked{% endif %} style="width:auto;" />
-                        Show my email and phone number on my profile
+                    <label for="checkbox-show-contact" data-role="checkbox-label">
+                        <input type="checkbox" id="checkbox-show-contact" name="show_contact_info" {% if show_contact_info %}checked{% endif %} />
+                        Show my phone number on my profile
                     </label>
-                    <span class="auth-help">When disabled, your contact details are only visible to you.</span>
+                    <span class="auth-help">When disabled, your phone number is only visible to you. Your sign-in email is never shown on your profile — to list a contact address, add a public email under <a href="/profile/edit">Edit Profile</a>.</span>
                 </div>
                 <button type="submit" data-role="btn-primary">Save</button>
             </form>

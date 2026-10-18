@@ -128,6 +128,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // Apply any schema migrations this build ships that the database hasn't
+    // seen yet (server/migrations/*.surql). A failure refuses to start the
+    // server rather than serve traffic against a half-migrated schema.
+    debug!("Applying pending schema migrations");
+    match slatehub::db::migrations::run_pending().await {
+        Ok(report) if report.applied.is_empty() => info!(
+            already_applied = report.already_applied.len(),
+            "Schema is up to date"
+        ),
+        Ok(report) => info!(applied = ?report.applied, "Schema migrations applied"),
+        Err(e) => {
+            error!("Schema migration failed — refusing to start: {}", e);
+            return Err(e.into());
+        }
+    }
+
     // Ensure an OIDC signing key exists (generates one on first boot)
     debug!("Ensuring OIDC signing key");
     if let Err(e) = ensure_signing_key().await {

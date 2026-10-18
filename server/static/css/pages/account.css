@@ -132,6 +132,24 @@
     line-height: 1.4;
 }
 
+#account-sections .auth-help a {
+    color: rgba(214, 216, 202, 0.8);
+    text-decoration: underline;
+}
+
+/* Checkbox rows (contact visibility) */
+#account-sections .auth-field label[data-role="checkbox-label"] {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+#account-sections .auth-field label[data-role="checkbox-label"] input[type="checkbox"] {
+    width: auto;
+    accent-color: var(--color-accent, #eb5437);
+}
+
 /* Current value display */
 [data-role="current-value"] {
     font-size: var(--text-sm);

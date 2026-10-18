@@ -884,6 +884,13 @@
     padding-right: var(--space-2xl);
 }
 
+/* "(displayed publicly)" marker on fields whose value everyone can see */
+[data-component="profile-edit"] label [data-role="visibility-note"] {
+    text-transform: none;
+    letter-spacing: 0.02em;
+    color: var(--color-accent, #eb5437);
+}
+
 [data-component="profile-edit"] small[data-role="help-text"] {
     display: block;
     margin-top: var(--space-xs);

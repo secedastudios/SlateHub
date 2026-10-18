@@ -51,3 +51,23 @@ pub fn format_bytes(bytes: u64) -> String {
 pub fn format_bytes_i64(bytes: i64) -> String {
     format_bytes(u64::try_from(bytes).unwrap_or(0))
 }
+
+/// Cheap shape check for a user-supplied email address: exactly one `@`, a
+/// non-empty local part, a domain containing a dot, no whitespace. Not RFC
+/// 5322 — the database ASSERT (`string::is_email`) is the authority; this
+/// exists so forms can reject obvious typos with a friendly message instead
+/// of surfacing a database error.
+pub fn looks_like_email(s: &str) -> bool {
+    let s = s.trim();
+    if s.chars().any(char::is_whitespace) {
+        return false;
+    }
+    let Some((local, domain)) = s.split_once('@') else {
+        return false;
+    };
+    !local.is_empty()
+        && !domain.contains('@')
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+}

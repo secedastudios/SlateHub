@@ -171,6 +171,9 @@ pub struct Profile {
     pub location: Option<String>,
     pub website: Option<String>,
     pub phone: Option<String>,
+    /// Opt-in contact email shown on the public profile. Never the sign-in
+    /// [`Person::email`], which is a credential and is not displayed anywhere.
+    pub public_email: Option<String>,
     pub is_public: bool,
 
     // Physical Attributes
@@ -469,6 +472,37 @@ impl Person {
         Ok(persons)
     }
 
+    /// One page of the public `/people` directory: accounts past email
+    /// verification that have at least a name, headline, or bio.
+    ///
+    /// Ordering is the site-wide rule for any list of people — profiles
+    /// **with a photo first** (an empty-string avatar counts as none), then
+    /// identity-verified, then newest. Callers pass `limit = page + 1` to
+    /// detect whether another page exists.
+    pub async fn directory_page(limit: usize, offset: usize) -> Result<Vec<Self>> {
+        let sql = r#"
+            SELECT *,
+                string::len(profile.avatar ?? '') > 0 AS _has_photo,
+                verification_status = 'identity' AS _vord
+            OMIT embedding, embedding_text
+            FROM person
+            WHERE verification_status != 'unverified'
+              AND (profile.name IS NOT NULL
+               OR profile.headline IS NOT NULL
+               OR profile.bio IS NOT NULL)
+            ORDER BY _has_photo DESC, _vord DESC, created_at DESC
+            LIMIT $limit
+            START $offset
+        "#;
+        let mut response = DB
+            .query(sql)
+            .bind(("limit", limit as i64))
+            .bind(("offset", offset as i64))
+            .await?;
+        let persons: Vec<Person> = response.take(0)?;
+        Ok(persons)
+    }
+
     /// Searches for persons by skill.
     ///
     /// # Arguments
@@ -581,6 +615,7 @@ impl Person {
     /// * `bio` - Optional new bio
     /// * `location` - Optional new location
     /// * `website` - Optional new website
+    /// * `public_email` - Optional public contact email; empty string clears it
     /// * `skills` - Optional comma-separated list of skills
     /// * `languages` - Optional comma-separated list of languages
     /// * `availability` - Optional availability status
@@ -595,6 +630,7 @@ impl Person {
         bio: Option<String>,
         location: Option<String>,
         website: Option<String>,
+        public_email: Option<String>,
         skills: Option<String>,
         languages: Option<String>,
         availability: Option<String>,
@@ -669,6 +705,7 @@ impl Person {
                 location: None,
                 website: None,
                 phone: None,
+                public_email: None,
                 is_public: false,
                 height_mm: None,
                 weight_kg: None,
@@ -718,6 +755,10 @@ impl Person {
             }
             if let Some(w) = website {
                 profile.website = if w.is_empty() { None } else { Some(w) };
+            }
+            if let Some(e) = public_email {
+                let e = e.trim().to_string();
+                profile.public_email = if e.is_empty() { None } else { Some(e) };
             }
             if let Some(s) = skills {
                 profile.skills = if s.is_empty() {
