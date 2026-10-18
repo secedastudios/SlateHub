@@ -473,24 +473,32 @@ impl Person {
     }
 
     /// One page of the public `/people` directory: accounts past email
-    /// verification that have at least a name, headline, or bio.
+    /// verification whose profile has at least a name, headline, or bio.
     ///
-    /// Ordering is the site-wide rule for any list of people — profiles
-    /// **with a photo first** (an empty-string avatar counts as none), then
-    /// identity-verified, then newest. Callers pass `limit = page + 1` to
-    /// detect whether another page exists.
+    /// Ordering is tiered. Profiles **with a photo always come first** (the
+    /// site-wide rule for any list of people; an empty-string avatar counts
+    /// as none), then identity-verified, then profiles with real text (a
+    /// headline or bio, rather than just the name every signup gets), then
+    /// newest. Callers pass `limit = page + 1` to detect whether another page
+    /// exists.
+    ///
+    /// `IS NOT NONE`, not `IS NOT NULL`: an unset option field is NONE, and
+    /// `NONE IS NOT NULL` is true, so the old form matched every row — the
+    /// Rust card filter did the real work, and `has_more` counted rows that
+    /// were about to be dropped.
     pub async fn directory_page(limit: usize, offset: usize) -> Result<Vec<Self>> {
         let sql = r#"
             SELECT *,
                 string::len(profile.avatar ?? '') > 0 AS _has_photo,
-                verification_status = 'identity' AS _vord
+                verification_status = 'identity' AS _vord,
+                (profile.headline IS NOT NONE OR profile.bio IS NOT NONE) AS _has_text
             OMIT embedding, embedding_text
             FROM person
             WHERE verification_status != 'unverified'
-              AND (profile.name IS NOT NULL
-               OR profile.headline IS NOT NULL
-               OR profile.bio IS NOT NULL)
-            ORDER BY _has_photo DESC, _vord DESC, created_at DESC
+              AND (profile.name IS NOT NONE
+               OR profile.headline IS NOT NONE
+               OR profile.bio IS NOT NONE)
+            ORDER BY _has_photo DESC, _vord DESC, _has_text DESC, created_at DESC
             LIMIT $limit
             START $offset
         "#;

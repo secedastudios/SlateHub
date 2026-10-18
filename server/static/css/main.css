@@ -345,6 +345,20 @@ article {
     margin-left: var(--space-lg);
     position: relative;
     overflow: hidden;
+    transition:
+        opacity var(--transition-base),
+        color var(--transition-base),
+        letter-spacing var(--transition-base);
+}
+
+/* The slogan wakes up when the brand lockup is hovered — triggered from
+   #nav-brand rather than the span itself, so it responds to the logo too and
+   reads as one piece of branding instead of a stray hoverable label. */
+#nav-brand:hover #brand-slogan,
+#nav-brand:focus-within #brand-slogan {
+    opacity: 1;
+    color: var(--color-accent);
+    letter-spacing: 0.04em;
 }
 
 /* Nav Brand — Logo and Slogan */
@@ -1542,22 +1556,71 @@ dd {
     margin-bottom: 0;
 }
 
+/* Horizontal inset for every section below the hero: the base gutter plus 7.5%
+   of the viewport per side, applied as padding rather than max-width so the
+   sections' full-bleed backgrounds still reach both edges while the content
+   narrows. One value to tune. Percentage, not vw, so a scrollbar can't cause
+   horizontal overflow. The hero is excluded; its inset is on #hero-content. */
+#home-main {
+    --home-section-inset: calc(var(--space-xl) + 7.5%);
+}
+
 /* Hero — Two-column split layout */
 #section-hero {
     display: grid;
-    grid-template-columns: 1fr 1.2fr;
+    /* minmax(0, …): a bare fr track won't shrink below its content, which let
+       an over-wide item push the grid past the viewport. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
     min-height: calc(100dvh - 65px);
     margin-bottom: 0;
     overflow: hidden;
 }
 
-/* Hero Content — Left column */
+/* Hero Content — Left column. The left inset lines the headline up with the
+   sections below. vw rather than %, because this element's containing block
+   is its own grid column and a percentage would resolve against that. */
 #hero-content {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: var(--space-4xl) 0 var(--space-4xl) var(--space-xl);
+    /* The inset tapers to zero at 900px: this column is only ~45% of the
+       viewport, and a fixed inset squeezed the CTA row until it overflowed. */
+    padding: var(--space-4xl) 0 var(--space-4xl)
+        calc(var(--space-xl) + clamp(0px, (100vw - 900px) * 0.2, 5.5vw));
     gap: var(--space-xl);
+    /* Warm lift toward the photograph, held off until 40% so the copy stays
+       on flat dark. Derived from the accent token with color-mix(). */
+    background-image: linear-gradient(
+        to right,
+        transparent 40%,
+        color-mix(in srgb, var(--color-accent) 10%, transparent) 100%
+    );
+}
+
+/* The #section-who texture behind the hero copy, at a lower opacity than
+   there: small uppercase body copy loses contrast to it faster than big
+   display headings do. */
+#hero-content::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("/static/images/who-bg.png");
+    background-size: cover;
+    background-position: center;
+    opacity: 0.18;
+    /* Masked so the grain only builds toward the photo and the copy sits on
+       plain dark. The #000 in a mask is alpha, not a colour. */
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 75%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 75%);
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Lift the copy and buttons above the backdrop. */
+#hero-content > * {
+    position: relative;
+    z-index: 1;
 }
 
 /* "Meet SlateHub" pill tag */
@@ -1573,6 +1636,38 @@ dd {
     font-weight: var(--font-weight-medium);
     text-transform: uppercase;
     letter-spacing: 0.08em;
+}
+
+/* Hover: accent fill sweeps in from the left. isolation keeps the z-index:-1
+   sweep behind the text but inside the pill; overflow clips it to the rounded
+   corners. Scoped to #hero-tag so the other section tags stay static. */
+#hero-tag {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    transition:
+        color var(--transition-base),
+        border-color var(--transition-base);
+}
+
+#hero-tag::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--transition-base);
+}
+
+#hero-tag:hover {
+    color: var(--color-text-light);
+    border-color: var(--color-accent);
+}
+
+#hero-tag:hover::before {
+    transform: scaleX(1);
 }
 
 /* Hero heading — condensed bold */
@@ -1604,6 +1699,9 @@ dd {
 /* Hero actions row */
 #section-hero #hero-actions {
     display: flex;
+    /* Both buttons are nowrap and need ~470px together; the column drops
+       below that around 1100px. */
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-lg);
     margin-top: var(--space-md);
@@ -1617,8 +1715,12 @@ dd {
     background-color: var(--color-accent);
     color: var(--color-text-light);
     border: 1px solid var(--color-accent);
+    /* Display face like the section headings. Weight 700 because Bold is the
+       only file declared for this family; lighter weights get synthesised and
+       look smeared. */
+    font-family: "Onsite Condensed TRIAL", sans-serif;
     font-size: var(--text-sm);
-    font-weight: var(--font-weight-medium);
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     text-decoration: none;
@@ -1628,12 +1730,14 @@ dd {
     white-space: nowrap;
     transition:
         background-color var(--transition-fast),
-        border-color var(--transition-fast);
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
 }
 
 #section-hero #link-hero-signup:hover {
     background-color: var(--color-accent-hover);
     border-color: var(--color-accent-hover);
+    transform: scale(1.03);
 }
 
 #section-hero #link-hero-browse {
@@ -1642,17 +1746,23 @@ dd {
     background-color: transparent;
     color: var(--color-text-primary);
     border: 1px solid var(--color-text-muted);
+    /* Matches #link-hero-signup; see the note there on weight 700. */
+    font-family: "Onsite Condensed TRIAL", sans-serif;
     font-size: var(--text-sm);
-    font-weight: var(--font-weight-medium);
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     text-decoration: none;
-    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
 }
 
 #section-hero #link-hero-browse:hover {
     background-color: rgba(214, 216, 202, 0.1);
     border-color: var(--color-text-primary);
+    transform: scale(1.03);
 }
 
 /* Note text beside CTA */
@@ -1676,6 +1786,10 @@ dd {
     height: 100%;
     object-fit: cover;
     display: block;
+    /* The faces sit in the upper third of this square photo. When a short,
+       wide window makes cover crop vertically, biasing to 35% keeps the heads
+       in frame and gives up ceiling instead. */
+    object-position: 50% 35%;
 }
 
 /* Search overlay on hero image */
@@ -1883,7 +1997,7 @@ dd {
 #section-why {
     background-color: var(--color-bg-secondary);
     color: var(--color-text-secondary);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
 }
 
 /* Intro — tag + heading */
@@ -1950,6 +2064,26 @@ dd {
 /* First card has no left padding */
 [data-component="feature-card"]:first-child {
     padding-left: 0;
+}
+
+/* Mid-width: five columns get too tight once inset, so drop to three. A range
+   query on purpose: open-ended max-width would also match mobile and strip
+   card 4's left border there. */
+@media (min-width: 769px) and (max-width: 1100px) {
+    #why-features {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Left column (1st, 4th) gets no divider */
+    [data-component="feature-card"]:nth-child(3n + 1) {
+        border-left: none;
+        padding-left: 0;
+    }
+
+    /* Second row gets a horizontal divider instead */
+    [data-component="feature-card"]:nth-child(n + 4) {
+        border-top: 1px solid var(--color-border-dark);
+    }
 }
 
 /* Feature icons */
@@ -2034,7 +2168,7 @@ dd {
     position: relative;
     background-color: var(--color-bg-dark);
     color: var(--color-text-light);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
     overflow: hidden;
 }
 
@@ -2192,7 +2326,7 @@ dd {
 #section-orgs {
     background-color: var(--color-bg-secondary);
     color: var(--color-text-secondary);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
 }
 
 #section-orgs #orgs-intro {
@@ -2304,11 +2438,44 @@ dd {
 #section-business-model {
     background-color: var(--color-bg-dark);
     color: var(--color-text-light);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
 }
 
+/* Copy left, video right. The 720px cap moved onto the text so the grid can
+   use the full width; minmax(0, 1fr) so the video can't force overflow. */
 #business-model-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-3xl);
+    align-items: center;
+}
+
+#business-model-inner > #business-model-text {
     max-width: 720px;
+}
+
+#business-model-video {
+    width: 100%;
+    margin: 0;
+}
+
+/* aspect-ratio reserves the 16:9 box before the player loads, so nothing shifts. */
+#business-model-video iframe {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    border-radius: var(--radius-lg);
+    background-color: var(--color-bg-dark);
+    box-shadow: var(--shadow-xl);
+}
+
+#business-model-video figcaption {
+    margin-top: var(--space-sm);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    opacity: 0.75;
 }
 
 #section-business-model [data-role="section-tag"] {
@@ -2367,7 +2534,7 @@ dd {
 #section-roadmap {
     background-color: var(--color-bg-tertiary);
     color: var(--color-text-secondary);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
 }
 
 /* Intro — tag + heading */
@@ -2427,6 +2594,16 @@ dd {
 }
 
 /* Phase labels — bold italic uppercase */
+/* Phase icons — inline SVG on the feature-card icons' 40px rhythm, accent
+   coloured so the section isn't all black on pink. */
+[data-role="phase-icon"] {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    margin-bottom: var(--space-sm);
+    color: var(--color-accent);
+}
+
 [data-role="phase-label"] {
     font-family: var(--font-body);
     font-size: var(--text-xs);
@@ -2504,11 +2681,13 @@ dd {
     white-space: nowrap;
     transition:
         background-color var(--transition-fast),
-        opacity var(--transition-fast);
+        opacity var(--transition-fast),
+        transform var(--transition-fast);
 }
 
 #link-roadmap-signup:hover {
     opacity: 0.85;
+    transform: scale(1.03);
 }
 
 /* Roadmap section note color override */
@@ -2523,7 +2702,7 @@ dd {
 #section-testimonials {
     background-color: var(--color-bg-dark);
     color: var(--color-text-light);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
     position: relative;
     overflow: hidden;
 }
@@ -2777,7 +2956,7 @@ dd {
 
 #section-final-cta {
     background-color: var(--color-bg-dark);
-    padding: var(--space-4xl) var(--space-xl);
+    padding: var(--space-4xl) var(--home-section-inset);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2858,6 +3037,27 @@ dd {
     border-color: var(--color-accent-hover);
 }
 
+/* The other homepage CTA pills get the same lift as the hero and roadmap
+   buttons. The colour transitions are restated because transition is one
+   property. Must stay after every button rule above: equal specificity, so
+   source order is what wins. */
+#link-why-signup,
+#link-who-signup,
+#section-orgs [data-role="section-actions"] a,
+#link-community-join {
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+#link-why-signup:hover,
+#link-who-signup:hover,
+#section-orgs [data-role="section-actions"] a:hover,
+#link-community-join:hover {
+    transform: scale(1.03);
+}
+
 /* Hero responsive */
 @media (max-width: 768px) {
     #section-hero {
@@ -2884,9 +3084,11 @@ dd {
         align-items: flex-start;
     }
 
+    /* 60% clears the faces in the current hero photo (35% was framed for the
+       old one). Re-check when the image changes. */
     [data-component="hero-search"] {
         width: 90%;
-        top: 35%;
+        top: 60%;
     }
 
     #hero-ticker {
@@ -2981,13 +3183,44 @@ dd {
         padding: var(--space-3xl) var(--space-lg);
     }
 
-    /* What's Next — responsive */
+    /* Single column: copy first, player below it (DOM order). */
+    #business-model-inner {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+
+    /* 80% and centred: full width dominated the stacked layout. margin-inline
+       overrides the base margin: 0. */
+    #business-model-video {
+        width: 80%;
+        margin-inline: auto;
+    }
+
+    /* What's Next — mobile only: with one column the section reads better
+       centred, icons, labels, copy and CTA on one axis. Desktop keeps its
+       left-aligned columns. */
     #section-roadmap {
-        padding: var(--space-3xl) var(--space-lg);
+        padding: var(--space-3xl) var(--space-2xl);
+        text-align: center;
     }
 
     #heading-roadmap {
         max-width: none;
+    }
+
+    /* Flex containers: text-align doesn't move the icons and buttons. */
+    [data-component="phase-card"],
+    [data-role="phase-cta"] {
+        align-items: center;
+    }
+
+    /* The label is a flex row of status dot + text; centre them as a pair. */
+    [data-role="phase-label"] {
+        justify-content: center;
+    }
+
+    #roadmap-actions {
+        justify-content: center;
     }
 
     #roadmap-grid {
@@ -3721,6 +3954,54 @@ dd {
 /* Page transitions */
 #main-content {
     animation: fadeIn 0.3s ease-out;
+}
+
+/* ----------------------------------------
+   SCROLL REVEAL
+   ---------------------------------------- */
+
+/* [data-reveal] content groups fade and rise as they scroll into view, driven
+   by the element's own view timeline. No script: browsers without scroll-
+   driven animations skip the whole block and simply show the content, and so
+   do reduced-motion users, so there is no hidden state that can get stuck.
+   Mark content groups (intros, cards, action rows), not whole <section>s,
+   because fading a section fades its background block too. Keep targets out
+   of any ancestor with overflow other than visible: that ancestor would become
+   the timeline's scroller and the animation would never progress. */
+@supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+        [data-reveal] {
+            animation: reveal-rise linear both;
+            animation-timeline: view();
+            /* Plays while the element's leading edge travels from the bottom
+               of the viewport to 35% of the way in, then holds. */
+            animation-range: entry 0% entry 35%;
+        }
+
+        /* Cascade across a card grid: each card starts a little later. */
+        [data-role="features-grid"] [data-component="feature-card"]:nth-child(2) {
+            animation-range: entry 8% entry 43%;
+        }
+
+        [data-role="features-grid"] [data-component="feature-card"]:nth-child(3) {
+            animation-range: entry 16% entry 51%;
+        }
+
+        [data-role="features-grid"] [data-component="feature-card"]:nth-child(4) {
+            animation-range: entry 24% entry 59%;
+        }
+
+        [data-role="features-grid"] [data-component="feature-card"]:nth-child(5) {
+            animation-range: entry 32% entry 67%;
+        }
+    }
+}
+
+@keyframes reveal-rise {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
 }
 
 /* ========================================
